@@ -1,7 +1,7 @@
 extends Control
 
 # Artwork and counters only; the status projection owns all values and lifetimes.
-const CardArt=preload("res://ui/card_face.gd")
+const CardArt=preload("res://ui/elements/card_face.gd")
 const KINDS=["info","flame","weakness","bind","stock","shield","charge","ritual","ready","puppet","split","arms","legs","hand","foot","eye","mouth","movement","strength","dexterity","sure_cast","power","mana","energy","pressure","wall","cards"]
 var status: Dictionary={}
 var ink=Color("d8c18f")

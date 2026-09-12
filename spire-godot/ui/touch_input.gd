@@ -69,7 +69,7 @@ func show_details() -> void:
  if control==null: return
  var parent=control
  while parent!=null:
-  if parent.get_script()==preload("res://ui/card_face.gd"):
+  if parent.get_script()==preload("res://ui/elements/card_face.gd"):
    control=parent;break
   parent=parent.get_parent()
  control.mouse_entered.emit()

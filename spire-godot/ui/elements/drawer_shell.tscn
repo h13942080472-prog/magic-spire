@@ -1,0 +1,23 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/elements/drawer_shell.gd" id="1_drawer_shell"]
+
+[node name="DrawerShell" type="Control"]
+mouse_filter = 2
+script = ExtResource("1_drawer_shell")
+
+[node name="DismissDrawer" type="Button" parent="."]
+
+[node name="InformationDrawer" type="PanelContainer" parent="."]
+
+[node name="Content" type="VBoxContainer" parent="InformationDrawer"]
+
+[node name="Heading" type="HBoxContainer" parent="InformationDrawer/Content"]
+
+[node name="Crest" type="TextureRect" parent="InformationDrawer/Content/Heading"]
+
+[node name="TitleLabel" type="Label" parent="InformationDrawer/Content/Heading"]
+
+[node name="CloseDrawer" type="Button" parent="InformationDrawer/Content/Heading"]
+
+[node name="Separator" type="HSeparator" parent="InformationDrawer/Content"]

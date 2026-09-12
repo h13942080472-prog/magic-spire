@@ -51,7 +51,7 @@ static func run(t) -> void:
    await t.close_information()
    var card_offer=ui.view.shop.stock.filter(func(o):return o.kind=="card")[0]
    var face=ui.find_child("ShopOffer%d" % card_offer.index,true,false)
-   t.check(face.get_script()==preload("res://ui/card_face.gd") and face.drag_payload.is_empty(),"SHOP uses hand face without gameplay drag")
+   t.check(face.get_script()==preload("res://ui/elements/card_face.gd") and face.drag_payload.is_empty(),"SHOP uses hand face without gameplay drag")
    var relic_offer=ui.view.shop.stock.filter(func(o):return o.kind=="relic")[0]
    var relic_button=ui.find_child("ShopOffer%d" % relic_offer.index,true,false)
    t.check(t.visible_text(relic_button).contains(relic_offer.rarity_name) and relic_offer.detail.begins_with(relic_offer.rarity_name+"遗物"),"RELIC shop displays rarity in both stock and details")
@@ -153,7 +153,7 @@ static func release_service(t) -> void:
  await Pointer.press(t,remove)
  var card=ui.actions.select("service_remove")[0]
  var deck=ui.view.deck_count
- t.check(ui.candidate_buttons[card.id].get_script()==preload("res://ui/card_face.gd"),"REMOVE service uses selectable hand card face")
+ t.check(ui.candidate_buttons[card.id].get_script()==preload("res://ui/elements/card_face.gd"),"REMOVE service uses selectable hand card face")
  await Pointer.press(t,ui.candidate_buttons[card.id]);await dismiss_payment(t);await t.close_information()
  t.check(ui.view.deck_count==deck-1 and ui.find_child("ShopRemove",true,false).disabled,"SHOP UI original single-use card removal remains usable")
  ui.game.state.mana=19;ui.render();await t.frames()

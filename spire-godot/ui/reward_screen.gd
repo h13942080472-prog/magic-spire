@@ -56,13 +56,14 @@ static func row(ui, root: Control, entry: Dictionary, rect: Rect2) -> void:
    ui.show_reward_relics=true;ui.render(ui.view)
   elif not choices.is_empty(): ui._submit(choices[0])
  var accent=ui.CYAN if entry.category=="item" else ui.GOLD
- var button=ui._button("",click,accent)
+ var button=preload("res://ui/elements/reward_row.tscn").instantiate()
+ ui._style_button(button,"",click,accent)
  button.name="Reward_"+entry.category+("_"+entry.id if entry.id!="" else "")
  button.disabled=entry.claimed or not entry.available
  var normal=ui.Palette.surface(Color("152530"),accent.darkened(0.38),10);normal.border_width_left=3
  button.add_theme_stylebox_override("normal",normal)
  button.add_theme_stylebox_override("hover",ui.Palette.button_style("hover",accent))
- ui._place(button,rect,root)
+ root.add_child(button);button.position=rect.position;button.size=rect.size
  if (entry.category!="card" or entry.get("direct",false)) and not entry.has("choices") and not choices.is_empty(): ui.candidate_buttons[choices[0].id]=button
  var glyph: Control
  if entry.category=="relic":
@@ -70,16 +71,16 @@ static func row(ui, root: Control, entry: Dictionary, rect: Rect2) -> void:
  else:
   glyph=Glyph.new();glyph.kind="tool" if entry.category=="item" else entry.category;glyph.symbol=entry.symbol
  glyph.modulate=Color(1,1,1,0.4) if entry.claimed else Color.WHITE
- ui._place(glyph,Rect2(12,8,78,78),button)
- var name=ui._label(entry.name,23,ui.MUTED if entry.claimed else ui.TEXT)
+ ui._place(glyph,Rect2(12,8,78,78),button);button.move_child(glyph,0)
+ var name=ui._style_label(button.title_label(),entry.name,23,ui.MUTED if entry.claimed else ui.TEXT)
  name.name="BattleItemDrop" if entry.category=="item" else ("BattleRelicDrop" if entry.category=="relic" else "RewardCardTitle")
- ui._place(name,Rect2(106,17,389,34),button)
- var subtitle=ui._label(entry.reason if entry.reason!="" else entry.subtitle,14,ui.RED if entry.reason!="" else ui.MUTED)
- ui._place(subtitle,Rect2(106,55,389,28),button)
+ name.position=Vector2(106,17);name.size=Vector2(389,34)
+ var subtitle=ui._style_label(button.subtitle_label(),entry.reason if entry.reason!="" else entry.subtitle,14,ui.RED if entry.reason!="" else ui.MUTED)
+ subtitle.position=Vector2(106,55);subtitle.size=Vector2(389,28)
  var action_text="已跳过" if entry.skipped else ("✓ 已领取" if entry.claimed else ("无法领取" if not entry.available else entry.get("action_label",("选择  ›" if (entry.category=="card" and not entry.get("direct",false)) or entry.has("choices") else "领取  ›"))))
- var action=ui._label(action_text,18,ui.MUTED if entry.claimed or not entry.available else accent)
+ var action=ui._style_label(button.action_label(),action_text,18,ui.MUTED if entry.claimed or not entry.available else accent)
  action.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
- ui._place(action,Rect2(510,31,123,30),button)
+ action.position=Vector2(510,31);action.size=Vector2(123,30)
  for child in button.get_children():
   if child is Control: ui._ignore_mouse(child)
  button.mouse_entered.connect(func():ui._show_term(button,{"label":entry.name,"detail":entry.detail}))

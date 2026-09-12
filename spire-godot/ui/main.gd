@@ -5,10 +5,20 @@ const ShopScreen=preload("res://ui/shop_screen.gd")
 const Arena=preload("res://ui/arena.gd")
 const EquipmentPortrait=preload("res://ui/equipment_portrait.gd")
 const OVERLOAD_COLOR=Color("ed82b9")
-const CardFace=preload("res://ui/card_face.gd")
+const CardFace=preload("res://ui/elements/card_face.gd")
+const CardFaceScene=preload("res://ui/elements/card_face.tscn")
 const StatusIcon=preload("res://ui/status_icon.gd")
 const RouteMap=preload("res://ui/route_map.gd")
-const DropTarget=preload("res://ui/drop_target.gd")
+const DropTarget=preload("res://ui/elements/drop_target.gd")
+const DropTargetScene=preload("res://ui/elements/drop_target.tscn")
+const TermPopupScene=preload("res://ui/elements/term_popup.tscn")
+const DrawerShellScene=preload("res://ui/elements/drawer_shell.tscn")
+const BasicActionTileScene=preload("res://ui/elements/basic_action_tile.tscn")
+const EnemyActorScene=preload("res://ui/elements/enemy_actor.tscn")
+const EquipmentTileScene=preload("res://ui/elements/equipment_tile.tscn")
+const EquipmentDropCardScene=preload("res://ui/elements/equipment_drop_card.tscn")
+const PrisonSiteScene=preload("res://ui/elements/prison_site.tscn")
+const ItemRowScene=preload("res://ui/elements/item_row.tscn")
 const DragTargets=preload("res://ui/drag_targets.gd")
 const ActionIndex=preload("res://ui/action_index.gd")
 const Backdrop=preload("res://ui/dungeon_backdrop.gd")
@@ -208,22 +218,26 @@ func _open_drawer(field: String, zone: String="deck") -> void:
 
 func _drawer_shell(title: String, rect: Rect2, tone: Color=CYAN) -> VBoxContainer:
  # One dismiss surface prevents clicks passing through to underlying actions.
- var dismiss=Button.new()
- dismiss.name="DismissDrawer";dismiss.z_index=228
+ var shell=_place(DrawerShellScene.instantiate(),Rect2(0,0,1600,900))
+ var dismiss=shell.dismiss()
+ dismiss.z_index=228
  var shade=StyleBoxFlat.new();shade.bg_color=Color(0.015,0.025,0.04,0.55)
  for state in ["normal","hover","pressed","focus"]: dismiss.add_theme_stylebox_override(state,shade)
  dismiss.pressed.connect(func():_close_drawers();_refresh_drawers())
- _place(dismiss,Rect2(0,0,1600,900) if show_home or show_deck or show_event_selection else Rect2(376,64,1224,836))
- var panel=_panel(rect);panel.z_index=230;panel.name="InformationDrawer"
- var content=VBoxContainer.new();content.add_theme_constant_override("separation",12);panel.add_child(content)
- var heading=HBoxContainer.new();content.add_child(heading)
- heading.add_theme_constant_override("separation",10)
- if rect.size.x>=650:
-  var crest=TextureRect.new();crest.texture=preload("res://assets/ui/crest.svg");crest.custom_minimum_size=Vector2(32,32)
-  crest.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;crest.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;crest.mouse_filter=Control.MOUSE_FILTER_IGNORE;heading.add_child(crest)
- var label=_label(title,23,tone);label.size_flags_horizontal=Control.SIZE_EXPAND_FILL;heading.add_child(label)
- var close=_button(_text("ui.common.close","关闭 ×"),func():_close_drawers();_refresh_drawers(),MUTED);close.name="CloseDrawer";heading.add_child(close)
- content.add_child(HSeparator.new())
+ var dismiss_rect=Rect2(0,0,1600,900) if show_home or show_deck or show_event_selection else Rect2(376,64,1224,836)
+ dismiss.position=dismiss_rect.position;dismiss.size=dismiss_rect.size
+ var panel=shell.panel()
+ panel.z_index=230;panel.add_theme_stylebox_override("panel",Palette.window_frame())
+ panel.position=rect.position;panel.size=rect.size
+ var content=shell.content();content.add_theme_constant_override("separation",12)
+ var heading=shell.heading();heading.add_theme_constant_override("separation",10)
+ var crest=shell.crest()
+ crest.texture=preload("res://assets/ui/crest.svg");crest.custom_minimum_size=Vector2(32,32)
+ crest.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;crest.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+ crest.mouse_filter=Control.MOUSE_FILTER_IGNORE;crest.visible=rect.size.x>=650
+ shell.title_label().size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ _style_label(shell.title_label(),title,23,tone)
+ _style_button(shell.close_button(),_text("ui.common.close","关闭 ×"),func():_close_drawers();_refresh_drawers(),MUTED)
  return content
 
 func _menu_drawer() -> void:
@@ -291,8 +305,7 @@ func _set_language(language: String) -> void:
  theme=Palette.controls(font)
  render(view)
 
-func _label(text: String, fs: int=16, color: Color=TEXT) -> Label:
- var l=Label.new()
+func _style_label(l: Label, text: String, fs: int, color: Color) -> Label:
  l.text=text.replace("右键","长按") if OS.has_feature("android") else text
  l.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
  l.add_theme_font_size_override("font_size",fs)
@@ -300,8 +313,10 @@ func _label(text: String, fs: int=16, color: Color=TEXT) -> Label:
  l.mouse_filter=Control.MOUSE_FILTER_IGNORE
  return l
 
-func _button(text: String, fn: Callable, color: Color=GOLD, drop_zone: bool=false) -> Button:
- var b=DropTarget.new() if drop_zone else Button.new()
+func _label(text: String, fs: int=16, color: Color=TEXT) -> Label:
+ return _style_label(Label.new(),text,fs,color)
+
+func _style_button(b: Button, text: String, fn: Callable, color: Color=GOLD) -> Button:
  b.text=text
  for state in ["normal","hover","pressed","focus","disabled"]:
   b.add_theme_stylebox_override(state,Palette.button_style(state,CYAN if state=="focus" else color))
@@ -311,6 +326,9 @@ func _button(text: String, fn: Callable, color: Color=GOLD, drop_zone: bool=fals
  b.mouse_default_cursor_shape=Control.CURSOR_POINTING_HAND
  b.pressed.connect(fn)
  return b
+
+func _button(text: String, fn: Callable, color: Color=GOLD, drop_zone: bool=false) -> Button:
+ return _style_button(DropTargetScene.instantiate() if drop_zone else Button.new(),text,fn,color)
 
 func _place(node: Control, rect: Rect2, parent: Control=null) -> Control:
  var owner=parent if parent!=null else (drawer_layer if building_drawer else layout)
@@ -335,8 +353,7 @@ func _scroll(parent: Node) -> VBoxContainer:
  scroll.add_child(box)
  return box
 
-func _bar(value: float, maximum: float, color: Color) -> ProgressBar:
- var b=ProgressBar.new()
+func _style_bar(b: ProgressBar, value: float, maximum: float, color: Color) -> ProgressBar:
  b.max_value=maximum
  b.value=value
  b.show_percentage=false
@@ -347,6 +364,9 @@ func _bar(value: float, maximum: float, color: Color) -> ProgressBar:
  b.add_theme_stylebox_override("background",back)
  b.add_theme_stylebox_override("fill",fill)
  return b
+
+func _bar(value: float, maximum: float, color: Color) -> ProgressBar:
+ return _style_bar(ProgressBar.new(),value,maximum,color)
 
 func render(snapshot: Dictionary={}) -> void:
  DragTargets.clear(self)
@@ -651,8 +671,7 @@ func _battle_scene() -> void:
  var enemy_row_start=ENEMY_STAGE_LEFT+(ENEMY_STAGE_WIDTH-enemy_row_width)/2.0
  for i in range(enemy_count):
   var e=living[i]
-  var group=Control.new();group.name="EnemyGroup_"+e.id
-  group.mouse_filter=Control.MOUSE_FILTER_IGNORE
+  var group=EnemyActorScene.instantiate();group.name="EnemyGroup_"+e.id
   var screen_x=enemy_row_start+i*ENEMY_GROUP_WIDTH*enemy_scale
   _place(group,Rect2(screen_x,487.0*(1.0-enemy_scale),260,487))
   group.scale=Vector2.ONE*enemy_scale
@@ -665,27 +684,34 @@ func _battle_scene() -> void:
    var columns=mini(4,e.intent_icons.size())
    var bottom=130 if guard else 220
    _place(icon,Rect2(110-columns*27+(n%4)*54,bottom-ceili(e.intent_icons.size()/4.0)*50+(n/4)*50,54,50),group)
+   group.move_child(icon,n)
    icon.z_index=8
    icon.mouse_entered.connect(func():_show_term(icon,entry));icon.mouse_exited.connect(_hide_term)
    icon.focus_entered.connect(func():_show_term(icon,entry));icon.focus_exited.connect(_hide_term)
-  var picture=Arena.new(); picture.name="EnemyArt_"+e.id;picture.mode=e.type;picture.variant=e.visual_variant;picture.inactive=e.gone
+  var picture=group.art(); picture.name="EnemyArt_"+e.id;picture.mode=e.type;picture.variant=e.visual_variant;picture.inactive=e.gone
   picture.template=e.template;picture.art_settings=display_settings
   var picture_rect=Rect2(x+40,134,146,270) if e.type=="guard" else (Rect2(x,134,226,270) if guard else Rect2(x,226,220,180))
-  _place(picture,picture_rect,group)
+  picture.position=picture_rect.position;picture.size=picture_rect.size
   var receiver_rect=picture_rect if guard else Rect2(x,236,220,169)
-  var receiver=_actor_drop_area(receiver_rect,group,true)
+  var receiver=group.receiver()
+  _style_actor_drop_area(receiver,true)
+  receiver.position=receiver_rect.position;receiver.size=receiver_rect.size
   receiver.pressed.connect(func():_select_enemy(e.id))
   _configure_enemy_drop(receiver,e.id)
   actor_targets[e.id]=receiver
-  var b=_button(("◇ " if selected_enemy==e.id and not e.gone else "")+e.name,func():_select_enemy(e.id),CYAN if selected_enemy==e.id else GOLD,true)
+  var b=group.select_button()
+  _style_button(b,("◇ " if selected_enemy==e.id and not e.gone else "")+e.name,func():_select_enemy(e.id),CYAN if selected_enemy==e.id else GOLD)
   b.name="EnemySelect_"+e.id
   _configure_enemy_drop(b,e.id)
   b.disabled=e.gone
-  _place(b,Rect2(x-5,408,236,37),group)
-  _place(_bar(e.hp,e.maximum,RED),Rect2(x,451,226,9),group)
-  var hp=_label("%s / %s" % [game.number(e.hp),game.number(e.maximum)],14,TEXT)
+  b.position=Vector2(x-5,408);b.size=Vector2(236,37)
+  var bar=group.hp_bar()
+  _style_bar(bar,e.hp,e.maximum,RED)
+  bar.position=Vector2(x,451);bar.size=Vector2(226,9)
+  var hp=group.hp_label()
+  _style_label(hp,"%s / %s" % [game.number(e.hp),game.number(e.maximum)],14,TEXT)
   hp.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
-  _place(hp,Rect2(x,463,226,24),group)
+  hp.position=Vector2(x,463);hp.size=Vector2(226,24)
   _status_strip(e.id,Rect2(x,488,226,51),group)
 
 func _select_enemy(enemy_id: String) -> void:
@@ -750,20 +776,21 @@ func _fixed_actions() -> void:
 # Two-line action tiles share the original candidates, tooltips and drag receiver.
 func _basic_action_tile(c: Dictionary, rect: Rect2, parent: Control, summary: String, tags: String, can_flip: bool) -> Button:
  var accent=CYAN if c.payload.kind=="calm" or c.has("casting") else GOLD
- var btn=_button("",func():_submit(c),accent,c.payload.kind=="attack")
+ var btn=BasicActionTileScene.instantiate()
+ _style_button(btn,"",func():_submit(c),accent)
  btn.disabled=not c.valid;btn.clip_contents=true
  _place(btn,rect,parent);candidate_buttons[c.id]=btn
  var cost="%d能量" % c.cost+(" · %s魔力" % game.number(c.mana) if c.mana>0 else "")
  var cost_width=102.0 if c.mana>0 else 44.0
- var title=_label(c.label,14,TEXT if c.valid else MUTED)
+ var title=_style_label(btn.title_label(),c.label,14,TEXT if c.valid else MUTED)
  title.autowrap_mode=TextServer.AUTOWRAP_OFF;title.text_overrun_behavior=TextServer.OVERRUN_TRIM_ELLIPSIS
- _place(title,Rect2(10,5,rect.size.x-cost_width-24,20),btn)
- var price=_label(cost,11,accent if c.valid else MUTED)
+ title.position=Vector2(10,5);title.size=Vector2(rect.size.x-cost_width-24,20)
+ var price=_style_label(btn.price_label(),cost,11,accent if c.valid else MUTED)
  price.autowrap_mode=TextServer.AUTOWRAP_OFF;price.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
- _place(price,Rect2(rect.size.x-cost_width-10,7,cost_width,17),btn)
- var detail=_label(summary if c.valid else c.reason.trim_suffix("。"),15 if c.valid else 11,TEXT if c.valid else RED)
+ price.position=Vector2(rect.size.x-cost_width-10,7);price.size=Vector2(cost_width,17)
+ var detail=_style_label(btn.detail_label(),summary if c.valid else c.reason.trim_suffix("。"),15 if c.valid else 11,TEXT if c.valid else RED)
  detail.name="BasicAttackDetail_"+c.payload.type if c.payload.kind=="attack" else "DeepBreathDetail"
- _place(detail,Rect2(10,29 if c.valid else 27,rect.size.x-20,24 if c.valid else 26),btn)
+ detail.position=Vector2(10,29 if c.valid else 27);detail.size=Vector2(rect.size.x-20,24 if c.valid else 26)
  if c.valid and tags!="":
   detail.size.x=112 if tags.length()>10 else 126
   var extra=_label(tags,10,RED if c.payload.get("fall",false) else accent)
@@ -817,7 +844,7 @@ func _card(card: Dictionary, rect: Rect2, fn: Callable, rotation_value: float=0,
  card=card.duplicate()
  card.merge(view.card_texts.get(card.type,{}),true)
  card.merge(view.get("card_instances",{}).get(card.get("physical_uid",card.uid),{}),true)
- var button=CardFace.new()
+ var button=CardFaceScene.instantiate()
  button.art_settings=display_settings
  button.lift_on_hover=lift
  button.symbol=card.type
@@ -830,6 +857,22 @@ func _card(card: Dictionary, rect: Rect2, fn: Callable, rotation_value: float=0,
  button.add_theme_stylebox_override("hover",StyleBoxEmpty.new())
  button.add_theme_stylebox_override("pressed",StyleBoxEmpty.new())
  button.add_theme_stylebox_override("focus",StyleBoxEmpty.new())
+ var cost=button.get_node("CardCost")
+ _style_label(cost,card.cost,23,TEXT);cost.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+ cost.position=Vector2(0,1);cost.size=Vector2(38,37)
+ var title=button.get_node("CardTitle")
+ _style_label(title,card.name,17,TEXT)
+ title.position=Vector2(43,10);title.size=Vector2(rect.size.x-48,31)
+ var text_area=button.get_node("CardText")
+ text_area.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
+ text_area.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO
+ text_area.mouse_filter=Control.MOUSE_FILTER_PASS
+ text_area.mouse_force_pass_scroll_events=false
+ text_area.position=Vector2(12,rect.size.y*CardFace.ART_HEIGHT_RATIO+10)
+ text_area.size=Vector2(rect.size.x-24,rect.size.y/3-18)
+ var textbox=text_area.get_node("Content")
+ textbox.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ textbox.add_theme_constant_override("separation",1)
  _place(button,rect,parent)
  button.home=rect.position
  button.resting_angle=rotation_value
@@ -849,20 +892,6 @@ func _card(card: Dictionary, rect: Rect2, fn: Callable, rotation_value: float=0,
   if hand_interaction:
    _clear_player_picker();_clear_drop_targets()
    _refresh_body_details())
- var cost=_label(card.cost,23,TEXT);cost.name="CardCost"; cost.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
- _place(cost,Rect2(0,1,38,37),button)
- var title=_label(card.name,17,TEXT);title.name="CardTitle"
- _place(title,Rect2(43,10,rect.size.x-48,31),button)
- var text_area=ScrollContainer.new();text_area.name="CardText"
- text_area.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
- text_area.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO
- text_area.mouse_filter=Control.MOUSE_FILTER_PASS
- text_area.mouse_force_pass_scroll_events=false
- _place(text_area,Rect2(12,rect.size.y*CardFace.ART_HEIGHT_RATIO+10,rect.size.x-24,rect.size.y/3-18),button)
- var textbox=VBoxContainer.new();textbox.name="Content"
- textbox.size_flags_horizontal=Control.SIZE_EXPAND_FILL
- textbox.add_theme_constant_override("separation",1)
- text_area.add_child(textbox)
  _refresh_card_face(button,card)
  button.mouse_entered.connect(func():_card_tooltip(button,card))
  button.mouse_exited.connect(_hide_term)
@@ -1218,7 +1247,7 @@ func _equipment_grid(parent: Node) -> GridContainer:
 
 # Shared presentation only: each card retains its projected physical target.
 func _equipment_tile(parent: Node, e: Dictionary, location: String="", expanded: bool=false) -> void:
- var card=PanelContainer.new();card.name="EquipmentCard_"+e.id
+ var card=EquipmentTileScene.instantiate();card.name="EquipmentCard_"+e.id
  card.set_meta("equipment_id",e.id)
  card.size_flags_horizontal=Control.SIZE_EXPAND_FILL
  card.size_flags_vertical=Control.SIZE_SHRINK_BEGIN
@@ -1226,7 +1255,7 @@ func _equipment_tile(parent: Node, e: Dictionary, location: String="", expanded:
  var accent=RED if e.tier==3 else (CYAN if e.linked else GOLD)
  card.add_theme_stylebox_override("panel",_style(Color("192a38"),accent.darkened(0.35),10))
  parent.add_child(card)
- var box=VBoxContainer.new();box.add_theme_constant_override("separation",5);card.add_child(box)
+ var box=card.box();box.add_theme_constant_override("separation",5)
  _equipment_card_face(box,e,location,accent)
  for c in actions.select("manual",{"target":e.id}):
   if c.valid and c.payload.after==0.0:
@@ -1378,10 +1407,10 @@ func _prison_controls() -> void:
  var grid=GridContainer.new();grid.columns=2;grid.add_theme_constant_override("h_separation",10);grid.add_theme_constant_override("v_separation",8);scroll.add_child(grid)
  var locations=p.space.sites.filter(func(site):return site.has("installed"))+p.space.sites.filter(func(site):return not site.has("installed"))
  for site in locations:
-  var tile=PanelContainer.new();tile.name="PrisonSite_"+site.id
+  var tile=PrisonSiteScene.instantiate();tile.name="PrisonSite_"+site.id
   tile.size_flags_horizontal=Control.SIZE_EXPAND_FILL
   tile.add_theme_stylebox_override("panel",_style(Color("192a38"),CYAN if site.here or (p.space.blind and site.near) else GOLD.darkened(0.5),8));grid.add_child(tile)
-  var box=VBoxContainer.new();box.add_theme_constant_override("separation",4);tile.add_child(box)
+  var box=tile.box();box.add_theme_constant_override("separation",4)
   var name_label=_label(site.label+(" · 当前" if site.here else ""),16,CYAN if site.here or (p.space.blind and site.near) else GOLD);box.add_child(name_label)
   if not p.space.blind:
    box.add_child(_label("%s · %s" % [site.bearing,"靠墙" if site.wall_distance==0 else "离墙%d格" % site.wall_distance],13,MUTED))
@@ -1654,10 +1683,14 @@ func _show_term(anchor: Control, entry: Dictionary) -> void:
  if is_instance_valid(touch_input) and touch_input.finger>=0 and not touch_input.details_allowed: return
  _hide_term()
  term_anchor=anchor
- term_popup=_panel(Rect2(0,0,0,0));term_popup.name="TermExplanation";term_popup.z_index=260
- var column=VBoxContainer.new();column.add_theme_constant_override("separation",10);term_popup.add_child(column)
- if entry.label!="": column.add_child(_label(entry.label,19,CYAN))
- if entry.detail!="": column.add_child(_label(entry.detail,15,TEXT))
+ term_popup=_place(TermPopupScene.instantiate(),Rect2(0,0,0,0))
+ term_popup.add_theme_stylebox_override("panel",Palette.window_frame())
+ term_popup.z_index=260
+ var column=term_popup.column();column.add_theme_constant_override("separation",10)
+ var title_label=term_popup.title_label();title_label.visible=entry.label!=""
+ _style_label(title_label,entry.label,19,CYAN)
+ var detail_label=term_popup.detail_label();detail_label.visible=entry.detail!=""
+ _style_label(detail_label,entry.detail,15,TEXT)
  var text_width=0.0
  for label in column.get_children():
   var font=label.get_theme_font("font")
@@ -1975,22 +2008,22 @@ func _show_drop_targets(slot: String, data: Dictionary, click_to_use: bool=false
    if not c.payload.get("tool_bonus",{}).is_empty(): effect+="\n另加%s点切割伤害" % game.number(c.payload.tool_bonus.damage)
    if c.payload.get("preview",{}).get("release",false): effect+="\n整件脱下"
   var tone=RED if reason!="" or c.risk!="" else CYAN
-  var target=_button("",func():
-   if click_to_use and reason=="": _submit(c,int(data.version)),tone,true)
+  var card=EquipmentDropCardScene.instantiate()
+  card.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+  card.add_theme_stylebox_override("panel",StyleBoxEmpty.new())
+  var target=card.target_button()
+  _style_button(target,"",func():
+   if click_to_use and reason=="": _submit(c,int(data.version)),tone)
   target.name="EquipmentDropCard_"+c.payload.target
   target.disabled=click_to_use and reason!=""
   target.custom_minimum_size=Vector2(76,86);target.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-  var card=PanelContainer.new();card.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-  card.add_theme_stylebox_override("panel",StyleBoxEmpty.new())
-  card.add_child(target)
-  var face=preload("res://ui/equipment_target_face.gd").new();face.accent=tone
+  var face=card.face();face.accent=tone
   var title=body.name
   var detail=""
   if c.payload.target!="":
    var equipment=body.targets[c.payload.target]
    face.equipment=equipment
    title=equipment.name
-  card.add_child(face)
   card.modulate=Color.WHITE if reason=="" else Color(0.48,0.48,0.48,1)
   target.set_meta("target_selectable",reason=="")
   detail+=effect
@@ -2013,12 +2046,14 @@ func _show_drop_targets(slot: String, data: Dictionary, click_to_use: bool=false
  drop_panel.size=Vector2(mini(columns,maxi(1,count))*80+20+(16 if count>columns*rows else 0),rows*90+16)
  drop_panel.position.y=clampf(origin.y,80,680-drop_panel.size.y)
 
-func _actor_drop_area(rect: Rect2, parent: Control=null, interactive: bool=false) -> Button:
- var button=_button("",func(): pass,CYAN,true)
+func _style_actor_drop_area(button: Button, interactive: bool) -> Button:
  for style in ["normal","pressed","focus"]: button.add_theme_stylebox_override(style,StyleBoxEmpty.new())
  button.add_theme_stylebox_override("hover",_style(Color(0.4,0.8,0.8,0.05),Color(0.5,0.85,0.85,0.6),12) if interactive else StyleBoxEmpty.new())
  button.set_meta("idle_interactive",interactive)
- return _place(button,rect,parent)
+ return button
+
+func _actor_drop_area(rect: Rect2, parent: Control=null, interactive: bool=false) -> Button:
+ return _place(_style_actor_drop_area(_button("",func(): pass,CYAN,true),interactive),rect,parent)
 
 func _attack_drop_candidate(data: Dictionary, enemy_id: String) -> Dictionary:
  if data.get("version",-1)!=view.version: return {}
@@ -2289,15 +2324,16 @@ func _items_drawer() -> void:
  var row=HBoxContainer.new(); row.size_flags_vertical=Control.SIZE_EXPAND_FILL; row.add_theme_constant_override("separation",16); v.add_child(row)
  var left=_scroll(row);left.name="InventoryList";left.get_parent().custom_minimum_size.x=224
  for item in view.items:
-  var item_button=_button(item.name+"\n%s · 剩余%d次" % [item.mount,item.uses],func(): selected_item=item.id; selected_item_slot=""; item_help=false; _refresh_drawers(),CYAN if selected_item==item.id else MUTED)
+  var item_button=ItemRowScene.instantiate()
+  _style_button(item_button,item.name+"\n%s · 剩余%d次" % [item.mount,item.uses],func(): selected_item=item.id; selected_item_slot=""; item_help=false; _refresh_drawers(),CYAN if selected_item==item.id else MUTED)
   item_button.alignment=HORIZONTAL_ALIGNMENT_LEFT;item_button.add_theme_font_size_override("font_size",15)
   item_button.custom_minimum_size.y=84;item_button.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
   for style_name in ["normal","hover","pressed","focus","disabled"]:
    var style=item_button.get_theme_stylebox(style_name).duplicate();style.content_margin_left=72
    item_button.add_theme_stylebox_override(style_name,style)
-  var icon=preload("res://ui/shop_glyph.gd").new();icon.name="ToolIcon_"+item.id
+  var icon=item_button.icon();icon.name="ToolIcon_"+item.id
   icon.kind="tool";icon.symbol="return_scroll" if item.type=="return_seal" else item.type
-  icon.position=Vector2(4,10);icon.size=Vector2(64,64);item_button.add_child(icon)
+  icon.position=Vector2(4,10);icon.size=Vector2(64,64)
   item_button.name="ToolItem_"+item.id;left.add_child(item_button)
  var right=_scroll(row)
  right.get_parent().size_flags_horizontal=Control.SIZE_EXPAND_FILL

@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/elements/shop_offer.gd" id="1_shop_offer"]
+
+[node name="ShopOffer" type="Button"]
+script = ExtResource("1_shop_offer")
+
+[node name="OfferName" type="Label" parent="."]
+
+[node name="OfferPrice" type="Label" parent="."]

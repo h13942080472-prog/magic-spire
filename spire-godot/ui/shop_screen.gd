@@ -84,16 +84,17 @@ func _card_offer(offer: Dictionary, rect: Rect2) -> void:
 
 func _offer(offer: Dictionary, rect: Rect2) -> void:
  var candidate=ui.actions.find("service",{"op":"take","index":offer.index,"payment":ui.shop_payment})
- var button=ui._button("",func():
+ var button=preload("res://ui/elements/shop_offer.tscn").instantiate()
+ ui._style_button(button,"",func():
   if not candidate.is_empty(): ui._submit(candidate),ui.GOLD if offer.kind=="card" else ui.CYAN)
  button.name="ShopOffer%d" % offer.index
  button.disabled=offer.taken or not candidate.get("valid",false)
  button.tooltip_text=offer.name+"\n"+offer.detail+("" if candidate.get("valid",false) else "\n"+candidate.get("reason","已售罄"))
- ui._place(button,rect,self)
+ self.add_child(button);button.position=rect.position;button.size=rect.size
  if not offer.taken: ui.candidate_buttons[candidate.id]=button
  if not offer.taken: _connect_chatter(button,candidate)
- var name_label=ui._label(offer.name,16,ui.TEXT if not offer.taken else ui.MUTED)
- ui._place(name_label,Rect2(80,10,rect.size.x-90,43),button)
+ var name_label=ui._style_label(button.name_label(),offer.name,16,ui.TEXT if not offer.taken else ui.MUTED)
+ name_label.position=Vector2(80,10);name_label.size=Vector2(rect.size.x-90,43)
  var glyph: Control
  if offer.kind=="relic":
   glyph=preload("res://ui/relic_icon.gd").new();glyph.relic={"id":offer.type}
@@ -102,11 +103,11 @@ func _offer(offer: Dictionary, rect: Rect2) -> void:
  if offer.kind=="relic":
   var rarity=ui._label(offer.rarity_name,12,ui.CardFace.RARITY_COLORS[offer.rarity])
   rarity.name="RelicRarity"
-  ui._place(rarity,Rect2(80,48,rect.size.x-90,18),button)
- ui._place(glyph,Rect2(8,22,64,64),button)
+  ui._place(rarity,Rect2(80,48,rect.size.x-90,18),button);button.move_child(rarity,1)
+ ui._place(glyph,Rect2(8,22,64,64),button);button.move_child(glyph,2 if offer.kind=="relic" else 1)
  var currency="魔瓶魔力" if offer.get("required_payment","")=="flask" else "魔力"
- var price=ui._label("售罄" if offer.taken else "%s %s" % [ui.game.number(offer.price),currency],17,ui.MUTED if offer.taken else (ui.CYAN if candidate.valid else ui.RED))
- ui._place(price,Rect2(80,68,rect.size.x-90,25),button)
+ var price=ui._style_label(button.price_label(),"售罄" if offer.taken else "%s %s" % [ui.game.number(offer.price),currency],17,ui.MUTED if offer.taken else (ui.CYAN if candidate.valid else ui.RED))
+ price.position=Vector2(80,68);price.size=Vector2(rect.size.x-90,25)
  if not offer.taken and not candidate.valid:
   var reason=ui._label(candidate.reason,10,ui.RED);reason.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
   ui._place(reason,Rect2(6,94,rect.size.x-12,20),button)

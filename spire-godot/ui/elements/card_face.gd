@@ -168,7 +168,8 @@ func fit_text() -> void:
  if area==null: return
  area.position=Vector2(12,art_bottom+4)
  area.size=Vector2(size.x-24,maxf(1,size.y-area.position.y-8))
- area.get_node("Content/CardEffect").add_theme_font_size_override("font_size",13)
+ var effect=area.get_node_or_null("Content/CardEffect")
+ if effect!=null: effect.add_theme_font_size_override("font_size",13)
 
 func _draw_header() -> void:
  var header=get_node("CardHeader")
@@ -205,20 +206,19 @@ func _ready() -> void:
  mouse_exited.connect(func(): _hover(false))
  mouse_default_cursor_shape=Control.CURSOR_POINTING_HAND
  texture_filter=CanvasItem.TEXTURE_FILTER_NEAREST
- var illustration=TextureRect.new()
- illustration.name="CardIllustration"
+ var illustration=$CardIllustration
  illustration.texture=ILLUSTRATIONS.get(symbol)
  illustration.expand_mode=TextureRect.EXPAND_IGNORE_SIZE
  illustration.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
  illustration.texture_filter=CanvasItem.TEXTURE_FILTER_LINEAR
  illustration.clip_contents=true
  illustration.mouse_filter=Control.MOUSE_FILTER_IGNORE
- add_child(illustration)
  if art_settings!=null:
   art_settings.art_changed.connect(_art_changed)
   _art_changed("cards",symbol)
- var header=Control.new();header.name="CardHeader";header.mouse_filter=Control.MOUSE_FILTER_IGNORE
- add_child(header);header.draw.connect(_draw_header)
+ var header=$CardHeader
+ header.mouse_filter=Control.MOUSE_FILTER_IGNORE
+ header.draw.connect(_draw_header)
  _layout_art()
  resized.connect(fit_text)
 

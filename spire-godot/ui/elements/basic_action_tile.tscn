@@ -1,0 +1,12 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/elements/basic_action_tile.gd" id="1_basic_action_tile"]
+
+[node name="BasicActionTile" type="Button"]
+script = ExtResource("1_basic_action_tile")
+
+[node name="TitleLabel" type="Label" parent="."]
+
+[node name="PriceLabel" type="Label" parent="."]
+
+[node name="DetailLabel" type="Label" parent="."]

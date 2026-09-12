@@ -1,0 +1,12 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/elements/drag_hint.gd" id="1_drag_hint"]
+
+[node name="DragTargetHint" type="PanelContainer"]
+script = ExtResource("1_drag_hint")
+
+[node name="Column" type="VBoxContainer" parent="."]
+
+[node name="HintTitle" type="Label" parent="Column"]
+
+[node name="HintDetail" type="Label" parent="Column"]

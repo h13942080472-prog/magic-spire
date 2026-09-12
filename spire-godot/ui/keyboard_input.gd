@@ -197,7 +197,7 @@ func flip() -> void:
   while button!=null and not (button is Button): button=button.get_parent() as Control
  if button==null: return
  var event=InputEventMouseButton.new();event.button_index=MOUSE_BUTTON_RIGHT;event.pressed=true
- if button.get_script()==preload("res://ui/card_face.gd"): button._gui_input(event)
+ if button.get_script()==preload("res://ui/elements/card_face.gd"): button._gui_input(event)
  else: button.gui_input.emit(event)
  if not selection.is_empty(): refresh_choices()
 

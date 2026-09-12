@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/elements/prison_site.gd" id="1_prison_site"]
+
+[node name="PrisonSite" type="PanelContainer"]
+script = ExtResource("1_prison_site")
+
+[node name="Box" type="VBoxContainer" parent="."]

@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/elements/drop_target.gd" id="1_drop_target"]
+
+[node name="DropTarget" type="Button"]
+script = ExtResource("1_drop_target")

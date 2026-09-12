@@ -1,0 +1,18 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/elements/card_face.gd" id="1_card_face"]
+
+[node name="CardFace" type="Button"]
+script = ExtResource("1_card_face")
+
+[node name="CardIllustration" type="TextureRect" parent="."]
+
+[node name="CardHeader" type="Control" parent="."]
+
+[node name="CardCost" type="Label" parent="."]
+
+[node name="CardTitle" type="Label" parent="."]
+
+[node name="CardText" type="ScrollContainer" parent="."]
+
+[node name="Content" type="VBoxContainer" parent="CardText"]

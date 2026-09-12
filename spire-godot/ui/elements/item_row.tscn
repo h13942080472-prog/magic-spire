@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/elements/item_row.gd" id="1_item_row"]
+[ext_resource type="Script" path="res://ui/shop_glyph.gd" id="2_shop_glyph"]
+
+[node name="ItemRow" type="Button"]
+script = ExtResource("1_item_row")
+
+[node name="Icon" type="Control" parent="."]
+script = ExtResource("2_shop_glyph")

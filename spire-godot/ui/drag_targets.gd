@@ -1,5 +1,7 @@
 extends RefCounted
 
+const DragHintScene=preload("res://ui/elements/drag_hint.tscn")
+
 # Presentation only: every target is an existing candidate from this view/version.
 static func choices(ui, data: Dictionary) -> Array:
  return candidates(ui,data).filter(func(c):return c.valid)
@@ -121,7 +123,7 @@ static func highlight(ui, control: Control) -> void:
  control.add_theme_stylebox_override("normal",style);control.add_theme_stylebox_override("hover",style)
 
 static func receiver(ui, panel: Control, name: String, c: Dictionary, data: Dictionary) -> void:
- var target=ui.DropTarget.new();target.accepted_kind="any";target.name=name
+ var target=ui.DropTargetScene.instantiate();target.accepted_kind="any";target.name=name
  panel.add_child(target)
  target.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  for key in ["normal","hover","pressed","focus"]: target.add_theme_stylebox_override(key,StyleBoxEmpty.new())
@@ -129,13 +131,14 @@ static func receiver(ui, panel: Control, name: String, c: Dictionary, data: Dict
  target.receive_card=func(incoming):ui.call_deferred("_submit",c,int(incoming.version))
 
 static func hint(ui, id: String, title: String, detail: String, rect: Rect2) -> PanelContainer:
- var panel=PanelContainer.new();panel.name="DragTargetHint_"+id;panel.z_index=220
+ var panel=DragHintScene.instantiate();panel.name="DragTargetHint_"+id;panel.z_index=220
  panel.set_meta("target_id",id)
  var style=ui._style(Color("101e29"),ui.CYAN.darkened(0.25),8);style.shadow_size=3
  panel.add_theme_stylebox_override("panel",style)
  ui._place(panel,Rect2(rect.position,Vector2(rect.size.x,0)))
- var column=VBoxContainer.new();column.add_theme_constant_override("separation",3);panel.add_child(column)
- column.add_child(ui._label(title,14,ui.CYAN));column.add_child(ui._label(detail,12,ui.TEXT))
+ panel.column().add_theme_constant_override("separation",3)
+ ui._style_label(panel.title_label(),title,14,ui.CYAN)
+ ui._style_label(panel.detail_label(),detail,12,ui.TEXT)
  ui._ignore_mouse(panel);ui.drag_hints.append(panel)
  panel.minimum_size_changed.connect(func(): fit_hint.call_deferred(panel,rect))
  fit_hint.call_deferred(panel,rect)

@@ -32,7 +32,7 @@ static func run(t) -> void:
  await press(t,"OpenDeck")
  t.check(ui.show_deck and not ui.show_pressure,"INTERFACE deck tab replaces status")
  var deck_card=ui.find_child("DisplayCard_deck_*",true,false)
- t.check(deck_card!=null and deck_card.get_script()==preload("res://ui/card_face.gd") and deck_card.drag_payload.is_empty(),"DECK uses hand face without gameplay drag")
+ t.check(deck_card!=null and deck_card.get_script()==preload("res://ui/elements/card_face.gd") and deck_card.drag_payload.is_empty(),"DECK uses hand face without gameplay drag")
  deck_card.flip_requested.emit();await t.frames()
  t.check(deck_card.free_face and JSON.stringify(ui.game.state)==before,"DECK flip preserves game state")
  await t.capture("ui-72-unified-drawer.png")
@@ -60,7 +60,7 @@ static func run(t) -> void:
  await posture_controls(t)
 
 static func card_illustrations(t) -> void:
- var face_script=preload("res://ui/card_face.gd")
+ var face_script=preload("res://ui/elements/card_face.gd")
  var before=t.ui.game.export_snapshot()
  var missing=[];var broken=[];var overflow=[];var paths=[]
  for id in t.ui.game.Cards.Rules.SPECS:
@@ -72,7 +72,7 @@ static func card_illustrations(t) -> void:
   if texture==null or texture.get_image().get_used_rect().size==Vector2i.ZERO or (texture.resource_path in paths and not shared):
    broken.append(id);continue
   paths.append(texture.resource_path)
-  var card=face_script.new()
+  var card=preload("res://ui/elements/card_face.tscn").instantiate()
   card.symbol=id;card.lift_on_hover=false
   card.position=Vector2(-2000,-2000);card.size=Vector2(190,285)
   t.root.add_child(card)

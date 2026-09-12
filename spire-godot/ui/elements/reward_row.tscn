@@ -1,0 +1,12 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/elements/reward_row.gd" id="1_reward_row"]
+
+[node name="RewardRow" type="Button"]
+script = ExtResource("1_reward_row")
+
+[node name="RowTitle" type="Label" parent="."]
+
+[node name="RowSubtitle" type="Label" parent="."]
+
+[node name="RowAction" type="Label" parent="."]

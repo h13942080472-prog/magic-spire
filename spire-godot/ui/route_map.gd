@@ -118,7 +118,7 @@ func _ready() -> void:
  var scroll=get_parent() as ScrollContainer
  if scroll!=null: scroll.get_v_scroll_bar().value_changed.connect(func(_value): active_stroke=-1;queue_redraw())
  for room in rooms:
-  var button=Button.new()
+  var button=preload("res://ui/elements/route_node.tscn").instantiate()
   button.name="RouteNode_"+room.id
   button.mouse_default_cursor_shape=Control.CURSOR_POINTING_HAND
   for style in ["normal","hover","pressed","focus"]: button.add_theme_stylebox_override(style,StyleBoxEmpty.new())

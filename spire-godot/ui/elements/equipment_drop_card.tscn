@@ -1,0 +1,14 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://ui/elements/equipment_drop_card.gd" id="1_equipment_drop_card"]
+[ext_resource type="Script" path="res://ui/elements/drop_target.gd" id="2_drop_target"]
+[ext_resource type="Script" path="res://ui/equipment_target_face.gd" id="3_equipment_target_face"]
+
+[node name="EquipmentDropCard" type="PanelContainer"]
+script = ExtResource("1_equipment_drop_card")
+
+[node name="Target" type="Button" parent="."]
+script = ExtResource("2_drop_target")
+
+[node name="Face" type="Control" parent="."]
+script = ExtResource("3_equipment_target_face")
