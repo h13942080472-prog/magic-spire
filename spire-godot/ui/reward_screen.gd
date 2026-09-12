@@ -61,8 +61,13 @@ static func row(ui, root: Control, entry: Dictionary, rect: Rect2) -> void:
  button.name="Reward_"+entry.category+("_"+entry.id if entry.id!="" else "")
  button.disabled=entry.claimed or not entry.available
  var normal=ui.Palette.surface(Color("152530"),accent.darkened(0.38),10);normal.border_width_left=3
+ var pressed=ui.Palette.surface(Color("1d3340"),accent,10);pressed.border_width_left=3
+ var dim=ui.Palette.surface(Color("0e1922"),ui.Palette.MUTED.darkened(0.6),10);dim.border_width_left=3
  button.add_theme_stylebox_override("normal",normal)
  button.add_theme_stylebox_override("hover",ui.Palette.button_style("hover",accent))
+ button.add_theme_stylebox_override("pressed",pressed)
+ button.add_theme_stylebox_override("focus",ui.Palette.button_style("hover",accent))
+ button.add_theme_stylebox_override("disabled",dim)
  root.add_child(button);button.position=rect.position;button.size=rect.size
  if (entry.category!="card" or entry.get("direct",false)) and not entry.has("choices") and not choices.is_empty(): ui.candidate_buttons[choices[0].id]=button
  var glyph: Control

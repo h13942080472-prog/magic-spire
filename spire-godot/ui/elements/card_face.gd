@@ -1,6 +1,7 @@
 extends Button
 
 const Palette=preload("res://ui/visual_theme.gd")
+const DragTargets=preload("res://ui/drag_targets.gd")
 const ILLUSTRATIONS={
  "hannya_1":preload("res://assets/ui/cards/hannya_1.svg"),
  "hannya_2":preload("res://assets/ui/cards/hannya_2.svg"),
@@ -187,18 +188,39 @@ func _gui_input(event: InputEvent) -> void:
 
 func _get_drag_data(_at_position: Vector2) -> Variant:
  if drag_payload.is_empty(): return null
- var ghost=PanelContainer.new()
+ # load() instead of preload() keeps this element scene out of the script's compile-time dependencies.
+ var ghost=load("res://ui/elements/card_face.tscn").instantiate()
  ghost.name="CardDragPreview";ghost.z_index=240;ghost.position=Vector2(18,18)
  ghost.mouse_filter=Control.MOUSE_FILTER_IGNORE
- ghost.custom_minimum_size=Vector2(190,75)
- ghost.modulate=Color(1,1,1,0.94)
- ghost.add_theme_stylebox_override("panel",Palette.surface(Palette.INK,Palette.CYAN if effect_free else Palette.GOLD))
- var label=Label.new()
- label.text=display_name+"\n"+("单面卡牌" if single_face else face_name)
- label.add_theme_font_size_override("font_size",18)
- ghost.add_child(label)
+ ghost.lift_on_hover=false;ghost.chosen=false
+ ghost.symbol=symbol;ghost.rarity=rarity;ghost.free_face=free_face
+ ghost.display_name=display_name;ghost.face_name=face_name;ghost.effect_free=effect_free
+ ghost.single_face=single_face
+ ghost.size=size
+ var ghost_cost=ghost.get_node("CardCost")
+ ghost_cost.text=$CardCost.text;ghost_cost.position=$CardCost.position;ghost_cost.size=$CardCost.size
+ ghost_cost.horizontal_alignment=$CardCost.horizontal_alignment
+ ghost_cost.add_theme_font_size_override("font_size",$CardCost.get_theme_font_size("font_size"))
+ ghost_cost.add_theme_color_override("font_color",$CardCost.get_theme_color("font_color"))
+ var ghost_title=ghost.get_node("CardTitle")
+ ghost_title.text=$CardTitle.text;ghost_title.position=$CardTitle.position;ghost_title.size=$CardTitle.size
+ ghost_title.autowrap_mode=$CardTitle.autowrap_mode
+ ghost_title.add_theme_font_size_override("font_size",$CardTitle.get_theme_font_size("font_size"))
+ ghost_title.add_theme_color_override("font_color",$CardTitle.get_theme_color("font_color"))
+ var source_area=$CardText
+ var ghost_area=ghost.get_node("CardText")
+ ghost_area.position=source_area.position;ghost_area.size=source_area.size
+ ghost_area.horizontal_scroll_mode=source_area.horizontal_scroll_mode
+ ghost_area.vertical_scroll_mode=source_area.vertical_scroll_mode
+ ghost_area.mouse_filter=Control.MOUSE_FILTER_IGNORE
+ var ghost_content=ghost.get_node("CardText/Content")
+ var source_content=source_area.get_node("Content")
+ ghost_content.custom_minimum_size=source_content.custom_minimum_size
+ for child in source_content.get_children(): ghost_content.add_child(child.duplicate())
+ ghost.modulate=Color(1,1,1,0.9)
  set_drag_preview(ghost)
  drag_began.emit(drag_payload)
+ DragTargets.register_source(self)
  return drag_payload
 
 func _ready() -> void:

@@ -8,6 +8,23 @@ const MUTED=Color("a5b3bd")
 const RED=Color("ed9393")
 const INK=Color("111d29")
 
+# Interaction state vocabulary: one name per state, shared by stylebox controls and self-drawn ones.
+const BRIGHT=Color.WHITE
+const DIM_CARD=Color(0.55,0.55,0.55,1)
+const DIM_HAND=Color(0.45,0.45,0.45,1)
+const DIM_TARGET=Color(0.48,0.48,0.48,1)
+
+static func dim_for(state: String) -> Color:
+ if state=="disabled": return DIM_HAND
+ if state=="blocked": return DIM_TARGET
+ return BRIGHT
+
+# Applies the shared visual vocabulary. Self-drawn controls own their painted states; stylebox controls
+# keep whatever box each call site declared, so this only touches the modulate tier and the self-drawn hook.
+static func apply_state(control: Control, state: String) -> void:
+ if control.has_method("set_ui_state"): control.call("set_ui_state",state)
+ control.modulate=dim_for(state)
+
 static func surface(bg: Color=INK, border: Color=GOLD.darkened(0.5), radius: int=8) -> StyleBoxFlat:
  var s=StyleBoxFlat.new()
  s.bg_color=bg;s.border_color=border

@@ -1,5 +1,7 @@
 extends Button
 
+const DragTargets=preload("res://ui/drag_targets.gd")
+
 var hover_card: Callable
 var accept_card: Callable
 var receive_card: Callable
@@ -9,15 +11,20 @@ var drag_label=""
 
 func _get_drag_data(_at_position: Vector2) -> Variant:
  if disabled or drag_payload.is_empty(): return null
- var ghost=PanelContainer.new()
+ # load() instead of preload() keeps this element scene out of the script's compile-time dependencies.
+ var ghost=load("res://ui/elements/drop_target.tscn").instantiate()
  ghost.name="ActionDragPreview";ghost.z_index=240;ghost.position=Vector2(18,18)
  ghost.mouse_filter=Control.MOUSE_FILTER_IGNORE
- var label=Label.new()
- label.text=drag_label
- label.add_theme_font_size_override("font_size",18)
- ghost.add_child(label)
+ ghost.text=drag_label
+ ghost.custom_minimum_size=custom_minimum_size
+ for state in ["normal","hover","pressed","focus","disabled"]:
+  var box=get_theme_stylebox(state)
+  if box!=null: ghost.add_theme_stylebox_override(state,box)
+ ghost.add_theme_font_size_override("font_size",get_theme_font_size("font_size"))
+ ghost.add_theme_color_override("font_color",get_theme_color("font_color"))
  ghost.modulate=Color(1,1,1,0.9)
  set_drag_preview(ghost)
+ DragTargets.register_source(self)
  return drag_payload
 
 func _can_drop_data(_at_position: Vector2, data: Variant) -> bool:

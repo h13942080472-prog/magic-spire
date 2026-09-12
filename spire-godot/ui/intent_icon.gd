@@ -11,6 +11,10 @@ func _ready() -> void:
  mouse_entered.connect(func():highlighted=true;queue_redraw())
  mouse_exited.connect(func():highlighted=false;queue_redraw())
 
+func set_ui_state(state: String) -> void:
+ highlighted=state=="hover" or state=="pressed"
+ queue_redraw()
+
 func line(points: Array, color: Color=GOLD) -> void:
  draw_polyline(PackedVector2Array(points),color,3,true)
 

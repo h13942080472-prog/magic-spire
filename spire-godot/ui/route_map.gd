@@ -120,13 +120,18 @@ func _ready() -> void:
  for room in rooms:
   var button=preload("res://ui/elements/route_node.tscn").instantiate()
   button.name="RouteNode_"+room.id
-  button.mouse_default_cursor_shape=Control.CURSOR_POINTING_HAND
   for style in ["normal","hover","pressed","focus"]: button.add_theme_stylebox_override(style,StyleBoxEmpty.new())
-  button.pressed.connect(func():room_selected.emit(room.id))
-  button.mouse_entered.connect(func():hovered=room.id; queue_redraw())
-  button.mouse_exited.connect(func():hovered=""; queue_redraw())
-  button.focus_entered.connect(func():hovered=room.id; queue_redraw())
-  button.focus_exited.connect(func():hovered=""; queue_redraw())
+  if room.status=="available":
+   button.mouse_default_cursor_shape=Control.CURSOR_POINTING_HAND
+   button.pressed.connect(func():room_selected.emit(room.id))
+   button.mouse_entered.connect(func():hovered=room.id; queue_redraw())
+   button.mouse_exited.connect(func():hovered=""; queue_redraw())
+   button.focus_entered.connect(func():hovered=room.id; queue_redraw())
+   button.focus_exited.connect(func():hovered=""; queue_redraw())
+  else:
+   # Godot still emits mouse_entered on a disabled button, so illegal rooms drop the highlight wiring entirely.
+   button.disabled=true
+   button.mouse_default_cursor_shape=Control.CURSOR_ARROW
   add_child(button); buttons[room.id]=button
  resized.connect(_layout_nodes)
  _layout_nodes()
@@ -210,7 +215,7 @@ func _draw() -> void:
   elif room.status in ["available","destination"]:
    var extent=35.0 if compact else 82.0
    draw_texture_rect(AVAILABLE_RING,Rect2(point-Vector2.ONE*extent/2,Vector2.ONE*extent),false)
-  if selected==room.id or hovered==room.id:
+  if room.status=="available" and (selected==room.id or hovered==room.id):
    draw_arc(point,18 if compact else 39,0,TAU,48,ACTIVE,1.5,true)
   _icon(point,room.icon,opacity)
   if room.status=="completed":

@@ -591,6 +591,8 @@ func _status_control(status: Dictionary, compact: bool) -> Button:
  var hover=style.duplicate();hover.bg_color=Color("243b48");hover.border_color=tone
  button.add_theme_stylebox_override("hover",hover);button.add_theme_stylebox_override("focus",hover)
  button.add_theme_stylebox_override("pressed",hover)
+ var dim=style.duplicate();dim.bg_color=Color("0c141c");dim.border_color=Palette.MUTED.darkened(0.6)
+ button.add_theme_stylebox_override("disabled",dim)
  var icon=StatusIcon.new();icon.status=status.duplicate()
  if not compact: icon.status.badge=""
  _place(icon,Rect2(0,0,38,38) if compact else Rect2(7,12,40,40),button)
@@ -672,11 +674,26 @@ func _battle_scene() -> void:
  for i in range(enemy_count):
   var e=living[i]
   var group=EnemyActorScene.instantiate();group.name="EnemyGroup_"+e.id
+  var x=0.0
+  var guard=e.type in ["guard","six_bind","puppeteer"]
+  # Arena builds its sprite and subscribes to art changes in _ready, so bind it before the group enters the tree.
+  var picture=group.art(); picture.name="EnemyArt_"+e.id;picture.mode=e.type;picture.variant=e.visual_variant;picture.inactive=e.gone
+  picture.template=e.template;picture.art_settings=display_settings
+  var receiver=group.receiver()
+  _style_actor_drop_area(_style_button(receiver,"",func(): pass,CYAN),true)
+  var b=group.select_button()
+  _style_button(b,("◇ " if selected_enemy==e.id and not e.gone else "")+e.name,func():_select_enemy(e.id),CYAN if selected_enemy==e.id else GOLD)
+  b.name="EnemySelect_"+e.id
+  _configure_enemy_drop(b,e.id)
+  b.disabled=e.gone
+  var bar=group.hp_bar()
+  _style_bar(bar,e.hp,e.maximum,RED)
+  var hp=group.hp_label()
+  _style_label(hp,"%s / %s" % [game.number(e.hp),game.number(e.maximum)],14,TEXT)
+  hp.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
   var screen_x=enemy_row_start+i*ENEMY_GROUP_WIDTH*enemy_scale
   _place(group,Rect2(screen_x,487.0*(1.0-enemy_scale),260,487))
   group.scale=Vector2.ONE*enemy_scale
-  var x=0.0
-  var guard=e.type in ["guard","six_bind","puppeteer"]
   for n in range(e.intent_icons.size()):
    var entry=e.intent_icons[n]
    var icon=preload("res://ui/intent_icon.gd").new()
@@ -688,29 +705,15 @@ func _battle_scene() -> void:
    icon.z_index=8
    icon.mouse_entered.connect(func():_show_term(icon,entry));icon.mouse_exited.connect(_hide_term)
    icon.focus_entered.connect(func():_show_term(icon,entry));icon.focus_exited.connect(_hide_term)
-  var picture=group.art(); picture.name="EnemyArt_"+e.id;picture.mode=e.type;picture.variant=e.visual_variant;picture.inactive=e.gone
-  picture.template=e.template;picture.art_settings=display_settings
   var picture_rect=Rect2(x+40,134,146,270) if e.type=="guard" else (Rect2(x,134,226,270) if guard else Rect2(x,226,220,180))
   picture.position=picture_rect.position;picture.size=picture_rect.size
   var receiver_rect=picture_rect if guard else Rect2(x,236,220,169)
-  var receiver=group.receiver()
-  _style_actor_drop_area(receiver,true)
   receiver.position=receiver_rect.position;receiver.size=receiver_rect.size
   receiver.pressed.connect(func():_select_enemy(e.id))
   _configure_enemy_drop(receiver,e.id)
   actor_targets[e.id]=receiver
-  var b=group.select_button()
-  _style_button(b,("◇ " if selected_enemy==e.id and not e.gone else "")+e.name,func():_select_enemy(e.id),CYAN if selected_enemy==e.id else GOLD)
-  b.name="EnemySelect_"+e.id
-  _configure_enemy_drop(b,e.id)
-  b.disabled=e.gone
   b.position=Vector2(x-5,408);b.size=Vector2(236,37)
-  var bar=group.hp_bar()
-  _style_bar(bar,e.hp,e.maximum,RED)
   bar.position=Vector2(x,451);bar.size=Vector2(226,9)
-  var hp=group.hp_label()
-  _style_label(hp,"%s / %s" % [game.number(e.hp),game.number(e.maximum)],14,TEXT)
-  hp.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
   hp.position=Vector2(x,463);hp.size=Vector2(226,24)
   _status_strip(e.id,Rect2(x,488,226,51),group)
 
@@ -727,6 +730,9 @@ func _select_enemy(enemy_id: String) -> void:
   button.text=("◇ " if selected_enemy==enemy.id and not enemy.gone else "")+enemy.name
   button.add_theme_stylebox_override("normal",_style(Color("1b2b39"),color.darkened(0.25)))
   button.add_theme_stylebox_override("hover",_style(Color("2b4553"),color))
+  button.add_theme_stylebox_override("pressed",_style(Color("24434c"),color))
+  button.add_theme_stylebox_override("focus",_style(Color("2b4553"),color))
+  button.add_theme_stylebox_override("disabled",_style(Color("141d26"),Palette.MUTED.darkened(0.6)))
  _remove_local_panel("AttackActions")
  if view.phase=="battle" and view.card_chain.is_empty(): _fixed_actions()
 
@@ -1070,6 +1076,9 @@ func _bottom_controls(include_tools: bool=true) -> void:
   button.name="SurrenderButton";button.add_theme_font_size_override("font_size",16)
   button.add_theme_stylebox_override("normal",_style(Color("4a2228"),RED,8))
   button.add_theme_stylebox_override("hover",_style(Color("683039"),RED,8))
+  button.add_theme_stylebox_override("pressed",_style(Color("55272e"),RED,8))
+  button.add_theme_stylebox_override("focus",_style(Color("683039"),RED,8))
+  button.add_theme_stylebox_override("disabled",_style(Color("241417"),Palette.MUTED.darkened(0.6),8))
   button.pressed.connect(func():
    if surrender_version==view.version:
     surrender_version=-1;_submit(surrender)
@@ -1152,6 +1161,10 @@ func _body_drawer() -> void:
   b.tooltip_text=body.name+(" · %d件" % body.count if body.occupied else " · 自由")
   if body.can_release:
    b.add_theme_stylebox_override("normal",_style(Color("254b50"),CYAN))
+   b.add_theme_stylebox_override("hover",_style(Color("2f6167"),CYAN))
+   b.add_theme_stylebox_override("pressed",_style(Color("1d3c41"),CYAN))
+   b.add_theme_stylebox_override("focus",_style(Color("2f6167"),CYAN))
+   b.add_theme_stylebox_override("disabled",_style(Color("141d26"),Palette.MUTED.darkened(0.6)))
    b.tooltip_text+=" · 可一键解除"
   b.set_meta("can_release",body.can_release)
   b.name="BodySlot_"+body.id;b.custom_minimum_size=Vector2(120,29)
@@ -1764,6 +1777,9 @@ func _toggle_action_pin() -> void:
  var color=CYAN if action_log_pinned else MUTED
  button.add_theme_stylebox_override("normal",_style(Color("1b2b39"),color.darkened(0.25)))
  button.add_theme_stylebox_override("hover",_style(Color("2b4553"),color))
+ button.add_theme_stylebox_override("pressed",_style(Color("24434c"),color))
+ button.add_theme_stylebox_override("focus",_style(Color("2b4553"),color))
+ button.add_theme_stylebox_override("disabled",_style(Color("141d26"),Palette.MUTED.darkened(0.6)))
 
 func _sync_action_sidebar() -> void:
  if is_instance_valid(action_log_panel): action_log_panel.visible=action_log_open
@@ -1950,6 +1966,7 @@ func _notification(what: int) -> void:
   _open_drawer("show_menu")
  if what==NOTIFICATION_DRAG_END:
   DragTargets.clear(self)
+  DragTargets.restore_sources()
   if is_instance_valid(term_popup) and term_popup.has_meta("drag_reason"): _hide_term()
   _clear_drop_targets()
   _refresh_body_details()
@@ -2016,6 +2033,8 @@ func _show_drop_targets(slot: String, data: Dictionary, click_to_use: bool=false
    if click_to_use and reason=="": _submit(c,int(data.version)),tone)
   target.name="EquipmentDropCard_"+c.payload.target
   target.disabled=click_to_use and reason!=""
+  # A blocked entry stays readable on hover but never lights a highlight box.
+  if reason!="": target.add_theme_stylebox_override("hover",StyleBoxEmpty.new())
   target.custom_minimum_size=Vector2(76,86);target.size_flags_horizontal=Control.SIZE_EXPAND_FILL
   var face=card.face();face.accent=tone
   var title=body.name

@@ -1,6 +1,28 @@
 extends RefCounted
 
 const DragHintScene=preload("res://ui/elements/drag_hint.tscn")
+const Palette=preload("res://ui/visual_theme.gd")
+
+# Drag sources leave a disabled body in place until the drag ends; the registry survives render() and
+# skips entries whose node was rebuilt, so no source can stay stuck in the dragged state.
+static var drag_sources: Array=[]
+
+static func register_source(node: Control) -> void:
+ if drag_sources.any(func(entry):return entry.node==node): return
+ var was_disabled=false
+ var button=node as BaseButton
+ if button!=null: was_disabled=button.disabled
+ drag_sources.append({"node":node,"disabled":was_disabled,"modulate":node.modulate})
+ Palette.apply_state(node,"disabled")
+
+static func restore_sources() -> void:
+ for entry in drag_sources:
+  var node=entry.node
+  if not is_instance_valid(node): continue
+  node.modulate=entry.modulate
+  var button=node as BaseButton
+  if button!=null: button.disabled=entry.disabled
+ drag_sources.clear()
 
 # Presentation only: every target is an existing candidate from this view/version.
 static func choices(ui, data: Dictionary) -> Array:

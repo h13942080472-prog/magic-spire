@@ -138,7 +138,7 @@ static func run(t) -> void:
  scroll.ensure_control_visible(graph.buttons[disconnected.id]);await t.frames()
  before=ui.game.export_snapshot()
  await Pointer.press(t,graph.buttons[disconnected.id])
- t.check(ui.game.export_snapshot()==before and t.visible_text(ui.layout).contains("没有地图连线"),"ROUTE native adjacent disconnected room click explains rejection without moving")
+ t.check(ui.game.export_snapshot()==before and graph.buttons[disconnected.id].disabled and graph.buttons[disconnected.id].mouse_default_cursor_shape==Control.CURSOR_ARROW,"ROUTE native adjacent disconnected room is a disabled node that never moves")
 
  await merged_departure(t)
 
