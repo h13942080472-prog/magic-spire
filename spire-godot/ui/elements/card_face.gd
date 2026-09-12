@@ -84,6 +84,11 @@ var free_face=false
 var effect_free=false
 var face_name="拘束"
 var lift_on_hover=true
+var ui_state="normal"
+
+func set_ui_state(state: String) -> void:
+ ui_state=state
+ queue_redraw()
 const ART_HEIGHT_RATIO=2.0/3.0
 const ART_HEIGHT_OVERRIDES={"binding_enthusiast":0.58}
 var art_bottom=174.0
@@ -279,3 +284,6 @@ func _draw() -> void:
   draw_line(Vector2(x,10),Vector2(x,31),accent,1,true)
   draw_line(Vector2(x,size.y-25),Vector2(x,size.y-10),accent,1,true)
   draw_line(Vector2(x,size.y-10),Vector2(x-side*17,size.y-10),accent,1,true)
+ # Self-drawn states stay in colour and line weight, so size and position never move.
+ if ui_state=="hover" or ui_state=="pressed":
+  draw_polyline(closed,Palette.CYAN,3 if ui_state=="pressed" else 2,true)
