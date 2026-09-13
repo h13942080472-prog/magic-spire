@@ -1,0 +1,109 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/shell/header.gd" id="1_header"]
+
+[node name="Header" type="Control"]
+mouse_filter = 2
+script = ExtResource("1_header")
+
+[node name="HeaderStrip" type="ColorRect" parent="."]
+offset_right = 1600.0
+offset_bottom = 62.0
+color = Color(0.045, 0.07, 0.09, 0.94)
+
+[node name="HeaderTrim" type="ColorRect" parent="."]
+offset_top = 61.0
+offset_right = 1600.0
+offset_bottom = 62.0
+mouse_filter = 2
+
+[node name="HeaderInfo" type="Panel" parent="."]
+offset_left = 20.0
+offset_top = 10.0
+offset_right = 694.0
+offset_bottom = 52.0
+mouse_filter = 2
+
+[node name="Location" type="Panel" parent="HeaderInfo"]
+offset_left = 1.0
+offset_top = 1.0
+offset_right = 119.0
+offset_bottom = 41.0
+mouse_filter = 2
+
+[node name="Divider1" type="ColorRect" parent="HeaderInfo"]
+offset_left = 372.0
+offset_top = 12.0
+offset_right = 373.0
+offset_bottom = 30.0
+mouse_filter = 2
+
+[node name="Divider2" type="ColorRect" parent="HeaderInfo"]
+offset_left = 514.0
+offset_top = 12.0
+offset_right = 515.0
+offset_bottom = 30.0
+mouse_filter = 2
+
+[node name="HeaderOrderBadge" type="Panel" parent="HeaderInfo"]
+offset_left = 262.0
+offset_top = 7.0
+offset_right = 362.0
+offset_bottom = 35.0
+mouse_filter = 2
+
+[node name="HeaderFloor" type="Label" parent="HeaderInfo"]
+offset_left = 12.0
+offset_right = 108.0
+offset_bottom = 42.0
+
+[node name="HeaderRound" type="Label" parent="HeaderInfo"]
+offset_left = 132.0
+offset_right = 240.0
+offset_bottom = 42.0
+
+[node name="HeaderOrder" type="Label" parent="HeaderInfo"]
+offset_left = 262.0
+offset_right = 362.0
+offset_bottom = 42.0
+
+[node name="HeaderSecurity" type="Label" parent="HeaderInfo"]
+offset_left = 526.0
+offset_right = 662.0
+offset_bottom = 42.0
+
+[node name="OpenTutorial" type="Button" parent="."]
+offset_left = 714.0
+offset_top = 12.0
+offset_right = 814.0
+offset_bottom = 50.0
+
+[node name="OpenStatus" type="Button" parent="."]
+offset_left = 830.0
+offset_top = 12.0
+offset_right = 974.0
+offset_bottom = 50.0
+
+[node name="OpenItems" type="Button" parent="."]
+offset_left = 990.0
+offset_top = 12.0
+offset_right = 1144.0
+offset_bottom = 50.0
+
+[node name="OpenDeck" type="Button" parent="."]
+offset_left = 1160.0
+offset_top = 12.0
+offset_right = 1278.0
+offset_bottom = 50.0
+
+[node name="OpenMap" type="Button" parent="."]
+offset_left = 1294.0
+offset_top = 12.0
+offset_right = 1412.0
+offset_bottom = 50.0
+
+[node name="OpenMenu" type="Button" parent="."]
+offset_left = 1428.0
+offset_top = 12.0
+offset_right = 1564.0
+offset_bottom = 50.0

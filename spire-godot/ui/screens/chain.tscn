@@ -1,0 +1,20 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/screens/chain_screen.gd" id="1_chain"]
+
+[node name="ChainScreen" type="Control"]
+mouse_filter = 2
+script = ExtResource("1_chain")
+
+[node name="ChainPanel" type="PanelContainer" parent="."]
+offset_left = 450.0
+offset_top = 420.0
+offset_right = 1510.0
+offset_bottom = 745.0
+
+[node name="ChainScroll" type="ScrollContainer" parent="ChainPanel"]
+size_flags_vertical = 3
+horizontal_scroll_mode = 1
+
+[node name="ChainContent" type="VBoxContainer" parent="ChainPanel/ChainScroll"]
+size_flags_horizontal = 3

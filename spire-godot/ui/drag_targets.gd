@@ -133,8 +133,8 @@ static func focus(ui, control: Control, selectable: bool) -> void:
  highlight(ui,control)
  control.set_meta("target_selectable",selectable)
  control.modulate=control.get_meta("idle_modulate") if selectable else Color(0.48,0.48,0.48,1)
- var style=ui._style(Color("254b50"),ui.CYAN,8) if selectable else ui._style(Color("14202a"),ui.MUTED.darkened(0.55),8)
- for key in ["normal","hover","disabled"]: control.add_theme_stylebox_override(key,style)
+ var style=ui._style(Color("14202a"),ui.MUTED.darkened(0.55),8)
+ for key in ["normal","hover","disabled"]: control.add_theme_stylebox_override(key,ui.Palette.slot_style(key,false,true) if selectable else style)
 
 static func highlight(ui, control: Control) -> void:
  if control.has_meta("idle_normal"): return

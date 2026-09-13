@@ -1,0 +1,15 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/screens/capture_screen.gd" id="1_capture"]
+
+[node name="CaptureScreen" type="Control"]
+mouse_filter = 2
+script = ExtResource("1_capture")
+
+[node name="CapturePanel" type="PanelContainer" parent="."]
+offset_left = 397.0
+offset_top = 158.0
+offset_right = 1537.0
+offset_bottom = 688.0
+
+[node name="Column" type="VBoxContainer" parent="CapturePanel"]

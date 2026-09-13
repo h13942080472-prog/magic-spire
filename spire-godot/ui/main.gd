@@ -19,6 +19,22 @@ const EquipmentTileScene=preload("res://ui/elements/equipment_tile.tscn")
 const EquipmentDropCardScene=preload("res://ui/elements/equipment_drop_card.tscn")
 const PrisonSiteScene=preload("res://ui/elements/prison_site.tscn")
 const ItemRowScene=preload("res://ui/elements/item_row.tscn")
+const PanelFrameScene=preload("res://ui/shell/panel_frame.tscn")
+const HeaderScene=preload("res://ui/shell/header.tscn")
+const BottomControlsScene=preload("res://ui/shell/bottom_controls.tscn")
+const BodyDrawerScene=preload("res://ui/shell/body_drawer.tscn")
+const ActionSidebarScene=preload("res://ui/shell/action_sidebar.tscn")
+const HomeScene=preload("res://ui/screens/home.tscn")
+const DemoExitScene=preload("res://ui/screens/demo_exit.tscn")
+const ChainScene=preload("res://ui/screens/chain.tscn")
+const CaptureScene=preload("res://ui/screens/capture.tscn")
+const InspectionScene=preload("res://ui/screens/inspection.tscn")
+const PracticeScene=preload("res://ui/screens/practice.tscn")
+const RouteScene=preload("res://ui/screens/route.tscn")
+const BattleScene=preload("res://ui/screens/battle.tscn")
+const ShopScene=preload("res://ui/screens/shop.tscn")
+const EventScene=preload("res://ui/screens/event.tscn")
+const RewardScene=preload("res://ui/screens/reward.tscn")
 const DragTargets=preload("res://ui/drag_targets.gd")
 const ActionIndex=preload("res://ui/action_index.gd")
 const Backdrop=preload("res://ui/dungeon_backdrop.gd")
@@ -49,6 +65,7 @@ const INK=Palette.INK
 const ENEMY_STAGE_LEFT=788.0
 const ENEMY_STAGE_WIDTH=780.0
 const ENEMY_GROUP_WIDTH=260.0
+const SCREENS=["home","battle","chain","reward","route","practice","shop","event","capture","inspection","demo_exit"]
 
 var enemy_feedback: Control
 var resource_feedback: Control
@@ -62,6 +79,11 @@ var game_factory=Game
 var game=Game.new()
 var view: Dictionary
 var layout: Control
+var backdrop: Control
+var header_root: Control
+var chrome_index:=0
+var screen_layers: Dictionary={}
+var screen_parent: Control
 var drawer_layer: Control
 var drawer_base_candidates={}
 var building_drawer=false
@@ -331,14 +353,15 @@ func _button(text: String, fn: Callable, color: Color=GOLD, drop_zone: bool=fals
  return _style_button(DropTargetScene.instantiate() if drop_zone else Button.new(),text,fn,color)
 
 func _place(node: Control, rect: Rect2, parent: Control=null) -> Control:
- var owner=parent if parent!=null else (drawer_layer if building_drawer else layout)
+ var owner=parent
+ if owner==null: owner=drawer_layer if building_drawer else (screen_parent if screen_parent!=null else layout)
  owner.add_child(node)
  node.position=rect.position
  node.size=rect.size
  return node
 
 func _panel(rect: Rect2, parent: Control=null) -> PanelContainer:
- var p=PanelContainer.new()
+ var p=PanelFrameScene.instantiate()
  p.add_theme_stylebox_override("panel",Palette.window_frame())
  return _place(p,rect,parent)
 
@@ -368,6 +391,66 @@ func _style_bar(b: ProgressBar, value: float, maximum: float, color: Color) -> P
 func _bar(value: float, maximum: float, color: Color) -> ProgressBar:
  return _style_bar(ProgressBar.new(),value,maximum,color)
 
+# Single source of truth for which screen owns the frame. The home page is decided by
+# show_home before this call; every remaining branch keeps the original priority order.
+func current_screen(view: Dictionary) -> String:
+ if view.reward_panel.get("layout","")=="relic_bundle": return "reward"
+ if view.phase=="captured": return "capture"
+ if view.demo_exit: return "demo_exit"
+ if view.phase in ["inspection","prison_end"] or (view.phase=="pack" and view.prison.get("active",false)): return "inspection"
+ if show_route or view.phase in ["map","travel","cleared","pack"]: return "practice" if view.practice else "route"
+ if view.phase in ["treasure","departure"]: return "reward"
+ if view.phase=="shop": return "shop"
+ if view.phase=="event":
+  if view.reward_panel.active and (view.room_event.report=="" or event_read_page==view.room_event.page_id): return "reward"
+  return "event"
+ if not view.card_chain.is_empty(): return "chain"
+ if view.reward_panel.active: return "reward"
+ return "battle"
+
+# The frame tree is built once and keeps its draw order: backdrop, header band,
+# the eleven screen slots, then the chrome band. A render never rebuilds it, it
+# only refreshes the band that owns the current screen.
+func _build_layout() -> void:
+ layout=Control.new()
+ add_child(layout)
+ layout.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ backdrop=Backdrop.new();backdrop.name="MoonlitGallery"
+ backdrop.position=Vector2.ZERO;backdrop.size=Vector2(1600,900)
+ layout.add_child(backdrop)
+ header_root=Control.new();header_root.name="HeaderBand"
+ header_root.mouse_filter=Control.MOUSE_FILTER_IGNORE
+ layout.add_child(header_root)
+ header_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ _build_screen_layers()
+ chrome_index=layout.get_child_count()
+
+# Chrome keeps the pre-persistent-tree shape: direct children of layout, appended
+# after the bands, refreshed by index range instead of by a band container.
+func _clear_chrome() -> void:
+ if not is_instance_valid(layout): return
+ for index in range(layout.get_child_count()-1,chrome_index-1,-1):
+  var child=layout.get_child(index)
+  layout.remove_child(child)
+  child.queue_free()
+
+# Detaches immediately instead of only queue_free(), so a node that is being
+# replaced can never be hit by find_child during the same frame.
+func _reset_layer(host: Node) -> void:
+ if host==null: return
+ for child in host.get_children():
+  host.remove_child(child)
+  child.queue_free()
+
+func _build_screen_layers() -> void:
+ screen_layers.clear()
+ for screen in SCREENS:
+  var layer=Control.new();layer.name="Screen_"+screen
+  layer.mouse_filter=Control.MOUSE_FILTER_IGNORE
+  layout.add_child(layer)
+  layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+  screen_layers[screen]=layer
+
 func render(snapshot: Dictionary={}) -> void:
  DragTargets.clear(self)
  _hide_term()
@@ -383,18 +466,18 @@ func render(snapshot: Dictionary={}) -> void:
  actions=ActionIndex.new(view.candidates)
  var alive=view.enemies.filter(func(e):return not e.gone)
  if not alive.is_empty() and not alive.any(func(e):return e.id==selected_enemy): selected_enemy=alive[0].id
- drawer_layer=null;drawer_base_candidates.clear()
+ _clear_drawer_layer();drawer_base_candidates.clear()
  candidate_buttons.clear(); card_buttons.clear(); body_buttons.clear()
  actor_targets.clear()
- if is_instance_valid(layout):
-  remove_child(layout)
-  layout.queue_free()
- layout=Control.new()
- add_child(layout)
- layout.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ if not is_instance_valid(layout): _build_layout()
+ for name in SCREENS: _reset_layer(screen_layers[name])
+ _reset_layer(header_root)
+ _clear_chrome()
  if show_home:
-  var home=preload("res://ui/home_screen.gd").new();home.ui=self;home.name="GameHome"
+  screen_parent=screen_layers["home"]
+  var home=HomeScene.instantiate();home.ui=self;home.name="GameHome"
   _place(home,Rect2(0,0,1600,900))
+  screen_parent=null
   _refresh_drawers()
   return
  if view.phase=="battle" and not show_route and not display_settings.first_battle_tutorial_seen:
@@ -402,11 +485,10 @@ func render(snapshot: Dictionary={}) -> void:
   tutorial_category="basics"
   show_tutorial=true
   display_settings.mark_first_battle_tutorial_seen()
- var bg=Backdrop.new()
- bg.name="MoonlitGallery"
- bg.rest=view.phase in ["rest","rest_choice"]
- _place(bg,Rect2(0,0,1600,900))
+ backdrop.rest=view.phase in ["rest","rest_choice"]
+ screen_parent=header_root
  _header()
+ screen_parent=screen_layers[current_screen(view)]
  if view.reward_panel.get("layout","")=="relic_bundle": _rewards()
  elif view.phase=="captured": _capture_screen()
  elif view.demo_exit: _demo_exit_screen()
@@ -422,12 +504,16 @@ func render(snapshot: Dictionary={}) -> void:
   if view.reward_panel.active and (view.room_event.report=="" or event_read_page==view.room_event.page_id): _rewards()
   else: _event_screen()
  else:
+  screen_parent=screen_layers["battle"]
   _battle_scene()
-  if not view.card_chain.is_empty(): _chain_screen()
-  elif view.reward_panel.active: _rewards()
+  if not view.card_chain.is_empty():
+   screen_parent=screen_layers["chain"];_chain_screen()
+  elif view.reward_panel.active:
+   screen_parent=screen_layers["reward"];_rewards()
   else:
    if not _selecting_hand(): _fixed_actions()
    _hand()
+ screen_parent=null
  if view.phase=="shop" and not show_route:
   if shop_sidebar_open:
    _bottom_controls(false)
@@ -456,6 +542,14 @@ func render(snapshot: Dictionary={}) -> void:
  if is_instance_valid(keyboard_input): keyboard_input.refresh_hints.call_deferred()
 
 # Information panels own only their overlay. Keep the scene, hand, focus and map alive.
+# The drawer layer must leave the tree with the frame tree now living on: a nulled
+# reference would otherwise leave the previous drawer nodes behind for find_child.
+func _clear_drawer_layer() -> void:
+ if is_instance_valid(drawer_layer):
+  layout.remove_child(drawer_layer)
+  drawer_layer.queue_free()
+ drawer_layer=null
+
 func _refresh_drawers() -> void:
  _hide_term()
  if is_instance_valid(drawer_layer):
@@ -479,82 +573,75 @@ func _refresh_drawers() -> void:
   if show_options: _options_drawer()
   if show_saves: _save_drawer()
  else:
-  if show_log: _log_drawer()
-  if show_deck: _deck_drawer()
-  if show_event_selection: EventScreen.drawer(self)
-  if show_items: _items_drawer()
-  if show_hook and view.phase=="rest": _hook_drawer()
-  if show_pressure: _pressure_drawer()
-  if show_settings: _settings_drawer()
-  if show_saves: _save_drawer()
-  if show_menu: _menu_drawer()
-  if show_encyclopedia: _encyclopedia_drawer()
-  if show_tutorial: _tutorial_drawer()
-  if show_options: _options_drawer()
-  if show_shop_service and view.phase=="shop":
-   var title={"release":"拘束解除","remove":"删牌服务","discard":"整理道具"}[shop_service_mode]
-   ShopScreen.services(self,_drawer_shell(title,Rect2(450,150,805,600),GOLD))
+   if show_log: _log_drawer()
+   if show_deck: _deck_drawer()
+   if show_event_selection: EventScreen.drawer(self)
+   if show_items: _items_drawer()
+   if show_hook and view.phase=="rest": _hook_drawer()
+   if show_pressure: _pressure_drawer()
+   if show_settings: _settings_drawer()
+   if show_saves: _save_drawer()
+   if show_menu: _menu_drawer()
+   if show_encyclopedia: _encyclopedia_drawer()
+   if show_tutorial: _tutorial_drawer()
+   if show_options: _options_drawer()
+   if show_shop_service and view.phase=="shop":
+    var title={"release":"拘束解除","remove":"删牌服务","discard":"整理道具"}[shop_service_mode]
+    ShopScreen.services(self,_drawer_shell(title,Rect2(450,150,805,600),GOLD))
  building_drawer=false
 
 func _header() -> void:
- var strip=ColorRect.new(); strip.color=Color(0.045,0.07,0.09,0.94)
- _place(strip,Rect2(0,0,1600,62))
- var trim=ColorRect.new();trim.color=GOLD.darkened(0.62);trim.mouse_filter=Control.MOUSE_FILTER_IGNORE
- _place(trim,Rect2(0,61,1600,1))
- var info=Panel.new();info.name="HeaderInfo";info.mouse_filter=Control.MOUSE_FILTER_IGNORE
+ var header=HeaderScene.instantiate()
+ _place(header,Rect2(0,0,1600,62))
+ var trim=header.trim_line();trim.color=GOLD.darkened(0.62)
+ var info=header.info()
  var info_style=_style(Color("121e27"),Color("35424a"),9);info_style.shadow_size=0
  info.add_theme_stylebox_override("panel",info_style)
- _place(info,Rect2(20,10,674,42))
- var location=Panel.new();location.mouse_filter=Control.MOUSE_FILTER_IGNORE
+ var location=header.location()
  var location_style=_style(Color("302d25"),Color("65583e"),8);location_style.shadow_size=0
  location.add_theme_stylebox_override("panel",location_style)
- _place(location,Rect2(1,1,118,40),info)
- for x in [372,514]:
-  var divider=ColorRect.new();divider.color=Color("35424a");divider.mouse_filter=Control.MOUSE_FILTER_IGNORE
-  _place(divider,Rect2(x,12,1,18),info)
+ for index in [1,2]: header.divider(index).color=Color("35424a")
  var order_tone=RED if view.run_header.last else CYAN
- var order_badge=Panel.new();order_badge.name="HeaderOrderBadge";order_badge.mouse_filter=Control.MOUSE_FILTER_IGNORE
+ var order_badge=header.order_badge()
  var order_style=_style(order_tone.darkened(0.82),order_tone.darkened(0.62),6);order_style.shadow_size=0
  order_badge.add_theme_stylebox_override("panel",order_style)
- _place(order_badge,Rect2(262,7,100,28),info)
- for entry in [["HeaderFloor",view.run_header.location,12,96,20,GOLD],["HeaderRound",view.run_header.turn,132,108,17,TEXT],["HeaderOrder",view.run_header.order,262,100,16,order_tone]]:
-  var label=_label(entry[1],entry[4],entry[5]);label.name=entry[0]
+ for entry in [[header.floor_label(),view.run_header.location,12,GOLD],[header.round_label(),view.run_header.turn,17,TEXT],[header.order_label(),view.run_header.order,16,order_tone]]:
+  var label=entry[0]
+  _style_label(label,entry[1],entry[2],entry[3])
   label.autowrap_mode=TextServer.AUTOWRAP_OFF;label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
-  _place(label,Rect2(entry[2],0,entry[3],42),info)
  if view.wall!="none":
   var distance_label=_label("距墙%d格" % view.wall_position.distance,16,MUTED)
   distance_label.name="WallPosition"
   distance_label.autowrap_mode=TextServer.AUTOWRAP_OFF;distance_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;distance_label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
   _place(distance_label,Rect2(384,0,118,42),info)
- var security_label=_label("警戒度%d级" % view.security,16,GOLD)
- security_label.name="HeaderSecurity"
+ var security_label=header.security_label()
+ _style_label(security_label,"警戒度%d级" % view.security,16,GOLD)
  security_label.autowrap_mode=TextServer.AUTOWRAP_OFF;security_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;security_label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
- _place(security_label,Rect2(526,0,136,42),info)
- var book=_button("教程书",func():_open_tutorial(),GOLD)
- book.name="OpenTutorial"
+ var book=header.tutorial_button()
+ _style_button(book,"教程书",func():_open_tutorial(),GOLD)
  for state in ["normal","hover","pressed"]:
   var glow=_style(Color("514127") if state=="normal" else Color("695433") if state=="hover" else Color("3c3020"),Color("e4c17e"),8)
   glow.shadow_color=Color(0.79,0.65,0.34,0.22);glow.shadow_size=4
   book.add_theme_stylebox_override(state,glow)
   book.add_theme_color_override("font_color" if state=="normal" else "font_"+state+"_color",Color("ffe4a6"))
- _place(book,Rect2(714,12,100,38))
- var status_button=_button("状态 !" if view.pressure.overloaded else "状态",func():_open_drawer("show_pressure"),RED if view.pressure.overloaded else CYAN)
- status_button.name="OpenStatus";_place(status_button,Rect2(830,12,144,38))
- var items_button=_button("道具 %d / %d" % [view.carried_items,view.capacity],func():_open_drawer("show_items"));items_button.name="OpenItems"
- _place(items_button,Rect2(990,12,154,38))
- var deck_button=_button("卡组 %d" % view.deck_count,func():_open_drawer("show_deck"));deck_button.name="OpenDeck"
- _place(deck_button,Rect2(1160,12,118,38))
+ var status_button=header.status_button()
+ _style_button(status_button,"状态 !" if view.pressure.overloaded else "状态",func():_open_drawer("show_pressure"),RED if view.pressure.overloaded else CYAN)
+ var items_button=header.items_button()
+ _style_button(items_button,"道具 %d / %d" % [view.carried_items,view.capacity],func():_open_drawer("show_items"))
+ var deck_button=header.deck_button()
+ _style_button(deck_button,"卡组 %d" % view.deck_count,func():_open_drawer("show_deck"))
  var in_prison=view.prison.get("active",false) or view.phase in ["captured","prison_end"]
- var map_button=_button("牢房说明" if in_prison else "返回房间" if show_route and view.phase in ["battle","prepare","reward","rest","event","shop","treasure","departure"] else ("练习说明" if view.practice else "塔路"),func():
+ var map_button=header.map_button()
+ _style_button(map_button,"牢房说明" if in_prison else "返回房间" if show_route and view.phase in ["battle","prepare","reward","rest","event","shop","treasure","departure"] else ("练习说明" if view.practice else "塔路"),func():
   if in_prison:
    _open_tutorial("prison")
   elif view.phase in ["battle","prepare","reward","rest","event","shop","treasure","departure"]:
    show_route=not show_route;_close_drawers()
    selected_card=""; show_body=false
    render(view),CYAN)
- map_button.name="OpenPrisonTutorial" if in_prison else "OpenMap";_place(map_button,Rect2(1294,12,118,38))
- var menu_button=_button("菜单 !" if save_failed else "菜单 ≡",func():_open_drawer("show_menu"),RED if save_failed else MUTED)
- menu_button.name="OpenMenu";_place(menu_button,Rect2(1428,12,136,38))
+ map_button.name="OpenPrisonTutorial" if in_prison else "OpenMap"
+ var menu_button=header.menu_button()
+ _style_button(menu_button,"菜单 !" if save_failed else "菜单 ≡",func():_open_drawer("show_menu"),RED if save_failed else MUTED)
  _relic_row()
 
 func _relic_row() -> void:
@@ -623,11 +710,16 @@ func _status_strip(owner: String, rect: Rect2, parent: Control=null) -> void:
  var strip=ScrollContainer.new();strip.name="StatusStrip_"+owner
  strip.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
  strip.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO
- _place(strip,rect,layout if parent==null else parent)
+ _place(strip,rect,parent)
  var row=HBoxContainer.new();row.add_theme_constant_override("separation",4);strip.add_child(row)
  for entry in entries: row.add_child(_status_control(entry,true))
 
 func _battle_scene() -> void:
+ var screen=BattleScene.instantiate()
+ _place(screen,Rect2(0,0,1600,900))
+ # Everything below belongs to the battle screen, so it is anchored inside the scene
+ # container instead of being a sibling of the screen layers.
+ screen_parent=screen.battlefield()
  _status_strip("hero",Rect2(405,146,366,52))
  var hero=Arena.new()
  hero.name="HeroArt"
@@ -754,7 +846,7 @@ func _fixed_actions() -> void:
    var summary=c.get("brief",c.detail.trim_suffix("。"))
    var tags=c.get("brief_tags","")
    if c.has("casting"): tags+=(" · " if tags!="" else "")+c.casting.percent
-   var btn=_basic_action_tile(c,Rect2(394+i*(width+8),556,width,54),container,summary,tags,alternatives.size()>1)
+   var btn=_basic_action_tile(c,Rect2(394+i*(width+8),556,width,54),container,summary,tags,alternatives.size()>1,alternatives)
    if attack:
     btn.name="BasicAttack_"+c.payload.type
     btn.drag_payload={"action_type":c.payload.type,"form":c.payload.form,"version":view.version}
@@ -763,7 +855,9 @@ func _fixed_actions() -> void:
      btn.gui_input.connect(func(event):
       if event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_RIGHT and event.pressed:
        attack_forms[c.payload.type]=(c.payload.form+1)%alternatives.size()
-       btn.accept_event();render(view))
+       # Deferred: rebuilding the rail inside this tile's own input callback would
+       # detach the node that is still handling the event.
+       btn.accept_event();_rebuild_action_rail.call_deferred(btn.name,btn.is_hovered()))
    else: btn.name="DeepBreath"
 
 
@@ -779,12 +873,23 @@ func _fixed_actions() -> void:
   detail.name="DeepBreathDetail"
   _place(detail,Rect2(1347,598,218,40),parent)
 
+# A form switch rebuilds the whole rail, which drops the open hover card with it. When
+# the pointer never left the tile, the card has to come back for the newly chosen form.
+func _rebuild_action_rail(tile_name: String, restore_hover: bool) -> void:
+ render(view)
+ if not restore_hover: return
+ var tile=find_child(tile_name,true,false)
+ if tile!=null and tile.is_visible_in_tree(): tile.mouse_entered.emit()
+
 # Two-line action tiles share the original candidates, tooltips and drag receiver.
-func _basic_action_tile(c: Dictionary, rect: Rect2, parent: Control, summary: String, tags: String, can_flip: bool) -> Button:
+func _basic_action_tile(c: Dictionary, rect: Rect2, parent: Control, summary: String, tags: String, can_flip: bool, slot_actions: Array=[]) -> Button:
  var accent=CYAN if c.payload.kind=="calm" or c.has("casting") else GOLD
  var btn=BasicActionTileScene.instantiate()
  _style_button(btn,"",func():_submit(c),accent)
  btn.disabled=not c.valid;btn.clip_contents=true
+ # The rail is one shared row of tiles, so its explanation opens below the tile
+ # instead of covering the neighbouring skill text on the same row.
+ btn.set_meta("term_below",true)
  _place(btn,rect,parent);candidate_buttons[c.id]=btn
  var cost="%d能量" % c.cost+(" · %s魔力" % game.number(c.mana) if c.mana>0 else "")
  var cost_width=102.0 if c.mana>0 else 44.0
@@ -807,8 +912,16 @@ func _basic_action_tile(c: Dictionary, rect: Rect2, parent: Control, summary: St
  if c.risk!="": tooltip+="\n"+c.risk
  if can_flip: tooltip+="\n右键切换招式"
  var entry={"label":c.label,"detail":tooltip}
- btn.mouse_entered.connect(func():_show_term(btn,entry));btn.mouse_exited.connect(_hide_term)
- btn.focus_entered.connect(func():_show_term(btn,entry));btn.focus_exited.connect(_hide_term)
+ if slot_actions.size()>1:
+  # This tile owns a hotkey slot with several skills: the hover card lists all of them
+  # and each row releases its own skill, so the player never has to right-click first.
+  btn.mouse_entered.connect(func():_show_term_slot(btn,entry,slot_actions))
+  btn.focus_entered.connect(func():_show_term_slot(btn,entry,slot_actions))
+  btn.mouse_exited.connect(func():_hide_term_when_away(btn))
+  btn.focus_exited.connect(func():_hide_term_when_away(btn))
+ else:
+  btn.mouse_entered.connect(func():_show_term(btn,entry));btn.mouse_exited.connect(_hide_term)
+  btn.focus_entered.connect(func():_show_term(btn,entry));btn.focus_exited.connect(_hide_term)
  return btn
 
 func _posture_layout(count: int) -> Dictionary:
@@ -968,13 +1081,17 @@ func _card_tooltip(button: Button, card: Dictionary) -> void:
  if lines.is_empty(): _hide_term();return
  _show_term(button,{"label":card.name+("" if card.single_face else (" · "+card.face_names[side])),"detail":"\n".join(lines)})
 
+# Removes every panel with this name: screens anchor their content inside a scene
+# container, so a stale duplicate can live in a different subtree than layout.
 func _remove_local_panel(node_name: String) -> void:
- var panel=layout.get_node_or_null(node_name)
- if panel==null: return
- for key in candidate_buttons.keys():
-  var button=candidate_buttons[key]
-  if not is_instance_valid(button) or panel.is_ancestor_of(button): candidate_buttons.erase(key)
- panel.hide();layout.remove_child(panel);panel.queue_free()
+ for panel in layout.find_children(node_name,"",true,false):
+  for key in candidate_buttons.keys():
+   var button=candidate_buttons[key]
+   if not is_instance_valid(button) or panel.is_ancestor_of(button): candidate_buttons.erase(key)
+  panel.hide()
+  var holder=panel.get_parent()
+  if holder!=null: holder.remove_child(panel)
+  panel.queue_free()
 
 func _refresh_body_details() -> void:
  DragTargets.clear(self)
@@ -1017,20 +1134,19 @@ func _climax_narration() -> void:
 
 func _bottom_controls(include_tools: bool=true) -> void:
  var has_turn_controls=not show_route and view.phase in ["battle","prepare","rest","prison"]
- var resource_back=Panel.new();resource_back.mouse_filter=Control.MOUSE_FILTER_IGNORE
- resource_back.name="MainResourcePanel"
+ var bar=BottomControlsScene.instantiate()
+ _place(bar,Rect2(0,0,1600,900))
+ var resource_back=bar.resource_panel()
  var resource_style=_style(Color("0e1923"),Color("293e47"),10);resource_style.shadow_size=0;resource_style.set_border_width_all(1)
  resource_back.add_theme_stylebox_override("panel",resource_style)
- _place(resource_back,Rect2(24,599,330,96))
+ bar.show_tools(include_tools)
  if include_tools:
-  var tool_back=Panel.new();tool_back.mouse_filter=Control.MOUSE_FILTER_IGNORE
+  var tool_back=bar.tool_panel()
   var tool_style=_style(Color("101c27"),Color("615439"),14);tool_style.set_border_width_all(1);tool_style.shadow_size=3
   tool_back.add_theme_stylebox_override("panel",tool_style)
-  tool_back.name="ResourceToolsPanel"
-  _place(tool_back,Rect2(24,700,330,188 if has_turn_controls else 88))
- if has_turn_controls:
-  var divider=ColorRect.new();divider.color=Color("35464b");divider.mouse_filter=Control.MOUSE_FILTER_IGNORE
-  _place(divider,Rect2(160,781,178,1))
+  tool_back.size.y=188 if has_turn_controls else 88
+ bar.show_turn_controls(has_turn_controls)
+ if has_turn_controls: bar.tool_divider().color=Color("35464b")
  var meters=[
   {"id":"MainOverload","label":"快感","value":view.pressure.value,"maximum":view.pressure.maximum,"color":OVERLOAD_COLOR},
   {"id":"MainMana","label":"魔力","value":view.mana,"maximum":view.mana_max,"color":CYAN}]
@@ -1050,20 +1166,19 @@ func _bottom_controls(include_tools: bool=true) -> void:
  mana_bar.mouse_filter=Control.MOUSE_FILTER_STOP;mana_bar.tooltip_text="嘴部施法成功率 · "+view.casting.percent+"\n临时魔力优先抵扣法术和卡牌耗魔，不受上限限制；不能存瓶或购物，本场结束清空。"
  if include_tools: preload("res://ui/mana_flask.gd").build(self)
  if not has_turn_controls: return
- var orb=TextureRect.new();orb.name="EnergyMedallion";orb.mouse_filter=Control.MOUSE_FILTER_PASS
+ var orb=bar.medallion()
  orb.tooltip_text="能量上限：%d。每回合恢复至上限，再结算额外能量与惩罚。" % view.energy_max
  orb.texture=preload("res://assets/ui/energy-medallion.svg");orb.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;orb.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
- _place(orb,Rect2(44,782,102,102))
- var energy=_label(str(view.energy),43,TEXT); energy.name="EnergyValue";energy.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
- _place(energy,Rect2(5,17,92,64),orb)
- if view.phase=="battle":
-  var powers=_button("能力区 · %d" % view.powers.size(),func():_open_drawer("show_deck","powers"),GOLD)
-  powers.name="OpenPowers";powers.add_theme_font_size_override("font_size",15);_place(powers,Rect2(161,790,177,36))
- var draw_button=_button("抽牌堆  %d" % view.draw_count,func():_open_drawer("show_deck","draw"));draw_button.name="DrawPileButton"
+ var energy=bar.energy_label()
+ _style_label(energy,str(view.energy),43,TEXT);energy.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+ var powers=bar.powers_button()
+ _style_button(powers,"能力区 · %d" % view.powers.size(),func():_open_drawer("show_deck","powers"),GOLD)
+ powers.add_theme_font_size_override("font_size",15);powers.visible=view.phase=="battle"
+ var draw_button=bar.draw_button()
+ _style_button(draw_button,"抽牌堆  %d" % view.draw_count,func():_open_drawer("show_deck","draw"))
  draw_button.icon=preload("res://assets/ui/draw-pile.svg");draw_button.add_theme_font_size_override("font_size",16);draw_button.add_theme_constant_override("h_separation",12)
- _place(draw_button,Rect2(161,835,177,42))
- var discard_button=_button("弃牌堆\n%d" % view.discard_count,func():_open_drawer("show_deck","discard"));discard_button.name="DiscardPileButton"
- _place(discard_button,Rect2(1327,786,82,70))
+ var discard_button=bar.discard_button()
+ _style_button(discard_button,"弃牌堆\n%d" % view.discard_count,func():_open_drawer("show_deck","discard"))
  for c in actions.select("flow"):
   var b=_button(c.label,func(): _submit(c),CYAN if c.payload.kind=="end" else GOLD)
   _place(b,Rect2(1424,735 if c.payload.kind=="end" else 837,155,90 if c.payload.kind=="end" else 38))
@@ -1143,29 +1258,28 @@ func _body_card_actions(slot: String, uid: String) -> Array:
  return unique
 
 func _body_drawer() -> void:
- var panel=_panel(Rect2(24,82,330,512))
- panel.name="BodyEquipmentPanel"
- panel.z_index=20
- var canvas=Control.new();panel.add_child(canvas)
+ var drawer=BodyDrawerScene.instantiate()
+ var panel=drawer.panel()
+ panel.add_theme_stylebox_override("panel",Palette.window_frame())
+ var portrait=drawer.portrait()
+ portrait.name="EquipmentPortrait"
+ portrait.configure(view,display_settings.fixed_hero_portrait)
+ drawer.divider().color=GOLD.darkened(0.65)
+ # The portrait subscribes and aligns in _ready, so it must be configured before the drawer enters the tree.
+ _place(drawer,Rect2(0,0,1600,900))
+ var canvas=drawer.canvas()
  _place(_label("身体与拘束具",21,GOLD),Rect2(0,0,306,30),canvas)
- var portrait=EquipmentPortrait.new();portrait.name="EquipmentPortrait";portrait.configure(view,display_settings.fixed_hero_portrait)
- _place(portrait,Rect2(0,34,178,454),canvas)
- var divider=ColorRect.new();divider.color=GOLD.darkened(0.65);divider.mouse_filter=Control.MOUSE_FILTER_IGNORE
- _place(divider,Rect2(178,36,1,442),canvas)
  var index=0
  for body in view.body_groups:
+  var slot_selected=show_body and body.id==_body_at(selected_slot).id
   var b=_button(body.name+("  "+str(body.count) if body.occupied else "")+("·链" if not body.links.is_empty() else ""),func():
    show_body=not show_body if _body_at(selected_slot).id==body.id else true
    selected_slot=body.id; selected_candidate=""; player_pick=false
-   render(view),CYAN if body.id==_body_at(selected_slot).id else (GOLD if body.occupied else MUTED.darkened(0.5)),true)
+   render(view),CYAN if slot_selected else (GOLD if body.occupied else MUTED.darkened(0.5)),true)
   b.tooltip_text=body.name+(" · %d件" % body.count if body.occupied else " · 自由")
-  if body.can_release:
-   b.add_theme_stylebox_override("normal",_style(Color("254b50"),CYAN))
-   b.add_theme_stylebox_override("hover",_style(Color("2f6167"),CYAN))
-   b.add_theme_stylebox_override("pressed",_style(Color("1d3c41"),CYAN))
-   b.add_theme_stylebox_override("focus",_style(Color("2f6167"),CYAN))
-   b.add_theme_stylebox_override("disabled",_style(Color("141d26"),Palette.MUTED.darkened(0.6)))
-   b.tooltip_text+=" · 可一键解除"
+  for state_name in ["normal","hover","pressed","focus","disabled"]:
+   b.add_theme_stylebox_override(state_name,Palette.slot_style(state_name,slot_selected,body.can_release))
+  if body.can_release: b.tooltip_text+=" · 可一键解除"
   b.set_meta("can_release",body.can_release)
   b.name="BodySlot_"+body.id;b.custom_minimum_size=Vector2(120,29)
   b.accepted_kind="any"
@@ -1210,6 +1324,28 @@ func _single_restraint_card_action(uid: String) -> Dictionary:
  if choices.is_empty() or choices.any(func(c):return c.payload.target!=target): return {}
  fields.target=target
  return actions.first_usable("card",fields)
+
+func _over_body_slot(point: Vector2) -> bool:
+ for button in body_buttons.values():
+  if is_instance_valid(button) and button.get_global_rect().has_point(point): return true
+ return false
+
+# Any click outside the part panel and outside the part slots dismisses the panel.
+# The click is never swallowed, so it still reaches whatever sits underneath, and the
+# slot styles are refreshed in place because mouse-down must not rebuild the tree
+# (that would cancel the click, or an in-flight drag).
+func _dismiss_body_details_outside(point: Vector2) -> void:
+ if not show_body or selected_card!="" or _selecting_hand(): return
+ if _over_body_slot(point): return
+ var details=layout.find_child("EquipmentDetails",true,false) if is_instance_valid(layout) else null
+ if details!=null and details.get_global_rect().has_point(point): return
+ show_body=false
+ _remove_local_panel("EquipmentDetails")
+ for body in view.body_groups:
+  var button=body_buttons.get(body.id)
+  if button==null: continue
+  for state_name in ["normal","hover","pressed","focus","disabled"]:
+   button.add_theme_stylebox_override(state_name,Palette.slot_style(state_name,false,body.can_release))
 
 func _body_details() -> void:
  var panel=_panel(Rect2(364,132,388,402));panel.name="EquipmentDetails";panel.z_index=180
@@ -1344,11 +1480,16 @@ func _card_target(parent: Node,c: Dictionary, automatic: bool=false) -> void:
   parent.add_child(commit); candidate_buttons[c.id]=commit
 
 func _rewards() -> void:
+ var screen=RewardScene.instantiate()
+ _place(screen,Rect2(0,0,1600,900))
+ screen_parent=screen.frame()
  preload("res://ui/reward_screen.gd").build(self)
 
 func _practice_screen() -> void:
- var panel=_panel(Rect2(415,172,1100,506))
- var v=VBoxContainer.new(); v.add_theme_constant_override("separation",20); panel.add_child(v)
+ var screen=PracticeScene.instantiate()
+ _place(screen,Rect2(0,0,1600,900))
+ var panel=screen.panel();panel.add_theme_stylebox_override("panel",Palette.window_frame())
+ var v=screen.column(); v.add_theme_constant_override("separation",20)
  v.add_child(_label("装备练习结束" if view.phase=="cleared" else "装备练习",28,GOLD))
  v.add_child(_label(view.practice_description,19))
  v.add_child(_label(view.practice_hint,18,CYAN))
@@ -1362,8 +1503,10 @@ func _practice_screen() -> void:
  v.add_child(_label(view.summary,16,MUTED))
 
 func _capture_screen() -> void:
- var panel=_panel(Rect2(397,158,1140,530))
- var v=VBoxContainer.new(); v.add_theme_constant_override("separation",17); panel.add_child(v)
+ var screen=CaptureScene.instantiate()
+ _place(screen,Rect2(0,0,1600,900))
+ var panel=screen.panel();panel.add_theme_stylebox_override("panel",Palette.window_frame())
+ var v=screen.column(); v.add_theme_constant_override("separation",17)
  v.add_child(_label("收押完成",29,RED))
  v.add_child(_label(view.capture.by+"将你送入监狱。当前警戒度：%d。" % view.security,21))
  v.add_child(_label("本级追加："+view.prison.equipment_rule+"；"+view.prison.toy_rule,18,GOLD))
@@ -1378,8 +1521,10 @@ func _capture_screen() -> void:
  v.add_child(_button("选择其他练习",func():_open_drawer("show_settings")))
 
 func _inspection_screen() -> void:
- var panel=_panel(Rect2(397,158,1140,530))
- var v=VBoxContainer.new(); v.add_theme_constant_override("separation",18); panel.add_child(v)
+ var screen=InspectionScene.instantiate()
+ _place(screen,Rect2(0,0,1600,900))
+ var panel=screen.panel();panel.add_theme_stylebox_override("panel",Palette.window_frame())
+ var v=screen.column(); v.add_theme_constant_override("separation",18)
  if view.phase=="pack":
   v.add_child(_label("整理随身道具",29,GOLD))
   v.add_child(_label("反抗战后的整备结束。先使用或放弃超出容量的工具，再返回牢房；巡视继续暂停。",20))
@@ -1480,12 +1625,12 @@ func _prison_location_details(parent: Node,site: Dictionary) -> void:
    var carry=view.items.filter(func(i):return not i.installed and not actions.select("item",{"item":i.id}).filter(func(c):return c.payload.kind=="item_install").is_empty())
    if not carry.is_empty():
     if not carry.any(func(i):return i.id==selected_item): selected_item=carry[0].id
-    var picker=OptionButton.new();picker.name="WallToolPicker"
-    for item in carry:
-     picker.add_item(item.name)
-     if item.id==selected_item: picker.select(picker.item_count-1)
-    picker.item_selected.connect(func(index):selected_item=carry[index].id;render(view));scroll.add_child(picker)
-    for c in actions.select("item",{"kind":"item_install","item":selected_item}): _compact_action(scroll,c)
+   var picker=OptionButton.new();picker.name="WallToolPicker"
+   for item in carry:
+    picker.add_item(item.name)
+    if item.id==selected_item: picker.select(picker.item_count-1)
+   picker.item_selected.connect(func(index):selected_item=carry[index].id;render(view));scroll.add_child(picker)
+   for c in actions.select("item",{"kind":"item_install","item":selected_item}): _compact_action(scroll,c)
  if kind=="door":
   var door=_button("牢门 · "+("已打开" if view.prison.door_open else "上锁"),func():pass,CYAN,true)
   door.hover_card=func(data):
@@ -1552,22 +1697,19 @@ func _route_screen() -> void:
  if map_current_room!=current:
   map_current_room=current; map_scroll_value=-1; route_focus=current
  if not view.route.any(func(r):return r.id==route_focus): route_focus=current
- var panel=_panel(Rect2(376,68,1212,820));panel.name="RouteWorkspace"
- var row=HBoxContainer.new();row.add_theme_constant_override("separation",12);panel.add_child(row)
- var map_column=VBoxContainer.new();map_column.name="RouteMapColumn"
- map_column.size_flags_horizontal=Control.SIZE_EXPAND_FILL
- map_column.add_theme_constant_override("separation",4);row.add_child(map_column)
+ var screen=RouteScene.instantiate()
+ _place(screen,Rect2(0,0,1600,900))
+ var panel=screen.panel();panel.add_theme_stylebox_override("panel",Palette.window_frame())
+ var row=screen.row();row.add_theme_constant_override("separation",12)
+ var map_column=screen.map_column();map_column.add_theme_constant_override("separation",4)
  var relic_strip=layout.find_child("RelicStrip",true,false)
  if relic_strip!=null:
   relic_strip.reparent(map_column)
+  map_column.move_child(relic_strip,0)
   relic_strip.custom_minimum_size=Vector2(0,48)
   relic_strip.size_flags_horizontal=Control.SIZE_EXPAND_FILL
   relic_strip.position=Vector2.ZERO
- var scroll=ScrollContainer.new(); scroll.name="TowerMapScroll"
- scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
- scroll.size_flags_horizontal=Control.SIZE_EXPAND_FILL
- scroll.size_flags_vertical=Control.SIZE_EXPAND_FILL
- map_column.add_child(scroll)
+ var scroll=screen.map_scroll()
  var graph=RouteMap.new(); graph.name="TowerRoute"
  graph.region_name=view.map_name
  graph.rooms=view.route; graph.selected=route_focus
@@ -1587,7 +1729,7 @@ func _route_screen() -> void:
  # Map nodes are the existing departure controls, with the same candidate/version checks.
  for c in actions.select("route",{"kind":"depart"}):
   candidate_buttons[c.id]=graph.buttons[c.payload.room]
- var right=VBoxContainer.new();right.name="RouteMessages";right.custom_minimum_size.x=220;row.add_child(right)
+ var right=screen.messages()
  right.add_child(_label("移动消息",20,GOLD))
  if view.phase=="travel":
   right.add_child(_label("%s · %d / %d回合" % [view.journey.mode,view.journey.total-view.journey.remaining,view.journey.total],14,CYAN))
@@ -1699,6 +1841,7 @@ func _show_term(anchor: Control, entry: Dictionary) -> void:
  term_popup=_place(TermPopupScene.instantiate(),Rect2(0,0,0,0))
  term_popup.add_theme_stylebox_override("panel",Palette.window_frame())
  term_popup.z_index=260
+ term_popup.set_meta("below",anchor.has_meta("term_below"))
  var column=term_popup.column();column.add_theme_constant_override("separation",10)
  var title_label=term_popup.title_label();title_label.visible=entry.label!=""
  _style_label(title_label,entry.label,19,CYAN)
@@ -1717,14 +1860,74 @@ func _show_term(anchor: Control, entry: Dictionary) -> void:
   else: _hide_term())
  _position_term.call_deferred(anchor.get_global_rect())
 
+# Hover card for a hotkey slot: every skill of that slot is listed and directly
+# releasable, so a form never has to be cycled with right-click first.
+func _show_term_slot(anchor: Control, entry: Dictionary, slot_actions: Array) -> void:
+ _show_term(anchor,entry)
+ if not is_instance_valid(term_popup) or term_anchor!=anchor: return
+ var column=term_popup.column()
+ var row=VBoxContainer.new();row.name="TermSlotActions"
+ row.add_theme_constant_override("separation",4)
+ for c in slot_actions:
+  var row_text=c.label
+  var brief=str(c.get("brief",""))
+  var tags=str(c.get("brief_tags",""))
+  if c.has("casting"): tags+=(" · " if tags!="" else "")+c.casting.percent
+  if brief!="": row_text+=" · "+brief
+  elif c.payload.has("damage"): row_text+=" · %s点伤害" % game.number(c.payload.damage)
+  if tags!="": row_text+=" · "+tags
+  if int(c.cost)>0: row_text+=" · %d能量" % c.cost
+  var button=_button(row_text,func():attack_forms[c.payload.type]=int(c.payload.form);_submit(c),CYAN if c.valid else MUTED)
+  button.name="TermSlotAction_"+c.payload.type+"_"+str(c.payload.form)
+  button.disabled=not c.valid
+  button.tooltip_text=c.detail if c.valid else c.reason
+  button.add_theme_font_size_override("font_size",14)
+  row.add_child(button)
+ column.add_child(row)
+ # The card itself only observes hover (PASS) so its padding never blocks the
+ # battlefield, while its rows still take their own clicks. Leaving the card has to
+ # schedule the same grace check as leaving the tile.
+ term_popup.mouse_filter=Control.MOUSE_FILTER_PASS
+ term_popup.mouse_exited.connect(func():_hide_term_when_away(anchor))
+ _position_term.call_deferred(anchor.get_global_rect())
+
+# The hover card is interactive for hotkey slots, so leaving the tile must not close
+# it while the pointer is on its way into the card.
+func _term_popup_wanted(anchor) -> bool:
+ var point=get_viewport().get_mouse_position()
+ if is_instance_valid(anchor) and anchor is Control and anchor.get_global_rect().grow(6).has_point(point): return true
+ return is_instance_valid(term_popup) and term_popup.get_global_rect().grow(6).has_point(point)
+
+func _hide_term_when_away(anchor: Object) -> void:
+ # Grace delay: the pointer has to cross the gap between the tile and the card, and
+ # the card is only laid out on the next frame. The anchor may already be freed by a
+ # rebuild, so it stays an untyped reference and is validity-checked instead. A timer
+ # started by a tile that a rebuild has already replaced belongs to no visible card
+ # and must not close the card opened for the replacement anchor.
+ await get_tree().create_timer(0.25).timeout
+ if anchor!=term_anchor: return
+ if not _term_popup_wanted(anchor): _hide_term()
+
 func _position_term(anchor: Rect2) -> void:
  if not is_instance_valid(term_popup): return
+ # Sizing the card changes its own minimum size when a label has to wrap, which
+ # re-emits minimum_size_changed. Cap the passes so a resize can never become a loop.
+ var passes=int(term_popup.get_meta("position_passes",0))
+ if passes>=4: return
+ term_popup.set_meta("position_passes",passes+1)
  anchor=layout.get_global_transform().affine_inverse()*anchor
- term_popup.size=term_popup.get_combined_minimum_size()
+ var target=term_popup.get_combined_minimum_size()
+ if target!=term_popup.size: term_popup.size=target
  var x=anchor.end.x+12
- if is_instance_valid(drop_panel) and is_instance_valid(term_anchor) and drop_panel.is_ancestor_of(term_anchor): x=drop_panel.position.x+drop_panel.size.x+10
- if x+term_popup.size.x>1580: x=anchor.position.x-term_popup.size.x-12
- term_popup.position=Vector2(clampf(x,20,maxf(20,1580-term_popup.size.x)),clampf(anchor.position.y,74,maxf(74,886-term_popup.size.y)))
+ var y=clampf(anchor.position.y,74,maxf(74,886-term_popup.size.y))
+ if bool(term_popup.get_meta("below",false)):
+  x=anchor.position.x+anchor.size.x*0.5-term_popup.size.x*0.5
+  y=anchor.end.y+12
+  if y+term_popup.size.y>886: y=anchor.position.y-term_popup.size.y-12
+ else:
+  if is_instance_valid(drop_panel) and is_instance_valid(term_anchor) and drop_panel.is_ancestor_of(term_anchor): x=drop_panel.position.x+drop_panel.size.x+10
+  if x+term_popup.size.x>1580: x=anchor.position.x-term_popup.size.x-12
+ term_popup.position=Vector2(clampf(x,20,maxf(20,1580-term_popup.size.x)),clampf(y,74,maxf(74,886-term_popup.size.y)))
 
 func _speech_bubble(point_to_hero: bool=true) -> void:
  if view.speech.is_empty(): return
@@ -1745,29 +1948,39 @@ func _speech_bubble(point_to_hero: bool=true) -> void:
   var tail=Polygon2D.new();tail.polygon=PackedVector2Array([Vector2(566,177),Vector2(582,177),Vector2(574,192)]);tail.color=Color(0.055,0.09,0.135,0.97);speech_group.add_child(tail)
 
 func _action_sidebar() -> void:
+ var shell=ActionSidebarScene.instantiate()
+ _place(shell,Rect2(0,0,1600,900))
+ var toggle=shell.toggle()
  if view.phase=="shop":
   action_log_panel=null
-  action_log_toggle=_button("行动日志 ≡",func():_open_drawer("show_log"),GOLD)
-  action_log_toggle.name="OpenActionLog";_place(action_log_toggle,Rect2(570,104,138,38) if view.phase=="shop" else Rect2(1438,82,138,38))
+  shell.panel().visible=false
+  _style_button(toggle,"行动日志 ≡",func():_open_drawer("show_log"),GOLD)
+  toggle.position=Vector2(570,104);toggle.size=Vector2(138,38)
+  action_log_toggle=toggle
   return
- var panel=_panel(Rect2(1324,154,252,328 if view.phase!="battle" and not actions.select("wall_move").is_empty() else 382));panel.name="ActionSidebar"
+ var panel=shell.panel()
+ panel.add_theme_stylebox_override("panel",Palette.window_frame())
+ panel.position=Vector2(1324,154)
+ panel.size=Vector2(252,328 if view.phase!="battle" and not actions.select("wall_move").is_empty() else 382)
  action_log_panel=panel
- var column=VBoxContainer.new();column.add_theme_constant_override("separation",12);panel.add_child(column)
- var heading=HBoxContainer.new();heading.add_theme_constant_override("separation",6);column.add_child(heading)
- var title=_label("行动日志",18,GOLD);title.size_flags_horizontal=Control.SIZE_EXPAND_FILL;heading.add_child(title)
- var pin=_button("已固定" if action_log_pinned else "固定",_toggle_action_pin,CYAN if action_log_pinned else MUTED)
- pin.name="PinActionLog";pin.add_theme_font_size_override("font_size",12);pin.tooltip_text="固定后，点击其他位置不会收起日志。";heading.add_child(pin)
- var close=_button("收起",func():action_log_open=false;_sync_action_sidebar(),MUTED)
- close.name="CloseActionLog";close.add_theme_font_size_override("font_size",12);heading.add_child(close)
- var content=_scroll(column)
+ shell.column().add_theme_constant_override("separation",12)
+ shell.heading().add_theme_constant_override("separation",6)
+ _style_label(shell.title(),"行动日志",18,GOLD)
+ var pin=shell.pin_button()
+ _style_button(pin,"已固定" if action_log_pinned else "固定",_toggle_action_pin,CYAN if action_log_pinned else MUTED)
+ pin.add_theme_font_size_override("font_size",12);pin.tooltip_text="固定后，点击其他位置不会收起日志。"
+ var close=shell.close_button()
+ _style_button(close,"收起",func():action_log_open=false;_sync_action_sidebar(),MUTED)
+ close.add_theme_font_size_override("font_size",12)
+ var content=shell.content();content.add_theme_constant_override("separation",9)
  if view.action_log.is_empty(): content.add_child(_label("尚无行动记录。",14,MUTED))
  for i in range(view.action_log.size()-1,-1,-1):
   var note=view.action_log[i]
   content.add_child(_label(note.actor+" · 第%d回合" % note.round,13,CYAN))
   content.add_child(_label(note.text,14,TEXT))
   content.add_child(HSeparator.new())
- action_log_toggle=_button("行动日志 ≡",func():action_log_open=true;_sync_action_sidebar(),GOLD)
- action_log_toggle.name="OpenActionLog";_place(action_log_toggle,Rect2(570,104,138,38) if view.phase=="shop" else Rect2(1438,82,138,38))
+ _style_button(toggle,"行动日志 ≡",func():action_log_open=true;_sync_action_sidebar(),GOLD)
+ action_log_toggle=toggle
  _sync_action_sidebar()
 
 func _toggle_action_pin() -> void:
@@ -1796,6 +2009,7 @@ func _input(event: InputEvent) -> void:
   get_viewport().set_input_as_handled()
   _close_drawers();_refresh_drawers();return
  if not event is InputEventMouseButton or not event.pressed or event.button_index not in [MOUSE_BUTTON_LEFT,MOUSE_BUTTON_RIGHT]: return
+ _dismiss_body_details_outside(event.position)
  if not action_log_open or action_log_pinned or not is_instance_valid(action_log_panel) or not action_log_panel.is_visible_in_tree(): return
  if action_log_panel.get_global_rect().has_point(event.position): return
  # Hide only this panel: rebuilding controls on mouse-down would cancel clicks/drags.
@@ -1868,8 +2082,10 @@ func _demo_exit_screen() -> void:
  if is_instance_valid(card_motion): card_motion.clear()
  if is_instance_valid(resource_feedback):
   remove_child(resource_feedback);resource_feedback.queue_free();resource_feedback=null
- var panel=_panel(Rect2(460,220,680,430));panel.name="DemoExitPanel"
- var column=VBoxContainer.new();column.add_theme_constant_override("separation",24);panel.add_child(column)
+ var screen=DemoExitScene.instantiate()
+ _place(screen,Rect2(0,0,1600,900))
+ var panel=screen.panel();panel.add_theme_stylebox_override("panel",Palette.window_frame())
+ var column=screen.column();column.add_theme_constant_override("separation",24)
  var title=_label("感谢游玩这次demo",36,GOLD);title.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;column.add_child(title)
  var subtitle=_label("第%s阶段完成" % ["一","二","三"][view.demo_cycle],22,CYAN);subtitle.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;column.add_child(subtitle)
  for c in actions.select("demo_exit"):
@@ -1947,7 +2163,7 @@ func _clear_drop_targets() -> void:
  drag_hover_key=""
 
 func modal_region() -> Control:
- var panel=layout.get_node_or_null("ShopPaymentPerformance") if is_instance_valid(layout) else null
+ var panel=layout.find_child("ShopPaymentPerformance",true,false) if is_instance_valid(layout) else null
  return panel if panel!=null and panel.is_visible_in_tree() and not panel.is_queued_for_deletion() else null
 
 func _notification(what: int) -> void:
@@ -2381,20 +2597,20 @@ func _items_drawer() -> void:
     button.name="ToolSlot_"+group.id;button.disabled=not c.valid
     grid.add_child(button);candidate_buttons[c.id]=button
     if not c.valid: button.tooltip_text=c.reason
-  else:
-   for c in item_actions:
-    if c.payload.kind=="item_use": _compact_action(right,c,"使用",false)
- elif not selected.installed and not usage_actions.is_empty():
-  right.add_child(_label("选择使用位置",16,GOLD))
-  for group in selected.target_groups:
-   var button=_button(group.name+" · %d个目标" % group.candidates.size(),func():selected_item_slot=group.id if selected_item_slot!=group.id else "";_refresh_drawers(),CYAN)
-   button.name="ToolSlot_"+group.id;right.add_child(button)
-   if selected_item_slot==group.id:
-    for id in group.candidates:
-     var matches=item_actions.filter(func(c):return c.id==id)
-     if not matches.is_empty(): _tool_target_card(right,matches[0])
-  if selected.target_groups.is_empty():
-   for reason in selected.unavailable_reasons: right.add_child(_label(reason,14,RED))
+    else:
+     for item_action in item_actions:
+      if item_action.payload.kind=="item_use": _compact_action(right,c,"使用",false)
+      elif not selected.installed and not usage_actions.is_empty():
+       right.add_child(_label("选择使用位置",16,GOLD))
+       for target_group in selected.target_groups:
+        var target_button=_button(target_group.name+" · %d个目标" % target_group.candidates.size(),func():selected_item_slot=target_group.id if selected_item_slot!=target_group.id else "";_refresh_drawers(),CYAN)
+        target_button.name="ToolSlot_"+target_group.id;right.add_child(target_button)
+        if selected_item_slot==target_group.id:
+         for id in target_group.candidates:
+          var matches=item_actions.filter(func(c):return c.id==id)
+          if not matches.is_empty(): _tool_target_card(right,matches[0])
+     if selected.target_groups.is_empty():
+      for reason in selected.unavailable_reasons: right.add_child(_label(reason,14,RED))
 
  var installations=item_actions.filter(func(c):return c.payload.kind=="item_install")
  if not installations.is_empty():
@@ -2542,16 +2758,20 @@ func _save_drawer() -> void:
  else: content.add_child(_button("返回游戏",func(): show_saves=false;_refresh_drawers()))
 
 func _event_screen() -> void:
+ var screen=EventScene.instantiate()
+ _place(screen,Rect2(0,0,1600,900))
+ screen_parent=screen.frame()
  EventScreen.build(self)
 
 func _chain_screen() -> void:
- var panel=_panel(Rect2(450,420,1060,325))
- var content=_scroll(panel)
+ var screen=ChainScene.instantiate()
+ _place(screen,Rect2(0,0,1600,900))
+ screen.panel().add_theme_stylebox_override("panel",Palette.window_frame())
+ var content=screen.content();content.add_theme_constant_override("separation",9)
  content.add_child(_label(view.card_chain.name+" · 选择下一段目标",24,GOLD))
  content.add_child(_label("费用已支付，选择下一段目标。",16,CYAN))
  for c in actions.select("chain"): _action_row(content,c)
 
 func _service_screen() -> void:
- var shop=ShopScreen.new();shop.ui=self;shop.name="RoomServicePanel";shop.size=Vector2(1552,790)
+ var shop=ShopScene.instantiate();shop.ui=self;shop.name="RoomServicePanel";shop.size=Vector2(1552,790)
  _place(shop,Rect2(24,84,1552,790))
-

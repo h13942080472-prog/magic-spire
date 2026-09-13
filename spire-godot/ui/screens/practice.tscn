@@ -1,0 +1,15 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/screens/practice_screen.gd" id="1_practice"]
+
+[node name="PracticeScreen" type="Control"]
+mouse_filter = 2
+script = ExtResource("1_practice")
+
+[node name="PracticePanel" type="PanelContainer" parent="."]
+offset_left = 415.0
+offset_top = 172.0
+offset_right = 1515.0
+offset_bottom = 678.0
+
+[node name="Column" type="VBoxContainer" parent="PracticePanel"]

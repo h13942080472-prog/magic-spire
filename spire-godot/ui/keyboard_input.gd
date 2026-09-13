@@ -23,8 +23,8 @@ func popup_region() -> Control:
  if modal!=null: return modal
  if host.DRAWERS.any(func(id):return host.get(id)): return host.drawer_layer
  if host.show_home: return host.layout
- var rewards=host.layout.get_node_or_null("BattleRewards") if is_instance_valid(host.layout) else null
- if rewards==null and is_instance_valid(host.layout): rewards=host.layout.get_node_or_null("RelicBundleRewards")
+ var rewards=host.layout.find_child("BattleRewards",true,false) if is_instance_valid(host.layout) else null
+ if rewards==null and is_instance_valid(host.layout): rewards=host.layout.find_child("RelicBundleRewards",true,false)
  return rewards if rewards!=null and rewards.is_visible_in_tree() and not rewards.is_queued_for_deletion() else null
 
 func text_entry() -> bool:

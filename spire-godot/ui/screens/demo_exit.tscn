@@ -1,0 +1,15 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/screens/demo_exit_screen.gd" id="1_demo_exit"]
+
+[node name="DemoExitScreen" type="Control"]
+mouse_filter = 2
+script = ExtResource("1_demo_exit")
+
+[node name="DemoExitPanel" type="PanelContainer" parent="."]
+offset_left = 460.0
+offset_top = 220.0
+offset_right = 1140.0
+offset_bottom = 650.0
+
+[node name="Column" type="VBoxContainer" parent="DemoExitPanel"]

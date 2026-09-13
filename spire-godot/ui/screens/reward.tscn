@@ -1,0 +1,12 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/screens/reward_frame.gd" id="1_reward_frame"]
+
+[node name="RewardScreen" type="Control"]
+mouse_filter = 2
+script = ExtResource("1_reward_frame")
+
+[node name="RewardFrame" type="Control" parent="."]
+offset_right = 1600.0
+offset_bottom = 900.0
+mouse_filter = 2

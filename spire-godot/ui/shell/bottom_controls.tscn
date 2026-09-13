@@ -1,0 +1,60 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/shell/bottom_controls.gd" id="1_bottom_controls"]
+
+[node name="BottomControls" type="Control"]
+mouse_filter = 2
+script = ExtResource("1_bottom_controls")
+
+[node name="MainResourcePanel" type="Panel" parent="."]
+offset_left = 24.0
+offset_top = 599.0
+offset_right = 354.0
+offset_bottom = 695.0
+mouse_filter = 2
+
+[node name="ResourceToolsPanel" type="Panel" parent="."]
+offset_left = 24.0
+offset_top = 700.0
+offset_right = 354.0
+offset_bottom = 888.0
+mouse_filter = 2
+
+[node name="ToolDivider" type="ColorRect" parent="."]
+offset_left = 160.0
+offset_top = 781.0
+offset_right = 338.0
+offset_bottom = 782.0
+mouse_filter = 2
+
+[node name="EnergyMedallion" type="TextureRect" parent="."]
+offset_left = 44.0
+offset_top = 782.0
+offset_right = 146.0
+offset_bottom = 884.0
+mouse_filter = 1
+
+[node name="EnergyValue" type="Label" parent="EnergyMedallion"]
+offset_left = 5.0
+offset_top = 17.0
+offset_right = 97.0
+offset_bottom = 81.0
+mouse_filter = 2
+
+[node name="OpenPowers" type="Button" parent="."]
+offset_left = 161.0
+offset_top = 790.0
+offset_right = 338.0
+offset_bottom = 826.0
+
+[node name="DrawPileButton" type="Button" parent="."]
+offset_left = 161.0
+offset_top = 835.0
+offset_right = 338.0
+offset_bottom = 877.0
+
+[node name="DiscardPileButton" type="Button" parent="."]
+offset_left = 1327.0
+offset_top = 786.0
+offset_right = 1409.0
+offset_bottom = 856.0

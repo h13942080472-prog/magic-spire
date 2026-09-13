@@ -1,0 +1,26 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/screens/route_screen.gd" id="1_route"]
+
+[node name="RouteScreen" type="Control"]
+mouse_filter = 2
+script = ExtResource("1_route")
+
+[node name="RouteWorkspace" type="PanelContainer" parent="."]
+offset_left = 376.0
+offset_top = 68.0
+offset_right = 1588.0
+offset_bottom = 888.0
+
+[node name="Row" type="HBoxContainer" parent="RouteWorkspace"]
+
+[node name="RouteMapColumn" type="VBoxContainer" parent="RouteWorkspace/Row"]
+size_flags_horizontal = 3
+
+[node name="TowerMapScroll" type="ScrollContainer" parent="RouteWorkspace/Row/RouteMapColumn"]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 1
+
+[node name="RouteMessages" type="VBoxContainer" parent="RouteWorkspace/Row"]
+custom_minimum_size = Vector2(220, 0)

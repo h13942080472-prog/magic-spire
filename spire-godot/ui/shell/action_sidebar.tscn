@@ -1,0 +1,37 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/shell/action_sidebar.gd" id="1_action_sidebar"]
+
+[node name="ActionSidebarRoot" type="Control"]
+mouse_filter = 2
+script = ExtResource("1_action_sidebar")
+
+[node name="ActionSidebar" type="PanelContainer" parent="."]
+offset_left = 1324.0
+offset_top = 154.0
+offset_right = 1576.0
+offset_bottom = 536.0
+
+[node name="Column" type="VBoxContainer" parent="ActionSidebar"]
+
+[node name="Heading" type="HBoxContainer" parent="ActionSidebar/Column"]
+
+[node name="ActionLogTitle" type="Label" parent="ActionSidebar/Column/Heading"]
+size_flags_horizontal = 3
+
+[node name="PinActionLog" type="Button" parent="ActionSidebar/Column/Heading"]
+
+[node name="CloseActionLog" type="Button" parent="ActionSidebar/Column/Heading"]
+
+[node name="ActionLogScroll" type="ScrollContainer" parent="ActionSidebar/Column"]
+size_flags_vertical = 3
+horizontal_scroll_mode = 1
+
+[node name="LogContent" type="VBoxContainer" parent="ActionSidebar/Column/ActionLogScroll"]
+size_flags_horizontal = 3
+
+[node name="OpenActionLog" type="Button" parent="."]
+offset_left = 1438.0
+offset_top = 82.0
+offset_right = 1576.0
+offset_bottom = 120.0

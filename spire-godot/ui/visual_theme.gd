@@ -50,6 +50,33 @@ static func button_style(state: String, accent: Color=GOLD) -> StyleBoxFlat:
  if state in ["hover","pressed"]: s.border_width_left=3
  return s
 
+# Body-slot vocabulary. The frame is the selection vocabulary, the left bar is the
+# "actionable" vocabulary. Both used to be one hard-coded cyan frame with the same
+# 254b50 fill, and the same list also switched its normal edge between gold and cyan,
+# so "selected", "occupied" and "can be released in one click" were indistinguishable.
+const SLOT_BG=Color("182733")
+const SLOT_EDGE=Color("5a4e36")
+const SLOT_SELECTED_BG=Color("1d474f")
+const SLOT_SELECTED_EDGE=CYAN
+const SLOT_ACTIONABLE_BG=Color("152530")
+const SLOT_ACTIONABLE_EDGE=CYAN
+
+static func slot_style(state: String, selected: bool=false, actionable: bool=false) -> StyleBoxFlat:
+ var bg=SLOT_BG
+ var edge=SLOT_EDGE
+ if selected: bg=SLOT_SELECTED_BG;edge=SLOT_SELECTED_EDGE
+ elif actionable: bg=SLOT_ACTIONABLE_BG;edge=SLOT_ACTIONABLE_EDGE
+ if state=="disabled":
+  bg=Color("121d27");edge=GOLD.darkened(0.7)
+ elif state in ["hover","pressed"]:
+  bg=bg.lightened(0.07)
+ var s=surface(bg,edge,8)
+ s.shadow_size=2 if state=="normal" else 0
+ if selected: s.set_border_width_all(2)
+ elif actionable:
+  s.set_border_width_all(0);s.border_width_left=4
+ return s
+
 static func controls(font: Font) -> Theme:
  var t=Theme.new();t.default_font=font;t.default_font_size=16
  for type in ["Button","OptionButton"]:

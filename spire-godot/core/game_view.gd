@@ -270,7 +270,7 @@ static func build(g) -> Dictionary:
  var arms_level=g.level("arms")
  var legs_level=g.level("legs")
  for body in grouped_bodies:
-  body.can_release=actions.any(func(c):return c.payload.kind=="manual" and c.valid and c.payload.after==0.0 and body.targets.has(c.payload.target))
+  body.can_release=body.occupied and actions.any(func(c):return c.payload.kind=="manual" and c.valid and c.payload.after==0.0 and body.targets.has(c.payload.target))
  var reward=reward_panel(g,actions)
  return {"run_header":run_header(g),"demo_cycle":state.demo_cycle,"demo_finished":state.demo_finished,"demo_exit":g.DemoExit.at_exit(g),"battle_rewards":reward.rows,"reward_panel":reward,"reward_title":reward.title,"reward_destination":reward.destination,"content_status":g.Content.report.duplicate(true),"card_chain":chain,"retain_left":state.retain_left,"card_costs":costs,"card_texts":card_texts,"card_instances":card_instances,"version":state.version,"seed":state.seed,"phase":state.phase,"phase_caption":preload("res://data/phases.gd").caption(state),"encounter":state.encounter,"round":state.round,"order":state.order,
   "powers":state.powers.map(func(card):return {"uid":card.uid,"type":card.type,"power_face":card.power_face}),"casting":g.cast_view(),"speech":copy.speech,"climax":copy.climax,"action_log":copy.actions,"travel_log":travel_log(state.logs),"pressure":pressure,"room_event":g.Events.view(g),"shop":g.Services.view(g),"relics":g.RelicEffects.view(g),

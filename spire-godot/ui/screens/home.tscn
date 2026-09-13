@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/home_screen.gd" id="1_home"]
+
+[node name="HomeScreen" type="Control"]
+script = ExtResource("1_home")

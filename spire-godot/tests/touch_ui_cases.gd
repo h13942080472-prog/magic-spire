@@ -52,7 +52,7 @@ static func run(t) -> void:
  var attack=ui.find_child("BasicAttack_strike",true,false)
  point=attack.get_global_rect().get_center();before=ui.game.export_snapshot()
  await hold(t,point);await finger(t,point,false)
- t.check(ui.attack_forms.strike==1 and ui.game.state==before,"TOUCH basic attack switches form without attacking")
+ t.check(ui.attack_forms.get("strike",-1)==1 and ui.game.state==before,"TOUCH basic attack switches form without attacking")
  ui.game._gain_charge(3);ui.render();await t.frames()
  var charge=ui.find_child("StatusIcon_charge",true,false)
  if charge==null: charge=ui.find_child("Status_charge",true,false)

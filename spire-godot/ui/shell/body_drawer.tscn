@@ -1,0 +1,30 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/shell/body_drawer.gd" id="1_body_drawer"]
+[ext_resource type="Script" path="res://ui/equipment_portrait.gd" id="2_equipment_portrait"]
+
+[node name="BodyDrawer" type="Control"]
+mouse_filter = 2
+script = ExtResource("1_body_drawer")
+
+[node name="BodyEquipmentPanel" type="PanelContainer" parent="."]
+offset_left = 24.0
+offset_top = 82.0
+offset_right = 354.0
+offset_bottom = 594.0
+z_index = 20
+
+[node name="Canvas" type="Control" parent="BodyEquipmentPanel"]
+
+[node name="Divider" type="ColorRect" parent="BodyEquipmentPanel/Canvas"]
+offset_left = 178.0
+offset_top = 36.0
+offset_right = 179.0
+offset_bottom = 478.0
+mouse_filter = 2
+
+[node name="EquipmentPortrait" type="TextureRect" parent="BodyEquipmentPanel/Canvas"]
+offset_top = 34.0
+offset_right = 178.0
+offset_bottom = 488.0
+script = ExtResource("2_equipment_portrait")

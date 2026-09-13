@@ -120,7 +120,7 @@ func _ready() -> void:
  for room in rooms:
   var button=preload("res://ui/elements/route_node.tscn").instantiate()
   button.name="RouteNode_"+room.id
-  for style in ["normal","hover","pressed","focus"]: button.add_theme_stylebox_override(style,StyleBoxEmpty.new())
+  for style in ["normal","hover","pressed","focus","disabled"]: button.add_theme_stylebox_override(style,StyleBoxEmpty.new())
   if room.status=="available":
    button.mouse_default_cursor_shape=Control.CURSOR_POINTING_HAND
    button.pressed.connect(func():room_selected.emit(room.id))
