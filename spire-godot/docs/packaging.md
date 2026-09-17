@@ -1,4 +1,4 @@
-# Windows / Android 打包
+# Windows / Android / macOS 打包
 
 ## v0.17.1 修复版
 
@@ -11,6 +11,18 @@
 Windows和Android脚本均从project.godot读取版本0.17，并选择同名导出预设；Android安装版本为9，沿用已有签名。成品默认分别写入outputs/spire-v0.17-windows-x64-<编号>和outputs/spire-v0.17-android-<编号>。版本说明见release-v0.17.txt和release-android-v0.17.txt。
 
 Android资源探针读取相邻manifest.json核对APK的SHA256及预期版本。触屏桥接覆盖主窗口与PopupMenu的独立窗口，嵌入弹窗通过父Viewport转发到Godot原生Window输入边界；选择、滑动、取消和返回键沿原菜单处理，不直接修改游戏状态。需单独确认真机运行，不能以桌面探针替代。
+
+## macOS
+
+需要Mac、Godot 4.7.2 macOS编辑器、同版本官方导出模板（模板包内只需`macos.zip`与`version.txt`）及Xcode命令行工具提供的codesign。脚本按`GODOT_BIN`、PATH中的godot／godot4、`/Applications`与`~/Applications`、下载目录的顺序查找编辑器。
+
+运行`tools/package-macos.sh --build-id <唯一编号>`，从project.godot读取版本并选择`macOS v<版本>`预设，在上级`outputs/spire-v<版本>-macos-universal-<编号>`生成Apple芯片与Intel通用的`紧缚尖塔.app`。导出过滤与Windows一致，测试、工具、文档和内容模板不进入PCK。脚本同样拒绝覆盖旧目录，核对导出退出码与错误日志，比较导出前后源码指纹，写入版本／文件SHA256清单并复制第三方授权；日志位于`build/package-macos-<编号>`。
+
+发布版从可执行文件旁读取`content/packs`，而macOS可执行文件位于`紧缚尖塔.app/Contents/MacOS`。内容包复制到`Contents/Resources/content/packs`，由`Contents/MacOS/content`相对链接指向`../Resources/content`，随后整包重新ad-hoc签名；content_catalog.gd加载入口不变。分发时必须保留该链接：使用检查脚本的`--zip`或Finder压缩，不要使用会展开链接并破坏签名的`zip -r`。
+
+运行`tools/check-package-macos.sh --directory <成品目录> --zip`复验清单、链接与签名，用编辑器`--main-pack`载入成品PCK执行`tools/release_probe.gd`，再以临时HOME无界面启动发布程序120帧，存档与用户数据不进入玩家目录。`--zip`用ditto生成同名ZIP，解压后再次核对清单和签名并输出SHA256。
+
+成品未使用Apple开发者证书，也未公证。玩家从网络收到后首次打开会被Gatekeeper拦截，包内`Mac首次打开说明.txt`说明移除隔离属性或在“隐私与安全性”中允许打开的方法。Godot 4.7.2模板要求Apple芯片macOS 13、Intel macOS 11及以上。
 
 以下保留早期打包环境说明；当前版本号以项目配置与脚本为准。当前Android允许主动反馈所需的网络权限。
 
