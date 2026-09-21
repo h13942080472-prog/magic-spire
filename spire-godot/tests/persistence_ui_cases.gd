@@ -158,14 +158,16 @@ static func run(t) -> void:
  t.check(ui.show_home and not await t.click("end") and FileAccess.get_file_as_string(store.path("tower"))==file_before,"SAVE UI failed continue remains on homepage and cannot overwrite incompatible file through hidden gameplay")
  ui.restart(42);await t.frames()
  t.check(not ui.save_suspended and not ui.save_failed and store.read_slot("tower").ok,"SAVE UI explicit restart creates a usable new save after incompatible file")
- # The file may change after an enabled Continue button was drawn.
- for damage in ["revision","structure","corrupt"]:
+ # The file may change after an enabled Continue button was drawn. A damaged run identity is a
+ # type error, not a missing key: the missing key is the accepted legacy save (persistence_cases).
+ for damage in ["revision","structure","run_identity","corrupt"]:
   ui.restart(42);await t.frames()
   await button(t,"OpenSaves")
   saved=ui.game.export_snapshot()
   var invalid=saved.duplicate(true)
   if damage=="revision": invalid.erase("save_revision")
   elif damage=="structure": invalid.erase("mana")
+  elif damage=="run_identity": invalid.initial_seed="42"
   var bytes="broken" if damage=="corrupt" else Store.pack(invalid)
   file=FileAccess.open(store.path("tower"),FileAccess.WRITE);file.store_string(bytes);file.close()
   if damage!="revision":

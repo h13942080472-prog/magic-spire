@@ -7,6 +7,7 @@ const EquipmentPortrait=preload("res://ui/equipment_portrait.gd")
 const CardFace=preload("res://ui/card_face.gd")
 const StatusIcon=preload("res://ui/status_icon.gd")
 const RouteMap=preload("res://ui/route_map.gd")
+const RunReview=preload("res://ui/run_review.gd")
 const DropTarget=preload("res://ui/drop_target.gd")
 const DragTargets=preload("res://ui/drag_targets.gd")
 const ActionIndex=preload("res://ui/action_index.gd")
@@ -87,6 +88,7 @@ var term_popup: PanelContainer
 var term_anchor: Control
 var show_deck=false
 var deck_zone="deck"
+var show_run_review=false
 var show_event_selection=false
 var event_selection={}
 var event_read_page=""
@@ -109,7 +111,7 @@ var surrender_version=-1
 var show_encyclopedia=false
 var show_tutorial=false
 var tutorial_category=""
-const DRAWERS=["show_feedback","show_encyclopedia","show_shop_service","show_menu","show_tutorial","show_log","show_deck","show_event_selection","show_items","show_hook","show_pressure","show_settings","show_saves","show_options"]
+const DRAWERS=["show_feedback","show_encyclopedia","show_shop_service","show_menu","show_tutorial","show_log","show_deck","show_run_review","show_event_selection","show_items","show_hook","show_pressure","show_settings","show_saves","show_options"]
 var seed_text="20260906"
 var card_faces={}
 var card_draw_serials={}
@@ -142,6 +144,14 @@ var map_step_pending=false
 var takeover_presenter: Control
 var travel_log_scroll=-1
 var travel_log_count=0
+# docs/spec/seed-identity.md: the map chip only mirrors this deadline; clicking writes the
+# clipboard and this display state, never a candidate, the random stream, the save or game.state.
+var seed_chip: Button
+# Second view of the same copy entry (docs/spec/run-review.md): the run review panel button.
+# It owns no timer and no text; only _refresh_seed_chip writes both view texts.
+var run_review_copy: Button
+var seed_copied_until=0
+const SEED_COPIED_MS=1200
 var speech_id=""
 var suppressed_hero_speech_id=""
 var speech_deadline=0
@@ -149,6 +159,7 @@ var speech_group: Control
 
 func _process(_delta: float) -> void:
  if speech_deadline>0 and Time.get_ticks_msec()>=speech_deadline: _dismiss_speech()
+ _refresh_seed_chip()
  _queue_takeover_step()
 
 func _takeover_locked() -> bool:
@@ -245,7 +256,7 @@ func _drawer_shell(title: String, rect: Rect2, tone: Color=CYAN) -> VBoxContaine
  var shade=StyleBoxFlat.new();shade.bg_color=Color(0.015,0.025,0.04,0.55)
  for state in ["normal","hover","pressed","focus"]: dismiss.add_theme_stylebox_override(state,shade)
  dismiss.pressed.connect(func():_close_drawers();_refresh_drawers())
- _place(dismiss,Rect2(0,0,1600,900) if show_home or show_deck or show_event_selection or show_feedback else Rect2(376,64,1224,836))
+ _place(dismiss,Rect2(0,0,1600,900) if show_home or show_deck or show_run_review or show_event_selection or show_feedback else Rect2(376,64,1224,836))
  var panel=_panel(rect);panel.z_index=230;panel.name="InformationDrawer"
  var content=VBoxContainer.new();content.add_theme_constant_override("separation",12);panel.add_child(content)
  var heading=HBoxContainer.new();content.add_child(heading)
@@ -503,6 +514,7 @@ func _refresh_drawers() -> void:
  else:
   if show_log: _log_drawer()
   if show_deck: _deck_drawer()
+  if show_run_review: RunReview.drawer(self)
   if show_event_selection: EventScreen.drawer(self)
   if show_items: _items_drawer()
   if show_hook and view.phase=="rest": _hook_drawer()
@@ -1731,7 +1743,14 @@ func _route_screen() -> void:
   if room.icon=="boss":
    var boss_title=_label(room.name,20,GOLD)
    boss_title.name="TowerBossPreview";right.add_child(boss_title)
- right.add_child(_label("移动消息",20,GOLD))
+ var title_row=HBoxContainer.new();title_row.add_theme_constant_override("separation",8);right.add_child(title_row)
+ var title=_label("移动消息",20,GOLD);title.size_flags_horizontal=Control.SIZE_EXPAND_FILL;title_row.add_child(title)
+ # Run identity chip: the only view/copy entry, hung on the existing title row (no extra row).
+ var chip=_button(_seed_chip_text(),copy_seed,CYAN)
+ chip.name="SeedChip";chip.custom_minimum_size.x=118;chip.add_theme_font_size_override("font_size",12)
+ chip.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+ chip.tooltip_text=seed_report_text()
+ title_row.add_child(chip);seed_chip=chip
  if view.phase=="travel":
   right.add_child(_label("%s · %d / %d回合" % [view.journey.mode,view.journey.total-view.journey.remaining,view.journey.total],14,CYAN))
   right.add_child(_bar(view.journey.total-view.journey.remaining,view.journey.total,CYAN))
@@ -1764,6 +1783,10 @@ func _route_screen() -> void:
  overview.name="MapOverview";navigation.add_child(overview)
  var locate=_button("定位当前",func():map_overview=false;map_scroll_value=-1;route_focus=current;render(view),CYAN)
  locate.name="MapLocate";navigation.add_child(locate)
+ # The single run review entry of this screen; it only opens the drawer (no candidate, no save).
+ if RunReview.can_open(view.route):
+  var review=_button(RunReview.title_text(self),func():_open_drawer("show_run_review"),CYAN)
+  review.name="OpenRunReview";navigation.add_child(review)
  var drawing_tools=HBoxContainer.new();right.add_child(drawing_tools)
  var hint=_label("右键绘画",14,MUTED);hint.size_flags_horizontal=Control.SIZE_EXPAND_FILL;drawing_tools.add_child(hint)
  var clear=_button("清除画线",func():graph.clear_strokes(),CYAN)
@@ -1772,7 +1795,7 @@ func _route_screen() -> void:
  for group in right.get_children():
   if group is HBoxContainer or group is GridContainer:
    for control in group.get_children():
-    if control is Button:
+    if control is Button and control!=chip:
      control.add_theme_font_size_override("font_size",14)
      control.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 
@@ -1803,6 +1826,39 @@ func _queue_map_step() -> void:
  var step=actions.find("route",{"kind":"travel_step"})
  if not step.is_empty() and step.valid and not view.pressure.overloaded: _submit(step)
  else: map_auto_travel=false
+
+# The four identity parts a player can quote. The identity is not a reproduction recipe:
+# the current tower seed and the random counters move with play, so an exact replay needs
+# the save that the same draft uploads (docs/spec/seed-identity.md).
+func seed_report_text() -> String:
+ return "紧缚尖塔 · 初始种子 %d · 第 %d 次塔路 · 当前塔路种子 %d（精确复现需同批上传的存档）" % [int(view.initial_seed),int(view.tower_generation)+1,int(view.seed)]
+
+func copy_seed() -> String:
+ var text=seed_report_text()
+ DisplayServer.clipboard_set(text)
+ seed_copied_until=Time.get_ticks_msec()+SEED_COPIED_MS
+ _refresh_seed_chip(true)
+ return text
+
+func _seed_chip_text() -> String:
+ if seed_copied_until>Time.get_ticks_msec(): return _text("ui.map.seed_copied","已复制")
+ return _text("ui.map.seed","初始种子 {initial} · 第 {iteration} 次塔路",{"initial":int(view.initial_seed),"iteration":int(view.tower_generation)+1})
+
+# The panel button is the route chip's second view: same copy entry, same deadline, same caption.
+func _run_review_copy_text() -> String:
+ if seed_copied_until>Time.get_ticks_msec(): return _text("ui.map.seed_copied","已复制")
+ return _text("ui.run_review.copy","复制本局标识")
+
+# Polled like speech: the deadline expires on its own frame, and a stale deadline can never
+# rewrite a replaced run or a closed screen (no callback is kept at all, and a rebuilt control
+# re-reads the deadline when it is created). copy_seed() forces the same writer so both views
+# change together inside one window; a freed second view is skipped by the shared guard.
+func _refresh_seed_chip(force: bool=false) -> void:
+ if not force:
+  if seed_copied_until<=0 or Time.get_ticks_msec()<seed_copied_until: return
+  seed_copied_until=0
+ if is_instance_valid(seed_chip): seed_chip.text=_seed_chip_text()
+ if is_instance_valid(run_review_copy): run_review_copy.text=_run_review_copy_text()
 
 func _restore_travel_messages(scroll: ScrollContainer, offset: int) -> void:
  await get_tree().process_frame
@@ -2025,12 +2081,16 @@ func _demo_exit_screen() -> void:
  if is_instance_valid(resource_feedback):
   remove_child(resource_feedback);resource_feedback.queue_free();resource_feedback=null
  _clear_impact_feedback()
- var panel=_panel(Rect2(460,220,680,430));panel.name="DemoExitPanel"
+ # Tall enough for the exit actions, the finished-run menu button and the run review entry.
+ var panel=_panel(Rect2(460,220,680,520));panel.name="DemoExitPanel"
  var column=VBoxContainer.new();column.add_theme_constant_override("separation",24);panel.add_child(column)
  var title=_label("感谢游玩这次demo",36,GOLD);title.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;column.add_child(title)
  var subtitle=_label("第%s阶段完成" % ["一","二","三"][view.demo_cycle],22,CYAN);subtitle.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;column.add_child(subtitle)
  for c in actions.select("demo_exit"):
   _action_row(column,c)
+ if RunReview.can_open(view.route):
+  var review=_button(RunReview.title_text(self),func():_open_drawer("show_run_review"),CYAN)
+  review.name="OpenRunReview";column.add_child(review)
  if view.demo_finished:
   column.add_child(_button("返回菜单",_return_home,CYAN))
 

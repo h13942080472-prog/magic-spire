@@ -128,6 +128,16 @@ func read_slot(slot: String) -> Dictionary:
   backup.backup=true;return backup
  return failure(current.get("error","存档所属模式不一致。")+" 没有可恢复的备份。")
 
+# Read-only fixed point accessor for the feedback attachment (docs/spec/feedback-deployment.md):
+# no file access, no size check, no write, no state change; the single serialization stays pack(),
+# so the returned text is byte-identical to what write_game would put in the primary file.
+func fixed_point_text(game, map_drawings: Dictionary={}) -> Dictionary:
+ var issue=game.validate()
+ if issue!="": return failure("无法生成当前进度存档："+issue)
+ var slot=game.state.save_slot
+ if slot not in Game.Snapshot.SLOTS: return failure("存档位置不存在。")
+ return {"ok":true,"slot":slot,"filename":slot+".json","text":pack(game.restart_snapshot(),map_drawings)}
+
 func write_game(game, replace_incompatible: bool=false, map_drawings: Dictionary={}) -> Dictionary:
  var issue=game.validate()
  if issue!="": return failure("保存失败："+issue)

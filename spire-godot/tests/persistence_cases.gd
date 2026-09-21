@@ -109,6 +109,79 @@ static func save_writes_on_new_floor(t) -> void:
  t.check(resumed.restore_snapshot(saved.snapshot).ok,"SAVE the floor checkpoint resumes through the formal entry")
  t.check(resumed.state.room==g.state.room and resumed.state.phase==saved.snapshot.phase,"SAVE the resumed floor entry keeps its own room and phase")
 
+# docs/spec/seed-identity.md「证据入口」：本局标识在开局写入一次，真实重建塔路后仍不变；
+# 只读投影同步携带（`Game.new(42)`、真实 `demo_continue` 重建、真实投影）。
+static func initial_seed_is_fixed_at_run_start(t) -> void:
+ var store=store_for("seed-identity")
+ var g=Game.new(42)
+ t.check(g.state.initial_seed==42 and g.state.seed==42,"SAVE initial_seed is fixed at run start: the opening run takes the parameter seed")
+ t.check(g.get_view().initial_seed==42 and g.get_view().tower_generation==0,"SAVE initial_seed is fixed at run start: the projection opens on the first tower")
+ t.check(store.write_game(g).ok,"SAVE initial_seed is fixed at run start: the opening run writes its own file")
+ preload("res://tests/demo_exit_cases.gd").exit_fixture(g)
+ var outcome=submit(t,g,store,"demo_continue")
+ t.check(outcome.ok and g.state.tower_generation==1,"SAVE initial_seed is fixed at run start: a real continuation rebuilds the tower exactly once: "+str(g.state.tower_generation))
+ t.check(g.state.initial_seed==42 and g.state.seed!=g.state.initial_seed,"SAVE initial_seed is fixed at run start: the rebuilt tower moves the tower seed but not the identity")
+ var rebuilt=g.get_view()
+ t.check(rebuilt.initial_seed==g.state.initial_seed and rebuilt.tower_generation==g.state.tower_generation,"SAVE initial_seed is fixed at run start: the projection follows both keys after the rebuild")
+
+# docs/spec/seed-identity.md「证据入口」：隔离目录 pack→unpack→正式恢复入口一路还原标识与塔路种子。
+static func initial_seed_survives_round_trip(t) -> void:
+ var store=store_for("seed-roundtrip")
+ var g=Game.new(42)
+ preload("res://tests/demo_exit_cases.gd").exit_fixture(g)
+ submit(t,g,store,"demo_continue")
+ t.check(g.state.initial_seed==42 and g.state.seed!=42,"SAVE initial_seed survives a round trip: the fixture rebuilt the tower before saving")
+ t.check(store.write_game(g).ok,"SAVE initial_seed survives a round trip: the rebuilt run writes the primary file")
+ var packed=store.read_slot("tower")
+ var resumed=g.get_script().new(0,false,"equipment",false)
+ t.check(packed.ok and resumed.restore_snapshot(packed.snapshot).ok,"SAVE initial_seed survives a round trip: the file loads through the formal entry: "+str(packed.get("error","")))
+ t.check(resumed.state.initial_seed==g.state.initial_seed and resumed.state.initial_seed==42,"SAVE initial_seed survives a round trip: the identity comes back unchanged: "+str(resumed.state.initial_seed))
+ t.check(resumed.state.seed==g.state.seed and resumed.state.tower_generation==g.state.tower_generation,"SAVE initial_seed survives a round trip: the current tower seed and iteration come back with it")
+
+# docs/spec/seed-identity.md「证据入口」：缺 initial_seed 的旧档按当时的 seed 回填，且不改调用方字典。
+static func legacy_save_without_initial_seed_backfills(t) -> void:
+ var g=Game.new(42)
+ preload("res://tests/demo_exit_cases.gd").exit_fixture(g)
+ submit(t,g,store_for("seed-legacy"),"demo_continue")
+ var legacy=g.export_snapshot()
+ var tower_seed=int(legacy.seed)
+ legacy.erase("initial_seed")
+ var resumed=g.get_script().new(0,false,"equipment",false)
+ var result=resumed.restore_snapshot(legacy)
+ t.check(result.ok,"SAVE legacy save without initial_seed loads and backfills from seed: "+str(result.get("error","")))
+ t.check(resumed.state.initial_seed==tower_seed and resumed.state.initial_seed==resumed.state.seed,"SAVE legacy save without initial_seed loads and backfills from seed: the identity equals the tower seed of the file: "+str(resumed.state.initial_seed))
+ t.check(not legacy.has("initial_seed") and legacy.seed==tower_seed,"SAVE legacy save without initial_seed loads and backfills from seed: the caller dictionary stays untouched")
+ t.check(Store.unpack(Store.pack(legacy)).ok,"SAVE legacy save without initial_seed loads and backfills from seed: the disk path accepts the same file")
+
+# docs/spec/seed-identity.md「证据入口」：类型错误沿用 Snapshot.check 的通用逐字段校验与既有文案。
+static func initial_seed_uses_the_shared_field_check(t) -> void:
+ var g=Game.new(42)
+ var clean=g.export_snapshot()
+ var reference=clean.duplicate(true)
+ reference.round="broken"
+ var wording=String(g.restore_snapshot(reference).get("error",""))
+ t.check(wording=="无法继续这份存档：基础数值类型不正确。","SAVE initial_seed uses the shared field check: the reference wording comes from an existing integer field: "+wording)
+ for broken in ["42",42.0]:
+  var saved=clean.duplicate(true)
+  saved.initial_seed=broken
+  var result=g.restore_snapshot(saved)
+  t.check(not result.ok and String(result.get("error",""))==wording,"SAVE initial_seed uses the shared field check: "+str(broken)+" is rejected with the same wording: "+str(result.get("error","")))
+  t.check(g.export_snapshot()==clean and saved.initial_seed==broken,"SAVE initial_seed uses the shared field check: a rejected type changes neither the live state nor the caller dictionary")
+
+# docs/spec/save-fixed-points.md「证据入口」：新增只读入口不写盘、不改状态，文本与 write_game 写出的主档逐字一致。
+static func fixed_point_text_reads_the_written_bytes(t) -> void:
+ var store=store_for("fixed-point-text")
+ var g=Game.new(42)
+ t.check(store.write_game(g).ok,"SAVE fixed_point_text reads the bytes write_game wrote: the fixture seeds a real file")
+ var before=stamp(store,"tower")
+ var state_before=g.export_snapshot();var rng_before=g.state.rng.duplicate(true)
+ var read=store.fixed_point_text(g)
+ t.check(read.ok and read.slot==g.state.save_slot and read.filename==g.state.save_slot+".json","SAVE fixed_point_text reads the bytes write_game wrote: the entry names the current slot and file: "+str(read))
+ t.check(read.text==text_at(store.path("tower")),"SAVE fixed_point_text reads the bytes write_game wrote: the text equals the primary file byte for byte")
+ var after=stamp(store,"tower")
+ t.check(after.main==before.main and after.main_time==before.main_time and after.backup==before.backup and after.backup_time==before.backup_time,"SAVE fixed_point_text reads the bytes write_game wrote: the read creates no file and touches no mtime")
+ t.check(g.export_snapshot()==state_before and g.state.rng==rng_before,"SAVE fixed_point_text reads the bytes write_game wrote: the read changes neither state nor randomness")
+
 # docs/spec/save-fixed-points.md「证据入口」：三个 battle_end_* 各一次真提交都写盘，恢复点＝战斗结束后的阶段起点。
 static func save_writes_when_battle_finishes(t) -> void:
  var store=store_for("battle-end")
@@ -606,6 +679,11 @@ static func transition_log_never_reaches_state_or_view(t) -> void:
  t.check(resumed.restore_snapshot(saved).ok,"SAVE a fresh run accepts the captured save")
  t.check(arch.transition_delta(resumed,restart_log).is_empty() and not JSON.stringify(resumed.export_snapshot()).contains("battle_end_"),"SAVE restoring a save logs no transition and carries no log")
 static func run(t) -> void:
+ initial_seed_is_fixed_at_run_start(t)
+ initial_seed_survives_round_trip(t)
+ legacy_save_without_initial_seed_backfills(t)
+ initial_seed_uses_the_shared_field_check(t)
+ fixed_point_text_reads_the_written_bytes(t)
  save_writes_on_new_floor(t)
  save_writes_when_battle_finishes(t)
  save_writes_when_prepare_finishes(t)

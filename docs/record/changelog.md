@@ -47,6 +47,10 @@
 
 
 
+## 本局回顾：战报面板（只读紧凑地图＋进度行＋卡组）（2026-09-19）
+
+域：`ui/run_review.gd`（新建，面板唯一组装入口）、`ui/route_map.gd`（`read_only` 复用同一渲染器与坐标）、`ui/main.gd`（路线屏与通关屏两个入口、`show_run_review` 抽屉接线、复制按钮作为角标的第二视图）、`assets/localization/{zh_CN,en_US}.json`（新增 `ui.run_review.*` 8 条）、`tests/route_ui_cases.gd`（新增 `run_review(t)`，场景 A–J）；契约 `docs/spec/run-review.md`、依赖约束 `docs/spec/run-review-dependencies.md`。按协调者记录的人类裁定取「杀戮尖塔式」回顾：只读紧凑地图＋进度行，不做类型计数表与节点清单；入口给路线屏与通关屏，`view.route` 为空（练习局／牢房）时不建控件。面板是纯只读显示入口：三块取源为 `ui.seed_report_text()`、`view.route`、`ui.view.deck_cards`，唯一写动作是复制按钮经既有 `ui.copy_seed()`；回顾地图不接 `room_selected`／`drawings_changed`，`core/`、`data/`、快照版本与反馈域零改动。规则门 643 条、窗口门 304 条通过，逐条敏感性实测与未跑项见[验证记录](verification.md)。本片只改源码、测试与文案资源，未打包、未推送。
+
 ## PR #6：监狱流程与内容包路径整合（2026-09-19）
 
 域：监狱、内容加载、打包配置、教程与英文。按用户“以 PR 优先”合并 `prison-cell-baseline`：五级警戒进入普通牢房，使用最高规格的追加名额；反抗战暂停巡视与刑期计时并保留牢房位置；内容包根收口到 `PACKS_ROOT`／`packs_root()`，Windows 与 Android 导出前检查对应配置。整合时补齐内容校验工具的旧接口调用，纠正教程中残留的终局、全身补满上锁和战斗计刑期说法，补齐英文动态手册。保留此前测试维护和双方历史记录。专项规则 6634 条、窗口 268 条通过，范围与证据见 [验证记录](verification.md)。按用户要求并入 main 并同步 GitHub；本次不改版本号、不打包或更新 Release。
@@ -801,6 +805,7 @@ RuleChangePackage与测试边界见docs/prison-release.md。到期出狱和巡�
 
 2026-09-19牢房计时战斗内暂停＋战斗不重置牢房位置：`core/prison.gd::completed_turn` 增加相位守卫，`state.phase=="battle"` 时直接返回，反抗战的战斗回合不再推进 `served_turns`，出狱到期检查（`release_inspection`）不会在战斗内触发；回到牢房后的第一个牢房回合才到期，并沿用原8回合延期语义。`prison.left` 仍只由 `Prison.end_turn` 递减且只在牢房相位被调用，`served_turns` 仍只有这一个递增点，未新增第二套计时或第二个到期判定点；出口战因 `escape()` 已清空 `prison` 而不受影响。反抗战开战同时删除 `Prison.execute` 的 `"resist"` 分支里 `g.state.wall_distance=g._initial_wall_distance(true)`：战斗保留牢房内位置，返回牢房由 `Prison.after_preparation` 从 `Space.wall_distance(prison.space.position)` 重算；牢房内进入战斗只有这一个入口。`docs/design/prison.md` §2 计时与反抗两条改为「反抗战期间整套牢房计时暂停……返回牢房后从暂停处继续」「战斗开始时保留当前牢房位置，不重置离墙距离」（resist 日志与 `Prison.won` 文案经核对已同口径，未改）。新增 `tests/prison_cases.gd::battle_pause_cases`：战斗回合不推进计时也不触发到期检查、开战前后离墙距离不变、返回牢房沿用同一位置与暂停值、回到牢房首回合按8回合延期、持钥匙仍受到期处罚。敏感性实测还原两处改动即5条新 check 红。规则门 `prison,persistence,tower_progression,exploration` 2671断言、窗口门 prison 217断言，均退出码0、指纹 `409D2AF2…` 未漂移。未跑 oracle／像素／性能（按人指示留到定稿轮），未打包、未推送。详见 docs/record/verification.md。
 
+2026-09-19本局种子标识（地图角标）与反馈附带固定点存档：`state.initial_seed` 在 `core/game.gd::_init` 写入一次（`_restart_tower` 只改 `seed` 与 `tower_generation`），`restore_snapshot` 在**副本**上、`Snapshot.check` 之前做唯一回填（缺 `initial_seed` 的旧档取当时的 `seed`；`Snapshot.REVISION` 不升、`core/snapshot.gd` 零改动、`_scene_key` 不变）；`core/game_view.gd` 追加只读键 `initial_seed`／`tower_generation`（既有键与顺序不动）；新增只读入口 `core/save_store.gd::fixed_point_text(game, map_drawings)`（无文件访问、不写盘、不做大小判定，唯一序列化仍是 `pack()`，文本与主档写入内容同源）。地图工作区 `RouteMessages` 标题行右端新增 `SeedChip`（文本「初始种子 X · 第 N 次塔路」，N＝`tower_generation+1`；点击只写剪贴板与显示态，四要素复制文本＝`紧缚尖塔 · 初始种子 … · 第 … 次塔路 · 当前塔路种子 …（精确复现需同批上传的存档）`，显示 1.2 s「已复制」后复原；可见性判据只有「路线屏是否渲染」，战斗屏与练习屏没有，不改规则／候选／随机／写盘）。反馈页新增默认勾选的「一并附带当前进度存档」与常驻披露说明；提交前先对同一 `endpoint` 做 GET `schema` 探测，仅 `schema>=2` 才在 payload 里带 `save`（不支持或探测失败按旧格式提交并显示「当前反馈服务暂不支持附带存档。」，探测与附件失败都不阻塞提交）；附件在草稿身份内只捕获一次（解码后 ≤2 MiB），失败重试沿用同一编号与逐字相同的 body，不写进草稿文件、不上传 `.bak`。`tools/feedback-service/Code.gs` 校验并转发 `save`（对象形状／`name` 安全名／base64 与解码上限／信封 `format==2`，原始 POST 上限 9→12 MiB 字符，回执哈希不含 `save`），GET 声明 `schema:2`（报告格式 `p.schema` 仍为 1）；离线 `test.cjs` 覆盖接受、十类拒绝与同编号去重，不联网、不发信。验证：规则门5分类2546断言退出0、旁证 localization 164断言退出0、窗口门4分类710断言退出1（唯一红＝既有登记 `interface` 28 张 `witch_*` 缺立绘）、`node tools/feedback-service/test.cjs` 退出0；未跑 oracle／像素／性能、未打包、未推送、未部署服务端。详见 docs/record/verification.md。
 
 2026-09-19 控火调整：稀有度由普通改为稀有，自由面火球术永久基础加伤由＋2改为＋1并保留消耗；拘束面仍获得2层魔力预备，移除消耗、使用后进弃牌堆。卡面、图鉴与奖励卡池读取同一规则配置；小魔女仍不提供此牌。验证见本日 verification 记录。本次仅改源码与文档，未打包、推送或发布。
 
@@ -1242,6 +1247,8 @@ flowchart LR
 - 汇集0.18之后已完成的铁男与随行单位、玩偶、卡面伤害及波及、商店刷新与价格、Boss奖励、魔瓶和接口维护；版本改为0.18.1，Windows文件版本0.18.1.0，Android安装版本13，沿用原签名。
 - 按原交付方式生成PC／安卓普通包，本地双层加密包仅含PC且不上传GitHub。发布内容见 [版本说明](release-notes/release-v0.18.1.txt)，验证范围见 [验证记录](verification.md)。按用户要求不安排试玩及UI回归。
 
+2026-09-20合并上游 v0.18.1（`b7aa046`）到 `seed-chip-save-upload`：两侧都保留——上游 v0.18／v0.18.1 的玩法与架构维护、验证刷新、美术与音频，以及本分支的种子角标（`state.initial_seed` 唯一回填／`SeedChip`／`SaveStore.fixed_point_text`）、反馈附带当前进度存档（`include_save`／原因码／`schema>=2` 门控）与本局回顾面板（`ui/run_review.gd`／`route_map.read_only`／`ui/main.gd` 两处入口）。冲突 10 文件按「两侧语义都在」处理：本地化两份取并集（key 不重复、`en_US.source` 与 zh_CN `text` 逐字一致）；`core/game.gd::restore_snapshot` 保留上游三档旧修订迁移链＋本分支 `initial_seed` 唯一回填（放在迁移之后、`Snapshot.check` 之前）；`core/game_view.gd` 同时保留 `first_turn_control` 与 `initial_seed`／`tower_generation`；`ui/feedback_report.gd` 同时保留上游跨版本草稿刷新与本分支「每身份只捕获一次」；`ui/main.gd` 同时保留 `_queue_takeover_step()` 与 `_refresh_seed_chip()`；`docs/record/*` 两侧条目都留并按日期排序，`docs/spec/*` 两侧段落都留（`feedback-deployment.md` 入口位置取上游已更正的说法＋本分支存档附件子句；`save-fixed-points.md` 非目标取两侧并集）。本分支一处断言按上游新规则更新：`interface_ui_cases.gd::feedback_save` 的「恢复草稿的 context 逐键不变」改为「原场次不变、只有 `version` 跟随本次构建」。检查：规则门6分类2858断言退出0、窗口门 route 253＋localization 51 PASS、interface 409 FAIL（红项全为上游新增内容：35 张 `witch_*` 缺立绘、6 张上游新卡共用占位立绘），未清理由见[验证记录](verification.md)同日条目。本次只提交合并，未推送、未打包、未改版本号。
+
 ## 2026-09-20 铁男开场打断标记被清除
 
 - 修复铁男开场施加捕缚被打断后，捕缚观察器把仍有效的同一意图重新生成、导致 delayed 标记消失的问题。required_intent 从铁男既有意图事实判断开场需求，观察器保留原意图；打断后停顿一次、不推进步骤，随后恢复原行动。
@@ -1253,6 +1260,20 @@ flowchart LR
 - 图鉴卡面放大到300×480，标题、费用、分类及效果使用大字号原生绘制；完整立绘保持原比例，派生卡可换行滚动查看。
 - 紧凑角标为长标题留空间；长描述仍保留正文滚动与悬停详情，紧缚爱好专用图文分配保证完整效果直接可见。不改游戏规则或原始卡图。
 - 唯一、消耗、保留等独立关键词改排在卡牌底部，与效果正文和使用条件分离；关键词整词显示，翻面同步更新，含关键词的效果句不拆散。
+
+## 2026-09-21｜文档门禁：规则类文档入源码指纹＋引用检查
+
+- `tools/check.ps1::Get-SourceFingerprint` 纳入规则类文档（`docs/spec`／`docs/design`／`docs/guide`／根 `AGENTS.md`／`.zcode/skills`），`docs/record`（只追加记录）与 `docs/history`（只读归档）写明理由排除；范围唯一声明在新增 `spire-godot/tools/doc-scan-scope.ps1`。改一条契约正文即改变指纹（实测 `82B98233…`→`69152F58…`，还原回 `82B98233…`），追加记录类不变。
+- 新增独立门禁 `spire-godot/tools/check-docs.ps1`：点名路径必须存在、`文件::符号` 锚点必须已声明、本地 md 链接必须可达；允许存在的缺失引用逐条登记（8 条，带理由与消掉条件），每次打印条目数，清单只能缩小。四条「改坏即红、还原即绿」敏感性证明、指纹实测与既有门禁复跑（规则门 672 断言退出0、窗口门 304 断言退出0，同一指纹 `DEA47A3E…`）见 [验证记录](verification.md) 同日条。
+- `.zcode/skills/repo-ops/SKILL.md` 增命令面；`spire-docs` 的「已知零守卫」节改写为「文档守卫」，根 `AGENTS.md` 技能索引改用同词。未改玩法与产品代码，未推送、未改版本号、未发布。
+
+## 2026-09-21｜文档门禁接入主门禁＋指纹改序数排序（宿主无关）
+
+- `tools/check-docs.ps1` 不再只能手工跑：`tools/check.ps1` 把它接成**独立阶段**（对齐内容包校验的形态）——不依赖引擎、跑在 `import`／规则门之前，日志 `build/checks/<运行号>/check-docs.log`，结果行 `DOCS RESULT: PASS|FAIL`，`summary.json` 新增 `docs` 字段（`status`／`documents`／`references`／`problems`／`allowlist`／`log`，失败轮的计数为 `null`），失败即整轮失败并逐条打印 `DOC FAIL`。扫描范围仍只有一份声明（`tools/doc-scan-scope.ps1::Get-RuleDocFiles`），阶段不重建文件列表，允许清单条目数每轮打印。
+- 敏感性证明：把 `docs/spec/project-map.md` 的点名路径 `spire-godot/project.godot` 改坏 → 完整门禁 `-Suite architecture,localization` 退出 **1** 并指名该违规（运行号 `20260921T054926430-13080`）；`git checkout` 还原 → 退出 **0**、2/2 PASS、672 断言、`before==after==C2E48624…`（运行号 `20260921T054933989-19800`）。
+- 指纹宿主依赖修复：`Get-SourceFingerprint` 的拼接由 `Sort-Object`（宿主文化排序，ICU／NLS）改为序数排序（`[Array]::Sort` ＋ `StringComparer.Ordinal`），同一文件集在 `pwsh` 7 与 Windows PowerShell 5.1 下取同一个值（同一冻结 753 条集：文化排序 `0DD9DF27…`／`2302ED3A…` 不同，序数排序两宿主同为 `A20CA1FB…`；改后两宿主实跑同读 `C2E48624…`），同一次运行内 `before==after` 仍成立；指纹仍只作同一次运行内的守卫，不当身份。
+- 允许清单 8 → 6：`docs/ondemand-copy.md` 与 `spire-godot/tools/play_release.ps1` 两条随 planner `ff4aae2` 的契约修正失效后删除，删除后两宿主 `tools/check-docs.ps1` 均 `DOCS PASS`（`allowlist 6 entrie(s)`）、零新增 `DOC FAIL`；余 6 条保留（未落地的两片仍在引用）。`.zcode/skills/repo-ops/SKILL.md` 命令面同步为「文档门禁现在是主门禁的独立阶段，也可单跑」。未改玩法与产品代码，未推送、未改版本号、未发布。
+- 同日返工（协调者裁定：文档红不阻断其余阶段）：文档红改为**延后结算**——阶段照旧先跑并打印 `DOCS RESULT: FAIL`／逐条 `DOC FAIL`／`summary.docs.status=failed`，但继续跑 import／规则／窗口阶段，最后统一以非零退出（整轮 `status=failed`），使「文档红」与「规则红」落在同一份证据里，不再让一个契约错别字作废整轮回归；`-ListOnly`／`-UIOnly` 轮照旧跑该阶段。实测同一轮内文档红与 `SUITE RESULT: localization／architecture PASS`、`PASS: 672 assertions` 共存、退出码 1（`20260921T055451163-8088`），还原后退出码 0（`20260921T055525667-20968`），见 [验证记录](verification.md) 同日同主题末两条。
 
 ## 2026-09-21 卡牌关键词重叠与标题对齐修复
 
@@ -1403,3 +1424,9 @@ flowchart LR
 - 发布版本统一0.18.2，Android安装版本递增为14并保留签名。更新卡图与装备差分、小魔女卡牌、体术倍率、长战斗结算、监狱流程和校验；完整说明见[本版更新](release-notes/release-v0.18.2.txt)。
 - 修正发布检查发现的角色卡池映射与二级拘束伤害旧断言，51个规则分类最终30315断言通过；未安排试玩或完整UI交互回归。
 - Windows ZIP、Android APK/ZIP；本地PC-only双层加密7z不上传GitHub。成品资源、源码一致性、签名连续性与压缩包实际解压hash均已验证。
+
+## 2026-09-21｜合并上游 v0.18.2（`1930470`）到 `seed-chip-save-upload`
+
+- 冲突4文件按「两侧语义都在」处理：`spire-godot/ui/main.gd` 路线侧栏同时保留上游 `TowerBossPreview` 与本分支 `SeedChip` 标题行（chip 仍是该界面唯一的查看／复制入口）；`docs/design/game-design.md` §10.4 取上游「首领数值见[第一幕敌人](../design/enemies-first-floor.md)」措辞＋本分支「塔路次数 +1／初始种子不变」子句；`docs/record/{changelog,verification}.md` 两侧条目都留、按日期排序、不改写任一方旧句。其余上游改动（玩法、监狱、美术、校验）与本分支的种子角标、反馈附带存档、本局回顾面板全部保留。
+- 同段数值口径按「文档跟随实现」判定：合并后 `data/enemies.gd` 的 `six_bind` 为200、`iron_man` 为140（上游 v0.18.2 调整），本分支继承的220／330／440 与实现不符，故不保留该处旧数字，改指向上游新文档。
+- 检查：规则门6分类2869断言退出0、窗口门 localization 51＋route 255＋interface 413 共719断言全PASS退出0、文档门禁PASS（32文档、1112引用、允许清单6条零新增）；两门同一冻结指纹 `B2BC0F39…`。上一条记录登记的两条美术红（35张 `witch_*` 缺立绘、6张新卡共用占位插画）本轮实测已消失，原因见[验证记录](verification.md)同日条目。本次只提交合并，未推送、未打包、未改版本号。
