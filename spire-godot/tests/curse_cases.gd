@@ -16,12 +16,12 @@ static func play(t,g,type: String,free: bool,extra: Dictionary={}) -> Dictionary
 static func run(t) -> void:
  var g=Game.new(42)
  var card=give(g,"panic")
- var choices=g.candidates().filter(func(c):return c.payload.get("uid","")==card.uid)
+ var choices=g.command_facts().filter(func(c):return c.payload.get("uid","")==card.uid)
  t.check(choices.size()==1 and choices[0].valid and choices[0].cost==1 and choices[0].payload.self_target,"CURSE panic has one targetless one-energy candidate")
  var before=g.export_snapshot()
- t.check(not g.dispatch(choices[0].id,g.state.version-1).ok and g.state==before,"CURSE stale play cannot spend or exhaust")
+ t.check(not g.dispatch(g.command(choices[0].payload,g.state.version-1),g.state.version-1).ok and g.state==before,"CURSE stale play cannot spend or exhaust")
  g.state.energy=0;before=g.export_snapshot()
- t.check(not g.dispatch(choices[0].id,g.state.version).ok and g.state==before,"CURSE unaffordable play leaves everything unchanged")
+ t.check(not g.dispatch(g.command(choices[0].payload,g.state.version),g.state.version).ok and g.state==before,"CURSE unaffordable play leaves everything unchanged")
  g.state.energy=3
  var equipment=JSON.stringify(g.state.equipment);var tick=g.state.tick;var mana=g.state.mana
  t.check(t.action(g,"card",{"uid":card.uid}).ok and g.state.energy==2 and g.state.exhaust.any(func(c):return c.uid==card.uid),"CURSE panic pays once and exhausts on play")
@@ -37,7 +37,7 @@ static func run(t) -> void:
  t.check(t.action(g,"card",{"uid":card.uid}).ok,"CURSE panic does not require free hands or equipment targets")
 
  g=Game.new(42);card=give(g,"sensitive")
- t.check(not g.candidates().any(func(c):return c.payload.get("uid","")==card.uid),"CURSE sensitive is unplayable")
+ t.check(not g.command_facts().any(func(c):return c.payload.get("uid","")==card.uid),"CURSE sensitive is unplayable")
  before=g.export_snapshot();var view=g.get_view()
  t.check(g.state==before and is_equal_approx(view.pressure.gain_multiplier,1.2) and view.statuses.any(func(s):return s.id=="hand_pleasure"),"CURSE readonly view derives current multiplier and status")
  t.check(view.hand.filter(func(c):return c.uid==card.uid)[0].retained,"CURSE innate retain shown immediately")
@@ -63,7 +63,7 @@ static func run(t) -> void:
  t.check(restored.restore_snapshot(saved).ok and is_equal_approx(restored.Cards.hand_multiplier(restored,"pleasure_multiplier"),1.2),"CURSE save restore derives modifier from hand without cached state")
  t.check(t.action(g,"calm").ok and t.action(restored,"calm").ok and is_equal_approx(g.state.pressure,restored.state.pressure) and g.state.energy==restored.state.energy,"CURSE restored game can commit equivalent next action")
  g.state.pressure=90;P.gain(g,10,"边界来源")
- var overload_actions=g.candidates().filter(func(candidate):return candidate.payload.kind not in ["flask","item_discard"])
+ var overload_actions=g.command_facts().filter(func(candidate):return candidate.payload.kind not in ["flask","item_discard"])
  t.check(g.state.overloaded and is_equal_approx(g.state.pressure,2) and g.state.hand.any(func(c):return c.uid==card.uid) and overload_actions.size()==1 and overload_actions[0].payload.kind=="end","CURSE multiplied gain crosses threshold while retained card grants no extra actions")
  P.gain(g,10,"后续来源")
  t.check(is_equal_approx(g.state.pressure,14),"CURSE retained card still affects later sources after overload")
@@ -84,11 +84,11 @@ static func run(t) -> void:
  t.check("sensitive" not in g.Cards.Rules.REWARDS and "panic" not in g.Cards.Rules.REWARDS,"CURSE curses do not enter ordinary rewards")
 
  g=Game.new(42);var mark=give(g,"lewd_mark");var paid=give(g,"panic")
- t.check(not g.candidates().any(func(c):return c.payload.get("uid","")==mark.uid),"CURSE lewd mark is unplayable")
+ t.check(not g.command_facts().any(func(c):return c.payload.get("uid","")==mark.uid),"CURSE lewd mark is unplayable")
  var mark_view=g.get_view()
  t.check(mark_view.statuses.any(func(status):return status.id=="hand_energy_pressure" and status.value.contains("4")),"CURSE lewd mark exposes its current paid-energy pressure in status view")
  var mark_before=g.export_snapshot()
- t.check(not g.dispatch("missing",g.state.version).ok and g.state==mark_before and g.state.pressure==0,"CURSE rejected action never triggers lewd mark")
+ t.check(not g.dispatch(g.command({"kind":"card","uid":"missing"},g.state.version),g.state.version).ok and g.state==mark_before and g.state.pressure==0,"CURSE rejected action never triggers lewd mark")
  t.check(t.action(g,"card",{"uid":paid.uid}).ok and g.state.pressure==4,"CURSE one-energy action triggers one lewd-mark gain after commit")
 
  g=Game.new(42);mark=give(g,"lewd_mark");give(g,"lewd_mark");var target=g.add_fixture("ankle",10);paid=give(g,"tear")

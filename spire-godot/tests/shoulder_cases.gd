@@ -16,7 +16,7 @@ static func run(t) -> void:
   t.check(g.targets_at("upper_arm").all(func(e):return not g.Equipment.is_shoulder(e)),"SHOULDER not selectable at host upper arm")
   t.check(g.escape_preview(pair[0],"strain",5).reason!="","SHOULDER no strain")
   t.check(g.escape_preview(host,"magic_slip",5).reason.contains("肩带"),"SHOULDER two paths block host magic slip")
-  var before=g.export_snapshot();g.get_view();g.candidates()
+  var before=g.export_snapshot();g.get_view();g.command_facts()
   t.check(before==g.export_snapshot(),"SHOULDER previews preserve pair and RNG")
   t.check(not g.Shoulders.install(g,host,"belt",2,"fixture") and g.export_snapshot()==before,"SHOULDER extra pair rejected atomically")
   var restored=Game.new(88)

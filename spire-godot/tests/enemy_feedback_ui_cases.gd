@@ -1,15 +1,16 @@
 extends RefCounted
 const Feedback=preload("res://ui/combat_feedback.gd")
+const Queries=preload("res://ui/target_queries.gd")
 
 static func run(t) -> void:
  await player_interactions(t)
  var ui=t.ui
  ui.restart(42);await t.frames()
  var before=ui.view
- var end=ui.actions.find("flow",{"kind":"end"})
- if end.is_empty(): end=ui.view.candidates.filter(func(c):return c.payload.kind=="end")[0]
+ var end=Queries.find(ui.view,"flow",{"kind":"end"})
+ if end.is_empty(): end=ui.view.display_facts.filter(func(c):return c.payload.kind=="end")[0]
  ui.feedback_duration=0.2
- ui._submit(end)
+ ui.command_router.emit(String(end.payload.get("kind","")),end)
  var committed=ui.game.export_snapshot()
  var presenter=ui.enemy_feedback
  t.check(is_instance_valid(presenter),"FEEDBACK enemy operation opens presentation")
@@ -18,16 +19,16 @@ static func run(t) -> void:
  t.check(steps.size()>=2 and steps[0].enemy_id!=steps[-1].enemy_id,"FEEDBACK different enemy instances shown in actual order")
  t.check(presenter.current.enemy_id==steps[0].enemy_id and presenter.detail.text!="","FEEDBACK first enemy and actual result immediately readable")
  t.check(not presenter.highlights.is_empty(),"FEEDBACK active enemy and affected body have visual anchors")
- var next=ui.view.candidates.filter(func(c):return c.valid)[0]
- ui._submit(next)
+ var next=ui.view.display_facts.filter(func(c):return c.valid)[0]
+ ui.command_router.emit(String(next.payload.get("kind","")),next)
  t.check(ui.game.export_snapshot()==committed,"FEEDBACK clicks cannot submit gameplay during presentation")
  await t.capture("ui-100-enemy-action.png")
  await t.frames()
  t.check(not is_instance_valid(ui.enemy_feedback) and ui.game.export_snapshot()==committed,"FEEDBACK sequence finishes without any extra game effect")
  t.check(Feedback.steps(ui.view,ui.view).is_empty(),"FEEDBACK re-render/save snapshot cannot replay history")
  before=ui.view
- end=ui.view.candidates.filter(func(c):return c.payload.kind=="end")[0]
- ui._submit(end)
+ end=ui.view.display_facts.filter(func(c):return c.payload.kind=="end")[0]
+ ui.command_router.emit(String(end.payload.get("kind","")),end)
  committed=ui.game.export_snapshot()
  presenter=ui.enemy_feedback
  if is_instance_valid(presenter):
@@ -38,8 +39,8 @@ static func run(t) -> void:
  ui.game.add_fixture("eyes",4)
  for e in ui.game.state.enemies: e.stage=3;e.intent=ui.game._plan(e)
  ui.render();before=ui.view
- end=ui.view.candidates.filter(func(c):return c.payload.kind=="end")[0]
- ui._submit(end)
+ end=ui.view.display_facts.filter(func(c):return c.payload.kind=="end")[0]
+ ui.command_router.emit(String(end.payload.get("kind","")),end)
  steps=Feedback.steps(before,ui.view)
  t.check(not steps.is_empty() and steps.all(func(step):return step.kind=="unseen"),"FEEDBACK blind preparation does not leak its action kind")
  ui.restart(43)
@@ -49,7 +50,7 @@ static func run(t) -> void:
  var a=ui.game.add_fixture("thigh",4);var b=ui.game.add_fixture("forearm",4)
  ui.game.state.enemies[0].intent={"kind":"guard_sequence","priority":false,"delayed":false,"text":"连续上锁","operations":[{"kind":"lock","target":a.id,"text":"上锁","delayed":false},{"kind":"lock","target":b.id,"text":"上锁","delayed":false}]}
  ui.render();before=ui.view
- ui._submit(ui.view.candidates.filter(func(c):return c.payload.kind=="end")[0])
+ ui.command_router.emit(String(ui.view.display_facts.filter(func(c):return c.payload.kind=="end")[0].payload.get("kind","")),ui.view.display_facts.filter(func(c):return c.payload.kind=="end")[0])
  steps=Feedback.steps(before,ui.view)
  t.check(steps.size()==2 and steps[0].enemy_id==steps[1].enemy_id and steps[0].key!=steps[1].key,"FEEDBACK guard's two operations retain separate sequence positions")
  t.check(steps[0].slots==["thigh"] and steps[1].slots==["forearm"],"FEEDBACK each operation points to its actual affected body part")
@@ -57,7 +58,7 @@ static func run(t) -> void:
  # One formal batch must highlight every actual installation, not only its first log.
  await t.start_practice("Practice_trader_solo")
  before=ui.view
- ui._submit(ui.view.candidates.filter(func(c):return c.payload.kind=="end")[0])
+ ui.command_router.emit(String(ui.view.display_facts.filter(func(c):return c.payload.kind=="end")[0].payload.get("kind","")),ui.view.display_facts.filter(func(c):return c.payload.kind=="end")[0])
  steps=Feedback.steps(before,ui.view)
  var expected=[]
  for log in ui.view.logs.slice(before.logs.size()):
@@ -92,8 +93,8 @@ static func player_interactions(t) -> void:
  ui.render();await t.frames()
  t.check(not ui.card_buttons[uid].free_face,"DRAW UI actual redraw chooses bound face when escape target exists")
  var previous=ui.view
- var c=ui.actions.select("card",{"uid":uid,"target":target.id})[0]
- await t.start_drag(uid,"ankle");await t.release_target(await t.reveal_drop_target(c.id))
+ var c=Queries.select(ui.view,"card",{"uid":uid,"target":target.id})[0]
+ await t.start_drag(uid,"ankle");await t.release_target(await t.reveal_drop_target(c.key))
  t.check(ui.find_child("PlayerActionFeedback",true,false)!=null and Feedback.equipment_changes(previous,ui.view).any(func(row):return row.text=="已解除"),"FEEDBACK actual escape drag immediately reports removal")
  var committed=ui.game.export_snapshot();ui.render();await t.frames()
  t.check(ui.find_child("PlayerActionFeedback",true,false)==null and ui.game.export_snapshot()==committed,"FEEDBACK redraw neither replays old player feedback nor changes state")
@@ -108,7 +109,7 @@ static func player_interactions(t) -> void:
  t.check(await t.click("posture",{"dest":"sit","wall":false}) and await t.click("posture",{"dest":"lie","wall":false}),"TOOL close drawer and change posture through formal actions")
  if not ui.quick_release_open: await press(t,"ActionRailToggle")
  await press(t,"InstalledTool_"+item)
- t.check(ui.show_items and ui.selected_item==item and ui.game.InstalledTools.reason(ui.game,ui.game._item(item),target)!="" and ui.actions.select("item",{"item":item,"target":target.id}).is_empty(),"TOOL installed entry reopens even with currently unreachable target")
+ t.check(ui.show_items and ui.selected_item==item and ui.game.InstalledTools.reason(ui.game,ui.game._item(item),target)!="" and Queries.select(ui.view,"item",{"item":item,"target":target.id}).is_empty(),"TOOL installed entry reopens even with currently unreachable target")
  await t.close_information()
  t.check(await t.click("posture",{"dest":"sit","wall":false}),"TOOL restore legal posture")
  await press(t,"InstalledTool_"+item)

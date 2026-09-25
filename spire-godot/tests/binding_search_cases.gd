@@ -24,10 +24,10 @@ static func run(t) -> void:
   var c=t.find_action(g,"card",{"uid":source.uid,"free":false})
   var text=g.Cards.metadata(g,TYPE,source.uid).face_effects.bound
   t.check(g.Cards.occupied_body_count(g)==count and text.contains("抽%d张牌" % int(count/2)) and text.contains("X＝%d" % count),"BIND SEARCH live card and count cover floor boundary "+str(count))
-  g.get_view();g.candidates()
+  g.get_view();g.command_facts()
   t.check(g.export_snapshot()==before,"BIND SEARCH preview never advances random or changes resources")
-  t.check(not g.dispatch(c.id,g.state.version-1).ok and g.export_snapshot()==before,"BIND SEARCH stale play rolls back fully")
-  t.check(g.dispatch(c.id,g.state.version).ok and g.state.hand.size()==int(count/2) and g.state.energy==19 and g.state.mana==90,"BIND SEARCH bound dispatch draws exact floor and pays once")
+  t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.export_snapshot()==before,"BIND SEARCH stale play rolls back fully")
+  t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.hand.size()==int(count/2) and g.state.energy==19 and g.state.mana==90,"BIND SEARCH bound dispatch draws exact floor and pays once")
  g=setup();var palm=g.add_fixture("palm",8);palm.side="left"
  g.add_fixture("palm",8);g.add_fixture("fingers",8);g.add_fixture("foot",8);g.add_fixture("toes",8)
  g._install_special("nipple_ring_low","special_1_a");g._install_special("shaft_ring_low","special_2_a")
@@ -46,7 +46,7 @@ static func run(t) -> void:
  t.check(not root.is_empty() and g.Cards.occupied_body_count(g)>1,"BIND SEARCH composite counts actual covered sidebar parts rather than one root")
  g=setup();source=Give.give(g,TYPE);g.state.evasion=2
  var c=t.find_action(g,"card",{"uid":source.uid,"free":true});var before=g.export_snapshot()
- t.check(g.dispatch(c.id,g.state.version).ok,"BIND SEARCH free dispatch succeeds")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok,"BIND SEARCH free dispatch succeeds")
  t.check(g.state.equipment.size()==1 and g.state.equipment[0].grade==2 and g.tier(g.state.equipment[0].durability,g.state.equipment[0].maximum)==2 and not g.state.equipment[0].locked,"BIND SEARCH installs one unlocked medium tier-two ordinary restraint")
  t.check(g.state.hand.size()==3 and g.state.energy==before.energy-1 and g.state.mana==90 and g.state.evasion==2 and g.state.discard.any(func(card):return card.uid==source.uid),"BIND SEARCH voluntary equip precedes draw and bypasses evasion; played card discards normally")
  var other=setup();Give.give(other,TYPE);other.state.evasion=2
@@ -57,14 +57,14 @@ static func run(t) -> void:
   g.Application.execute_concrete(g,options[0],"fixture",false,[],true)
   options=g.Cards.SelfBinding.install_options(g,2,2)
  before=g.export_snapshot();c=t.find_action(g,"card",{"uid":source.uid,"free":true})
- t.check(not c.valid and c.reason.contains("没有位置") and not g.dispatch(c.id,g.state.version).ok and g.export_snapshot()==before,"BIND SEARCH full capacity refuses before payment or draw and never replaces equipment")
+ t.check(not c.valid and c.reason.contains("没有位置") and not g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.export_snapshot()==before,"BIND SEARCH full capacity refuses before payment or draw and never replaces equipment")
  for free in [false,true]:
   g=setup();source=Give.give(g,TYPE);g.state.pressure=95
   c=t.find_action(g,"card",{"uid":source.uid,"free":free})
   var rng=g.state.rng.magic
   while g._random_index("magic",g.B.CAST_ROLL_STEPS)<g.cast_view(g.Cards.cast_profile(g,TYPE)).winning_rolls: rng=g.state.rng.magic
   g.state.rng.magic=rng;before=g.export_snapshot()
-  t.check(g.dispatch(c.id,g.state.version).ok and g._magic_failed and g.state.hand==before.hand and g.state.equipment==before.equipment and g.state.rng.equipment==before.rng.equipment,"BIND SEARCH failed casting grants neither random equipment nor draws on either face")
+  t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g._magic_failed and g.state.hand==before.hand and g.state.equipment==before.equipment and g.state.rng.equipment==before.rng.equipment,"BIND SEARCH failed casting grants neither random equipment nor draws on either face")
  g=setup();source=Give.give(g,TYPE);g.state.mana=9;before=g.export_snapshot()
  t.check(not t.action(g,"card",{"uid":source.uid,"free":true}).ok and g.export_snapshot()==before,"BIND SEARCH insufficient mana refuses atomically")
  g=setup();source=Give.give(g,TYPE);g.Cards.grant_buff(g,"echo_cast_bound")

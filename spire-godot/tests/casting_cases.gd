@@ -26,10 +26,10 @@ static func run(t) -> void:
   var card=t.hand_card(g,"ease")
   g.state.pressure=75
   var chosen=t.find_action(g,"card",{"uid":card.uid,"target":e.id})
-  var before=g.export_snapshot();g.get_view();g.candidates()
-  t.check(g.state==before and not g.dispatch(chosen.id,g.state.version-1).ok and g.state==before,"CAST preview and stale dispatch consume no RNG or payment")
+  var before=g.export_snapshot();g.get_view();g.command_facts()
+  t.check(g.state==before and not g.dispatch(g.command(chosen.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"CAST preview and stale dispatch consume no RNG or payment")
   var restored=Game.new(0);t.check(restored.restore_snapshot(before).ok,"CAST save restore")
-  t.check(g.dispatch(chosen.id,g.state.version).ok and restored.dispatch(chosen.id,restored.state.version).ok,"CAST real action commits even when spell fails")
+  t.check(g.dispatch(g.command(chosen.payload,g.state.version),g.state.version).ok and restored.dispatch(restored.command(chosen.payload,restored.state.version),restored.state.version).ok,"CAST real action commits even when spell fails")
   var result=g.state.logs.filter(func(x):return x.data.has("spell")).back().data.spell
   seen[result.success]=true
   t.check(g.state.rng.magic==1 and restored.state.rng.magic==1 and restored.state.logs.back().text==g.state.logs.back().text and restored._equipment(e.id).durability==g._equipment(e.id).durability,"CAST saved RNG reproduces result")
@@ -121,9 +121,9 @@ static func run(t) -> void:
   t.check(choice.valid==(rate.winning_rolls>0),"CAST eligibility agrees with winning outcomes "+str(pressure))
   before=g.export_snapshot()
   if rate.winning_rolls==0:
-   t.check(not g.dispatch(choice.id,g.state.version).ok and g.state==before,"CAST rounded zero rejects without costs or RNG")
+   t.check(not g.dispatch(g.command(choice.payload,g.state.version),g.state.version).ok and g.state==before,"CAST rounded zero rejects without costs or RNG")
   else:
-   t.check(g.dispatch(choice.id,g.state.version).ok,"CAST smallest supported probability remains playable")
+   t.check(g.dispatch(g.command(choice.payload,g.state.version),g.state.version).ok,"CAST smallest supported probability remains playable")
    var spell=g.state.logs.filter(func(x):return x.data.has("spell")).back().data.spell
    t.check(spell.success==(spell.roll<rate.winning_rolls) and spell.chance==rate.chance,"CAST actual roll uses displayed winning threshold")
 
@@ -136,7 +136,7 @@ static func fireball_failed_retries(t) -> void:
   g.state.rng.magic=rng
   var before=g.export_snapshot()
   t.check(c.valid and c.cost==(1 if attempt==0 else 0),"FIREBALL failed retries preserve the existing first-attempt energy rule")
-  t.check(g.dispatch(c.id,g.state.version).ok and g._magic_failed and g.BasicAttacks.usage(g,"fireball").remaining==2 and g.state.enemies==before.enemies and is_equal_approx(g.state.mana,before.mana-c.mana*0.5),"FIREBALL repeated failures preserve all charges and refund half mana")
+  t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g._magic_failed and g.BasicAttacks.usage(g,"fireball").remaining==2 and g.state.enemies==before.enemies and is_equal_approx(g.state.mana,before.mana-c.mana*0.5),"FIREBALL repeated failures preserve all charges and refund half mana")
   t.check(g.state.logs.any(func(log):return log.data.has("spell") and log.text.contains("次数未消耗")),"FIREBALL failure log explains preserved charges")
  g.state.sure_cast=true
  t.check(t.action(g,"attack",{"type":"fireball"}).ok and not g._magic_failed and g.BasicAttacks.usage(g,"fireball").remaining==1,"FIREBALL successful retry consumes exactly one charge")
@@ -153,9 +153,9 @@ static func failure_refunds(t) -> void:
    var rng=g.state.rng.magic
    while g._random_index("magic",g.B.CAST_ROLL_STEPS)<g.cast_view(g.Cards.cast_profile(g,type)).winning_rolls: rng=g.state.rng.magic
    g.state.rng.magic=rng
-   var before=g.export_snapshot();g.get_view();g.candidates()
-   t.check(c.valid and g.state==before and not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"REFUND preview and stale request preserve resources "+type)
-   var result=g.dispatch(c.id,g.state.version)
+   var before=g.export_snapshot();g.get_view();g.command_facts()
+   t.check(c.valid and g.state==before and not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"REFUND preview and stale request preserve resources "+type)
+   var result=g.dispatch(g.command(c.payload,g.state.version),g.state.version)
    t.check(result.ok and g._magic_failed and is_equal_approx(g.state.mana,before.mana-c.mana_payment.mana*0.5) and is_equal_approx(g.state.temporary_mana,before.temporary_mana-c.mana_payment.temporary_mana*0.5),"REFUND half actual payment returns to each original pool "+type+str(temporary))
    t.check(g.state.energy==before.energy-c.cost and g.state.hand==before.hand and g.state.flask_mana==before.flask_mana and g.state.enemies==before.enemies,"REFUND does not restore energy or apply success effects "+type)
    var spell=g.state.logs.filter(func(log):return log.data.has("spell")).back().data.spell
@@ -180,7 +180,7 @@ static func retry_failed_cards(t) -> void:
   while g._random_index("magic",g.B.CAST_ROLL_STEPS)<g.cast_view(g.Cards.cast_profile(g,type)).winning_rolls: rng=g.state.rng.magic
   g.state.rng.magic=rng
   var before=g.export_snapshot()
-  var result=g.dispatch(c.id,g.state.version)
+  var result=g.dispatch(g.command(c.payload,g.state.version),g.state.version)
   t.check(result.ok and g._magic_failed and g.state.hand==before.hand and g.state.discard==before.discard and g.state.exhaust==before.exhaust and result.card_feedback.is_empty(),"CAST failure preserves physical card, order and retain marker without departure animation")
   var restored=Game.new(7)
   t.check(restored.restore_snapshot(g.export_snapshot()).ok and restored.state.hand==g.state.hand,"CAST failed card can be saved and restored in hand")
@@ -193,16 +193,16 @@ static func unlock_zero_energy(t) -> void:
  var card=t.grant_fixture_card(g,"unlock")
  var c=t.find_action(g,"card",{"uid":card.uid,"target":target.id,"free":false})
  var before=g.export_snapshot()
- t.check(c.cost==0 and c.mana==10 and not c.valid and not g.dispatch(c.id,g.state.version).ok and g.state==before,"UNLOCK zero energy does not bypass ten-mana payment and rejected use is atomic")
+ t.check(c.cost==0 and c.mana==10 and not c.valid and not g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state==before,"UNLOCK zero energy does not bypass ten-mana payment and rejected use is atomic")
  g.state.mana=10
  c=t.find_action(g,"card",{"uid":card.uid,"target":target.id,"free":false})
  var free=t.find_action(g,"card",{"uid":card.uid,"free":true})
  var costs=g.live_card_text("unlock").face_costs
  t.check(c.valid and not free.valid and free.cost==1 and costs.bound=="0" and costs.free=="1","UNLOCK bound is playable at zero energy while free preparation still costs one")
  before=g.export_snapshot()
- t.check(g.dispatch(c.id,before.version).ok and not g._equipment(target.id).locked and g._equipment(target.id).durability==8 and g.state.energy==0 and g.state.mana==0 and g.state.discard.any(func(row):return row.uid==card.uid),"UNLOCK zero-energy success pays mana opens only the lock and discards the card")
+ t.check(g.dispatch(g.command(c.payload,before.version),before.version).ok and not g._equipment(target.id).locked and g._equipment(target.id).durability==8 and g.state.energy==0 and g.state.mana==0 and g.state.discard.any(func(row):return row.uid==card.uid),"UNLOCK zero-energy success pays mana opens only the lock and discards the card")
  before=g.export_snapshot()
- t.check(not g.dispatch(c.id,before.version-1).ok and g.state==before,"UNLOCK stale zero-cost play cannot repeat the effect")
+ t.check(not g.dispatch(g.command(c.payload,before.version-1),before.version-1).ok and g.state==before,"UNLOCK stale zero-cost play cannot repeat the effect")
 
 static func body_routes(t) -> void:
  var g=Game.new(42)
@@ -220,7 +220,7 @@ static func body_routes(t) -> void:
  var fingers=g.add_fixture("fingers",4);fingers.side="right"
  c=t.find_action(g,"card",{"uid":card.uid,"target":target.id})
  var before=g.export_snapshot()
- t.check(not c.valid and c.reason.contains("手掌和手指") and not g.dispatch(c.id,g.state.version).ok and g.state==before,"ROUTE cannot combine fingers and palm from opposite hands; rejected play is atomic")
+ t.check(not c.valid and c.reason.contains("手掌和手指") and not g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state==before,"ROUTE cannot combine fingers and palm from opposite hands; rejected play is atomic")
  g.state.sure_cast=true
  t.check(not t.find_action(g,"card",{"uid":card.uid,"target":target.id}).valid,"ROUTE guaranteed casting does not bypass hand requirement")
  g.state.sure_cast=false
@@ -234,7 +234,7 @@ static func body_routes(t) -> void:
  shown=g.get_view().hand.filter(func(e):return e.uid==card.uid)[0]
  t.check(shown.casting.part=="hand" and shown.casting.chance==0.25,"ROUTE chooses highest chance instead of penalized mouth")
  t.check(g.cast_view({"parts":["mouth","hand"],"multiplier":1.0}).part=="hand","ROUTE higher chance wins regardless of configured order")
- before=g.export_snapshot();g.get_view();g.candidates()
+ before=g.export_snapshot();g.get_view();g.command_facts()
  t.check(g.state==before,"ROUTE choosing paths does not mutate state or consume randomness")
  g=Game.new(42);g.add_fixture("fingers",4)
  target=g.add_fixture("ankle",8,10,true)
@@ -242,7 +242,7 @@ static func body_routes(t) -> void:
  g._gain_card("double_unlock");card=t.hand_card(g,"double_unlock")
  c=t.find_action(g,"card",{"uid":card.uid,"target":target.id})
  before=g.export_snapshot()
- t.check(g.dispatch(c.id,g.state.version).ok and not g._equipment(target.id).locked,"ROUTE mouth fallback actually unlocks despite blocked hands")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and not g._equipment(target.id).locked,"ROUTE mouth fallback actually unlocks despite blocked hands")
  var spell=g.state.logs.filter(func(x):return x.data.has("spell")).back().data.spell
  t.check(spell.part=="mouth" and spell.chance==1 and g.state.mana==before.mana-c.mana,"ROUTE committed spell records the previewed mouth path and pays once")
  var mana=g.state.mana;var magic_rng=g.state.rng.magic
@@ -289,8 +289,8 @@ static func prepared_chant(t) -> void:
   var c=t.find_action(g,"card",{"uid":card.uid,"free":free})
   var before=g.export_snapshot()
   t.check(c.valid and c.cost==1 and c.mana==10 and g.Cards.cast_profile(g,"prepared_chant").parts==["mouth"],"CHANT both faces use one energy, ten mana and mouth casting")
-  t.check(not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"CHANT stale play cannot grant certainty or spend resources")
-  t.check(g.dispatch(c.id,g.state.version).ok and not g._magic_failed and g.state.energy==before.energy-1 and g.state.mana==before.mana-10 and g.state.exhaust.any(func(x):return x.uid==card.uid),"CHANT successful play pays and exhausts")
+  t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"CHANT stale play cannot grant certainty or spend resources")
+  t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and not g._magic_failed and g.state.energy==before.energy-1 and g.state.mana==before.mana-10 and g.state.exhaust.any(func(x):return x.uid==card.uid),"CHANT successful play pays and exhausts")
   g.state.pressure=99
   if free:
    t.check(g.cast_view().chance<1 and "prepared_chant_next" in g.state.card_buffs and "prepared_chant" not in g.state.card_buffs,"CHANT free face waits without improving current-turn casting")
@@ -322,7 +322,7 @@ static func prepared_chant(t) -> void:
  while g._random_index("magic",g.B.CAST_ROLL_STEPS)<g.cast_view(g.Cards.cast_profile(g,"prepared_chant")).winning_rolls: rng=g.state.rng.magic
  g.state.rng.magic=rng
  var before=g.export_snapshot()
- t.check(g.dispatch(c.id,g.state.version).ok and g._magic_failed and g.state.hand.any(func(x):return x.uid==card.uid) and g.state.exhaust.is_empty() and "prepared_chant" not in g.state.card_buffs and g.state.mana==before.mana-c.mana*0.5,"CHANT itself can fail, refunds normally and remains unexhausted without granting the buff")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g._magic_failed and g.state.hand.any(func(x):return x.uid==card.uid) and g.state.exhaust.is_empty() and "prepared_chant" not in g.state.card_buffs and g.state.mana==before.mana-c.mana*0.5,"CHANT itself can fail, refunds normally and remains unexhausted without granting the buff")
  g.state.pressure=0;g.state.mana=9;g.state.temporary_mana=0
  before=g.export_snapshot()
  t.check(not t.action(g,"card",{"uid":card.uid,"free":true}).ok and g.state==before,"CHANT insufficient mana rejects atomically")
@@ -346,7 +346,7 @@ static func magic_slip_free(t) -> void:
   g.state.pressure=75;g.state.mana=0
   var choice=t.find_action(g,"card",{"uid":card.uid,"free":true})
   var before=g.export_snapshot()
-  t.check(choice.valid and choice.mana==0 and choice.cost==0 and not g.dispatch(choice.id,g.state.version-1).ok and g.state==before,"MAGIC SLIP free mouth spell remains zero cost and stale dispatch is atomic")
+  t.check(choice.valid and choice.mana==0 and choice.cost==0 and not g.dispatch(g.command(choice.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"MAGIC SLIP free mouth spell remains zero cost and stale dispatch is atomic")
   t.check(t.action(g,"card",{"uid":card.uid,"free":true}).ok,"MAGIC SLIP free cast commits")
   var success=g.state.logs.filter(func(x):return x.data.has("spell")).back().data.spell.success
   seen[success]=true

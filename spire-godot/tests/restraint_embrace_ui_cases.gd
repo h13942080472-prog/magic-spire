@@ -1,6 +1,7 @@
 extends RefCounted
 const Cards=preload("res://tests/curse_cases.gd")
 const Click=preload("res://tests/curse_ui_cases.gd")
+const Queries=preload("res://ui/target_queries.gd")
 
 static func run(t) -> void:
  var ui=t.ui
@@ -9,12 +10,12 @@ static func run(t) -> void:
  ui.render();await t.frames()
  if not ui.card_faces.get(card.uid,false): await t.flip(card.uid)
  var face=ui.card_buttons[card.uid]
- t.check(face.rarity=="uncommon" and t.visible_text(face).contains("每挣脱1件拘束具，抽1张牌，恢复1能量。") and t.visible_text(face).contains("抽牌与回能均可叠加。") and ui.actions.find("card",{"uid":card.uid,"free":true}).cost==2,"EMBRACE UI free face explains stackable draws and energy at two energy")
+ t.check(face.rarity=="uncommon" and t.visible_text(face).contains("每挣脱1件拘束具，抽1张牌，恢复1能量。") and t.visible_text(face).contains("抽牌与回能均可叠加。") and Queries.find(ui.view,"card",{"uid":card.uid,"free":true}).cost==2,"EMBRACE UI free face explains stackable draws and energy at two energy")
  await Click.click_card(t,card.uid);await t.frames()
  t.check(ui.game.state.energy==8 and ui.game.state.powers.size()==1,"EMBRACE UI clicking free face activates for this battle")
  card=Cards.give(ui.game,"restraint_embrace");ui.render();await t.frames()
  if ui.card_faces.get(card.uid,false): await t.flip(card.uid)
- t.check(t.visible_text(ui.card_buttons[card.uid]).contains("每被佩戴1件拘束具，下回合抽1张牌。") and ui.actions.find("card",{"uid":card.uid,"free":false}).cost==1,"EMBRACE UI bound face explains next-turn draw at one energy")
+ t.check(t.visible_text(ui.card_buttons[card.uid]).contains("每被佩戴1件拘束具，下回合抽1张牌。") and Queries.find(ui.view,"card",{"uid":card.uid,"free":false}).cost==1,"EMBRACE UI bound face explains next-turn draw at one energy")
  await Click.click_card(t,card.uid);await t.frames()
  ui.game.add_fixture("wrist",4);ui.game.add_fixture("ankle",4)
  ui.render();await t.frames()

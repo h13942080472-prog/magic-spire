@@ -41,19 +41,19 @@ static func run(t) -> void:
  var tool=g.state.items[0];tool.mount="hand_wall"
  var card=t.hand_card(g,"strain");var c=t.find_action(g,"card",{"uid":card.uid,"target":target.id})
  t.check(c.valid and c.payload.tool_bonus.damage==5 and g.candidate_detail(c).contains("固定切割"),"PASSIVE preview includes fixed tool contribution")
- var before=g.export_snapshot();g.get_view();g.candidates()
+ var before=g.export_snapshot();g.get_view();g.command_facts()
  t.check(g.export_snapshot()==before,"PASSIVE previews do not spend charges or randomness")
  t.check(not t.find_action(g,"item_use",{"item":tool.id,"target":target.id}).valid,"PASSIVE mounted cutter has no active use")
  var expected=8-c.payload.preview.damage-5
- t.check(g.dispatch(c.id,g.state.version).ok and is_equal_approx(g._equipment(target.id).durability,expected) and g._item(tool.id).uses==2 and g.state.energy==2,"PASSIVE fixed five bypasses lock reduction and pays card once")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and is_equal_approx(g._equipment(target.id).durability,expected) and g._item(tool.id).uses==2 and g.state.energy==2,"PASSIVE fixed five bypasses lock reduction and pays card once")
  t.check(g.state.logs.any(func(e):return e.data.has("tool_bonus") and e.data.tool_bonus.fixed==5),"PASSIVE fixed effect is logged separately")
- before=g.export_snapshot();t.check(not g.dispatch(c.id,before.version-1).ok and g.export_snapshot()==before,"PASSIVE stale request does not repeat tool use")
+ before=g.export_snapshot();t.check(not g.dispatch(g.command(c.payload,before.version-1),before.version-1).ok and g.export_snapshot()==before,"PASSIVE stale request does not repeat tool use")
  for mode in ["slip","magic_slip","ease"]:
   g=fresh();target=g.add_fixture("wrist",8);g._gain_tool("shard");tool=g.state.items[0];tool.mount="hand_wall"
   if not g.state.deck.any(func(x):return x.type==mode): g._gain_card(mode)
   card=t.hand_card(g,mode);c=t.find_action(g,"card",{"uid":card.uid,"target":target.id})
   t.check(c.valid,"PASSIVE test action exists "+mode)
-  t.check(g.dispatch(c.id,g.state.version).ok,"PASSIVE corresponding card resolves "+mode)
+  t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok,"PASSIVE corresponding card resolves "+mode)
   t.check(g._item(tool.id).uses==(2 if mode in ["slip","magic_slip"] else 3),"PASSIVE matching actual damage types consume tool "+mode)
  g=fresh();target=g.add_fixture("wrist",10);g._gain_tool("shard");tool=g.state.items[0];tool.mount="hand_wall"
  t.check(play(t,g,target,"slip").ok and g._item(tool.id).uses==3 and g._equipment(target.id).durability==10,"PASSIVE immune ordinary slip does not turn into cutting")

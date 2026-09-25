@@ -9,11 +9,11 @@ static func run(t) -> void:
  t.check(g.state.enemies[0].type=="drone" and g.state.enemies[0].intent.kind=="bind_apply" and g.Enemies.FirstFloor.candidates(g).any(func(m):return m.type=="drone"),"DRONE registered weak encounter opens with direct bind")
  var strike=t.find_action(g,"attack",{"type":"strike","enemy":id})
  var hp=g._enemy(id).hp
- t.check(g.dispatch(strike.id,g.state.version).ok and g._enemy(id).hp==hp-strike.payload.damage*0.5,"DRONE hard halves physical damage through formal attack")
+ t.check(g.dispatch(g.command(strike.payload,g.state.version),g.state.version).ok and g._enemy(id).hp==hp-strike.payload.damage*0.5,"DRONE hard halves physical damage through formal attack")
  g.state.sure_cast=true
  var fire=t.find_action(g,"attack",{"type":"fireball","enemy":id})
  hp=g._enemy(id).hp
- t.check(g.dispatch(fire.id,g.state.version).ok and g._enemy(id).hp==hp-fire.payload.damage,"DRONE magic bypasses hard")
+ t.check(g.dispatch(g.command(fire.payload,g.state.version),g.state.version).ok and g._enemy(id).hp==hp-fire.payload.damage,"DRONE magic bypasses hard")
 
  g=Game.new(12,true,"drone_solo");id=g.state.enemies[0].id
  g.state.posture="sit"
@@ -31,7 +31,7 @@ static func run(t) -> void:
  t.check(g.state.guard_bind.sources.drone.energy==0 and is_equal_approx(g.state.guard_bind.progress,40.0-escape_damage) and g.state.equipment.any(func(e):return e.source==id and e.grade==1 and g.tier(e.durability,e.maximum)==2),"DRONE second paid energy applies tier-two tape and advances shared bar")
  var before=g.export_snapshot()
  var version=g.state.version
- t.check(not g.dispatch(strike.id,version-1).ok and g.state==before,"DRONE rejected stale action preserves capture counters and random state")
+ t.check(not g.dispatch(g.command(strike.payload,version-1),version-1).ok and g.state==before,"DRONE rejected stale action preserves capture counters and random state")
  g.CaptureBind.energy_spent(g,4)
  t.check(is_equal_approx(g.state.guard_bind.progress,60.0-escape_damage) and g.state.guard_bind.sources.drone.energy==0,"DRONE large payment triggers once for each two energy")
  var entry=g.get_view().statuses.filter(func(s):return s.id=="guard_bind")[0]

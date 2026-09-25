@@ -17,7 +17,7 @@ static func run(t) -> void:
  var profile={"parts":["hand"],"multiplier":1.0}
  var route=g.cast_view(profile)
  var before=g.export_snapshot()
- g.get_view();g.candidates()
+ g.get_view();g.command_facts()
  t.check(route.reason=="" and route.source_part=="toes" and route.chance==0.25 and g.state==before,"SECRET best legal toe route shares pressure curve and preview is readonly")
  var bound=toes(g)
  g.state.sure_cast=true
@@ -25,7 +25,7 @@ static func run(t) -> void:
  route=g.cast_view(profile)
  var blocked=t.find_action(g,"card",{"uid":card.uid,"target":target.id})
  before=g.export_snapshot()
- t.check(route.chance==0 and route.reason.contains("脚趾") and not g.dispatch(blocked.id,g.state.version).ok and g.state==before,"SECRET bound toes and blocked hands reject even guaranteed casting without paying")
+ t.check(route.chance==0 and route.reason.contains("脚趾") and not g.dispatch(g.command(blocked.payload,g.state.version),g.state.version).ok and g.state==before,"SECRET bound toes and blocked hands reject even guaranteed casting without paying")
  g.state.equipment.erase(palm)
  t.check(g.cast_view(profile).source_part=="hand" and g.cast_view(profile).chance==1.0,"SECRET bound toes do not disable a legal hand route")
  g.state.equipment.erase(bound)
@@ -34,8 +34,8 @@ static func run(t) -> void:
  g.state.pressure=0
  var pick=t.find_action(g,"card",{"uid":card.uid,"target":target.id})
  before=g.export_snapshot()
- t.check(not g.dispatch(pick.id,g.state.version-1).ok and g.state==before,"SECRET stale toe spell changes no resources or equipment")
- t.check(g.dispatch(pick.id,g.state.version).ok and not g._equipment(target.id).locked and g.state.mana==before.mana-pick.mana,"SECRET actual hand spell casts with toes and unlocks its target")
+ t.check(not g.dispatch(g.command(pick.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"SECRET stale toe spell changes no resources or equipment")
+ t.check(g.dispatch(g.command(pick.payload,g.state.version),g.state.version).ok and not g._equipment(target.id).locked and g.state.mana==before.mana-pick.mana,"SECRET actual hand spell casts with toes and unlocks its target")
  t.check(g.state.logs.any(func(row):return row.data.get("spell",{}).get("source_part","")=="toes"),"SECRET spell receipt records actual toe route")
  var clone=Game.new(13)
  t.check(clone.restore_snapshot(g.export_snapshot()).ok and clone.hand_cast_reason()=="","SECRET relic survives snapshot with toe casting immediately active")
@@ -90,7 +90,7 @@ static func traction(t) -> void:
  var pick=t.find_action(g,"card",{"uid":card.uid,"free":true})
  t.check(pick.valid and pick.risk.contains("脚趾牵扯"),"SECRET paid action previews toe traction")
  var before=g.export_snapshot()
- t.check(g.dispatch(pick.id,g.state.version).ok and g.state.energy==before.energy-2,"SECRET ordinary paid action remains an actual two-energy transaction")
+ t.check(g.dispatch(g.command(pick.payload,g.state.version),g.state.version).ok and g.state.energy==before.energy-2,"SECRET ordinary paid action remains an actual two-energy transaction")
  var pulses=g.state.logs.slice(before.logs.size()).filter(func(row):return row.data.get("source","")=="秘密武器·脚趾牵扯")
  t.check(pulses.size()==1 and pulses[0].data.base_gain==3,"SECRET paid transaction emits exactly one real toe traction gain")
  card=Give.give(g,"mana_conversion")

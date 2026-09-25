@@ -3,7 +3,7 @@ const Game=preload("res://tests/game_fixture.gd")
 const Cards=preload("res://tests/curse_cases.gd")
 
 static func next(g) -> Dictionary:
- var choices=g.candidates().filter(func(c):return c.get("automated",false))
+ var choices=g.command_facts().filter(func(c):return c.get("automated",false))
  return choices[0] if not choices.is_empty() else {}
 
 static func enter(t, phase: String, mode: int=0, character: String="original"):
@@ -26,7 +26,7 @@ static func run(t) -> void:
    t.check(not t.action(g,"relic_toggle",{"relic":"doubao"}).ok and g.state==frozen,"CONTROL combat-like phases still reject toggles atomically: "+phase)
    var tick=g.state.tick
    t.check(next(g).is_empty() and not g.get_view().first_turn_control.locked,"CONTROL DeepSeek never supplies an automatic command")
-   var before=g.export_snapshot();g.get_view();g.candidates()
+   var before=g.export_snapshot();g.get_view();g.command_facts()
    t.check(g.state==before,"CONTROL queries do not consume resources")
    var restored=Game.new(9)
    t.check(restored.restore_snapshot(before).ok and restored.state.energy==0 and next(restored).is_empty(),"CONTROL zero-energy first turn survives restore without skipping")
@@ -81,7 +81,7 @@ static func sequence(t) -> void:
   t.check(stage>=0 and (stages.is_empty() or stage>=stages.back()),"CONTROL committed actions preserve user sequence: "+kind)
   stages.append(stage)
   if kind=="attack": basics+=1
-  t.check(g.dispatch(c.id,g.state.version).ok,"CONTROL each autonomous step uses a legal paid command: "+kind)
+  t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok,"CONTROL each autonomous step uses a legal paid command: "+kind)
   steps+=1
  t.check(steps<60 and basics in [1,2] and 3 in stages and stages.back()==5 and g.state.tick==tick+1,"CONTROL finite first turn performs mandatory basics and cards before end")
  t.check(not g.get_view().has("control_next") and g.FirstTurnControl.validate(g)=="","CONTROL settled state validates")
@@ -107,13 +107,13 @@ static func drawing(t) -> void:
  g.state.combat.first_turn_control.stage=3
  var c=next(g)
  t.check(c.payload.get("uid","")==draw.uid,"CONTROL card phase begins with leftmost playable card")
- t.check(g.dispatch(c.id,g.state.version).ok and g.state.hand.any(func(card):return card.uid==follow.uid),"CONTROL draw action introduces a fresh hand card")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.hand.any(func(card):return card.uid==follow.uid),"CONTROL draw action introduces a fresh hand card")
  var played=false
  for i in range(15):
   c=next(g)
   if c.is_empty() or c.payload.kind!="card": break
   if c.payload.uid==follow.uid: played=true
-  t.check(g.dispatch(c.id,g.state.version).ok,"CONTROL newly drawn card commits")
+  t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok,"CONTROL newly drawn card commits")
  t.check(played,"CONTROL newly drawn cards are included before flask/end")
  g=enter(t,"battle");g.state.energy=0;g.state.combat.first_turn_control.stage=3
  t.check(next(g).payload.kind in ["flask","end"],"CONTROL zero energy stops even zero-cost cards")
@@ -122,7 +122,7 @@ static func interruptions(t) -> void:
  var g=enter(t,"battle",0,"witch")
  g.Cards.grant_buff(g,"witch_authority_lock");g.state.combat.first_turn_control.stage=5
  var c=next(g);var tick=g.state.tick
- t.check(c.payload.kind=="relic_control_done" and g.dispatch(c.id,g.state.version).ok,"CONTROL forbidden end returns control instead of auto-surrender or bypass")
+ t.check(c.payload.kind=="relic_control_done" and g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok,"CONTROL forbidden end returns control instead of auto-surrender or bypass")
  t.check(g.state.tick==tick and not g.FirstTurnControl.active(g) and not t.find_action(g,"end").valid,"CONTROL forbidden-end card restriction survives takeover completion")
  g=enter(t,"battle")
  g.state.combat.first_turn_control.stage=2;g.state.combat.first_turn_control.remaining=2;g.state.energy=30
@@ -130,7 +130,7 @@ static func interruptions(t) -> void:
  for i in range(4):
   c=next(g)
   if c.is_empty(): break
-  t.check(g.dispatch(c.id,g.state.version).ok,"CONTROL lethal basic action commits through normal combat")
+  t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok,"CONTROL lethal basic action commits through normal combat")
  t.check(g.state.phase=="reward" and not g.FirstTurnControl.active(g) and next(g).is_empty(),"CONTROL victory interrupts automation and never claims rewards")
  for value in [null,{},"invalid"]:
   var before=g.export_snapshot();var bad=before.duplicate(true);bad.combat.first_turn_control=value
@@ -159,10 +159,10 @@ static func interruptions(t) -> void:
  t.check(next(g).payload.kind=="end","CONTROL exhausted flask quotas cannot be bypassed by automatic actions")
  g=enter(t,"battle");g.state.combat.first_turn_control.stage=2;g.state.item_drop_chance=1
  c=next(g);var original=g.export_snapshot()
- t.check(not g.dispatch(c.id,g.state.version).ok and g.state==original,"CONTROL aggregate validation rollback restores paid resources and random progress together")
+ t.check(not g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state==original,"CONTROL aggregate validation rollback restores paid resources and random progress together")
  g=Game.new(42,true,"pressure_battle")
  g.RelicEffects.gain(g,"masochist_mark");g.RelicEffects.gain(g,"doubao");g.state.pressure=70;g.state.posture="stand"
  g._start_round();c=next(g)
  t.check(g.state.order=="last" and g.state.overloaded and g.state.enemies.all(func(e):return e.stage==2) and c.payload.kind=="end","CONTROL mark forces enemy-first interruption before Doubao can choose basic actions")
  var round_number=g.state.round
- t.check(g.dispatch(c.id,g.state.version).ok and g.state.round==round_number+1 and not g.FirstTurnControl.active(g) and g.state.enemies.all(func(e):return e.stage==3),"CONTROL enemy-first interruption continues normally without repeating old enemy turn or takeover")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.round==round_number+1 and not g.FirstTurnControl.active(g) and g.state.enemies.all(func(e):return e.stage==3),"CONTROL enemy-first interruption continues normally without repeating old enemy turn or takeover")

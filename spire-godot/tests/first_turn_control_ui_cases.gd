@@ -4,11 +4,11 @@ static func return_to_map(t) -> void:
  var ui=t.ui;var g=ui.game
  g._finish_battle()
  for i in range(30):
-  var choices=g.candidates()
+  var choices=g.command_facts()
   var automatic=choices.filter(func(c):return c.get("automated",false))
   var wanted=automatic if not automatic.is_empty() else choices.filter(func(c):return (c.payload.kind=="reward" and c.payload.type=="skip") or c.payload.kind=="finish_prepare")
   if wanted.is_empty(): break
-  var result=g.dispatch(wanted[0].id,g.state.version)
+  var result=g.dispatch(g.command(wanted[0].payload,g.state.version),g.state.version)
   t.check(result.ok,"CONTROL UI fixture reaches map through legal reward/preparation commands")
   if not result.ok: break
  ui.render();await t.frames()
@@ -61,7 +61,7 @@ static func run(t) -> void:
  await t.capture("ui-doubao-intro.png")
  var version=ui.view.version
  var selected=ui.view.first_turn_control.candidate
- ui._submit(selected)
+ ui.command_router.emit(String(selected.payload.get("kind","")),selected)
  await t.mouse_button(Vector2(1530,25),MOUSE_BUTTON_LEFT,true);await t.mouse_button(Vector2(1530,25),MOUSE_BUTTON_LEFT,false)
  await preload("res://tests/keyboard_ui_cases.gd").tap(t,KEY_ESCAPE)
  var touch=InputEventScreenTouch.new();touch.index=0;touch.position=Vector2(1500,25);touch.pressed=true

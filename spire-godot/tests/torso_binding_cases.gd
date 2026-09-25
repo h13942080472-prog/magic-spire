@@ -48,7 +48,7 @@ static func run(t) -> void:
   var e=g.state.equipment[0]
   t.check(g.tier(e.durability,e.maximum)==3 and g.Binding.active(g,e),"BIND tier3 automatically attaches "+kind)
   var before=g.state.duplicate(true)
-  g.get_view();g.candidates()
+  g.get_view();g.command_facts()
   t.check(g.state==before,"BIND previews do not reroll or mutate "+kind)
   t.check(t.action(g,"hook",{"target":e.id}).ok,"BIND formal hook lowers parent "+kind)
   e=g._equipment(e.id)
@@ -73,7 +73,7 @@ static func run(t) -> void:
    t.check(t.action(g,"card",{"uid":card.uid,"target":connection.id,"free":false}).ok,"BIND connection is a formal selectable card target")
    e=g._equipment(e.id)
    t.check(is_equal_approx(e.durability,host_hp-splash) and e.binding.durability==0 and not g.Binding.present(e),"BIND depletion clears attachment while same-point splash damages surviving host")
-   g._cleanup();g.candidates()
+   g._cleanup();g.command_facts()
    t.check(not g.Binding.present(e),"BIND cleanup does not recreate depleted attachment")
    # Formal enemy operation performs the same reinforcement used by live enemies.
    var enemy={"id":"fixture_guard","type":"guard","name":"测试警卫"}

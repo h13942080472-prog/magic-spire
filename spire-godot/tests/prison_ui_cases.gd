@@ -1,5 +1,6 @@
 extends RefCounted
 const Spatial=preload("res://tests/exploration_fixture.gd")
+const Queries=preload("res://ui/target_queries.gd")
 
 static func enter(t, security: int=1) -> void:
  await t.start_practice("Practice_guard")
@@ -112,8 +113,8 @@ static func run(t) -> void:
  ui.render();await t.frames()
  var seal=ui.view.items.filter(func(i):return i.name=="传送符")[0]
  ui.show_items=true;ui.selected_item=seal.id;ui.render();await t.frames()
- var use=ui.actions.find("item",{"kind":"item_use","item":seal.id,"target":"hero"})
- var use_button=ui.candidate_buttons.get(use.id)
+ var use=Queries.find(ui.view,"item",{"kind":"item_use","item":seal.id,"target":"hero"})
+ var use_button=ui.candidate_buttons.get(use.key)
  t.check(use_button!=null and not use_button.disabled and use_button.text=="使用","SEAL UI exposes the formal direct-use button")
  t.check(use_button!=null and use.cost==0 and use.mana==0 and use_button.tooltip_text.contains("不耗能量或魔力") and use_button.tooltip_text.contains("手指或脚趾"),"SEAL UI explains zero-cost use and actual body conditions")
  await t.capture("ui-64-return-seal.png")
@@ -126,7 +127,7 @@ static func run(t) -> void:
  t.check(await t.click("item_use",{"item":seal.id,"target":"hero"}) and ui.view.phase=="map" and ui.view.room_name=="出发点" and ui.view.mana==expected_seal_mana,"SEAL UI actual item button leaves the cell and preserves the established low-mana prison-end relic hook")
  t.check(not ui.view.items.any(func(i):return i.id==seal.id),"SEAL UI consumed card disappears")
  await enter(t,5)
- t.check(ui.view.phase=="prison" and ui.view.prison.left==8 and not ui.view.candidates.is_empty(),"TERMINAL UI five opens the ordinary cell with the shortest patrol and live actions")
+ t.check(ui.view.phase=="prison" and ui.view.prison.left==8 and not ui.view.display_facts.is_empty(),"TERMINAL UI five opens the ordinary cell with the shortest patrol and live actions")
  t.check(t.visible_text(ui.layout).contains("巡视剩余 8 回合") and not t.visible_text(ui.layout).contains("本次逃脱失败") and not t.visible_text(ui.layout).contains("高安全监室"),"TERMINAL UI five shows the cell screen without the removed ending")
  await t.capture("ui-65-security-five.png")
  await t.inspect_body("neck")

@@ -63,27 +63,27 @@ static func run(t) -> void:
  var passive=g.escape_preview(target,"slip",g.SlipMotion.factor("mid_thigh",g.state.posture),[],true)
  var old=target.durability
  c=t.find_action(g,"wall_move",{"direction":"away"})
- t.check(passive.damage_buff_multiplier==2 and g.dispatch(c.id,g.state.version).ok and is_equal_approx(g._equipment(target.id).durability,old-passive.damage),"BUFF formal movement applies doubled passive damage once")
+ t.check(passive.damage_buff_multiplier==2 and g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and is_equal_approx(g._equipment(target.id).durability,old-passive.damage),"BUFF formal movement applies doubled passive damage once")
  target=g._equipment(target.id);g._gain_tool("shard")
  c=t.find_action(g,"item_use",{"item":g.state.items.back().id,"target":target.id})
- t.check(g.candidate_detail(c).contains("10") and g.dispatch(c.id,g.state.version).ok and g._equipment(target.id).is_empty(),"BUFF fixed tool preview and actual cutting both double")
+ t.check(g.candidate_detail(c).contains("10") and g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g._equipment(target.id).is_empty(),"BUFF fixed tool preview and actual cutting both double")
 
  g=Game.new(42);g.state.energy=10
  t.check(cast(t,g,"strong_elbow",true).ok and cast(t,g,"henshin",true).ok,"BUFF arm preparation combines with battle damage")
  var kick=t.find_action(g,"attack",{"type":"kick","form":1})
- t.check(g.dispatch(kick.id,g.state.version).ok and "strong_elbow_free" in g.state.card_buffs,"BUFF unrelated attack leaves next-elbow effect intact")
+ t.check(g.dispatch(g.command(kick.payload,g.state.version),g.state.version).ok and "strong_elbow_free" in g.state.card_buffs,"BUFF unrelated attack leaves next-elbow effect intact")
  c=t.find_action(g,"attack",{"type":"strike","form":1})
  var hp=g._enemy(c.payload.enemy).hp
- t.check(c.payload.hits==2 and c.payload.damage==16 and g.dispatch(c.id,g.state.version).ok,"BUFF complete multi-hit elbow receives both multipliers")
+ t.check(c.payload.hits==2 and c.payload.damage==16 and g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok,"BUFF complete multi-hit elbow receives both multipliers")
  t.check(g._enemy(c.payload.enemy).hp==maxf(0,hp-32) and "strong_elbow_free" not in g.state.card_buffs and "henshin_free" in g.state.card_buffs,"BUFF next attack consumed once after all hits; battle buff retained")
 
  g=Game.new(42);target=g.add_fixture("upper_arm",8);g.add_fixture("wrist",8)
  copy=give(t,g,"strong_elbow")
- var choices=g.candidates().filter(func(a):return a.payload.get("uid","")==copy.uid and not a.payload.free)
+ var choices=g.command_facts().filter(func(a):return a.payload.get("uid","")==copy.uid and not a.payload.free)
  t.check(not choices.is_empty() and choices.all(func(a):return a.payload.slot in ["upper_arm","forearm"]),"ELBOW bound target scope is upper arm and forearm only")
  var hand_size=g.state.hand.size()
  c=t.find_action(g,"card",{"uid":copy.uid,"target":target.id})
- t.check(c.payload.preview.base==8 and g.dispatch(c.id,g.state.version).ok and g.state.hand.size()==hand_size,"ELBOW legal damage draws one after using one card")
+ t.check(c.payload.preview.base==8 and g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.hand.size()==hand_size,"ELBOW legal damage draws one after using one card")
 
  for free in [false,true]:
   g=Game.new(42);g.state.mana=60;g.state.energy=3;g.state.pressure=60;g.state.temporary_mana=5
@@ -94,7 +94,7 @@ static func run(t) -> void:
   g=Game.new(42);g.state.mana=60;g.state.energy=3;g.state.pressure=99;g.state.temporary_mana=5
   copy=give(t,g,"mana_conversion");c=t.find_action(g,"card",{"uid":copy.uid,"free":free})
   before=g.export_snapshot()
-  t.check(c.valid and c.mana==(0 if free else 20) and g.dispatch(c.id,g.state.version).ok,"CONVERSION either face uses normal probabilistic spell submission with fixed payment")
+  t.check(c.valid and c.mana==(0 if free else 20) and g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok,"CONVERSION either face uses normal probabilistic spell submission with fixed payment")
   t.check(g.state.mana==before.mana-c.mana_payment.mana*0.5 and g.state.energy==before.energy-c.cost and g.state.temporary_mana==before.temporary_mana-c.mana_payment.temporary_mana*0.5 and g.state.hand.any(func(x):return x.uid==copy.uid),"CONVERSION failed exchange spends cost without gain, uses temporary mana and keeps card")
   t.check(g.state.rng.magic==before.rng.magic+1 and not g.state.logs.filter(func(x):return x.data.has("spell")).back().data.spell.success,"CONVERSION failure uses the shared casting random domain")
  g=Game.new(42);g.state.energy=0;copy=give(t,g,"mana_conversion");before=g.export_snapshot()
@@ -109,7 +109,7 @@ static func run(t) -> void:
  g=Game.new(42);g.state.pressure=99;copy=give(t,g,"mana_surge")
  c=t.find_action(g,"card",{"uid":copy.uid,"free":true})
  var mana=g.state.mana
- t.check(c.valid and g.dispatch(c.id,g.state.version).ok and g.state.charge==0 and is_equal_approx(g.state.mana,mana-c.mana*0.5) and g.state.hand.any(func(x):return x.uid==copy.uid) and g.state.exhaust.is_empty(),"SURGE failed cast pays and keeps exhaust card without granting charges")
+ t.check(c.valid and g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.charge==0 and is_equal_approx(g.state.mana,mana-c.mana*0.5) and g.state.hand.any(func(x):return x.uid==copy.uid) and g.state.exhaust.is_empty(),"SURGE failed cast pays and keeps exhaust card without granting charges")
 
  g=Game.new(42);preload("res://tests/link_cases.gd").precise_tool_fixture(g);g.add_fixture("wrist",8,10,true)
  var tools=g.state.items.duplicate(true)
@@ -139,8 +139,8 @@ static func mana_invocation(t) -> void:
    var c=t.find_action(g,"card",{"uid":card.uid,"free":free})
    var before=g.export_snapshot()
    t.check(c.valid and c.cost==1 and c.mana==0 and g.Cards.uses_magic(c.payload),"INVOCATION either face is a one-energy zero-mana spell")
-   t.check(not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"INVOCATION stale play changes no resources or card zones")
-   t.check(g.dispatch(c.id,g.state.version).ok and g.state.mana==minf(g.state.mana_max,initial_mana+20) and g.state.energy==2,"INVOCATION restores twenty including at zero mana and respects the cap")
+   t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"INVOCATION stale play changes no resources or card zones")
+   t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.mana==minf(g.state.mana_max,initial_mana+20) and g.state.energy==2,"INVOCATION restores twenty including at zero mana and respects the cap")
    t.check(g.state.exhaust.any(func(e):return e.uid==card.uid) and not g.state.hand.any(func(e):return e.uid==card.uid) and g.validate()=="","INVOCATION exhausts the actual card and preserves valid state")
  var g=Game.new(42);g.state.energy=0
  var card=give(t,g,"mana_invocation");var before=g.export_snapshot()
@@ -182,8 +182,8 @@ static func pot_of_greed(t) -> void:
   var before=g.export_snapshot()
   t.check(c.valid and c.cost==0 and c.mana==0 and g.Cards.Rules.SPECS[type].rarity=="uncommon" and type in g.Cards.Rules.UNCOMMON and type not in g.Cards.Rules.COMMON,"POT either zero-cost uncommon skill face works without mana or usable hands and mouth")
   t.check(not g.Cards.Rules.distinct_faces(type) and g.B.card_info(type)[1].contains("抽牌2。") and g.B.card_info(type)[2].contains("抽牌2。") and g.B.card_info(type)[1].contains("消耗") and g.B.card_info(type)[2].contains("消耗"),"POT identical faces share draw and exhaust text and do not qualify for distinct-face replay")
-  t.check(not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"POT stale card request preserves state and deck order")
-  var result=g.dispatch(c.id,g.state.version)
+  t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"POT stale card request preserves state and deck order")
+  var result=g.dispatch(g.command(c.payload,g.state.version),g.state.version)
   t.check(result.ok and g.state.hand.size()==2 and g.state.draw.size()==before.draw.size()-2 and g.state.energy==before.energy,"POT either face preserves energy and draws exactly two actual cards")
   t.check(g.state.mana==0 and g.state.rng.magic==before.rng.magic and g.state.equipment==before.equipment and not g.state.discard.any(func(x):return x.uid==card.uid) and g.state.exhaust.any(func(x):return x.uid==card.uid),"POT exhausts the used card without spell roll or equipment change")
   var transfers=result.card_feedback.map(func(event):return event.kind)

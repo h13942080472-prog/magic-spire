@@ -31,7 +31,7 @@ static func run(t) -> void:
   g.add_fixture("wrist",4,10,false,0,"rope")
   t.action(g,"end")
   var plan=g._enemy(id).intent.duplicate(true);branches[plan.kind]=true
-  before=g.export_snapshot();g.get_view();g.candidates()
+  before=g.export_snapshot();g.get_view();g.command_facts()
   t.check(g.export_snapshot()==before and not plan.has("target"),"SERPENT random branch freezes without choosing a concrete target")
  t.check(branches.has("apply") and branches.has("tighten"),"SERPENT equal-weight branch selector reaches both actions")
  # Remove the last reinforcement target after its declaration; also make the passive source inactive.

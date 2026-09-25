@@ -41,8 +41,8 @@
 | 求值 | `Events.evaluate_option`（唯一入口） | 记 `decision` 与逐条 `gates`；只读（唯一写状态的分支是到达时的冻结结果落地） |
 | 候选 | `Events.candidates` → `Game._candidate` | 由冻结选项生成候选（id／费用／`valid/reason/risk/detail/group`）；被丢弃的选项不出现在候选里 |
 | 只读投影 | `Events.view` → `GameView.build` | 输出事件名、intro、stage、report、result_status 与 selector 的分组身份；不输出全部隐藏原因 |
-| 界面 | `ui/event_screen.gd` | 只消费 `view.room_event` 与 `ActionIndex`；实际提交仍用原候选 ID |
-| 提交复核 | `Game.dispatch` | 校验版本与全局状态、重生成候选、确认 `valid`，在事务副本上执行，失败完整回滚 |
+| 界面 | `ui/event_screen.gd` | 只消费 `view.room_event` 与 `ActionIndex`；实际提交经指令路由发事件指令（R2 起，不再用候选 ID） |
+| 提交复核 | `Game.dispatch` | 校验版本与指令形状／参数合法性，按形状取该条行动并由唯一判定确认 `valid`，在事务副本上执行，失败完整回滚 |
 | 执行 | `Events.execute` → `apply_effects` | 取冻结选项执行效果；分流到道具奖励、事件战斗、卡牌／遗物奖励、下一节点或结果 |
 | 事件战斗 | `Events.begin_battle` → `Game._start_battle` → `Game._finish_battle` → `Events.finish_battle` | 冻结战斗 spec；事件战斗绕过普通奖励路径，只执行事件 `victory_effects` |
 | 结果与离开 | `Events.execute("leave")` | 执行 cleanup、检查暂存装备、进入整备或结束房间 |

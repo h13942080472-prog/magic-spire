@@ -38,6 +38,21 @@ static func unchanged(t, before: Dictionary, after: Dictionary, label: String) -
  t.check(after.backup==before.backup and after.backup_time==before.backup_time,"SAVE "+label+" leaves the backup file bytes and mtime untouched")
 
 # 正例：真实公开命令（先取候选再 dispatch）；命中 checkpoint 时按 UI 的规则写盘。
+# docs/spec/candidate-removal.md §5 G3（批 R2，写盘时机部分）：拒绝的指令不命名 checkpoint，也不触发写盘。
+static func g3_reject_never_writes(t) -> void:
+ var g=Game.new(42)
+ var store=store_for("g3-reject")
+ var before=stamp(store,"main")
+ var candidate=t.find_action(g,"end",{},true)
+ var version=g.state.version
+ var stale=g.dispatch(g.command(candidate.payload,version-1),version-1)
+ t.check(not stale.ok and not stale.has("checkpoint"),"SAVE a stale command names no checkpoint")
+ var forged=g.dispatch({"kind":"no_such_command","params":{},"expected_version":version},version)
+ t.check(not forged.ok and not forged.has("checkpoint"),"SAVE a refused shape names no checkpoint")
+ var bogus=g.dispatch({"kind":"end","params":{"uid":"probe"},"expected_version":version},version)
+ t.check(not bogus.ok and not bogus.has("checkpoint"),"SAVE an illegal parameter names no checkpoint")
+ unchanged(t,before,stamp(store,"main"),"a refused command")
+
 static func submit(t, g, store, kind: String, extra: Dictionary={}) -> Dictionary:
  var candidate=t.find_action(g,kind,extra,true)
  if not candidate.valid:
@@ -46,7 +61,7 @@ static func submit(t, g, store, kind: String, extra: Dictionary={}) -> Dictionar
  return submit_candidate(t,g,store,candidate)
 
 static func submit_candidate(t, g, store, candidate: Dictionary) -> Dictionary:
- var result=g.dispatch(candidate.id,g.state.version)
+ var result=g.dispatch(g.command(candidate.payload,g.state.version),g.state.version)
  t.check(result.ok,"SAVE the committed command succeeds: "+str(result.get("error","")))
  if result.ok and String(result.get("checkpoint",""))!="":
   t.check(store.write_game(g).ok,"SAVE the named fixed point writes the scene start")
@@ -61,7 +76,7 @@ static func submit_sample(t, g, store, label: String, kind: String, extra: Dicti
  return sample_candidate(t,g,store,candidate,label,writes_before)
 
 static func sample_candidate(t, g, store, candidate: Dictionary, label: String, writes_before: int=0) -> Dictionary:
- var result=g.dispatch(candidate.id,g.state.version)
+ var result=g.dispatch(g.command(candidate.payload,g.state.version),g.state.version)
  if result.ok and String(result.get("checkpoint",""))!="": store.write_game(g)
  t.check(result.ok,"SAVE the "+label+" sample commits: "+str(result.get("error","")))
  t.check(String(result.get("checkpoint",""))=="","SAVE the "+label+" sample names no checkpoint: "+str(result.get("checkpoint","")))
@@ -108,6 +123,79 @@ static func save_writes_on_new_floor(t) -> void:
  var resumed=g.get_script().new(0,false,"equipment",false)
  t.check(resumed.restore_snapshot(saved.snapshot).ok,"SAVE the floor checkpoint resumes through the formal entry")
  t.check(resumed.state.room==g.state.room and resumed.state.phase==saved.snapshot.phase,"SAVE the resumed floor entry keeps its own room and phase")
+
+# docs/spec/seed-identity.md「证据入口」：本局标识在开局写入一次，真实重建塔路后仍不变；
+# 只读投影同步携带（`Game.new(42)`、真实 `demo_continue` 重建、真实投影）。
+static func initial_seed_is_fixed_at_run_start(t) -> void:
+ var store=store_for("seed-identity")
+ var g=Game.new(42)
+ t.check(g.state.initial_seed==42 and g.state.seed==42,"SAVE initial_seed is fixed at run start: the opening run takes the parameter seed")
+ t.check(g.get_view().initial_seed==42 and g.get_view().tower_generation==0,"SAVE initial_seed is fixed at run start: the projection opens on the first tower")
+ t.check(store.write_game(g).ok,"SAVE initial_seed is fixed at run start: the opening run writes its own file")
+ preload("res://tests/demo_exit_cases.gd").exit_fixture(g)
+ var outcome=submit(t,g,store,"demo_continue")
+ t.check(outcome.ok and g.state.tower_generation==1,"SAVE initial_seed is fixed at run start: a real continuation rebuilds the tower exactly once: "+str(g.state.tower_generation))
+ t.check(g.state.initial_seed==42 and g.state.seed!=g.state.initial_seed,"SAVE initial_seed is fixed at run start: the rebuilt tower moves the tower seed but not the identity")
+ var rebuilt=g.get_view()
+ t.check(rebuilt.initial_seed==g.state.initial_seed and rebuilt.tower_generation==g.state.tower_generation,"SAVE initial_seed is fixed at run start: the projection follows both keys after the rebuild")
+
+# docs/spec/seed-identity.md「证据入口」：隔离目录 pack→unpack→正式恢复入口一路还原标识与塔路种子。
+static func initial_seed_survives_round_trip(t) -> void:
+ var store=store_for("seed-roundtrip")
+ var g=Game.new(42)
+ preload("res://tests/demo_exit_cases.gd").exit_fixture(g)
+ submit(t,g,store,"demo_continue")
+ t.check(g.state.initial_seed==42 and g.state.seed!=42,"SAVE initial_seed survives a round trip: the fixture rebuilt the tower before saving")
+ t.check(store.write_game(g).ok,"SAVE initial_seed survives a round trip: the rebuilt run writes the primary file")
+ var packed=store.read_slot("tower")
+ var resumed=g.get_script().new(0,false,"equipment",false)
+ t.check(packed.ok and resumed.restore_snapshot(packed.snapshot).ok,"SAVE initial_seed survives a round trip: the file loads through the formal entry: "+str(packed.get("error","")))
+ t.check(resumed.state.initial_seed==g.state.initial_seed and resumed.state.initial_seed==42,"SAVE initial_seed survives a round trip: the identity comes back unchanged: "+str(resumed.state.initial_seed))
+ t.check(resumed.state.seed==g.state.seed and resumed.state.tower_generation==g.state.tower_generation,"SAVE initial_seed survives a round trip: the current tower seed and iteration come back with it")
+
+# docs/spec/seed-identity.md「证据入口」：缺 initial_seed 的旧档按当时的 seed 回填，且不改调用方字典。
+static func legacy_save_without_initial_seed_backfills(t) -> void:
+ var g=Game.new(42)
+ preload("res://tests/demo_exit_cases.gd").exit_fixture(g)
+ submit(t,g,store_for("seed-legacy"),"demo_continue")
+ var legacy=g.export_snapshot()
+ var tower_seed=int(legacy.seed)
+ legacy.erase("initial_seed")
+ var resumed=g.get_script().new(0,false,"equipment",false)
+ var result=resumed.restore_snapshot(legacy)
+ t.check(result.ok,"SAVE legacy save without initial_seed loads and backfills from seed: "+str(result.get("error","")))
+ t.check(resumed.state.initial_seed==tower_seed and resumed.state.initial_seed==resumed.state.seed,"SAVE legacy save without initial_seed loads and backfills from seed: the identity equals the tower seed of the file: "+str(resumed.state.initial_seed))
+ t.check(not legacy.has("initial_seed") and legacy.seed==tower_seed,"SAVE legacy save without initial_seed loads and backfills from seed: the caller dictionary stays untouched")
+ t.check(Store.unpack(Store.pack(legacy)).ok,"SAVE legacy save without initial_seed loads and backfills from seed: the disk path accepts the same file")
+
+# docs/spec/seed-identity.md「证据入口」：类型错误沿用 Snapshot.check 的通用逐字段校验与既有文案。
+static func initial_seed_uses_the_shared_field_check(t) -> void:
+ var g=Game.new(42)
+ var clean=g.export_snapshot()
+ var reference=clean.duplicate(true)
+ reference.round="broken"
+ var wording=String(g.restore_snapshot(reference).get("error",""))
+ t.check(wording=="无法继续这份存档：基础数值类型不正确。","SAVE initial_seed uses the shared field check: the reference wording comes from an existing integer field: "+wording)
+ for broken in ["42",42.0]:
+  var saved=clean.duplicate(true)
+  saved.initial_seed=broken
+  var result=g.restore_snapshot(saved)
+  t.check(not result.ok and String(result.get("error",""))==wording,"SAVE initial_seed uses the shared field check: "+str(broken)+" is rejected with the same wording: "+str(result.get("error","")))
+  t.check(g.export_snapshot()==clean and saved.initial_seed==broken,"SAVE initial_seed uses the shared field check: a rejected type changes neither the live state nor the caller dictionary")
+
+# docs/spec/save-fixed-points.md「证据入口」：新增只读入口不写盘、不改状态，文本与 write_game 写出的主档逐字一致。
+static func fixed_point_text_reads_the_written_bytes(t) -> void:
+ var store=store_for("fixed-point-text")
+ var g=Game.new(42)
+ t.check(store.write_game(g).ok,"SAVE fixed_point_text reads the bytes write_game wrote: the fixture seeds a real file")
+ var before=stamp(store,"tower")
+ var state_before=g.export_snapshot();var rng_before=g.state.rng.duplicate(true)
+ var read=store.fixed_point_text(g)
+ t.check(read.ok and read.slot==g.state.save_slot and read.filename==g.state.save_slot+".json","SAVE fixed_point_text reads the bytes write_game wrote: the entry names the current slot and file: "+str(read))
+ t.check(read.text==text_at(store.path("tower")),"SAVE fixed_point_text reads the bytes write_game wrote: the text equals the primary file byte for byte")
+ var after=stamp(store,"tower")
+ t.check(after.main==before.main and after.main_time==before.main_time and after.backup==before.backup and after.backup_time==before.backup_time,"SAVE fixed_point_text reads the bytes write_game wrote: the read creates no file and touches no mtime")
+ t.check(g.export_snapshot()==state_before and g.state.rng==rng_before,"SAVE fixed_point_text reads the bytes write_game wrote: the read changes neither state nor randomness")
 
 # docs/spec/save-fixed-points.md「证据入口」：三个 battle_end_* 各一次真提交都写盘，恢复点＝战斗结束后的阶段起点。
 static func save_writes_when_battle_finishes(t) -> void:
@@ -183,7 +271,7 @@ static func save_skips_representative_non_points(t) -> void:
  store.writes=0
  var before=stamp(store,"tower")
  var g=Game.new(42)
- var cards=g.candidates().filter(func(c):return c.valid and c.payload.kind=="card")
+ var cards=g.command_facts().filter(func(c):return c.valid and c.payload.kind=="card")
  t.check(not cards.is_empty(),"SAVE the battle card fixture has a legal card")
  if not cards.is_empty(): sample_candidate(t,g,store,cards[0],"N1 battle card play")
  g=Game.new(42)
@@ -197,13 +285,13 @@ static func save_skips_representative_non_points(t) -> void:
  g=CoreGame.new(42)
  g.state.room=g.state.rooms.filter(func(room):return room.kind=="shop")[0].id
  g.Services.start(g)
- var trade=g.candidates().filter(func(c):return c.valid and c.group=="service")
+ var trade=g.command_facts().filter(func(c):return c.valid and c.group=="service")
  t.check(not trade.is_empty(),"SAVE the shop fixture has a legal transaction")
  if not trade.is_empty(): sample_candidate(t,g,store,trade[0],"N5 shop transaction")
  g=CoreGame.new(42)
  g.state.room=g.state.rooms.filter(func(room):return room.kind=="treasure")[0].id
  g.Services.start(g)
- var claim=g.candidates().filter(func(c):return c.valid and c.group=="service")
+ var claim=g.command_facts().filter(func(c):return c.valid and c.group=="service")
  t.check(not claim.is_empty(),"SAVE the treasure fixture has a legal claim")
  if not claim.is_empty(): sample_candidate(t,g,store,claim[0],"N7 treasure claim")
  g=CoreGame.new(42)
@@ -217,7 +305,7 @@ static func save_skips_representative_non_points(t) -> void:
  submit_sample(t,g,store,"N8 prison cell turn","end")
  g.state.prison.left=1
  submit_sample(t,g,store,"N8 prison inspection","end")
- var patrol=g.candidates().filter(func(c):return c.valid and c.payload.kind=="prison")
+ var patrol=g.command_facts().filter(func(c):return c.valid and c.payload.kind=="prison")
  t.check(not patrol.is_empty(),"SAVE the inspection fixture has a legal action")
  if not patrol.is_empty(): sample_candidate(t,g,store,patrol[0],"N8 prison inspection action")
  g=CoreGame.new(42)
@@ -260,7 +348,7 @@ static func save_backup_holds_previous_fixed_point(t) -> void:
  var mid_writes=store.writes
  for step in range(2):
   var posture={}
-  for candidate in g.candidates():
+  for candidate in g.command_facts():
    if candidate.valid and String(candidate.payload.kind)=="posture" and String(candidate.payload.get("posture",""))!=String(g.state.posture):
     posture=candidate;break
   t.check(not posture.is_empty(),"SAVE the mid-scene fixture offers a real posture command")
@@ -273,7 +361,7 @@ static func save_backup_holds_previous_fixed_point(t) -> void:
  t.check(text_at(store.path("tower")+".bak")!=text_at(store.path("tower")),"SAVE fixed point B left the previous primary as its backup")
  submit(t,g,store,"reward",{"type":"skip"})
  var after_writes=store.writes
- var turn=g.candidates().filter(func(c):return c.valid and c.payload.kind=="end")
+ var turn=g.command_facts().filter(func(c):return c.valid and c.payload.kind=="end")
  t.check(not turn.is_empty(),"SAVE the post-fixed-point phase offers a real turn command")
  if not turn.is_empty(): sample_candidate(t,g,store,turn[0],"the post-fixed-point activity",after_writes)
  t.check(store.writes==after_writes,"SAVE the activity after B never writes")
@@ -284,9 +372,9 @@ static func save_backup_holds_previous_fixed_point(t) -> void:
  t.check(recovered.snapshot==point_a,"SAVE the fallback content is fixed point A rather than a copy of B")
  var resumed=g.get_script().new(0,false,"equipment",false)
  t.check(resumed.restore_snapshot(recovered.snapshot).ok,"SAVE the recovered fixed point A resumes through the formal entry")
- t.check(resumed.candidates().any(func(c):return c.valid),"SAVE the recovered fixed point A offers a legal command")
- var next=resumed.candidates().filter(func(c):return c.valid)[0]
- t.check(resumed.dispatch(next.id,resumed.state.version).ok,"SAVE the recovered fixed point A continues through a real command")
+ t.check(resumed.command_facts().any(func(c):return c.valid),"SAVE the recovered fixed point A offers a legal command")
+ var next=resumed.command_facts().filter(func(c):return c.valid)[0]
+ t.check(resumed.dispatch(resumed.command(next.payload,resumed.state.version),resumed.state.version).ok,"SAVE the recovered fixed point A continues through a real command")
 
 # docs/spec/save-fixed-points.md「证据入口」：固定点写盘不得改变失败文案、格式校验、read_slot 回退与 summary 语义。
 static func save_fixed_point_preserves_failure_and_format_contract(t) -> void:
@@ -344,7 +432,7 @@ static func roundtrip(t, g, label: String):
  t.check(restored.restore_snapshot(result.snapshot).ok and same(before,restored.state),"SAVE exact restore "+label)
  t.check(g.state==before and restored.state.version>before.version,"SAVE readonly export and renewed version "+label)
  var old=restored.export_snapshot()
- restored.get_view();restored.candidates()
+ restored.get_view();restored.command_facts()
  t.check(restored.state==old,"SAVE restored projection readonly "+label)
  return restored
 
@@ -571,17 +659,17 @@ static func event_trace_never_reaches_state_or_save(t) -> void:
  events.arrive(off,"floating_belt_cluster")
  var off_snapshot=JSON.stringify(off.export_snapshot())
  var off_view=JSON.stringify(off.get_view())
- var off_candidates=JSON.stringify(off.candidates())
+ var off_facts=JSON.stringify(off.command_facts())
  var off_rng=JSON.stringify(off.state.rng)
  var on=Game.new(42)
  on.set_meta("event_trace_enabled",true)
  events.arrive(on,"floating_belt_cluster")
- on.candidates()
+ on.command_facts()
  t.check(not on.Events.event_trace(on).is_empty(),"SAVE trace records rows while the switch is on")
  t.check(JSON.stringify(on.export_snapshot())==off_snapshot,"SAVE the switch does not change the snapshot")
  t.check(JSON.stringify(on.get_view())==off_view and JSON.stringify(on.state.rng)==off_rng,"SAVE the switch does not change the view or the random domains")
  on.state.version=off.state.version
- t.check(JSON.stringify(on.candidates())==off_candidates,"SAVE the switch does not change the candidate set")
+ t.check(JSON.stringify(on.command_facts())==off_facts,"SAVE the switch does not change the candidate set")
  var saved=on.export_snapshot()
  var resumed=Game.new(42)
  t.check(resumed.restore_snapshot(saved).ok and not resumed.state.room_event.has("event_trace") and not resumed.state.has("event_trace"),"SAVE the restored state carries no trace key")
@@ -605,7 +693,47 @@ static func transition_log_never_reaches_state_or_view(t) -> void:
  var restart_log=arch.transition_log(resumed)
  t.check(resumed.restore_snapshot(saved).ok,"SAVE a fresh run accepts the captured save")
  t.check(arch.transition_delta(resumed,restart_log).is_empty() and not JSON.stringify(resumed.export_snapshot()).contains("battle_end_"),"SAVE restoring a save logs no transition and carries no log")
+# docs/spec/candidate-removal.md §5 G9（批 R5）：纯显示读取不触存档与随机域。显示事实读取路径
+# （get_view／command_facts／display_facts／route_view）与一次成功／一次失败提交之后：全量读取前后
+# export_snapshot() 相等、随机域计数不变、core/snapshot.gd::REVISION 不变、快照仍通过共享字段校验；
+# 固定点写盘时机不变（仍只由提交结果的 checkpoint 非空触发）。
+static func save_and_random_untouched(t) -> void:
+ var g=Game.new(42)
+ g.get_view()
+ var before=g.export_snapshot()
+ var rng_before=JSON.stringify(g.state.rng)
+ var revision=Game.Snapshot.REVISION
+ for i in range(3):
+  g._fact_source()
+  g.command_facts()
+  g.get_view()
+  g.route_view()
+ t.check(g.export_snapshot()==before,"G9 save_and_random_untouched: pure display reads leave the export snapshot byte-equal")
+ t.check(JSON.stringify(g.state.rng)==rng_before,"G9 save_and_random_untouched: pure display reads advance no random domain")
+ t.check(g.state.save_revision==revision,"G9 save_and_random_untouched: the save revision is unchanged")
+ t.check(Game.Snapshot.check(g.export_snapshot(),g)=="" and g.export_snapshot()==before,"G9 save_and_random_untouched: the snapshot still passes the shared field and shape check with no new save field")
+ var store=store_for("g9")
+ var writes_before=store.writes
+ var usable=g.command_facts().filter(func(c):return c.valid)
+ t.check(not usable.is_empty(),"G9 save_and_random_untouched: the fixture exposes a usable command")
+ if usable.is_empty(): return
+ var ok_result=g.dispatch(g.command(usable[0].payload,g.state.version),g.state.version)
+ if ok_result.ok and String(ok_result.get("checkpoint",""))!="": store.write_game(g)
+ t.check(ok_result.ok and store.writes==writes_before+(1 if String(ok_result.get("checkpoint",""))!="" else 0),"G9 save_and_random_untouched: the save write still follows the checkpoint rule: writes="+str(store.writes)+" checkpoint="+str(ok_result.get("checkpoint","")))
+ var refused_before=store.writes
+ var blocked=g.command_facts().filter(func(c):return not c.valid and c.reason!="")
+ if not blocked.is_empty():
+  var refused=g.dispatch(g.command(blocked[0].payload,g.state.version),g.state.version)
+  t.check(not refused.ok and store.writes==refused_before,"G9 save_and_random_untouched: a refused command writes nothing")
+
 static func run(t) -> void:
+ g3_reject_never_writes(t)
+ save_and_random_untouched(t)
+ initial_seed_is_fixed_at_run_start(t)
+ initial_seed_survives_round_trip(t)
+ legacy_save_without_initial_seed_backfills(t)
+ initial_seed_uses_the_shared_field_check(t)
+ fixed_point_text_reads_the_written_bytes(t)
  save_writes_on_new_floor(t)
  save_writes_when_battle_finishes(t)
  save_writes_when_prepare_finishes(t)
@@ -637,8 +765,8 @@ static func run(t) -> void:
   var sample=Game.new(42,true,kind)
   roundtrip(t,sample,"practice "+kind)
  g=Game.new(42)
- var stale=g.candidates()[0];var version=g.state.version;var snapshot=g.export_snapshot()
- t.check(g.restore_snapshot(snapshot).ok and not g.dispatch(stale.id,version).ok,"SAVE old drag version invalid after in-place restore")
+ var stale=g.command_facts()[0];var version=g.state.version;var snapshot=g.export_snapshot()
+ t.check(g.restore_snapshot(snapshot).ok and not g.dispatch(g.command(stale.payload,version),version).ok,"SAVE old drag version invalid after in-place restore")
  for i in range(4): t.action(g,"end")
  h=roundtrip(t,g,"reward")
  step_both(t,g,h,"reward",{"type":g.state.reward_options[0]})

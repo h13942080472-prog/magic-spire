@@ -89,10 +89,10 @@ static func run(t) -> void:
  var old_version=g.state.version
  var energy=g.state.energy
  g.state.charge=1
- t.check(g.dispatch(c.id,old_version).ok==false,"COMPOSITE changed charge invalidates old damage candidate even without version fixture update")
+ t.check(g.dispatch(g.command(c.payload,old_version),old_version).ok==false,"COMPOSITE changed charge invalidates old damage candidate even without version fixture update")
  t.check(play(t,g,"strain",body.id,"wrist").ok and g.state.composites.is_empty() and g.state.energy==energy-1 and g.state.charge==0,"COMPOSITE body hit from wrist removes full root, consumes one card, energy and charge")
  var before=JSON.stringify(g.state)
- t.check(not g.dispatch(c.id,old_version).ok and JSON.stringify(g.state)==before,"COMPOSITE stale removed component cannot be reused")
+ t.check(not g.dispatch(g.command(c.payload,old_version),old_version).ok and JSON.stringify(g.state)==before,"COMPOSITE stale removed component cannot be reused")
  t.check(g.level("arms")==0 and g.item_capacity()==3,"COMPOSITE release restores ability and capacity in same commit")
 
  # Locks remain local; shoulder tier is independent of the body.
@@ -182,7 +182,7 @@ static func run(t) -> void:
  var item=g.state.items[0]
  var cut=t.find_action(g,"item_use",{"item":item.id,"target":body.id})
  before=JSON.stringify(g.state)
- t.check(not cut.valid and not g.dispatch(cut.id,g.state.version).ok and JSON.stringify(g.state)==before,"COMPOSITE closed fingers block handheld cut without cost")
+ t.check(not cut.valid and not g.dispatch(g.command(cut.payload,g.state.version),g.state.version).ok and JSON.stringify(g.state)==before,"COMPOSITE closed fingers block handheld cut without cost")
  t.check(t.action(g,"item_install",{"item":item.id,"mount":"foot_wall"}).ok,"COMPOSITE toe installation works with both hands covered")
  t.action(g,"posture",{"dest":"sit","wall":false}); t.action(g,"posture",{"dest":"lie","wall":false})
  t.check(g.InstalledTools.reason(g,g._item(item.id),body)=="" and part(g,"body").durability==24,"COMPOSITE lying reaches cutter but posture alone causes no damage")

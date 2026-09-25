@@ -11,8 +11,8 @@ static func run(t) -> void:
  var g=setup();var card=Give.give(g,"light_as_swallow")
  var action=t.find_action(g,"card",{"uid":card.uid,"free":true});var before=g.export_snapshot()
  t.check(action.valid and action.cost==1 and action.mana==0 and "light_as_swallow" in g.Cards.Rules.RARE,"SWALLOW rare skill uses one energy with no spell cost")
- t.check(not g.dispatch(action.id,g.state.version-1).ok and g.state==before,"SWALLOW stale play cannot grant evasion")
- t.check(g.dispatch(action.id,g.state.version).ok and g.state.evasion==2 and g.state.energy==11,"SWALLOW free face grants two evasion")
+ t.check(not g.dispatch(g.command(action.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"SWALLOW stale play cannot grant evasion")
+ t.check(g.dispatch(g.command(action.payload,g.state.version),g.state.version).ok and g.state.evasion==2 and g.state.energy==11,"SWALLOW free face grants two evasion")
  t.check(Give.play(t,g,"light_as_swallow",true).ok and g.state.evasion==4,"SWALLOW evasion accumulates")
  g.add_fixture("ankle",4);card=Give.give(g,"light_as_swallow");before=g.export_snapshot()
  t.check(not t.action(g,"card",{"uid":card.uid,"free":true}).ok and g.state==before,"SWALLOW restrained legs block only free face")
@@ -28,7 +28,7 @@ static func evasion(t) -> void:
  var g=setup();Give.play(t,g,"light_as_swallow",true)
  var control=setup();Give.play(t,control,"light_as_swallow",true);control.state.evasion=0
  var spec={"pool":"ordinary","templates":["rope"],"grade":1,"tier":2,"count":3}
- var before=g.export_snapshot();g.Application.can_apply(g,spec,"enemy");g.get_view();g.candidates()
+ var before=g.export_snapshot();g.Application.can_apply(g,spec,"enemy");g.get_view();g.command_facts()
  t.check(g.state==before,"SWALLOW application and UI queries preserve evasion and randomness")
  var result=g.Application.execute(g,spec,"enemy")
  var once=spec.duplicate();once.count=1
@@ -65,7 +65,7 @@ static func damage(t) -> void:
  t.check(Give.play(t,g,"light_as_swallow",false).ok,"SWALLOW prepare next card slip")
  var buffed=t.find_action(g,"card",{"uid":card.uid,"target":target.id});var before=g.export_snapshot()
  t.check(is_equal_approx(buffed.payload.preview.damage,ordinary.payload.preview.damage*2) and g.escape_preview(target,"slip",5,[],true).damage==passive and g.state==before,"SWALLOW doubles card preview without changing passive slip or state")
- t.check(g.dispatch(buffed.id,g.state.version).ok and BUFF not in g.state.card_buffs and is_equal_approx(g._equipment(target.id).durability,70-buffed.payload.preview.damage),"SWALLOW actual hit consumes buff once")
+ t.check(g.dispatch(g.command(buffed.payload,g.state.version),g.state.version).ok and BUFF not in g.state.card_buffs and is_equal_approx(g._equipment(target.id).durability,70-buffed.payload.preview.damage),"SWALLOW actual hit consumes buff once")
  g=setup();target=g.add_fixture("wrist",100,100);Give.play(t,g,"light_as_swallow",false)
  card=Give.give(g,"slip")
  t.check(t.action(g,"card",{"uid":card.uid,"target":target.id}).ok and BUFF in g.state.card_buffs,"SWALLOW zero-damage immune slip preserves buff")
@@ -91,4 +91,4 @@ static func damage(t) -> void:
  var choices=g.Cards.Splash.options(g,c.payload)
  t.check(choices.size()==1 and choices[0][0].preview.damage_buff_multiplier==2,"SWALLOW splash preview includes the same hit multiplier")
  var expected=choices[0][0].preview.damage
- t.check(g.dispatch(c.id,g.state.version).ok and is_equal_approx(g._equipment(peer.id).durability,40-expected) and BUFF not in g.state.card_buffs,"SWALLOW whole first hit includes collateral then consumes once")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and is_equal_approx(g._equipment(peer.id).durability,40-expected) and BUFF not in g.state.card_buffs,"SWALLOW whole first hit includes collateral then consumes once")

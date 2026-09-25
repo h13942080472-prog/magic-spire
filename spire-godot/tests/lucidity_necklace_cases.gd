@@ -17,17 +17,17 @@ static func run(t) -> void:
  var excluded=g.Relics.REWARDS.filter(func(id):return id!="lucidity_necklace")
  var pool=Game.new(42);pool.state.relics=[]
  t.check(preload("res://tests/rolling_log_cases.gd").offer_tier(pool,"rare",excluded)=="lucidity_necklace","NECKLACE shared rare pool offers the relic")
- var before=g.export_snapshot();g.get_view();g.candidates()
+ var before=g.export_snapshot();g.get_view();g.command_facts()
  t.check(g.state==before,"NECKLACE previews leave pending draw unchanged")
  g.Pressure.gain(g,99,"fixture",true)
  t.check(pending(g)==0,"NECKLACE subthreshold pressure never queues cards")
  g.state.pressure_sources=[PressureCases.source("necklace_fixture","posture",1)]
  var action=t.find_action(g,"posture",{"dest":"sit","wall":false});var version=g.state.version
  before=g.export_snapshot()
- t.check(not g.dispatch(action.id,version-1).ok and g.state==before,"NECKLACE stale trigger action rolls back")
- t.check(g.dispatch(action.id,version).ok and pending(g)==1 and g.state.hand.is_empty() and g.state.overloaded,"NECKLACE real climax queues one and does not draw into the interrupted turn")
+ t.check(not g.dispatch(g.command(action.payload,version-1),version-1).ok and g.state==before,"NECKLACE stale trigger action rolls back")
+ t.check(g.dispatch(g.command(action.payload,version),version).ok and pending(g)==1 and g.state.hand.is_empty() and g.state.overloaded,"NECKLACE real climax queues one and does not draw into the interrupted turn")
  before=g.export_snapshot()
- t.check(not g.dispatch(action.id,version).ok and g.state==before,"NECKLACE duplicate trigger cannot queue twice")
+ t.check(not g.dispatch(g.command(action.payload,version),version).ok and g.state==before,"NECKLACE duplicate trigger cannot queue twice")
  t.check(g.RelicEffects.counter(g,"lucidity_necklace").value==1,"NECKLACE shared icon projection exposes pending count")
  var restored=Game.new(42)
  t.check(restored.restore_snapshot(before).ok and pending(restored)==1,"NECKLACE snapshot preserves pending reward without repeating it")

@@ -1,4 +1,5 @@
 extends Control
+const Queries=preload("res://ui/target_queries.gd")
 const Scenery=preload("res://ui/shop_scenery.gd")
 const Glyph=preload("res://ui/shop_glyph.gd")
 const ShopCopy=preload("res://data/shop_copy.gd")
@@ -20,12 +21,12 @@ func _ready() -> void:
  var canopy=Scenery.new();canopy.foreground=true;canopy.name="ShopCanopy"
  ui._place(canopy,Rect2(Vector2.ZERO,size),self)
  _text("月灯杂货铺",Rect2(25,23,210,36),23,ui.TEXT)
- var refresh=ui.actions.find("service_refresh",{"payment":ui.shop_payment})
- var refresh_button=ui._button(ui.localization.text("ui.shop.refresh","刷新 · {price}魔力",{"price":ui.game.number(refresh.mana)}),func():ui._submit(refresh),ui.GOLD)
+ var refresh=Queries.find(ui.view,"service_refresh",{"payment":ui.shop_payment})
+ var refresh_button=ui._button(ui.localization.text("ui.shop.refresh","刷新 · {price}魔力",{"price":ui.game.number(refresh.mana)}),func():ui.command_router.emit(String(refresh.payload.get("kind","")),refresh),ui.GOLD)
  refresh_button.name="ShopRefresh";refresh_button.disabled=not refresh.valid
  refresh_button.tooltip_text=ui.detail_of(refresh) if refresh.valid else refresh.reason
  refresh_button.add_theme_font_size_override("font_size",15)
- ui.candidate_buttons[refresh.id]=refresh_button
+ ui.candidate_buttons[refresh.key]=refresh_button
  ui._place(refresh_button,Rect2(180,86,168,38),self)
  for source in ["self","flask"]:
   var balance=ui.view.mana if source=="self" else ui.view.mana_flask.mana
@@ -64,9 +65,9 @@ func _ready() -> void:
  remove.disabled=ui.view.shop.remove_used
  if remove.disabled: remove.text="删牌服务 · 已使用"
  var tidy=_service_button("整理道具", "discard",Rect2(954,718,275,46));tidy.name="ShopInventory"
- var leave=ui.actions.select("service_flow")[0]
- var button=ui._button("继续旅程 →",func():ui._submit(leave),ui.CYAN);button.name="ShopLeave"
- ui.candidate_buttons[leave.id]=button;ui._place(button,Rect2(1241,718,277,46),self)
+ var leave=Queries.select(ui.view,"service_flow")[0]
+ var button=ui._button("继续旅程 →",func():ui.command_router.emit(String(leave.payload.get("kind","")),leave),ui.CYAN);button.name="ShopLeave"
+ ui.candidate_buttons[leave.key]=button;ui._place(button,Rect2(1241,718,277,46),self)
 
 func _text(text: String, rect: Rect2, font: int, color: Color) -> Label:
  var label=ui._label(text,font,color);ui._place(label,rect,self);return label
@@ -79,15 +80,15 @@ func _service_button(label: String, mode: String, rect: Rect2) -> Button:
  return button
 
 func _card_offer(offer: Dictionary, rect: Rect2) -> void:
- var candidate=ui.actions.find("service",{"op":"take","index":offer.index,"payment":ui.shop_payment})
+ var candidate=Queries.find(ui.view,"service",{"op":"take","index":offer.index,"payment":ui.shop_payment})
  var box=Control.new();ui._place(box,rect,self)
  var card_size=Vector2(196,196*1.32)
  var button=ui._display_card(offer.type,box,func():
-  if not candidate.is_empty(): ui._submit(candidate),"shop_"+str(offer.index),card_size)
+  if not candidate.is_empty(): ui.command_router.emit(String(candidate.payload.get("kind","")),candidate),"shop_"+str(offer.index),card_size)
  button.position.x=(rect.size.x-button.size.x)/2
  button.name="ShopOffer%d" % offer.index
  button.disabled=offer.taken or not candidate.get("valid",false)
- if not offer.taken: ui.candidate_buttons[candidate.id]=button
+ if not offer.taken: ui.candidate_buttons[candidate.key]=button
  if not offer.taken: _connect_chatter(button,candidate)
  button.modulate=Color(0.6,0.6,0.6) if button.disabled else Color.WHITE
  var price=ui._label("售罄" if offer.taken else "%s 魔力" % ui.game.number(offer.price),18,ui.GOLD)
@@ -100,14 +101,14 @@ func _card_offer(offer: Dictionary, rect: Rect2) -> void:
   ui._place(reason,Rect2(0,card_size.y+37,rect.size.x,20),box)
 
 func _offer(offer: Dictionary, rect: Rect2) -> void:
- var candidate=ui.actions.find("service",{"op":"take","index":offer.index,"payment":ui.shop_payment})
+ var candidate=Queries.find(ui.view,"service",{"op":"take","index":offer.index,"payment":ui.shop_payment})
  var button=ui._button("",func():
-  if not candidate.is_empty(): ui._submit(candidate),ui.GOLD if offer.kind=="card" else ui.CYAN)
+  if not candidate.is_empty(): ui.command_router.emit(String(candidate.payload.get("kind","")),candidate),ui.GOLD if offer.kind=="card" else ui.CYAN)
  button.name="ShopOffer%d" % offer.index
  button.disabled=offer.taken or not candidate.get("valid",false)
  button.tooltip_text=offer.name+"\n"+offer.detail+("" if candidate.get("valid",false) or candidate.get("reason_scope","")=="payment" else "\n"+candidate.get("reason","已售罄"))
  ui._place(button,rect,self)
- if not offer.taken: ui.candidate_buttons[candidate.id]=button
+ if not offer.taken: ui.candidate_buttons[candidate.key]=button
  if not offer.taken: _connect_chatter(button,candidate)
  var name_label=ui._label(offer.name,16,ui.TEXT if not offer.taken else ui.MUTED)
  ui._place(name_label,Rect2(80,10,rect.size.x-90,43),button)
@@ -144,33 +145,33 @@ static func _chatter_pool(ui, candidate: Dictionary) -> Array:
 
 static func services(ui, parent: VBoxContainer) -> void:
  var group={"release":"service_release","remove":"service_remove","discard":"item"}[ui.shop_service_mode]
- var candidates=ui.actions.select(group).filter(func(c):return c.payload.get("payment",ui.shop_payment)==ui.shop_payment)
- if candidates.any(func(c):return c.get("reason_scope","")=="payment"):
+ var offers=Queries.select(ui.view,group).filter(func(c):return c.payload.get("payment",ui.shop_payment)==ui.shop_payment)
+ if offers.any(func(c):return c.get("reason_scope","")=="payment"):
   var notice=ui._label(ui.view.shop.payment_notices.get(ui.shop_payment,""),15,ui.RED)
   notice.name="ShopServicePaymentNotice";parent.add_child(notice)
- if ui.shop_service_mode=="discard": candidates=ui.actions.select("item",{"kind":"item_discard"})
+ if ui.shop_service_mode=="discard": offers=Queries.select(ui.view,"item",{"kind":"item_discard"})
  if ui.shop_service_mode=="release":
   parent.add_child(ui._label("选择一件交给店主。开锁与复合处理会在价格中列明。",16,ui.CYAN))
  elif ui.shop_service_mode=="remove": parent.add_child(ui._label("永久移除一张牌，本店仅一次。本次%s魔力。" % ui.game.number(ui.view.shop.remove_price),16,ui.CYAN))
  var scroll=ui._scroll(parent)
- if candidates.is_empty():
+ if offers.is_empty():
   scroll.add_child(ui._label({"release":"目前没有需要卸下的拘束具。","remove":"本店的删牌服务已使用。","discard":"没有需要整理的随身道具。"}[ui.shop_service_mode],18,ui.MUTED));return
  if ui.shop_service_mode=="remove":
   var grid=GridContainer.new();grid.columns=3;grid.add_theme_constant_override("h_separation",18);scroll.add_child(grid)
-  for c in candidates:
+  for c in offers:
    var entry=ui.view.deck_cards.filter(func(e):return e.uid==c.payload.uid)[0]
    var box=VBoxContainer.new();grid.add_child(box)
    var live=ui.game.live_card_text_set([{"type":entry.type,"uid":entry.uid}])
    var source={}
    source.merge(live.texts.get(entry.type,{}),true)
    source.merge(live.instances.get(entry.uid,{}),true)
-   var face=ui._display_card(entry.type,box,func():ui._submit(c),"remove_"+entry.uid,Vector2(226,290),entry.uid,true,source)
-   face.disabled=not c.valid;ui.candidate_buttons[c.id]=face
+   var face=ui._display_card(entry.type,box,func():ui.command_router.emit(String(c.payload.get("kind","")),c),"remove_"+entry.uid,Vector2(226,290),entry.uid,true,source)
+   face.disabled=not c.valid;ui.candidate_buttons[c.key]=face
    face.mouse_entered.connect(func():ui._shop_chatter(_chatter_pool(ui,c)))
    box.add_child(ui._label(ui.game.number(c.mana)+("魔瓶魔力" if ui.shop_payment=="flask" else "魔力"),16,ui.GOLD))
    if not c.valid and c.get("reason_scope","")!="payment": box.add_child(ui._label(c.reason,13,ui.RED))
   return
- for c in candidates:
+ for c in offers:
   var card=PanelContainer.new();card.add_theme_stylebox_override("panel",ui._style(Color("172633"),ui.GOLD.darkened(0.4)))
   scroll.add_child(card)
   var body=VBoxContainer.new();body.add_theme_constant_override("separation",7);card.add_child(body)
@@ -178,7 +179,7 @@ static func services(ui, parent: VBoxContainer) -> void:
    var jobs=ui.view.shop.release_jobs.filter(func(j):return j.id==c.payload.target)
    if not jobs.is_empty(): body.add_child(ui._label(jobs[0].location,14,ui.CYAN))
   ui._action_row(body,c)
-  var action=ui.candidate_buttons.get(c.id)
+  var action=ui.candidate_buttons.get(c.key)
   if is_instance_valid(action): action.mouse_entered.connect(func():ui._shop_chatter(_chatter_pool(ui,c)))
 
 static func payment_overlay(ui) -> void:

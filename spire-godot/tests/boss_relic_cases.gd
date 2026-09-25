@@ -111,7 +111,7 @@ static func mask(t) -> void:
  var original=eye.duplicate(true)
  g._apply_equipment_damage(eye,999,"magic_slip");g._apply_manual_release(eye,0);g._cleanup()
  t.check(eye==original and g.escape_preview(eye,"magic_slip",999,[],false,true).damage==0,"BOSS cursed mask blocks direct and area damage plus manual removal")
- t.check(g.candidates().filter(func(c):return c.payload.get("target","")==eye.id).all(func(c):return not c.valid and c.reason.contains("诅咒眼罩")),"BOSS eye candidates cannot spend resources or alter the mask")
+ t.check(g.command_facts().filter(func(c):return c.payload.get("target","")==eye.id).all(func(c):return not c.valid and c.reason.contains("诅咒眼罩")),"BOSS eye facts cannot spend resources or alter the mask")
  t.check(g._install_template("eye_leather","eyes",20,20,false,"enemy",2).is_empty() and not g.Application.Replacement.plan(g,[{"kind":"install","template":"eye_leather","slot":"eyes","grade":3,"tier":3,"locked":true}],"enemy").ok,"BOSS eye installation and replacement are closed")
  var wrist=g.add_fixture("wrist",8)
  g._gain_card("henshin");var card=t.hand_card(g,"henshin")

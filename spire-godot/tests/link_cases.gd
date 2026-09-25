@@ -129,16 +129,16 @@ static func precise_tool_projection(t) -> void:
  var before=g.export_snapshot()
  var c=t.find_action(g,"item_use",{"item":fixture.tool,"target":fixture.link})
  var item=g.get_view().items.filter(func(i):return i.id==fixture.tool)[0]
- t.check(c.valid and item.target_groups.any(func(group):return group.id=="thigh" and c.id in group.candidates),"CONTACT exposed knee link remains selectable despite unrelated covered thigh root")
+ t.check(c.valid and item.target_groups.any(func(group):return group.id=="thigh" and String(c.get("key","")) in group.keys),"CONTACT exposed knee link remains selectable despite unrelated covered thigh root")
  t.check(g.export_snapshot()==before,"CONTACT candidate and position projection preserve state, logs and random counters")
- t.check(not g.dispatch(c.id,g.state.version-1).ok and g.export_snapshot()==before,"CONTACT stale projected link action rejects atomically")
- t.check(g.dispatch(c.id,g.state.version).ok and g._equipment(fixture.link).durability==3 and g._item(fixture.tool).uses==2 and g.state.energy==before.energy,"CONTACT projected link cut spends one use and only damages shared rope")
+ t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.export_snapshot()==before,"CONTACT stale projected link action rejects atomically")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g._equipment(fixture.link).durability==3 and g._item(fixture.tool).uses==2 and g.state.energy==before.energy,"CONTACT projected link cut spends one use and only damages shared rope")
  at(g,"above_knee",4,10,false,fixture.layer)
  before=g.export_snapshot()
  c=t.find_action(g,"item_use",{"item":fixture.tool,"target":fixture.link})
  item=g.get_view().items.filter(func(i):return i.id==fixture.tool)[0]
- t.check(not c.valid and c.reason.contains("外层") and not item.target_groups.any(func(group):return c.id in group.candidates),"CONTACT covered precise knee cannot borrow another exposed point on the same component")
- t.check(not g.dispatch(c.id,g.state.version).ok and g.export_snapshot()==before,"CONTACT covered link rejection preserves tool, equipment and resources")
+ t.check(not c.valid and c.reason.contains("外层") and not item.target_groups.any(func(group):return String(c.get("key","")) in group.keys),"CONTACT covered precise knee cannot borrow another exposed point on the same component")
+ t.check(not g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.export_snapshot()==before,"CONTACT covered link rejection preserves tool, equipment and resources")
 
 static func run(t) -> void:
  index_link_edge_parity(t)
@@ -154,7 +154,7 @@ static func run(t) -> void:
  t.check(g.validate()=="" and g.state.encounter==0 and g.state.rest_left==6,"LINK practice uses legal factory and rest flow")
  t.check(g.equipment_at("ankle").size()==1 and g.links_at("ankle").size()==1 and g.level("legs")==2,"LINK does not count as a second regional restraint")
  var before=JSON.stringify(g.state)
- g.get_view(); g.candidates()
+ g.get_view(); g.command_facts()
  t.check(JSON.stringify(g.state)==before,"LINK previews preserve ids, resources and randomness")
  var view=g.get_view()
  var ankle=view.bodies.filter(func(body):return body.id=="ankle")[0]
@@ -172,7 +172,7 @@ static func run(t) -> void:
   var card=t.grant_fixture_card(g,type)
   var c=t.find_action(g,"card",{"uid":card.uid,"target":link.id})
   before=JSON.stringify(g.state)
-  t.check(not c.valid and not g.dispatch(c.id,g.state.version).ok and JSON.stringify(g.state)==before,"LINK forbidden card does not consume energy, magic or card "+type)
+  t.check(not c.valid and not g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and JSON.stringify(g.state)==before,"LINK forbidden card does not consume energy, magic or card "+type)
  var strain=t.hand_card(g,"strain")
  var c=t.find_action(g,"card",{"uid":strain.uid,"target":link.id,"slot":"ankle"})
  var damage=c.payload.preview.damage
@@ -184,10 +184,10 @@ static func run(t) -> void:
  t.check(c.payload.preview.divisor==1 and c.payload.preview.lock_multiplier==1 and c.payload.preview.damage>damage,"LINK strain uses own tightness and charge without endpoint locks or stacks")
  damage=c.payload.preview.damage
  var splash=g.escape_preview(a,"strain",c.payload.preview.face_value*0.5,[],false,false,true,true).damage
- t.check(g.dispatch(c.id,version).ok and is_equal_approx(g._equipment(link.id).durability,8-damage) and g.state.charge==0,"LINK one card damages shared rope once and spends charge")
+ t.check(g.dispatch(g.command(c.payload,version),version).ok and is_equal_approx(g._equipment(link.id).durability,8-damage) and g.state.charge==0,"LINK one card damages shared rope once and spends charge")
  t.check(is_equal_approx(g._equipment(a.id).durability,a_before-splash) and g._equipment(b.id).durability==b_before,"LINK strain splashes only selected calf endpoint, preserving ankle endpoint")
  before=JSON.stringify(g.state)
- t.check(not g.dispatch(c.id,version).ok and JSON.stringify(g.state)==before,"LINK stale drag cannot strike again")
+ t.check(not g.dispatch(g.command(c.payload,version),version).ok and JSON.stringify(g.state)==before,"LINK stale drag cannot strike again")
  t.check(not t.find_action(g,"manual",{"target":link.id}).valid,"LINK standing cannot manually reach lower-leg connection")
  t.check(t.action(g,"posture",{"dest":"sit","wall":false}).ok,"LINK posture uses ordinary cost")
  t.check(t.action(g,"manual",{"target":link.id}).ok and g.state.links.is_empty(),"LINK sitting free hands can untie shared rope")
@@ -280,9 +280,9 @@ static func lower_only_cases(t) -> void:
  t.check(g.export_snapshot()==snapshot,"LOWER LINK previews preserve state")
  var card=t.hand_card(g,"slip");var candidate=t.find_action(g,"card",{"uid":card.uid,"target":a.id})
  var expected=candidate.payload.preview.damage;var durability=a.durability
- t.check(candidate.valid and g.dispatch(candidate.id,g.state.version).ok and (g._equipment(a.id).is_empty() if expected>=durability else is_equal_approx(g._equipment(a.id).durability,durability-expected)),"LOWER LINK formal card commits preview damage")
+ t.check(candidate.valid and g.dispatch(g.command(candidate.payload,g.state.version),g.state.version).ok and (g._equipment(a.id).is_empty() if expected>=durability else is_equal_approx(g._equipment(a.id).durability,durability-expected)),"LOWER LINK formal card commits preview damage")
  var committed=g.export_snapshot()
- t.check(not g.dispatch(candidate.id,candidate.version if candidate.has("version") else g.state.version-1).ok and g.export_snapshot()==committed,"LOWER LINK stale card does not repeat damage")
+ t.check(not g.dispatch(g.command(candidate.payload,candidate.version if candidate.has("version") else g.state.version-1),candidate.version if candidate.has("version") else g.state.version-1).ok and g.export_snapshot()==committed,"LOWER LINK stale card does not repeat damage")
  g.state.links=[]
  t.check(g.Links.slip_factor(g,a)==1.0,"LOWER LINK no link no bonus")
 
@@ -303,7 +303,7 @@ static func crotch_anchor_cases(t) -> void:
   var view=g.get_view()
   var special=view.body_groups.filter(func(b):return b.id=="special_3")[0]
   t.check(special.count==1 and special.links.size()==2 and special.targets.has(lower.id) and g.equipment_at("wrist").size()==1 and g.equipment_at("thigh").size()==1,"CROTCH LINK shared targets without phantom limb occupancy")
-  t.check(g.export_snapshot()==before,"CROTCH LINK projection and candidates preserve state")
+  t.check(g.export_snapshot()==before,"CROTCH LINK projection and facts preserve state")
   for pair in [[wrist.id,crotch.id],[calf.id,crotch.id],[crotch.id,crotch.id],[lower.id,crotch.id]]:
    t.check(g._install_link(pair[0],pair[1],8,"fixture").is_empty() and g.export_snapshot()==before,"CROTCH LINK duplicate, remote, self and rope anchors reject atomically")
   t.check(g._install_link(calf.id,crotch.id,8,"fixture",1,[],["thigh","special_3_a"]).is_empty() and g.export_snapshot()==before,"CROTCH LINK cannot forge contact on another region")
@@ -318,7 +318,7 @@ static func crotch_anchor_cases(t) -> void:
   g.state.posture="stand";crotch.durability=0.1
   var card=t.hand_card(g,"strain")
   var c=t.find_action(g,"card",{"uid":card.uid,"target":crotch.id})
-  t.check(c.valid and g.dispatch(c.id,g.state.version).ok and g._equipment(crotch.id).is_empty() and g._equipment(lower.id).is_empty() and g._equipment(upper.id).is_empty(),"CROTCH LINK formal root removal cascades both ropes")
+  t.check(c.valid and g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g._equipment(crotch.id).is_empty() and g._equipment(lower.id).is_empty() and g._equipment(upper.id).is_empty(),"CROTCH LINK formal root removal cascades both ropes")
   t.check(not g._equipment(wrist.id).is_empty() and not g._equipment(thigh.id).is_empty() and g.Links.slip_factor(g,g._equipment(thigh.id))==1.25,"CROTCH LINK removal retains limbs and their unrelated lower link")
   g._install_special(type,"special_3_a")
   t.check(g.state.links.size()==1,"CROTCH LINK replacement never reconnects removed ropes")
@@ -384,5 +384,5 @@ static func regional_cases(t) -> void:
  before=g.export_snapshot()
  t.check(g._install_link(band.id,third.id,8,"fixture").is_empty() and g._install_link(band.id,own.id,8,"fixture").is_empty() and g.export_snapshot()==before,"REGIONAL component shares quota and cannot invent same-root internal ropes")
  var missing=at(g,"mid_calf")
- var candidates=g.EquipmentOffers.links(g,1)
- t.check(candidates.all(func(o):return o.rank==1 and o.contact_points.size()==2 and g.Links.adjacent(o.contact_points[0],o.contact_points[1])) and g.export_snapshot()!=before,"REGIONAL enemy candidates use precise adjacency at third priority")
+ var facts=g.EquipmentOffers.links(g,1)
+ t.check(facts.all(func(o):return o.rank==1 and o.contact_points.size()==2 and g.Links.adjacent(o.contact_points[0],o.contact_points[1])) and g.export_snapshot()!=before,"REGIONAL enemy facts use precise adjacency at third priority")

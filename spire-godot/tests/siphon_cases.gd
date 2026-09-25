@@ -15,24 +15,24 @@ static func run(t) -> void:
   g.add_fixture("ankle",4);g.add_fixture("mouth",10)
   var card=Give.give(g,"siphon")
   var c=t.find_action(g,"card",{"uid":card.uid,"free":false})
-  var before=g.export_snapshot();g.get_view();g.candidates()
+  var before=g.export_snapshot();g.get_view();g.command_facts()
   t.check(c.valid and c.cost==0 and c.mana==0 and not g.Cards.uses_magic(c.payload) and g.state==before,"SIPHON bound face has no leg, mouth or casting gate and preview is read-only")
-  t.check(g.dispatch(c.id,g.state.version).ok and g.state.mana==mini(mana+5,100) and g.state.energy==0 and g.state.rng.magic==before.rng.magic and g.state.hand.size()==before.hand.size()-1,"SIPHON bound restores five up to cap without draw or cast roll")
+  t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.mana==mini(mana+5,100) and g.state.energy==0 and g.state.rng.magic==before.rng.magic and g.state.hand.size()==before.hand.size()-1,"SIPHON bound restores five up to cap without draw or cast roll")
   t.check(g.state.discard.any(func(x):return x.uid==card.uid) and not g.state.exhaust.any(func(x):return x.uid==card.uid),"SIPHON successful bound use discards normally")
  g=fresh();var card=Give.give(g,"siphon")
  g.add_fixture("ankle",4)
  var c=t.find_action(g,"card",{"uid":card.uid,"free":true});var before=g.export_snapshot()
- t.check(not c.valid and c.reason.contains("腿部") and not g.dispatch(c.id,g.state.version).ok and g.state==before,"SIPHON free face rejects nonzero leg severity atomically")
+ t.check(not c.valid and c.reason.contains("腿部") and not g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state==before,"SIPHON free face rejects nonzero leg severity atomically")
  g=fresh();card=Give.give(g,"siphon");g.state.energy=0
  c=t.find_action(g,"card",{"uid":card.uid,"free":true});before=g.export_snapshot()
- t.check(not c.valid and c.cost==1 and not g.dispatch(c.id,g.state.version).ok and g.state==before,"SIPHON free face still requires one energy at zero mana cost")
+ t.check(not c.valid and c.cost==1 and not g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state==before,"SIPHON free face still requires one energy at zero mana cost")
  var outcomes={}
  for seed_value in range(8):
   g=fresh(seed_value);card=Give.give(g,"siphon");g.state.pressure=75
   c=t.find_action(g,"card",{"uid":card.uid,"free":true});before=g.export_snapshot()
   var twin=fresh();t.check(twin.restore_snapshot(before).ok,"SIPHON current snapshot preserves the new card")
-  t.check(c.valid and c.cost==1 and c.mana==0 and g.Cards.uses_magic(c.payload) and not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"SIPHON free casting profile and stale-version protection")
-  t.check(g.dispatch(c.id,g.state.version).ok and twin.dispatch(c.id,twin.state.version).ok,"SIPHON both matching snapshots commit the same spell")
+  t.check(c.valid and c.cost==1 and c.mana==0 and g.Cards.uses_magic(c.payload) and not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"SIPHON free casting profile and stale-version protection")
+  t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and twin.dispatch(twin.command(c.payload,twin.state.version),twin.state.version).ok,"SIPHON both matching snapshots commit the same spell")
   var result=g.state.logs.filter(func(row):return row.data.has("spell")).back().data.spell
   outcomes[result.success]=true
   var actual=g.export_snapshot();var restored=twin.export_snapshot()
@@ -42,7 +42,7 @@ static func run(t) -> void:
  t.check(outcomes.has(true) and outcomes.has(false),"SIPHON sample covers both chant outcomes")
  g=fresh();card=Give.give(g,"siphon");g.state.mana=98
  c=t.find_action(g,"card",{"uid":card.uid,"free":true});before=g.export_snapshot()
- t.check(g.dispatch(c.id,g.state.version).ok and g.state.mana==100 and g.state.hand.size()==before.hand.size()+1,"SIPHON free restoration caps without reducing two-card draw")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.mana==100 and g.state.hand.size()==before.hand.size()+1,"SIPHON free restoration caps without reducing two-card draw")
  g=fresh();card=Give.give(g,"siphon");g.state.pressure=50
  var rate=g.cast_view(g.Cards.cast_profile(g,"siphon")).chance
  g.add_fixture("mouth",10)
@@ -59,7 +59,7 @@ static func rest_restriction(t) -> void:
  var c=t.find_action(g,"card",{"uid":card.uid,"free":true})
  var view=g.get_view().hand.filter(func(row):return row.uid==card.uid)[0]
  t.check(not c.valid and c.reason=="休息房禁止卡牌自由效果。" and not view.availability.free.usable and view.availability.free.dim and view.availability.free.text.contains("休息房禁止"),"SIPHON rest free face is rejected and visibly dimmed with precise reason")
- t.check(not g.dispatch(battle.id,g.state.version).ok and g.export_snapshot()==before,"SIPHON even a cached battle candidate cannot bypass rest or spend energy, draw, heal, roll RNG or change logs")
+ t.check(not g.dispatch(g.command(battle.payload,g.state.version),g.state.version).ok and g.export_snapshot()==before,"SIPHON even a cached battle candidate cannot bypass rest or spend energy, draw, heal, roll RNG or change logs")
  t.check(t.action(g,"card",{"uid":card.uid,"free":false}).ok and g.state.mana==45 and g.state.energy==before.energy and g.state.hand.size()==before.hand.size()-1,"SIPHON rest bound face keeps its legal zero-cost five-mana recovery")
  for type in g.Cards.Rules.SPECS:
   if not g.Cards.Rules.SPECS[type].has("self_faces"): continue

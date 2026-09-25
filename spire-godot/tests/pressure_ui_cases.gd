@@ -1,5 +1,6 @@
 extends RefCounted
 const Navigation=preload("res://tests/interface_ui_cases.gd")
+const Queries=preload("res://ui/target_queries.gd")
 
 static func open_pressure(t) -> void:
  if not t.ui.show_pressure: await Navigation.press(t,"OpenStatus")
@@ -74,17 +75,17 @@ static func run(t) -> void:
  var belt=ui.game.equipment_at("wrist")[0].id
  for i in range(2):
   var uid=ui.view.hand.filter(func(c):return c.type=="strain")[0].uid
-  var c=ui.actions.find("card",{"uid":uid,"slot":"wrist","target":belt})
+  var c=Queries.find(ui.view,"card",{"uid":uid,"slot":"wrist","target":belt})
   t.check(c.risk.contains("20快感"),"PRESSURE strain preview reveals its source risk")
   await t.start_drag(uid,"wrist")
-  await t.release_target(await t.reveal_drop_target(c.id))
+  await t.release_target(await t.reveal_drop_target(c.key))
  t.check(ui.view.pressure.overloaded and ui.view.pressure.value==10 and ui.view.mana==80 and ui.view.energy==0 and not ui.show_pressure,"PRESSURE second native card drag triggers interruption without opening the character-status drawer")
  t.check(ui.find_child("StatusDetail",true,false)==null,"PRESSURE climax presentation is not covered by a status detail window")
  var climax_panel=ui.find_child("ClimaxNarration",true,false)
  var climax_speech=ui.find_child("HeroSpeech",true,false)
  t.check(climax_panel!=null and t.visible_text(climax_panel).contains("你的腰腹") and not t.visible_text(climax_panel).contains("她的"),"PRESSURE second-person climax narration replaces the hand area")
  t.check(climax_speech!=null and ui.view.speech.cue=="hero.climax.normal.clear" and t.visible_text(climax_speech).contains("要射了"),"PRESSURE climax dialogue stays in the existing character speech bubble")
- var turn_actions=ui.view.candidates.filter(func(c):return c.payload.kind not in ["flask","item_discard"])
+ var turn_actions=ui.view.display_facts.filter(func(c):return c.payload.kind not in ["flask","item_discard"])
  t.check(turn_actions.size()==1 and turn_actions[0].payload.kind=="end" and t.visible_text(ui.layout).contains("继续 · 高潮后缓一缓"),"PRESSURE interrupted UI only retains its visible continue action alongside the established flask controls")
  t.check(not t.visible_text(ui.layout).contains("可以继续固定行动"),"PRESSURE empty hand text does not invite forbidden actions")
  await t.capture("ui-32-overload.png")

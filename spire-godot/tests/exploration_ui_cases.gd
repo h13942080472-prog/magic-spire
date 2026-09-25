@@ -11,9 +11,9 @@ static func run(t) -> void:
  t.check(t.visible_text(panel).contains("方") and t.visible_text(panel).contains("离墙") and t.visible_text(panel).contains("格"),"EXP UI real bearings and distances on destinations")
  t.check(ui.find_child("PrisonRemaining",true,false).size.y<30,"EXP UI count stays on one compact line")
  var original=ui.game.export_snapshot();var dest=ui.view.prison.space.sites.filter(func(site):return not site.here and site.label!="？？？")[0]
- var candidate=ui.view.candidates.filter(func(c):return c.payload.kind=="prison" and c.payload.get("site","")==dest.id)[0]
+ var candidate=ui.view.display_facts.filter(func(c):return c.payload.kind=="prison" and c.payload.get("site","")==dest.id)[0]
  # Reveal the actual destination control, then click it through pointer input.
- var button=ui.candidate_buttons[candidate.id]
+ var button=ui.candidate_buttons[candidate.key]
  var scroll=panel.get_parent() as ScrollContainer
  if scroll!=null: scroll.ensure_control_visible(button)
  await t.frames()

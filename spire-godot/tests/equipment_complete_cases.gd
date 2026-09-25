@@ -76,7 +76,7 @@ static func run(t) -> void:
   t.check(links_match and correct_phase,"CATALOG links and entry phase match declared layout or formal intake "+id)
   var before=JSON.stringify(g.state)
   var view=g.get_view()
-  t.check(JSON.stringify(g.state)==before and view.practice_kind==id and view.candidates.size()>0,"CATALOG projection and actual actions "+id)
+  t.check(JSON.stringify(g.state)==before and view.practice_kind==id and view.display_facts.size()>0,"CATALOG projection and actual actions "+id)
  for template in E.TEMPLATES:
   var definition=E.TEMPLATES[template]
   if definition.slots.is_empty(): continue
@@ -224,7 +224,7 @@ static func run(t) -> void:
   var pending=t.find_action(g,"end")
   g.state.composites[0].components[0].side="invalid"
   before=JSON.stringify(g.state)
-  var rejected=g.dispatch(pending.id,g.state.version)
+  var rejected=g.dispatch(g.command(pending.payload,g.state.version),g.state.version)
   t.check(not rejected.ok and JSON.stringify(g.state)==before,"ASSEMBLY malformed structure rejects and rolls back full turn "+scenario)
 
  # High-tier assemblies use the same mechanics and constraints, no secret magical affixes.

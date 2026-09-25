@@ -1,6 +1,7 @@
 extends RefCounted
 const Game=preload("res://tests/game_fixture.gd")
 const Portrait=preload("res://ui/equipment_portrait.gd")
+const Queries=preload("res://ui/target_queries.gd")
 
 static func region_fixture(g,region: String,level: int) -> void:
  var slots=g.B.ARM_SLOTS if region=="arms" else g.B.LEG_SLOTS
@@ -221,11 +222,11 @@ static func material_art(t) -> void:
  var battle=ui.find_child("HeroArt",true,false).get_node("HeroPose")
  t.check(sidebar.get_node("Overlay_ankle").texture==Portrait.leg_layers.ankle.styles.plain.leather and battle.get_node("Overlay_ankle").texture==sidebar.get_node("Overlay_ankle").texture,"MATERIAL both live views display outer belt")
  var uid=ui.view.hand.filter(func(card):return card.type=="strain")[0].uid
- var candidate=ui.actions.find("card",{"uid":uid,"target":belt.id,"slot":"ankle"})
+ var candidate=Queries.find(ui.view,"card",{"uid":uid,"target":belt.id,"slot":"ankle"})
  if ui.card_faces.get(uid,false):await t.flip(uid)
  await t.start_drag(uid,"ankle")
- t.check(candidate.valid and ui.drop_targets.has(candidate.id),"MATERIAL actual strain candidate targets outer belt")
- await t.release_target(await t.reveal_drop_target(candidate.id))
+ t.check(candidate.valid and ui.drop_targets.has(candidate.key),"MATERIAL actual strain candidate targets outer belt")
+ await t.release_target(await t.reveal_drop_target(candidate.key))
  sidebar=ui.find_child("EquipmentPortrait",true,false)
  battle=ui.find_child("HeroArt",true,false).get_node("HeroPose")
  t.check("ankle" in sidebar.active_leg_layers and sidebar.get_node("Overlay_ankle").texture==Portrait.leg_layers.ankle.texture and battle.get_node("Overlay_ankle").texture==sidebar.get_node("Overlay_ankle").texture,"MATERIAL release refreshes both views despite unchanged body occupancy")
@@ -262,11 +263,11 @@ static func crotch_rope(t) -> void:
  rope.durability=1
  ui.render();await t.frames()
  var uid=ui.view.hand.filter(func(card):return card.type=="strain")[0].uid
- var candidate=ui.actions.find("card",{"uid":uid,"target":rope.id,"slot":"special_3_a"})
+ var candidate=Queries.find(ui.view,"card",{"uid":uid,"target":rope.id,"slot":"special_3_a"})
  if ui.card_faces.get(uid,false):await t.flip(uid)
  await t.start_drag(uid,"special_3")
- t.check(candidate.valid and ui.drop_targets.has(candidate.id),"PORTRAIT actual strain candidate targets rope")
- await t.release_target(await t.reveal_drop_target(candidate.id))
+ t.check(candidate.valid and ui.drop_targets.has(candidate.key),"PORTRAIT actual strain candidate targets rope")
+ await t.release_target(await t.reveal_drop_target(candidate.key))
  var sidebar=ui.find_child("EquipmentPortrait",true,false)
  var battle=ui.find_child("HeroArt",true,false).get_node("HeroPose")
  t.check(not "crotch_rope" in ui.view.equipment_portrait_layers and sidebar.texture==Portrait.BOUND_BASE and battle.texture==Portrait.BOUND_BASE,"PORTRAIT real release clears rope in both standing views")

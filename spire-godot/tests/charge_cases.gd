@@ -9,7 +9,7 @@ static func toggle(t,g) -> Dictionary:
 
 static func run(t) -> void:
  var g=Game.new(42)
- t.check(g.candidates().all(func(c):return c.payload.kind!="status_toggle"),"CHARGE no mode action without stacks")
+ t.check(g.command_facts().all(func(c):return c.payload.kind!="status_toggle"),"CHARGE no mode action without stacks")
  gain(g,7)
  var before=g.export_snapshot()
  var stale=t.find_action(g,"attack",{"type":"strike","form":0,"enemy":g.state.enemies[0].id})
@@ -18,7 +18,7 @@ static func run(t) -> void:
  for key in ["version","logs","summary","charge_all"]: before.erase(key);after.erase(key)
  t.check(before==after,"CHARGE mode change preserves turn, resources, RNG, enemies, cards and equipment")
  before=g.export_snapshot()
- t.check(not g.dispatch(stale.id,g.state.version-1).ok and g.state==before,"CHARGE mode invalidates stale attack preview without consuming stacks")
+ t.check(not g.dispatch(g.command(stale.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"CHARGE mode invalidates stale attack preview without consuming stacks")
  var c=t.find_action(g,"attack",{"type":"strike","form":0,"enemy":g.state.enemies[0].id})
  t.check(c.payload.damage==29 and c.brief.contains("29"),"CHARGE attack preview includes all stacks before normal multipliers")
  t.check(toggle(t,g).ok and not g.state.charge_all and g.charge_bonus()==3,"CHARGE toggling back restores one-stack mode without spending")
@@ -27,7 +27,7 @@ static func run(t) -> void:
   var enemy=g.state.enemies[0];enemy.hp=200;enemy.max_hp=200
   c=t.find_action(g,"attack",{"type":"strike","form":form,"enemy":enemy.id})
   var expected=c.payload.damage*c.payload.hits
-  t.check(g.dispatch(c.id,g.state.version).ok and g._enemy(enemy.id).hp==200-expected and g.state.charge==0 and not g.state.charge_all,"CHARGE basic attack keeps its existing multi-hit unit and consumes all only once")
+  t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g._enemy(enemy.id).hp==200-expected and g.state.charge==0 and not g.state.charge_all,"CHARGE basic attack keeps its existing multi-hit unit and consumes all only once")
  for type in ["strain","slip"]:
   g=Game.new(42);g.state.wall="normal"
   var target=g.add_fixture("ankle",60,100)
@@ -36,7 +36,7 @@ static func run(t) -> void:
   c=t.find_action(g,"card",{"uid":card.uid,"slot":"ankle","target":target.id})
   var damage=c.payload.preview.damage
   t.check(c.valid and c.payload.preview.charge==21 and g.escape_preview(target,type,5,[],true).charge==0,"CHARGE active preview uses all stacks while passive movement receives none: "+type)
-  t.check(g.dispatch(c.id,g.state.version).ok and is_equal_approx(g._equipment(target.id).durability,60-damage) and g.state.charge==0 and not g.state.charge_all,"CHARGE actual equipment damage matches all-stack preview: "+type)
+  t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and is_equal_approx(g._equipment(target.id).durability,60-damage) and g.state.charge==0 and not g.state.charge_all,"CHARGE actual equipment damage matches all-stack preview: "+type)
  g=Game.new(42);g.state.wall="normal";gain(g,7);toggle(t,g)
  var multi_target=g.add_fixture("ankle",80,100)
  g._gain_card("repeated_strain")
@@ -48,12 +48,12 @@ static func run(t) -> void:
  g=Game.new(42,true,"guard");g.CaptureBind.apply_bind(g,g.state.enemies[0]);gain(g,7);toggle(t,g)
  var card=t.hand_card(g,"strain")
  c=t.find_action(g,"card",{"uid":card.uid,"target":g.CaptureBind.BIND_TARGET})
- t.check(c.valid and c.payload.preview.charge==21 and g.dispatch(c.id,g.state.version).ok and g.state.charge==0 and not g.state.charge_all,"CHARGE capture damage uses the same all-stack consumer")
+ t.check(c.valid and c.payload.preview.charge==21 and g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.charge==0 and not g.state.charge_all,"CHARGE capture damage uses the same all-stack consumer")
  g=Game.new(42);gain(g,3);toggle(t,g)
  t.check(t.action(g,"attack",{"type":"fireball","enemy":g.state.enemies[0].id}).ok and g.state.charge==3 and g.state.charge_all,"CHARGE fireball leaves the prepared release untouched")
  g.state.energy=0;before=g.export_snapshot()
  c=t.find_action(g,"attack",{"type":"strike","enemy":g.state.enemies[0].id})
- t.check(not c.valid and not g.dispatch(c.id,g.state.version).ok and g.state==before,"CHARGE unusable attack cannot spend stacks or disarm release")
+ t.check(not c.valid and not g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state==before,"CHARGE unusable attack cannot spend stacks or disarm release")
  lifetime(t)
 
 static func lifetime(t) -> void:

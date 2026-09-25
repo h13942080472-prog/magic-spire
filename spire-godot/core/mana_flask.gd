@@ -42,20 +42,23 @@ static func withdrawal(g) -> Dictionary:
  var restored=minf(minf(drawn,g.Consumables.potion_amount(g,drawn)),room)
  return {"drawn":drawn,"restored":restored}
 
-static func candidates(g, out: Array, withdrawal_only: bool=false) -> void:
- if not available(g): return
+# 魔瓶的显示事实（批 R5：行生产转发改显示事实构建，docs/spec/candidate-removal.md §2.1 T5／T8）。
+static func facts(g, withdrawal_only: bool=false) -> Array:
+ var out=[]
+ if not available(g): return out
  var amount=minf(TRANSFER,g.state.mana)
  var reason="本回合已存入%d次。" % limit(g) if limited(g) and remaining(g,"deposit")==0 else ("没有可存入的魔力。" if amount<=0 else "")
  if not withdrawal_only and g.state.phase!="rest_choice":
   var deposit_args={"amount":amount,"remaining":remaining(g,"deposit"),"limited":limited(g)}
-  g._candidate(out,{"kind":"flask","op":"deposit"},"存入",{"kind":"mana_flask.deposit","args":deposit_args,"fallback":deposit_detail(g,deposit_args)},0,0,reason,"","flask")
+  out.append(g._fact({"kind":"flask","op":"deposit"},"存入",{"kind":"mana_flask.deposit","args":deposit_args,"fallback":deposit_detail(g,deposit_args)},0,0.0,reason,"","flask"))
  var result=withdrawal(g)
  reason=g.Consumables.reason(g,"mana_potion")
  if g.state.flask_mana<=0: reason="魔瓶中没有魔力。"
  elif reason=="" and result.restored<=0: reason="魔瓶余量不足以在嘴部减效后恢复魔力。"
  if limited(g,"withdraw") and remaining(g,"withdraw")==0: reason="本回合已取出%d次。" % limit(g,"withdraw")
  var withdraw_args={"drawn":result.drawn,"restored":result.restored,"remaining":remaining(g,"withdraw"),"limited":limited(g,"withdraw")}
- g._candidate(out,{"kind":"flask","op":"withdraw"},"取出",{"kind":"mana_flask.withdraw","args":withdraw_args,"fallback":withdraw_detail(g,withdraw_args)},0,0,reason,"","flask")
+ out.append(g._fact({"kind":"flask","op":"withdraw"},"取出",{"kind":"mana_flask.withdraw","args":withdraw_args,"fallback":withdraw_detail(g,withdraw_args)},0,0.0,reason,"","flask"))
+ return out
 
 # R1（docs/ondemand-copy.md §11.5）：生产者提交「类别 + 参数」，正文仍留本模块，路由只做分派。
 static func deposit_detail(g, args: Dictionary) -> String:

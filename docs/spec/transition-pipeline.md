@@ -158,7 +158,7 @@ _room_transition_kind(target: String) -> String
     **该列现已成为存档切片的数据源**（`checkpoint` 由迁移日志的本次增量推导，见
     `docs/spec/save-fixed-points.md`）；若将来需要该列**逐条精确**的诊断，必须另立批次恢复严格比对，
     在此之前不得把折叠边界当作"精确计数已通过"。
-- 具名 check（分类点名，全部走真实公开命令：取候选 → `dispatch`；不得直接调 `_apply_transition`
+- 具名 check（分类点名，全部走真实公开命令：发指令 → `dispatch`；不得直接调 `_apply_transition`
   或手工改 `state.phase` 伪造迁移）：
 
 | 判据 | 落点（分类） |

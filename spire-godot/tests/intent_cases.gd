@@ -20,7 +20,7 @@ static func timing_cases(t) -> void:
   t.check(actor.intent in declared,"TIMING missing generation target selects an existing application declaration")
   chosen[actor.intent.grade]=true
   var before=trial.state.duplicate(true)
-  trial.get_view();trial.candidates()
+  trial.get_view();trial.command_facts()
   t.check(trial.state==before,"TIMING preview cannot redraw fallback intent or spend randomness")
   t.check(t.action(trial,"end").ok and trial._enemy(actor.id).stage==3,"TIMING replacement action advances the original stage")
   t.check(trial.physical_pieces().size()==1,"TIMING chosen application executes once through the normal factory")

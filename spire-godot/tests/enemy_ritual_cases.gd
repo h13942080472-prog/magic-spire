@@ -10,7 +10,7 @@ static func run(t) -> void:
  t.check(weak.equipment_targets().size()==4 and weak._enemy(weak_id).application_bonus==6,"RITUAL weak variant reuses the complete ritual behavior")
  var g=Game.new(42,true,"ominous_circle_solo")
  var id=g.state.enemies[0].id
- var before=g.export_snapshot();g.get_view();g.candidates()
+ var before=g.export_snapshot();g.get_view();g.command_facts()
  t.check(g.state==before and g._enemy(id).ritual==0 and g._enemy(id).application_bonus==0,"RITUAL declaration is readonly and inactive until performed")
  t.check(t.action(g,"end").ok and g.physical_pieces().is_empty() and g._enemy(id).ritual==3 and g._enemy(id).application_bonus==3,"RITUAL acquisition ticks at the end of its own first turn")
  var twin=Save.roundtrip(t,g,"ritual active before first application")

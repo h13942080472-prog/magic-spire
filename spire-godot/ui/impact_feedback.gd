@@ -7,7 +7,7 @@ const Palette=preload("res://ui/visual_theme.gd")
 #
 # Contract: inputs are the committed dispatch receipt (`resource_feedback`), the
 # committed payload and the post-commit View. The layer never reads state.logs, never
-# writes game state, candidates, saves or randomness, and it owns no rule decision.
+# writes game state, display facts, saves or randomness, and it owns no rule decision.
 # Invariants: no _process (one-shot tweens only, hidden when idle) and mouse_filter
 # stays IGNORE on every node here, so ordinary clicks keep reaching the layout below.
 # The shake displaces main.gd's GameLayout (the container that carries every committed

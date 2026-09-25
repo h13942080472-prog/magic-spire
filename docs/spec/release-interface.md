@@ -67,14 +67,14 @@ flowchart LR
   View --> Bottom[main._bottom_controls]
   Body --> Frame[铺满左侧的三个面板]
   Bottom --> Frame
-  Frame --> Input[原有候选及版本提交入口]
+  Frame --> Input[指令路由与版本提交入口]
 ```
 
 几何只由原场景及底栏编排写入；本调整不新增状态、候选、判定或规则写入点。
 
 - `ui/shell/game_layout.tscn` 保留背景及当前使用的立绘；`header.tscn` 与 `body_sidebar.tscn`
   承载顶栏、身体栏静态布局；`ui/elements/` 中的 arena、enemy_group、equipment_portrait 场景管理角色展示。
-- 主界面继续负责正式候选提交和页面编排。
+- 主界面继续负责正式提交（指令路由）和页面编排。
 
 ### 界面状态（纯 UI，不进 GameState／存档）
 
@@ -182,7 +182,7 @@ flowchart LR
 ## 输入域
 
 - 共享查询的输入只有**当前 View 的数据、ActionIndex 和本次载荷**；不接收 `Game` 或控件，不写状态。
-- 界面输入为真实 viewport 输入（鼠标、键盘、触屏）；提交一律走**候选 ID ＋ 版本复核**的正式入口。
+- 界面输入为真实 viewport 输入（鼠标、键盘、触屏）；提交一律走**指令路由（`ui/command_router.gd::emit` 唯一入口）＋ 版本复核**的正式入口（R2 起）。
 - 快捷栏按键只选择区域，选中后再用牌；格内显示真实绑定，自定义键位即时跟随。固定 ←／→ 只在
   快捷区域被选中、且无模态／输入框／独立键盘目标选择／拖拽时接管，原键位设置和菜单导航继续使用。
 - 键位现状：踢击默认 X、近身短打默认 V（两键对调，已有配置若恰为旧默认组合同步对调，其他自定义绑定保留）；

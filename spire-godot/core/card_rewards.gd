@@ -30,13 +30,13 @@ static func offer(g, pool: Array, source: String, rng=null, count: int=3) -> Arr
   if source!="fixed":
    var roll=g._random_index("reward",100) if rng==null else rng.randi_range(0,99)
    tier=rarity(source,g.state.rare_offset,roll)
-  var candidates=available if tier=="" else available.filter(func(id):return Rules.SPECS[id].rarity==tier)
-  if candidates.is_empty() and g.Character.active(g): candidates=available
+  var tier_pool=available if tier=="" else available.filter(func(id):return Rules.SPECS[id].rarity==tier)
+  if tier_pool.is_empty() and g.Character.active(g): tier_pool=available
   # Formal weighted pools contain at least three cards of every tier.
-  assert(not candidates.is_empty(),"Reward pool lacks the selected rarity")
-  if candidates.is_empty(): return []
-  var index=g._random_index("reward",candidates.size()) if rng==null else rng.randi_range(0,candidates.size()-1)
-  var type=candidates[index]
+  assert(not tier_pool.is_empty(),"Reward pool lacks the selected rarity")
+  if tier_pool.is_empty(): return []
+  var index=g._random_index("reward",tier_pool.size()) if rng==null else rng.randi_range(0,tier_pool.size()-1)
+  var type=tier_pool[index]
   chosen.append(type);available.erase(type)
   if source!="fixed": g.state.rare_offset=next_offset(g.state.rare_offset,tier)
  return chosen

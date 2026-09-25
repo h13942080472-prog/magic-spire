@@ -1,13 +1,13 @@
 extends RefCounted
 
 # B1（docs/ondemand-copy.md §1.2）：S 只按显示入口逐条取源、正向投影，不为收集新增规则查询。
-static func _card_display_set(g, actions: Array, shop: Dictionary, room_event: Dictionary) -> Dictionary:
+static func _card_display_set(g, facts: Array, shop: Dictionary, room_event: Dictionary) -> Dictionary:
  var shown={}
  for card in g.state.hand: shown[card.type]=true
  for type in g.state.reward_options: shown[type]=true
  for type in g.state.rest_cards: shown[type]=true
- for candidate in actions:
-  var type=String(candidate.payload.get("type",""))
+ for fact in facts:
+  var type=String(fact.payload.get("type",""))
   if g.Cards.Rules.SPECS.has(type): shown[type]=true
  for row in shop.get("stock",[]):
   if row.get("kind","")=="card": shown[String(row.get("type",""))]=true
@@ -19,7 +19,7 @@ static func _card_display_set(g, actions: Array, shop: Dictionary, room_event: D
    if g.Cards.Rules.SPECS.has(type): shown[type]=true
  return shown
 
-static func battle_rewards(g, actions: Array) -> Array:
+static func battle_rewards(g, facts: Array) -> Array:
  if g.state.phase!="reward": return []
  var rows=[]
  if g.Events.active_item_rewards(g):
@@ -28,7 +28,7 @@ static func battle_rewards(g, actions: Array) -> Array:
    var spec=g.Tools.TYPES[type]
    var category={"potion":"药剂","scroll":"卷轴"}.get(spec.get("category",""),"工具")
    var detail=g.Consumables.description(g,type) if g.Tools.operation(type)=="buff" else "%s · 可使用%d次" % [spec.name,spec.uses]
-   var matches=actions.filter(func(candidate):return candidate.payload.get("kind","")=="reward" and candidate.payload.get("reward_id","")==reward.id)
+   var matches=facts.filter(func(fact):return fact.payload.get("kind","")=="reward" and fact.payload.get("reward_id","")==reward.id)
    var reason="" if reward.claimed or matches.is_empty() or matches[0].valid else matches[0].reason
    rows.append({"id":reward.id,"category":"item","symbol":type,"name":spec.name,"subtitle":category+" · 领取后收入道具栏","detail":detail,"claimed":reward.claimed,"available":reason=="","reason":reason})
   return rows
@@ -53,25 +53,25 @@ static func battle_rewards(g, actions: Array) -> Array:
   rows.append({"id":"","category":"flask","symbol":"mana_potion","name":"%d 魔瓶魔力" % g.state.battle_flask_drop,"subtitle":("出口守卫奖励" if g.Prison.is_exit_battle(g) else "Boss奖励")+" · 存入贴身魔瓶","detail":"领取后，贴身魔瓶获得%d魔力，不占用存入次数。" % g.state.battle_flask_drop,"claimed":claimed.has("flask"),"available":true,"reason":""})
  return rows
 
-static func reward_panel(g, actions: Array) -> Dictionary:
- if not g.state.relic_bundle.is_empty(): return g.RelicBundle.panel(g,actions)
- if g.state.phase=="departure": return g.Departure.panel(g,actions)
- var panel={"active":false,"title":"战 斗 奖 励","destination":"","continue_id":"","continue_label":"继续  ›","extra_ids":[],"rows":[]}
+static func reward_panel(g, facts: Array) -> Dictionary:
+ if not g.state.relic_bundle.is_empty(): return g.RelicBundle.panel(g,facts)
+ if g.state.phase=="departure": return g.Departure.panel(g,facts)
+ var panel={"active":false,"title":"战 斗 奖 励","destination":"","continue_key":"","continue_label":"继续  ›","extra_keys":[],"rows":[]}
  var choices=[];var exits=[]
  match g.state.phase:
   "reward":
-   panel.active=true;panel.rows=battle_rewards(g,actions)
+   panel.active=true;panel.rows=battle_rewards(g,facts)
    var event_items=g.Events.active_item_rewards(g)
    panel.title="找到的道具" if event_items else "战 斗 奖 励"
    panel.destination="继续后选择第10—11层的非休息、非宝箱区域开始。" if g.Prison.is_exit_battle(g) else ("继续后返回塔路。" if event_items else "继续后进入%d回合整备。" % g.preparation_turns())
-   choices=actions.filter(func(c):return c.payload.kind=="reward" and c.payload.type!="skip")
-   exits=actions.filter(func(c):return c.payload.kind=="reward" and c.payload.type=="skip")
+   choices=facts.filter(func(c):return c.payload.kind=="reward" and c.payload.type!="skip")
+   exits=facts.filter(func(c):return c.payload.kind=="reward" and c.payload.type=="skip")
   "rest_choice":
    panel.active=true;panel.title="休息奖励"
    panel.destination="任选一项 · 当前可休息%d回合" % g.state.rest_left
    panel.continue_label="跳过 · 休息%d回合  ›" % g.state.rest_left
-   choices=actions.filter(func(c):return c.payload.kind in ["rest_card","rest_rare","rest_flask"])
-   exits=actions.filter(func(c):return c.payload.kind=="rest_begin")
+   choices=facts.filter(func(c):return c.payload.kind in ["rest_card","rest_rare","rest_flask"])
+   exits=facts.filter(func(c):return c.payload.kind=="rest_begin")
    var row=reward_card_row(g.Cards.Rules.RARITIES.uncommon+"卡%d选1" % g.state.rest_cards.size(),"花费%d回合 · 选择1张加入卡组" % g.B.REST_CARD_TURNS.uncommon)
    row.id="uncommon";row.action_kind="rest_card";row.hide_skip=true
    panel.rows.append(row)
@@ -83,29 +83,29 @@ static func reward_panel(g, actions: Array) -> Dictionary:
   "event":
    if g.state.room_event.get("stage","")!="reward": return panel
    panel.active=true;panel.title="事件奖励";panel.destination="选取一张卡牌，或跳过本次奖励。";panel.continue_label="跳过奖励  ›"
-   choices=actions.filter(func(c):return c.payload.kind=="event" and c.payload.action=="reward" and c.payload.type!="skip")
-   exits=actions.filter(func(c):return c.payload.kind=="event" and c.payload.action=="reward" and c.payload.type=="skip")
+   choices=facts.filter(func(c):return c.payload.kind=="event" and c.payload.action=="reward" and c.payload.type!="skip")
+   exits=facts.filter(func(c):return c.payload.kind=="event" and c.payload.action=="reward" and c.payload.type=="skip")
    panel.rows=[reward_card_row("选择一张卡牌","加入你的卡组")]
   "treasure":
    panel.active=true;panel.title="宝箱奖励";panel.destination="未领取的奖励可以直接跳过。";panel.continue_label="继续  ›"
-   choices=actions.filter(func(c):return c.payload.kind=="service" and c.payload.op=="take")
-   exits=actions.filter(func(c):return c.payload.kind=="service" and c.payload.op=="leave")
+   choices=facts.filter(func(c):return c.payload.kind=="service" and c.payload.op=="take")
+   exits=facts.filter(func(c):return c.payload.kind=="service" and c.payload.op=="leave")
    var stock=g.room_data(g.state.room).stock
    for index in range(stock.size()):
     var offer=stock[index];var category="item" if offer.kind=="tool" else offer.kind
     panel.rows.append({"id":str(index),"category":category,"symbol":offer.type,"name":g.Services.name(g,offer),"subtitle":"已领取" if offer.taken else "收入收藏","detail":g.Services.detail(g,offer),"claimed":offer.taken,"available":true,"reason":""})
  if not panel.active: return panel
- if not exits.is_empty(): panel.continue_id=exits[0].id
+ if not exits.is_empty(): panel.continue_key=String(exits[0].key)
  for row in panel.rows:
   var matching=choices
   if g.state.phase=="reward":
    matching=choices.filter(func(c):return c.payload.get("category","")==row.category and (row.id=="" or c.payload.get("reward_id","")==row.id))
   elif g.state.phase=="treasure": matching=choices.filter(func(c):return str(c.payload.index)==row.id)
   elif g.state.phase=="rest_choice": matching=choices.filter(func(c):return c.payload.kind==row.action_kind)
-  row.action_ids=matching.map(func(c):return c.id)
+  row.action_keys=matching.map(func(c):return String(c.key))
   row.skipped=g.state.phase=="reward" and g.state.reward_claimed.get(row.category,"")=="skip"
-  var skips=actions.filter(func(c):return c.payload.kind=="reward_skip" and c.payload.category==row.category)
-  row.skip_id=skips[0].id if not skips.is_empty() else (panel.continue_id if g.state.phase!="reward" and not row.claimed else "")
+  var skips=facts.filter(func(c):return c.payload.kind=="reward_skip" and c.payload.category==row.category)
+  row.skip_key=String(skips[0].key) if not skips.is_empty() else (panel.continue_key if g.state.phase!="reward" and not row.claimed else "")
   if row.skipped: row.subtitle="已跳过"
   if not row.claimed and not matching.is_empty() and not matching.any(func(c):return c.valid):
    row.available=false;row.reason=matching[0].reason
@@ -193,22 +193,11 @@ static func _build_equipment_entry(g, e: Dictionary) -> Dictionary:
 # Read-only projection. All gameplay changes remain in game.gd.
 static func build(g) -> Dictionary:
  var state=g.state
- var actions=g.candidates()
- for action in actions:
-  var release=ReleaseView.preview(g,action)
-  if not release.is_empty(): action.release_preview=release
-  if action.payload.kind=="attack" and g.Cards.Rules.FIXED_MAGIC.has(action.payload.type):
-   action.casting=g.cast_view(g.Cards.cast_profile(g,action.payload.type,action.mana>0))
-  if action.payload.kind=="attack":
-   action.body_part={"strike":"双臂","heavy":"双臂／双腿","kick":"双腿"}.get(action.payload.type,"")
-   if action.has("casting"):
-    var part=action.casting.get("source_part",action.casting.part)
-    action.body_part="脚趾" if part=="toes" else g.Cards.Rules.CAST_PART_NAMES[part]
-  elif action.payload.kind=="calm":
-   var calm=g.Pressure.calm(g)
-   action.body_part="嘴部"
-   action.brief="快感－%s" % g.number(calm.reduction)
-   action.brief_tags="下回合＋%d能量 · %d/%d次" % [g.B.CALM_NEXT_ENERGY,calm.remaining,g.B.CALM_USES_PER_TURN]
+ # 显示事实的唯一出口（core/game.gd::display_facts＝事实源＋唯一判定＋接管标注）；本文件只补释放预览。
+ var facts=g.command_facts()
+ for fact in facts:
+  var release=ReleaseView.preview(g,fact)
+  if not release.is_empty(): fact.release_preview=release
  var physical_pieces=g.physical_pieces()
  var body_coverage={"points":[],"materials":portrait_materials(g,physical_pieces)}
  for e in physical_pieces:
@@ -244,7 +233,7 @@ static func build(g) -> Dictionary:
   hand.append({"uid":card.uid,"type":card.type,"name":B.CARD_NAMES[card.type],"cost":"—" if B.CARD_TRAITS.get(card.type,{}).get("unplayable",false) else g.Cards.Rules.energy_label(card.type),"tag":info[0],"bound":bound,"free":info[2],"note":info[3],"retained":B.CARD_TRAITS.get(card.type,{}).get("retain",false) or card.retain_until>state.tick,"single_face":g.Cards.Rules.single_face(card.type)})
   hand.back().merge(g.Cards.Rules.classification(card.type))
   hand.back().merge(g.Cards.metadata(g,card.type,card.uid),true)
-  var choices=actions.filter(func(c):return c.payload.get("uid","")==card.uid and c.payload.kind in ["card","prison"])
+  var choices=facts.filter(func(f):return f.payload.get("uid","")==card.uid and f.payload.get("kind","") in ["card","prison"])
   hand.back().unplayable=B.CARD_TRAITS.get(card.type,{}).get("unplayable",false)
   hand.back().availability={"free":g.Cards.availability(g,card,true,choices),"bound":g.Cards.availability(g,card,false,choices)}
   hand.back().magic=hand.back().cast_faces.bound or hand.back().cast_faces.free
@@ -278,26 +267,26 @@ static func build(g) -> Dictionary:
   items.back().environment_name=Tools.Environments.NAMES.get(environment_class,"")
   items.back().passive_text=g.InstalledTools.description(g,item) if not Tools.TYPES[item.type].get("trigger_damage_types",[]).is_empty() else ""
   var groups=[];var unavailable=[]
-  for c in actions:
+  for c in facts:
    if c.payload.kind!="item_use" or c.payload.item!=item.id: continue
    if not c.valid:
     if c.reason not in unavailable: unavailable.append(c.reason)
     continue
    if items.back().target_scope=="body_group":
     var group=g.Equipment.panel_groups().filter(func(p):return p.id==c.payload.target)[0]
-    groups.append({"id":group.id,"name":group.name,"candidates":[c.id]})
+    groups.append({"id":group.id,"name":group.name,"keys":[String(c.key)]})
     continue
    var target=g._equipment(c.payload.target)
    var slots=[c.payload.target] if target.is_empty() else ([target.slot] if g.SpecialEquipment.is_special(target) else Tools.target_contact(g,target,Tools.operation(item.type)).slots)
    for slot in slots:
     var matches=groups.filter(func(group):return group.id==slot)
     if matches.is_empty():
-     groups.append({"id":slot,"name":g.SpecialEquipment.slot_name(slot) if slot in g.SpecialEquipment.slots() else B.SLOT_NAMES.get(slot,{"prison_door":"牢门","hero":"自身"}.get(slot,"肩部")),"candidates":[]})
+     groups.append({"id":slot,"name":g.SpecialEquipment.slot_name(slot) if slot in g.SpecialEquipment.slots() else B.SLOT_NAMES.get(slot,{"prison_door":"牢门","hero":"自身"}.get(slot,"肩部")),"keys":[]})
      matches=[groups.back()]
-    if c.id not in matches[0].candidates: matches[0].candidates.append(c.id)
+    if String(c.key) not in matches[0].keys: matches[0].keys.append(String(c.key))
   items.back().target_groups=groups
   items.back().unavailable_reasons=unavailable
- preload("res://core/status_view.gd").append_usable_items(statuses,items,actions)
+ preload("res://core/status_view.gd").append_usable_items(statuses,items,facts)
  var practice_options: Array=[]
  var practice_table=Tower.all_practices()
  for kind in practice_table:
@@ -314,7 +303,7 @@ static func build(g) -> Dictionary:
  # B1（docs/ondemand-copy.md §1.2）：card_texts 只带界面固有显示集合 S，键序仍按注册表，条目内容不变。
  var shop=g.Services.view(g)
  var room_event=g.Events.view(g)
- var shown=_card_display_set(g,actions,shop,room_event)
+ var shown=_card_display_set(g,facts,shop,room_event)
  for type in g.Cards.Rules.SPECS:
   if shown.has(type): card_texts[type]=g.Cards.text_entry(g,type)
  var chain={} if state.card_chain.is_empty() else {"name":B.CARD_NAMES[state.card_chain.type],"remaining":state.card_chain.remaining,"selection":state.card_chain.get("mode","")=="select_exhaust"}
@@ -335,8 +324,8 @@ static func build(g) -> Dictionary:
    layer={"upper":"single_leg_upper","lower":"single_leg_lower","ankle":"single_leg_long","toes":"single_leg_long"}.get(root.get("variant",""),"")
   if layer!="" and layer not in composite_portrait_layers: composite_portrait_layers.append(layer)
  for body in grouped_bodies:
-  body.can_release=actions.any(func(c):return c.payload.kind=="manual" and c.valid and c.payload.after==0.0 and body.targets.has(c.payload.target))
- var reward=reward_panel(g,actions)
+  body.can_release=facts.any(func(c):return c.payload.kind=="manual" and c.valid and c.payload.after==0.0 and body.targets.has(c.payload.target))
+ var reward=reward_panel(g,facts)
  return {"run_header":run_header(g),"demo_cycle":state.demo_cycle,"demo_finished":state.demo_finished,"demo_exit":g.DemoExit.at_exit(g),"battle_rewards":reward.rows,"reward_panel":reward,"reward_title":reward.title,"reward_destination":reward.destination,"content_status":g.Content.report.duplicate(true),"card_chain":chain,"retain_left":state.retain_left,"card_costs":costs,"card_texts":card_texts,"card_instances":card_instances,"version":state.version,"seed":state.seed,"phase":state.phase,"phase_caption":preload("res://data/phases.gd").caption(state),"encounter":state.encounter,"round":state.round,"order":state.order,
   "character_id":state.get("character_id","original"),
   "end_turn_locked":g.Character.Expansion.end_reason(g)!="",
@@ -350,8 +339,10 @@ static func build(g) -> Dictionary:
   "rest_left":state.rest_left,"hook_uses":state.hook_uses,"hook_location":"墙边挂钩","hook_environment_name":Tools.Environments.NAMES[Tools.Environments.HOOK_CLASS],"hook_contact":Tools.contact_text(g,Tools.HOOK_MOUNT,false),"items":items,"carried_items":g.carried_items(),
   "wall":state.wall,"wall_position":wall_position,"wall_text":wall_position.name+" · "+wall_position.status,
   "practice":state.practice,"practice_kind":state.practice_kind,"practice_description":practice_table.get(state.practice_kind,Tower.PRACTICES.equipment).spec.description,"practice_hint":practice_table.get(state.practice_kind,Tower.PRACTICES.equipment).spec.hint,"practice_options":practice_options,"practice_focus":practice_table.get(state.practice_kind,Tower.PRACTICES.equipment).focus,
-  "tower_start_pending":state.tower_start_pending,"map_name":"监狱" if state.map_region=="prison" else "塔路","map_region":state.map_region,"room_name":"选择出狱起点" if state.tower_start_pending else (g.room_data(state.room).name if state.room=="prison" else (Tower.practice_spec(state.practice_kind).name if state.practice else g.room_data(state.room).name)),"route":[] if state.practice or state.room=="prison" else g.route_view(actions),"movement":g.movement_profile(),"journey":state.journey.duplicate(true),"travel_turns":state.travel_turns,"rooms_completed":state.completed_rooms.size(),"reward_count":state.reward_count,
-  "first_turn_control":g.FirstTurnControl.view(g,actions),"candidates":actions,"logs":state.logs.duplicate(true),"summary":state.summary,"prepare_left":state.prepare_left,"preparation_turns":g.preparation_turns(),"draw_count":state.draw.size(),"discard_count":state.discard.size(),"draw_cards":state.draw.map(func(card):return {"uid":card.uid,"type":card.type}),"discard_cards":state.discard.map(func(card):return {"uid":card.uid,"type":card.type}),"deck_count":state.deck.size(),"deck_cards":state.deck.map(func(card):return {"uid":card.uid,"type":card.type}),"pending_retain":state.pending_retain}
+  "tower_start_pending":state.tower_start_pending,"map_name":"监狱" if state.map_region=="prison" else "塔路","map_region":state.map_region,"room_name":"选择出狱起点" if state.tower_start_pending else (g.room_data(state.room).name if state.room=="prison" else (Tower.practice_spec(state.practice_kind).name if state.practice else g.room_data(state.room).name)),"route":[] if state.practice or state.room=="prison" else g.route_view(facts),"movement":g.movement_profile(),"journey":state.journey.duplicate(true),"travel_turns":state.travel_turns,"rooms_completed":state.completed_rooms.size(),"reward_count":state.reward_count,
+  "first_turn_control":g.FirstTurnControl.view(g,facts),"display_facts":facts,"logs":state.logs.duplicate(true),"summary":state.summary,"prepare_left":state.prepare_left,"preparation_turns":g.preparation_turns(),"draw_count":state.draw.size(),"discard_count":state.discard.size(),"draw_cards":state.draw.map(func(card):return {"uid":card.uid,"type":card.type}),"discard_cards":state.discard.map(func(card):return {"uid":card.uid,"type":card.type}),"deck_count":state.deck.size(),"deck_cards":state.deck.map(func(card):return {"uid":card.uid,"type":card.type}),"pending_retain":state.pending_retain,
+  # Run identity (docs/spec/seed-identity.md): the map chip reads it; existing keys and order unchanged.
+  "initial_seed":state.initial_seed,"tower_generation":state.tower_generation}
 
 # Display-only material choice; exposure remains owned by the equipment query seam.
 static func portrait_materials(g, pieces: Array) -> Dictionary:
@@ -381,7 +372,7 @@ static func travel_log(logs: Array) -> Array:
    result.append({"turn":entry.data.travel.turn,"text":entry.text})
  return result
 
-# Display groups aggregate physical slots without changing their action candidates.
+# Display groups aggregate physical slots without changing their action display facts.
 static func body_groups(g, bodies: Array, special_regions: Array) -> Array:
  var result=[]
  for panel in g.Equipment.panel_groups():

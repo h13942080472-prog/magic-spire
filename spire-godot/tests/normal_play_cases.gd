@@ -6,7 +6,7 @@ const Game=preload("res://core/game.gd")
 static func choose(v: Dictionary, route_style: String="cautious", navigation: Dictionary={}) -> Dictionary:
  var best={}
  var best_score=-INF
- for c in v.candidates:
+ for c in v.display_facts:
   if not c.valid: continue
   var value=score(v,c,route_style,navigation)
   if value>best_score:
@@ -61,7 +61,7 @@ static func score(v: Dictionary, c: Dictionary, style: String, navigation: Dicti
     if v.prison.space.sites.any(func(site):return site.here and site.get("interaction",{}).get("kind","")=="vent") and v.prison.vent_hits<v.prison.vent_total: return -100
     if not p.has("site"):
      # Follow the wall using only the last submitted direction and currently
-     # legal movement candidates; blind exploration is a real player action.
+     # legal movement facts; blind exploration is a real player action.
      var directions=["north","east","south","west"]
      var heading=navigation.get("heading","north") if navigation.get("security",-1)==v.get("security",0) else "north"
      var forward=directions.find(heading)
@@ -121,7 +121,7 @@ static func score(v: Dictionary, c: Dictionary, style: String, navigation: Dicti
 static func run(t) -> void:
  var resist={"valid":true,"payload":{"kind":"prison","action":"resist"}}
  var escape={"valid":true,"payload":{"kind":"prison","action":"door_exit"}}
- var visible={"phase":"inspection","prison":{"checks":1},"candidates":[resist,escape]}
+ var visible={"phase":"inspection","prison":{"checks":1},"facts":[resist,escape]}
  t.check(score(visible,resist,"cautious")<0,"NORMAL repeated-inspection fallback does not immediately abandon the first escape attempt")
  visible.prison.checks=2
  var before=visible.duplicate(true)
@@ -129,7 +129,7 @@ static func run(t) -> void:
  t.check(visible==before,"NORMAL policy reads the visible projection without modifying it")
  var surrender={"valid":true,"payload":{"kind":"surrender"}}
  var end={"valid":true,"payload":{"kind":"end"}}
- var battle={"phase":"battle","round":29,"candidates":[surrender,end]}
+ var battle={"phase":"battle","round":29,"facts":[surrender,end]}
  t.check(choose(battle)==end,"NORMAL repeating battle still plays before the visible round bound")
  battle.round=30;before=battle.duplicate(true)
  t.check(choose(battle)==surrender and battle==before,"NORMAL bounded battle fallback selects the real surrender without changing the view")
@@ -138,14 +138,14 @@ static func run(t) -> void:
  var north={"valid":true,"payload":{"kind":"prison","action":"explore","direction":"north"}}
  var east={"valid":true,"payload":{"kind":"prison","action":"explore","direction":"east"}}
  var west={"valid":false,"payload":{"kind":"prison","action":"explore","direction":"west"}}
- var blind={"phase":"prison","security":1,"prison":{"space":{"sites":[]},"vent_hits":0,"vent_total":3},"candidates":[north,east,west,end]}
+ var blind={"phase":"prison","security":1,"prison":{"space":{"sites":[]},"vent_hits":0,"vent_total":3},"facts":[north,east,west,end]}
  var navigation={};before=blind.duplicate(true)
  t.check(choose(blind,"cautious",navigation)==north and navigation.is_empty() and blind==before,"NORMAL blind exploration uses legal visible directions without changing the view or remembering an uncommitted action")
  remember(blind,north,navigation);north.valid=false
  t.check(choose(blind,"cautious",navigation)==east,"NORMAL wall following turns at an actually blocked direction")
  blind.prison.space.sites=[{"here":true,"interaction":{"kind":"vent"}}]
  t.check(choose(blind,"cautious",navigation)==end,"NORMAL waits at the discovered vent instead of walking away between required kicks")
- blind.candidates.append(escape)
+ blind.display_facts.append(escape)
  t.check(choose(blind,"cautious",navigation)==escape,"NORMAL real escape takes priority over further exploration")
  var reports=[]
  for setup in [[42,"cautious"],[20260906,"elite"],[7,"trade"]]:
@@ -172,7 +172,7 @@ static func run(t) -> void:
    if c.is_empty():
     report.result="no_candidate";break
    report.steps.append({"phase":v.phase,"room":v.room_name,"round":v.round,"kind":c.payload.kind,"payload":c.payload,"energy":v.energy,"mana":v.mana,"label":c.label})
-   var result=g.dispatch(c.id,v.version)
+   var result=g.dispatch(g.command(c.payload,v.version),v.version)
    t.check(result.ok,"NORMAL %s #%d %s" % [setup[1],i,c.label])
    if not result.ok:
     report.result=result.error;break

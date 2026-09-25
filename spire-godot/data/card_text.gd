@@ -2,7 +2,7 @@ extends RefCounted
 
 # Read-only card wording, derived from the same face effects and eligibility data.
 const Rules=preload("res://data/card_rules.gd")
-const TERMS={
+static var TERMS={
  "mouth_clear":{"name":"嘴部无拘束","detail":"嘴部不能佩戴任何拘束具；提高施法成功率不能绕过此条件。"},
  "mind":{"name":"精神施法","detail":"无需手部或嘴部动作，仍受快感及施法成功率加成影响。"},
  "legs":{"name":"腿部施法预备","detail":"成功率受快感和腿部受限等级影响。"},
@@ -84,7 +84,7 @@ static func _buff_terms(ids: Array, buff: Dictionary) -> void:
  for key in ["turn_start_effects","spell_use_effects"]: _effect_terms(ids,buff.get(key,[]))
  _effect_terms(ids,buff.get("mana_spent",{}).get("effects",[]))
 
-static func keywords(type: String, free: bool, traits: Dictionary) -> Array:
+static func keyword_ids(type: String, free: bool, traits: Dictionary) -> Array:
  var spec=Rules.SPECS[type]
  var ids=[]
  if Rules.unique_face(type,free): ids.append("unique")
@@ -113,15 +113,22 @@ static func keywords(type: String, free: bool, traits: Dictionary) -> Array:
  if Rules.exhausts(type,free,traits): ids.append("exhaust")
  if traits.get("retain",false): ids.append("auto_retain")
  if free and spec.has("free_max_levels"): ids.append("levels")
- var result=[];var seen=[]
+ var unique=[];var seen=[]
  for id in ids:
   if id not in seen:
    seen.append(id)
-   var term=TERMS[id].duplicate(true)
-   if id=="follow_through" and spec.get("follow_through_scope","region")=="body":
-    term.name="超级顺延"
-    term.detail=Rules.SUPER_FOLLOW_THROUGH_TEXT
-   result.append(term)
+   unique.append(id)
+ return unique
+
+static func keywords(type: String, free: bool, traits: Dictionary) -> Array:
+ var spec=Rules.SPECS[type]
+ var result=[]
+ for id in keyword_ids(type,free,traits):
+  var term=TERMS[id].duplicate(true)
+  if id=="follow_through" and spec.get("follow_through_scope","region")=="body":
+   term.name="超级顺延"
+   term.detail=Rules.SUPER_FOLLOW_THROUGH_TEXT
+  result.append(term)
  return result
 
 static func mana_entries(type: String, free: bool, cost: float, worn_count: Variant=null) -> Array:

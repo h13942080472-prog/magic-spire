@@ -38,7 +38,7 @@ static func requirements(t) -> void:
     t.check(c.valid==expected,"FORMATION free upper limit and bound upper-or-legs limit")
     if not expected:
      var before=g.export_snapshot()
-     t.check(c.reason.contains("严密度") and not g.dispatch(c.id,g.state.version).ok and g.state==before,"FORMATION blocked requirement cannot spend resources or activate power")
+     t.check(c.reason.contains("严密度") and not g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state==before,"FORMATION blocked requirement cannot spend resources or activate power")
  var g=setup();g.add_fixture("upper_arm",8);g.add_fixture("forearm",8)
  t.check(g.restraint_degree("arms")==1,"FORMATION exact upper threshold fixture")
  activate(t,g,true)
@@ -48,19 +48,19 @@ static func requirements(t) -> void:
 static func free_face(t) -> void:
  var g=setup();activate(t,g,true)
  var card=Cards.give(g,"ease");var c=t.find_action(g,"card",{"uid":card.uid,"free":true})
- var before=g.export_snapshot();g.get_view();g.candidates()
+ var before=g.export_snapshot();g.get_view();g.command_facts()
  t.check(c.valid and c.cost==0 and g.Cards.text_entry(g,"ease").face_costs.free=="0" and g.state==before,"FORMATION immediate discount agrees with candidate and card face without mutating queries")
- t.check(not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"FORMATION stale request cannot consume the buff")
- t.check(g.dispatch(c.id,g.state.version).ok and g.state.energy==before.energy and g.Cards.energy_cost(g,"ease",true)==1,"FORMATION one-energy card actually pays zero then loses discount")
+ t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"FORMATION stale request cannot consume the buff")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.energy==before.energy and g.Cards.energy_cost(g,"ease",true)==1,"FORMATION one-energy card actually pays zero then loses discount")
  activate(t,g,true)
  t.check(g.Cards.energy_cost(g,"ease",true)==0,"FORMATION newly played copy grants a use even after earlier magic this turn")
  activate(t,g,true)
  t.check(g.Cards.energy_cost(g,"henshin",true)==2,"FORMATION free copies add reductions on the same next magic card")
  card=Cards.give(g,"mana_surge");c=t.find_action(g,"card",{"uid":card.uid,"free":true})
- t.check(c.cost==0 and g.dispatch(c.id,g.state.version).ok and g.Cards.energy_cost(g,"henshin",true)==4,"FORMATION naturally zero-cost magic consumes all discount stacks without refund")
+ t.check(c.cost==0 and g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.Cards.energy_cost(g,"henshin",true)==4,"FORMATION naturally zero-cost magic consumes all discount stacks without refund")
  g=setup();activate(t,g,true);g.state.pressure=75
  card=Cards.give(g,"mana_surge");Practiced.force_failure(g,"mana_surge");c=t.find_action(g,"card",{"uid":card.uid,"free":false});before=g.export_snapshot()
- t.check(g.dispatch(c.id,g.state.version).ok and g._magic_failed and g.state.hand.any(func(x):return x.uid==card.uid) and g.Cards.energy_cost(g,"ease",true)==1 and g.state.energy==before.energy,"FORMATION failed zero-cost cast still consumes buff and keeps card in hand")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g._magic_failed and g.state.hand.any(func(x):return x.uid==card.uid) and g.Cards.energy_cost(g,"ease",true)==1 and g.state.energy==before.energy,"FORMATION failed zero-cost cast still consumes buff and keeps card in hand")
 
 static func bound_face(t) -> void:
  var g=setup();activate(t,g,false);activate(t,g,false);activate(t,g,true);g.state.pressure=75
@@ -70,12 +70,12 @@ static func bound_face(t) -> void:
  for n in range(2):
   var card=Cards.give(g,"mana_surge");var c=t.find_action(g,"card",{"uid":card.uid,"free":false})
   var rng=g.state.rng.magic
-  t.check(g.dispatch(c.id,g.state.version).ok and not g._magic_failed and g.state.rng.magic==rng,"FORMATION stacked guaranteed zero-cost cards do not roll RNG")
+  t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and not g._magic_failed and g.state.rng.magic==rng,"FORMATION stacked guaranteed zero-cost cards do not roll RNG")
   t.check(g.state.powers[0].power_magic_remaining==0 and g.state.powers[1].power_magic_remaining==1-n and g.state.powers[2].power_magic_remaining==0,"FORMATION guarantee consumes one stack per card while free face consumes all")
  t.check(g.cast_view(g.Cards.cast_profile(g,"mana_surge")).chance<1,"FORMATION third card returns to ordinary chance")
  g=setup();activate(t,g,false);g.add_fixture("palm",8)
  var card=Cards.give(g,"siphon_strength");var c=t.find_action(g,"card",{"uid":card.uid,"free":false});before=g.export_snapshot()
- t.check(not c.valid and not g.dispatch(c.id,g.state.version).ok and g.state==before and g.state.powers[0].power_magic_remaining==1,"FORMATION guarantee does not bypass a blocked hand casting route")
+ t.check(not c.valid and not g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state==before and g.state.powers[0].power_magic_remaining==1,"FORMATION guarantee does not bypass a blocked hand casting route")
  g=setup();activate(t,g,false);activate(t,g,true)
  t.check(Cards.play(t,g,"siphon",false).ok and g.state.powers.all(func(x):return x.power_magic_remaining==0),"FORMATION zero-cost non-casting magic face consumes both buffs")
  g=setup();activate(t,g,false);activate(t,g,true)

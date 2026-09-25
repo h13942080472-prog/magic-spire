@@ -20,7 +20,7 @@ static func run(t) -> void:
  var card=Cards.give(g,"binding_enthusiast")
  var before=g.export_snapshot()
  var candidate=t.find_action(g,"card",{"uid":card.uid,"free":false})
- t.check(candidate.valid and candidate.cost==3 and not g.dispatch(candidate.id,g.state.version-1).ok and g.state==before,"BINDING ENTHUSIAST stale activation preserves resources and equipment")
+ t.check(candidate.valid and candidate.cost==3 and not g.dispatch(g.command(candidate.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"BINDING ENTHUSIAST stale activation preserves resources and equipment")
  t.check(t.action(g,"card",{"uid":card.uid,"free":false}).ok and g.state.energy==0 and g.state.pressure==0 and g.Cards.power_attribute_modifier(g,"strength")==3 and g.Cards.power_attribute_modifier(g,"dexterity")==3,"BINDING ENTHUSIAST activation pays three and does not trigger itself")
  t.check(g.RelicEffects.attribute(g,"strength")==3 and g.RelicEffects.attribute(g,"dexterity",{},true)==3,"BINDING ENTHUSIAST supplies formal active and passive attributes")
  t.check(status(g,"strength").value=="3" and status(g,"dexterity").value=="3" and status(g,"power_binding_enthusiast").value.contains("3件"),"BINDING ENTHUSIAST status shows current dynamic count and both attributes")

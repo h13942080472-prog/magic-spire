@@ -24,7 +24,7 @@ func _can_drop_data(_at_position: Vector2, data: Variant) -> bool:
  if not data is Dictionary: return false
  if accepted_kind=="card" and not data.has("card_uid"): return false
  if accepted_kind=="attack" and not data.has("action_type"): return false
- if accepted_kind=="player" and not (data.has("card_uid") or data.has("self_action_id")): return false
+ if accepted_kind=="player" and not (data.has("card_uid") or data.has("self_action_key")): return false
  if hover_card.is_valid(): hover_card.call(data)
  return accept_card.is_valid() and accept_card.call(data)
 

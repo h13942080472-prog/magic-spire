@@ -45,7 +45,7 @@ func run() -> void:
  ui.restart(42)
  await process_frame
  await process_frame
- check(ui.game.validate()=="" and not ui.game.candidates().is_empty(),"New game has valid state and formal actions")
+ check(ui.game.validate()=="" and not ui.game.command_facts().is_empty(),"New game has valid state and formal actions")
  var store=load("res://core/save_store.gd").new(OS.get_environment("SPIRE_PROBE_SAVES"))
  check(store.directory!="","Smoke saves need an explicit isolated directory")
  if store.directory!="":
@@ -98,13 +98,13 @@ func probe_charge_all(game_class) -> void:
  for part in ["hand","mouth","mind"]:
   g.state.witch_charges={"hand":3,"mouth":3,"legs":4,"mind":3}
   var expected=g.state.witch_charges.duplicate();expected[part]=0
-  var actions=g.candidates().filter(func(c):return c.payload.get("type")=="witch_"+part and c.payload.get("form")==1)
+  var actions=g.command_facts().filter(func(c):return c.payload.get("type")=="witch_"+part and c.payload.get("form")==1)
   check(not actions.is_empty(),"Patch release candidate exists: "+part)
   if actions.is_empty(): continue
   var action=actions[0]
   check(action.valid and action.payload.hits==4,"Patch uses pre-release charge count: "+part)
-  check(g.dispatch(action.id,g.state.version).ok and g.state.witch_charges==expected,"Patch consumes all and only selected charges: "+part)
-  actions=g.candidates().filter(func(c):return c.payload.get("type")=="witch_"+part and c.payload.get("form")==1)
+  check(g.dispatch(g.command(action.payload,g.state.version),g.state.version).ok and g.state.witch_charges==expected,"Patch consumes all and only selected charges: "+part)
+  actions=g.command_facts().filter(func(c):return c.payload.get("type")=="witch_"+part and c.payload.get("form")==1)
   check(not actions.is_empty() and actions[0].payload.hits==1,"Patch next release has one hit: "+part)
  print("CHARGE ALL PROBE COMPLETE")
 

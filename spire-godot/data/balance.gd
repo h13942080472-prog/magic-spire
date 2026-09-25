@@ -215,3 +215,6 @@ static func card_metadata(type: String, mana_costs: Dictionary={}, base: Variant
  var effects=card_info(type,costs,base,false,worn_count,body_count)
  result.face_effects={"bound":effects[1],"free":effects[2]}
  return result
+
+static func keyword_ids(type: String, free: bool) -> Array:
+ return preload("res://data/card_text.gd").keyword_ids(type,free,CARD_TRAITS.get(type,{}))

@@ -29,7 +29,7 @@ static func run(t) -> void:
  t.check(g.state.relics.count("rolling_log")==1 and g.state.relic_seen.count("rolling_log")==1,"LOG one owned icon and one seen entry regardless of quantity")
  for key in ["energy","mana","mana_max","flask_mana","strength","dexterity","pressure","charge","tick"]:
   t.check(g.state[key]==before[key],"LOG pickup does not change gameplay resource: "+key)
- var frozen=g.export_snapshot();g.get_view();g.candidates()
+ var frozen=g.export_snapshot();g.get_view();g.command_facts()
  t.check(g.state==frozen and g.RelicEffects.validate(g)=="","LOG quantity view is read-only and runtime-valid")
  t.check(t.action(g,"end").ok and g.state.relic_counters.rolling_log==3,"LOG quantity survives turns without ticking")
  # Real elite reward flow permits another copy even when already owned.
@@ -38,9 +38,9 @@ static func run(t) -> void:
  var old_count=int(g.state.relic_counters.get(dropped,1))
  t.check(dropped in ["rolling_log","intellect_cloak"],"LOG elite exhaustion freezes the rolled tier fallback")
  var pick=t.find_action(g,"reward",{"category":"relic"});var version=g.state.version
- t.check(pick.valid and g.dispatch(pick.id,version).ok and g.state.relic_counters[dropped]==old_count+1,"LOG existing owner can claim another elite fallback copy")
+ t.check(pick.valid and g.dispatch(g.command(pick.payload,version),version).ok and g.state.relic_counters[dropped]==old_count+1,"LOG existing owner can claim another elite fallback copy")
  frozen=g.export_snapshot()
- t.check(not g.dispatch(pick.id,version).ok and g.state==frozen,"LOG stale claim cannot duplicate collectible")
+ t.check(not g.dispatch(g.command(pick.payload,version),version).ok and g.state==frozen,"LOG stale claim cannot duplicate collectible")
  for kind in ["shop","treasure"]:
   g=Game.new(42);g.state.relics.append_array(g.Relics.shop_pool() if kind=="shop" else g.Relics.REWARDS);g.RelicEffects.gain(g,"rolling_log")
   g.state.room=g.state.rooms.filter(func(room):return room.kind==kind)[0].id

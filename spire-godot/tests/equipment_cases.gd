@@ -49,7 +49,7 @@ static func run(t) -> void:
   else:
    var before=JSON.stringify(g.state)
    t.check(not manual.valid and manual.reason.contains("不能徒手"),"TEMPLATE structural manual rejection "+template)
-   t.check(not g.dispatch(manual.id,g.state.version).ok and JSON.stringify(g.state)==before,"TEMPLATE blocked manual is atomic "+template)
+   t.check(not g.dispatch(g.command(manual.payload,g.state.version),g.state.version).ok and JSON.stringify(g.state)==before,"TEMPLATE blocked manual is atomic "+template)
    var card=t.hand_card(g,"slip")
    t.check(t.action(g,"card",{"uid":card.uid,"target":target.id}).ok and g._equipment(target.id).is_empty(),"TEMPLATE actual slip still works "+template)
 
@@ -93,7 +93,7 @@ static func run(t) -> void:
    t.check(plan.grade==(2 if final else 1) and plan.tier==(3 if final else 2),"POOL normal application retains requested tier; departure uses declared middle-grade tier three "+template)
    t.check(g.state.rng.deck==deck_rng and g.state.rng.equipment==equipment_rng,"POOL declaration does not draw card or material randomness")
    before=JSON.stringify(g.state)
-   g.get_view();g.candidates()
+   g.get_view();g.command_facts()
    t.check(JSON.stringify(g.state)==before,"POOL preview does not choose equipment or material")
    t.check(t.action(g,"end").ok,"POOL declared installation commits through real enemy turn "+template)
    var installed=g.state.equipment.filter(func(item):return item.source==enemy.id)[0]
@@ -131,11 +131,11 @@ static func run(t) -> void:
  var cut=t.find_action(g,"item_use",{"item":shard.id,"target":plastic.id})
  before=JSON.stringify(g.state)
  t.check(not cut.valid and cut.reason.contains("塑料"),"TOOL stone explicitly cannot cut plastic")
- t.check(not g.dispatch(cut.id,g.state.version).ok and JSON.stringify(g.state)==before,"TOOL incompatible attempt consumes no uses")
+ t.check(not g.dispatch(g.command(cut.payload,g.state.version),g.state.version).ok and JSON.stringify(g.state)==before,"TOOL incompatible attempt consumes no uses")
  t.check(t.action(g,"item_use",{"item":saw.id,"target":plastic.id}).ok and g._equipment(plastic.id).durability==1 and g._item(saw.id).uses==1 and g.state.energy==3,"TOOL saw cuts plastic through shared zero-energy action")
  t.check(g.state.encounter==0 and g.state.reward_count==0 and g.state.rest_left==6 and g.get_view().route.is_empty(),"PRACTICE no fake battle, rewards or route")
  for i in range(6): t.action(g,"end")
- t.check(g.state.phase=="cleared" and g.state.completed_rooms.is_empty() and g.candidates().all(func(c):return c.payload.kind=="item_discard"),"PRACTICE ends after six real rounds without tower progress; only universal item discard remains")
+ t.check(g.state.phase=="cleared" and g.state.completed_rooms.is_empty() and g.command_facts().all(func(c):return c.payload.kind=="item_discard"),"PRACTICE ends after six real rounds without tower progress; only universal item discard remains")
  t.check(g.validate()=="","PRACTICE final state valid")
 
 # docs/spec/equipment-query-seam.md「证据入口」: presence and count predicates over ordinary equipment in precise
@@ -208,19 +208,19 @@ static func release_projection(t) -> void:
  var target=g.add_fixture("ankle",10,10)
  var slip=preload("res://tests/curse_cases.gd").give(g,"slip")
  var before=g.export_snapshot()
- var c=g.get_view().candidates.filter(func(action):return action.payload.kind=="card" and action.payload.uid==slip.uid and action.payload.get("target","")==target.id and not action.payload.free)[0]
+ var c=g.get_view().display_facts.filter(func(action):return action.payload.kind=="card" and action.payload.uid==slip.uid and action.payload.get("target","")==target.id and not action.payload.free)[0]
  t.check(c.valid and c.release_preview.before==c.release_preview.after and not c.release_preview.modifiers.is_empty(),"RELEASE immune slip is an explicit zero-change preview, not a blocked method")
  t.check(g.export_snapshot()==before,"RELEASE projection changes no state, payment, logs or RNG")
  g.state.equipment.clear();g._discard_end()
  var collar=g._install_template("restriction_collar","neck",1,1,true,"fixture",3)
  var card=preload("res://tests/curse_cases.gd").give(g,"unlock")
  g.state.sure_cast=true
- c=g.get_view().candidates.filter(func(action):return action.payload.kind=="card" and action.payload.uid==card.uid and action.payload.get("target","")==collar.id and not action.payload.free)[0]
+ c=g.get_view().display_facts.filter(func(action):return action.payload.kind=="card" and action.payload.uid==card.uid and action.payload.get("target","")==collar.id and not action.payload.free)[0]
  t.check(c.valid and c.release_preview.headline=="已上锁 → 已开锁" and not c.release_preview.headline.contains("耐久"),"RELEASE lock-only equipment shows lock outcome without fake durability")
- t.check(g.dispatch(c.id,g.state.version).ok and not g._equipment(collar.id).locked,"RELEASE original unlock transaction still commits")
- c=g.get_view().candidates.filter(func(action):return action.payload.kind=="manual" and action.payload.target==collar.id)[0]
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and not g._equipment(collar.id).locked,"RELEASE original unlock transaction still commits")
+ c=g.get_view().display_facts.filter(func(action):return action.payload.kind=="manual" and action.payload.target==collar.id)[0]
  t.check(c.valid and c.release_preview.headline=="整件取下","RELEASE unlocked collar uses categorical removal preview")
- t.check(g.dispatch(c.id,g.state.version).ok and g._equipment(collar.id).is_empty(),"RELEASE categorical removal matches the actual lifecycle")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g._equipment(collar.id).is_empty(),"RELEASE categorical removal matches the actual lifecycle")
 
 static func precise_positions(t) -> void:
  var g=Game.new(42)

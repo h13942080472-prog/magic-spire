@@ -29,6 +29,7 @@ static func run(t) -> void:
  t.check(Book.card("unlock").free=="获得2层魔力预备。" and Book.card("unlock").face_requirements.free==["使用：手部"],"TERMS preparation retains hand eligibility without a casting roll")
  var metadata=Book.card("chain");metadata.face_keywords.bound[0].detail="changed";metadata.face_requirements.free.append("changed")
  t.check(not str(Book.card("chain")).contains("changed") and g.export_snapshot()==before,"TERMS reading and mutating projected copy cannot change state or shared terms")
+ card_keyword_deps_stable_ids(t)
  var spec=g.Cards.Rules.SPECS.mana_search.duplicate(true)
  g.Cards.Rules.SPECS.mana_search.self_faces.free.effects[0].amount=3
  g.Cards.Rules.SPECS.mana_search.free_max_levels.arms=1
@@ -43,8 +44,8 @@ static func copy_fixed_set_matches_full_entry(t) -> void:
  preload("res://tests/curse_cases.gd").give(g,"strain")
  var before=g.export_snapshot()
  var view=g.get_view()
- var candidates=g.candidates()
- var shown=battle_display_set(g,candidates)
+ var facts=g.command_facts()
+ var shown=battle_display_set(g,facts)
  var mismatch=[]
  for type in g.Cards.Rules.SPECS:
   var single=g.live_card_text(type)
@@ -55,12 +56,12 @@ static func copy_fixed_set_matches_full_entry(t) -> void:
  t.check(g.export_snapshot()==before and g.state.version==view.version,"COPY scenario 1 reads leave state, random domains and version unchanged")
 
 # S 按 契约声明的显示入口独立重算（与 game_view 的实现分开写）。
-static func battle_display_set(g, candidates: Array) -> Dictionary:
+static func battle_display_set(g, facts: Array) -> Dictionary:
  var shown={}
  for card in g.state.hand: shown[card.type]=true
  for type in g.state.reward_options: shown[type]=true
  for type in g.state.rest_cards: shown[type]=true
- for candidate in candidates:
+ for candidate in facts:
   var type=String(candidate.payload.get("type",""))
   if g.Cards.Rules.SPECS.has(type): shown[type]=true
  for row in g.Services.view(g).get("stock",[]):
@@ -72,6 +73,86 @@ static func battle_display_set(g, candidates: Array) -> Dictionary:
    var type=String(selected.get("type",option.get("type","")))
    if g.Cards.Rules.SPECS.has(type): shown[type]=true
  return shown
+
+static func card_text_func_body(name: String) -> String:
+ var handle=FileAccess.open("res://data/card_text.gd",FileAccess.READ)
+ if handle==null: return ""
+ var source=handle.get_as_text()
+ var start=source.find("func "+name+"(")
+ if start<0: return ""
+ var rest=source.substr(start)
+ var nxt=rest.find("func ",1)
+ var body=rest if nxt<0 else rest.substr(0,nxt)
+ var code=""
+ for line in body.split("\n"): code+=String(line).split("#")[0]+"\n"
+ return code
+
+static func card_text_func_call_count(body: String, name: String) -> int:
+ var needle=name+"("
+ var count=0
+ var from=0
+ while true:
+  var at=body.find(needle,from)
+  if at<0: break
+  count+=1
+  from=at+needle.length()
+ return count
+
+static func card_keyword_deps_stable_ids(t) -> void:
+ var keywords_body=card_text_func_body("keywords")
+ t.check(keywords_body!="" and card_text_func_call_count(keywords_body,"keyword_ids")==1,"DEPS keywords() calls keyword_ids exactly once")
+ t.check(keywords_body.find("_effect_terms(")<0 and keywords_body.find("_buff_terms(")<0 and keywords_body.find("unique_face(")<0 and keywords_body.find("Rules.exhausts(")<0 and keywords_body.find("ids.append")<0,"DEPS keywords() has no second SPECS/effect collector")
+ var Rules=Text.Rules
+ var g=Game.new(42)
+ var traits=g.B.CARD_TRAITS
+ var before=g.export_snapshot()
+ var rng_before=g.state.rng.duplicate(true)
+ var types=["strain","slip","crossed_legs","strong_elbow","magic_hand","pot_of_greed","mana_search"]
+ var recorded={}
+ for type in types:
+  recorded[type]={}
+  for free in [false,true]:
+   var side_traits=traits.get(type,{})
+   var kws_before=Text.keywords(type,free,side_traits)
+   var projection=[]
+   for term in kws_before:
+    t.check(term.has("name") and term.has("detail") and not term.has("id"),"DEPS keywords projection has name and detail without id: "+type+str(free))
+    projection.append({"name":term.name,"detail":term.detail})
+   var ids=Text.keyword_ids(type,free,side_traits)
+   var kws=Text.keywords(type,free,side_traits)
+   var slots=Rules.SPECS[type].get("target_slots",[]).duplicate()
+   var mode=Rules.face_mode(type,free)
+   t.check(ids is Array and ids.size()==kws.size() and ids.size()==projection.size(),"DEPS keyword_ids is a string array aligned with keywords: "+type+str(free))
+   for i in range(ids.size()):
+    t.check(typeof(ids[i])==TYPE_STRING and Text.TERMS.has(ids[i]),"DEPS keyword id belongs to TERMS keys: "+str(ids[i]))
+    t.check(kws[i].name==projection[i].name and kws[i].detail==projection[i].detail and not kws[i].has("id"),"DEPS keywords name/detail stay equal before TERMS mutate: "+type+str(free))
+   recorded[type][free]={"ids":ids.duplicate(),"slots":slots,"mode":mode}
+ t.check("strain" in recorded.strain[false].ids and recorded.strain[false].slots.is_empty() and recorded.strain[false].mode=="strain","DEPS strain bound ids contain strain, no target_slots, mode strain")
+ t.check(recorded.crossed_legs[false].slots==Rules.FOLLOW_THROUGH_REGIONS.legs,"DEPS crossed_legs bound target_slots equal FOLLOW_THROUGH_REGIONS.legs")
+ t.check(recorded.strong_elbow[false].slots==["upper_arm","forearm"],"DEPS strong_elbow target_slots are upper_arm and forearm")
+ t.check("follow_through" in recorded.magic_hand[false].ids,"DEPS magic_hand bound ids contain follow_through")
+ var ft=recorded.magic_hand[false].ids.find("follow_through")
+ t.check(Text.keywords("magic_hand",false,traits.get("magic_hand",{}))[ft].name=="超级顺延","DEPS magic_hand follow_through display name is super follow through")
+ var pot=Book.card("pot_of_greed")
+ t.check("exhaust" in recorded.pot_of_greed[false].ids and "exhaust" in recorded.pot_of_greed[true].ids,"DEPS pot_of_greed ids contain exhaust on both faces")
+ t.check(pot.face_keywords.bound==[Text.TERMS.exhaust] and pot.face_keywords.free==[Text.TERMS.exhaust],"DEPS pot face_keywords stay TERMS.exhaust without id")
+ t.check("search" in recorded.mana_search[false].ids and "search" in recorded.mana_search[true].ids,"DEPS mana_search ids contain search")
+ var originals={}
+ for key in ["strain","follow_through","exhaust"]:
+  var term=Text.TERMS[key]
+  originals[key]=term.name
+  term.name="__mutated_"+key+"__"
+ for type in types:
+  for free in [false,true]:
+   var side_traits=traits.get(type,{})
+   var ids=Text.keyword_ids(type,free,side_traits)
+   var slots=Rules.SPECS[type].get("target_slots",[])
+   var mode=Rules.face_mode(type,free)
+   t.check(ids==recorded[type][free].ids and slots==recorded[type][free].slots and mode==recorded[type][free].mode,"DEPS ids slots mode unchanged after TERMS name mutate: "+type+str(free))
+ for key in originals:
+  var restored=Text.TERMS[key]
+  restored.name=originals[key]
+ t.check(g.export_snapshot()==before and g.state.rng==rng_before,"DEPS keyword_ids reads leave snapshot and rng unchanged")
 
 static func mana_badges(t) -> void:
  var g=Game.new(42);g.state.pressure=75

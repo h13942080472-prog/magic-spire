@@ -19,8 +19,8 @@ static func run(t) -> void:
  for part in g.Character.PARTS:
   g=fresh();g.state.energy=20;g.state.mana=100
   var before=g.export_snapshot();var c=t.find_action(g,"attack",{"type":"witch_"+part,"form":0})
-  t.check(c.valid and c.cost==1 and c.mana==5 and not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"WITCH charge costs and stale rollback "+part)
-  t.check(g.dispatch(c.id,g.state.version).ok and g.state.witch_charges[part]==1 and g.state.mana==95 and g.state.energy==19,"WITCH real charge "+part)
+  t.check(c.valid and c.cost==1 and c.mana==5 and not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"WITCH charge costs and stale rollback "+part)
+  t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.witch_charges[part]==1 and g.state.mana==95 and g.state.energy==19,"WITCH real charge "+part)
  for part in ["hand","mouth","mind"]:
   for layers in [0,2,4]:
    g=fresh();g.state.energy=20;g.state.mana=100;g.state.witch_charges={"hand":3,"mouth":3,"legs":4,"mind":3};g.state.witch_charges[part]=layers
@@ -28,7 +28,7 @@ static func run(t) -> void:
    g.state.enemies[0].hp=1000.0;g.state.enemies[0].max_hp=1000.0
    var c=t.find_action(g,"attack",{"type":"witch_"+part,"form":1})
    var expected=(6 if part=="hand" else 4)*(layers+1)
-   t.check(c.payload.hits==layers+1 and g.dispatch(c.id,g.state.version).ok and g.state.enemies[0].hp==1000-expected and g.state.witch_charges==expected_charges,"WITCH multi-hit damage consumes all and only the releasing part's charge "+str([part,layers]))
+   t.check(c.payload.hits==layers+1 and g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.enemies[0].hp==1000-expected and g.state.witch_charges==expected_charges,"WITCH multi-hit damage consumes all and only the releasing part's charge "+str([part,layers]))
    t.check(t.find_action(g,"attack",{"type":"witch_"+part,"form":1}).payload.hits==1,"WITCH next release returns to one base hit "+str([part,layers]))
  g=fresh();g.state.witch_charges.hand=2;g.state.witch_focus=3;g.state.enemies[0].hp=1000.0;g.state.enemies[0].max_hp=1000.0
  t.check(t.action(g,"attack",{"type":"witch_hand","form":1}).ok and g.state.enemies[0].hp==973 and g.state.witch_focus==0,"WITCH focus applies to every hit and is consumed once")
@@ -91,16 +91,16 @@ static func _cards_and_flows(t) -> void:
  t.check(t.action(g,"card",{"uid":card.uid,"free":false}).ok and g.state.mana==30 and g.state.energy==energy+2,"WITCH conversion pays twenty for two energy")
  t.check(g.B.card_info("witch_mana_conversion")[1].contains("能量＋2"),"WITCH conversion text matches actual gain")
  g=fresh();card=give(t,g,"mana_search");var candidate=t.find_action(g,"card",{"uid":card.uid,"free":false});var mana=g.state.mana
- t.check(candidate.cost==0 and candidate.mana==5 and g.dispatch(candidate.id,g.state.version).ok and g.state.mana==mana-5 and g.state.exhaust.any(func(c):return c.uid==card.uid),"WITCH search zero energy five mana and exhaust")
+ t.check(candidate.cost==0 and candidate.mana==5 and g.dispatch(g.command(candidate.payload,g.state.version),g.state.version).ok and g.state.mana==mana-5 and g.state.exhaust.any(func(c):return c.uid==card.uid),"WITCH search zero energy five mana and exhaust")
  g=fresh();g.state.pressure=45;card=give(t,g,"pleasure_conversion");energy=g.state.energy
  candidate=t.find_action(g,"card",{"uid":card.uid,"free":false})
- t.check(g.dispatch(candidate.id,g.state.version).ok and g.state.energy==energy-candidate.cost+3,"WITCH pleasure conversion uses fifteen threshold")
+ t.check(g.dispatch(g.command(candidate.payload,g.state.version),g.state.version).ok and g.state.energy==energy-candidate.cost+3,"WITCH pleasure conversion uses fifteen threshold")
  for free_face in [false,true]:
   g=fresh();g.state.energy=10;card=give(t,g,"ready_to_strike");var chosen=t.hand_card(g,"witch_slip")
   t.check(t.action(g,"card",{"uid":card.uid,"free":free_face,"hand_uid":chosen.uid}).ok and g.state.exhaust.any(func(c):return c.uid==chosen.uid),"WITCH ready consumes chosen hand card")
   if free_face:
    candidate=t.find_action(g,"attack",{"type":"witch_mouth","form":1})
-   t.check(candidate.cost==0 and g.dispatch(candidate.id,g.state.version).ok and t.find_action(g,"attack",{"type":"witch_hand","form":0}).cost==1,"WITCH discount applies once to any basic action")
+   t.check(candidate.cost==0 and g.dispatch(g.command(candidate.payload,g.state.version),g.state.version).ok and t.find_action(g,"attack",{"type":"witch_hand","form":0}).cost==1,"WITCH discount applies once to any basic action")
   else: t.check(g.state.witch_focus==3,"WITCH ready bound grants three focus")
  g=fresh();g.state.energy=10;card=give(t,g,"magic_hand")
  t.check(t.action(g,"card",{"uid":card.uid,"free":true}).ok,"WITCH magic hand free casts normally")
@@ -119,7 +119,7 @@ static func _cards_and_flows(t) -> void:
  t.check(t.action(g,"card",{"uid":card.uid,"free":true}).ok,"WITCH accumulation activates")
  g.state.enemies[0].hp=1000.0;g.state.enemies[0].max_hp=1000.0
  candidate=t.find_action(g,"attack",{"type":"witch_hand","form":1})
- t.check(candidate.brief.begins_with("11.7") and g.dispatch(candidate.id,g.state.version).ok and is_equal_approx(g.state.enemies[0].hp,988.3),"WITCH accumulation uses mana after payment and preview agrees")
+ t.check(candidate.brief.begins_with("11.7") and g.dispatch(g.command(candidate.payload,g.state.version),g.state.version).ok and is_equal_approx(g.state.enemies[0].hp,988.3),"WITCH accumulation uses mana after payment and preview agrees")
  g.Cards.grant_buff(g,"henshin_free");g.state.mana=100
  t.check(g.Cards.bind_payload(g,"witch_strain").preview.damage_buff_multiplier==4.0,"WITCH accumulation and henshin also affect capture escape damage")
  t.check(t.action(g,"attack",{"type":"witch_mind","form":1}).ok and is_equal_approx(g.state.enemies[0].hp,972.7),"WITCH compatible henshin doubles another body part's basic damage")
@@ -129,7 +129,7 @@ static func _cards_and_flows(t) -> void:
  for seed_value in range(8):
   g=fresh(seed_value);g.state.pressure=56.25;g.state.witch_charges.mind=2;g.state.witch_focus=3
   var before=g.export_snapshot();candidate=t.find_action(g,"attack",{"type":"witch_mind","form":1})
-  t.check(g.dispatch(candidate.id,g.state.version).ok,"WITCH probability test commits action")
+  t.check(g.dispatch(g.command(candidate.payload,g.state.version),g.state.version).ok,"WITCH probability test commits action")
   var success=g.state.logs.filter(func(row):return row.data.has("spell")).back().data.spell.success
   outcomes[success]=true
   if not success: t.check(g.state.witch_charges==before.witch_charges and g.state.witch_focus==2 and g.state.enemies==before.enemies and g.state.mana==before.mana-2.5,"WITCH failed release refunds half mana, retains charges and loses one focus")
@@ -217,7 +217,7 @@ static func _revision(t) -> void:
  t.check(t.action(g,"card",{"uid":accumulation.uid,"free":true}).ok,"WITCH accumulation activation for mixed mana")
  g.state.temporary_mana=20;g.state.enemies[0].hp=1000.0;g.state.enemies[0].max_hp=1000.0
  var attack=t.find_action(g,"attack",{"type":"witch_hand","form":1})
- t.check(attack.brief.begins_with("9.9") and g.dispatch(attack.id,g.state.version).ok and is_equal_approx(g.state.enemies[0].hp,990.1),"WITCH temporary mana contributes after payment and matches preview")
+ t.check(attack.brief.begins_with("9.9") and g.dispatch(g.command(attack.payload,g.state.version),g.state.version).ok and is_equal_approx(g.state.enemies[0].hp,990.1),"WITCH temporary mana contributes after payment and matches preview")
  var spec=g.Cards.Rules.SPECS.witch_magic_hand
  t.check(spec.cost==1 and spec.mana_cost==30 and spec.free_mana_cost==30 and spec.hits==4 and spec.follow_through_scope=="body","WITCH magic hand keeps super follow-through and new costs")
  t.check(g.Cards.Rules.SPECS.magic_hand.hits==3 and g.Cards.Rules.SPECS.magic_hand.mana_cost==20,"WITCH original magic hand unchanged")
@@ -227,11 +227,11 @@ static func _revision(t) -> void:
  var hand=give(t,g,"magic_hand")
  var cast=t.find_action(g,"card",{"uid":hand.uid,"free":false,"target":target.id})
  var before=g.export_snapshot()
- t.check(not g.dispatch(cast.id,g.state.version-1).ok and g.state==before,"WITCH revised magic hand stale target refuses atomically")
- t.check(g.dispatch(cast.id,g.state.version).ok and g._equipment(target.id).is_empty() and g.tier(g._equipment(other.id).durability,other.maximum)==2 and g.state.mana==70,"WITCH magic hand actually lowers four tiers across body fallback for thirty mana")
+ t.check(not g.dispatch(g.command(cast.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"WITCH revised magic hand stale target refuses atomically")
+ t.check(g.dispatch(g.command(cast.payload,g.state.version),g.state.version).ok and g._equipment(target.id).is_empty() and g.tier(g._equipment(other.id).durability,other.maximum)==2 and g.state.mana==70,"WITCH magic hand actually lowers four tiers across body fallback for thirty mana")
  t.check(g.state.exhaust.any(func(c):return c.uid==hand.uid) and g.state.card_chain.is_empty(),"WITCH magic hand finishes its four-stage chain and exhausts once")
  var real=preload("res://core/game.gd").new(42,false,"equipment",true,false,25,false,false,"witch")
  var choice=t.find_action(real,"departure",{"op":"choose","option":"boss"})
  var chosen=real.state.departure.options.filter(func(option):return option.id=="boss")[0].relics[0]
  t.check(choice.valid and choice.detail.contains("魔女护符") and not choice.detail.contains("余烬护符"),"WITCH opening exchange names the correct starter relic")
- t.check(real.dispatch(choice.id,real.state.version).ok and "witch_amulet" not in real.state.relics and chosen in real.state.relics,"WITCH opening exchange actually replaces witch amulet")
+ t.check(real.dispatch(real.command(choice.payload,real.state.version),real.state.version).ok and "witch_amulet" not in real.state.relics and chosen in real.state.relics,"WITCH opening exchange actually replaces witch amulet")

@@ -8,7 +8,7 @@ static func run(t) -> void:
  t.check(g.state.phase=="battle" and g.state.enemies[0].hp==48 and g.Enemies.TYPES.rope_mass.strength==3,"MASS playable strong individual with independent strength")
  var book=preload("res://data/encyclopedia.gd").entries().filter(func(e):return e.category=="enemies" and e.id=="rope_mass")[0]
  t.check(book.group=="强怪" and book.text.contains("分裂") and not book.text.contains("强度"),"MASS encyclopedia shows actual behavior without backend strength")
- var before=g.export_snapshot();g.get_view();g.candidates()
+ var before=g.export_snapshot();g.get_view();g.command_facts()
  t.check(g.state==before and g._enemy(id).intent.kind=="charge","MASS preparation preview is readonly")
  var twin=Save.roundtrip(t,g,"mass charge")
  Save.step_both(t,g,twin,"end")
@@ -44,7 +44,7 @@ static func run(t) -> void:
  g._enemy(id).hp=1
  var candidate=t.find_action(g,"attack",{"type":"strike","enemy":id})
  var version=g.state.version
- t.check(g.dispatch(candidate.id,version).ok,"MASS lethal formal attack commits")
+ t.check(g.dispatch(g.command(candidate.payload,version),version).ok,"MASS lethal formal attack commits")
  var children=g.state.enemies.filter(func(e):return not e.gone)
  t.check(children.size()==2 and children.all(func(e):return e.type=="rope" and e.hp==g.Enemies.TYPES.rope.hp and e.stage==1 and e.spawned_from==id and e.acted_round==g.state.round),"MASS death yields exactly two fresh weak instances")
  t.check(g.state.phase=="battle" and g.state.reward_count==0 and g._enemy(id).defeated and g._enemy(id).intent.is_empty(),"MASS death cancels old plan and suppresses premature reward")
@@ -52,7 +52,7 @@ static func run(t) -> void:
  t.check(g.get_view().action_log.any(func(l):return l.cue=="enemy.split" and l.text.contains("下一回合")) and g.get_view().enemies.filter(func(e):return not e.gone).all(func(e):return e.intent_icons.any(func(icon):return icon.kind=="wait")),"MASS split result and delayed entry visible")
  before=g.export_snapshot()
  g._defeat_enemy(g._enemy(id))
- t.check(g.state==before and not g.dispatch(candidate.id,version).ok and g.state==before,"MASS repeated death and stale action cannot spawn twice")
+ t.check(g.state==before and not g.dispatch(g.command(candidate.payload,version),version).ok and g.state==before,"MASS repeated death and stale action cannot spawn twice")
  twin=Save.roundtrip(t,g,"mass split before first child action")
  var invalid=g.export_snapshot();invalid.enemies.pop_back()
  t.check(not g.restore_snapshot(invalid).ok and g.state==before,"MASS missing saved child rejected atomically")

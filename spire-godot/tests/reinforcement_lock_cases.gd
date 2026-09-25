@@ -25,5 +25,5 @@ static func run(t) -> void:
  enemy.stage=4;enemy.intent={"kind":"tighten","target":item.id,"text":"加固拘束具","delayed":false}
  var candidate=t.find_action(g,"end")
  var before=g.export_snapshot()
- t.check(not g.dispatch(candidate.id,g.state.version-1).ok and g.state==before,"REINFORCE stale turn cannot lock equipment")
- t.check(g.dispatch(candidate.id,g.state.version).ok and g._equipment(item.id).locked,"REINFORCE formal enemy turn locks tier-three equipment")
+ t.check(not g.dispatch(g.command(candidate.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"REINFORCE stale turn cannot lock equipment")
+ t.check(g.dispatch(g.command(candidate.payload,g.state.version),g.state.version).ok and g._equipment(item.id).locked,"REINFORCE formal enemy turn locks tier-three equipment")

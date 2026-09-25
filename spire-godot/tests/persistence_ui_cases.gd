@@ -1,6 +1,7 @@
 extends RefCounted
 const Store=preload("res://core/save_store.gd")
 const Cases=preload("res://tests/persistence_cases.gd")
+const Queries=preload("res://ui/target_queries.gd")
 
 static func boot(t,store) -> void:
  var old=t.ui
@@ -86,7 +87,7 @@ static func run(t) -> void:
  await t.flip(ui.view.hand[0].uid)
  ui.render();await t.frames()
  t.check(FileAccess.get_file_as_string(store.path("tower"))==file_before,"SAVE UI flipping and rendering never write save")
- var c=ui.view.candidates[0];ui._submit(c,ui.view.version-1);await t.frames()
+ var c=ui.view.display_facts[0];ui.command_router.emit(String(c.payload.get("kind","")),c,ui.view.version-1);await t.frames()
  t.check(FileAccess.get_file_as_string(store.path("tower"))==file_before and store.writes==writes,"SAVE UI rejected stale action never overwrites save")
  await boot(t,store);ui=t.ui
  var disk=store.read_slot("tower")
@@ -112,13 +113,13 @@ static func run(t) -> void:
  var writes_before=store.writes
  await button(t,"OpenSaves");await button(t,"SaveCurrent");await close_saves(t)
  t.check(store.writes==writes_before+1 and store.read_slot("tower").snapshot==saved,"SAVE UI the explicit write freezes the scene entry before the chain")
- c=ui.actions.find("card",{"uid":card.uid,"slot":"wrist","target":a.id})
- await t.start_drag(card.uid,"wrist");await t.release_target(await t.reveal_drop_target(c.id))
+ c=Queries.find(ui.view,"card",{"uid":card.uid,"slot":"wrist","target":a.id})
+ await t.start_drag(card.uid,"wrist");await t.release_target(await t.reveal_drop_target(c.key))
  t.check(not ui.view.card_chain.is_empty() and store.writes==writes_before+1 and store.read_slot("tower").snapshot==saved,"SAVE UI a pending continuation is not a progress point and keeps the frozen entry")
  await boot(t,store);ui=t.ui
  t.check(ui.view.card_chain.is_empty() and ui.view.energy==3 and Cases.same(saved,ui.game.state),"SAVE UI partial card is undone when scene restarts")
- c=ui.actions.find("card",{"uid":card.uid,"slot":"wrist","target":a.id})
- await t.start_drag(card.uid,"wrist");await t.release_target(await t.reveal_drop_target(c.id))
+ c=Queries.find(ui.view,"card",{"uid":card.uid,"slot":"wrist","target":a.id})
+ await t.start_drag(card.uid,"wrist");await t.release_target(await t.reveal_drop_target(c.key))
  t.check(not ui.view.card_chain.is_empty(),"SAVE UI replay first hit from restored scene")
  await t.capture("ui-57-resumed-card.png")
  t.check(await t.click("chain",{"target":target.id}) and ui.view.card_chain.is_empty() and ui.view.energy==2,"SAVE UI resumed second hit no duplicate charge")
@@ -134,9 +135,9 @@ static func run(t) -> void:
  t.check(Cases.same(saved,ui.game.state),"SAVE UI event returns to its entry with original choices")
  t.check(await t.click("event",{"action":"choose","choice":"purify"}),"SAVE UI event choice can be replayed from entry")
  await preload("res://tests/event_ui_cases.gd").open_selection(t,"remove")
- var removal=ui.actions.select("event",{"action":"choose"})[0]
+ var removal=Queries.select(ui.view,"event",{"action":"choose"})[0]
  var deck_before=ui.game.state.deck.size()
- await preload("res://tests/event_ui_cases.gd").press(t,ui.candidate_buttons[removal.id])
+ await preload("res://tests/event_ui_cases.gd").press(t,ui.candidate_buttons[removal.key])
  t.check(ui.game.state.deck.size()==deck_before-1 and ui.view.room_event.stage=="result","SAVE UI resumed event removes the selected real card once")
  saved=ui.game.restart_snapshot()
  await boot(t,store);ui=t.ui
@@ -158,14 +159,16 @@ static func run(t) -> void:
  t.check(ui.show_home and not await t.click("end") and FileAccess.get_file_as_string(store.path("tower"))==file_before,"SAVE UI failed continue remains on homepage and cannot overwrite incompatible file through hidden gameplay")
  ui.restart(42);await t.frames()
  t.check(not ui.save_suspended and not ui.save_failed and store.read_slot("tower").ok,"SAVE UI explicit restart creates a usable new save after incompatible file")
- # The file may change after an enabled Continue button was drawn.
- for damage in ["revision","structure","corrupt"]:
+ # The file may change after an enabled Continue button was drawn. A damaged run identity is a
+ # type error, not a missing key: the missing key is the accepted legacy save (persistence_cases).
+ for damage in ["revision","structure","run_identity","corrupt"]:
   ui.restart(42);await t.frames()
   await button(t,"OpenSaves")
   saved=ui.game.export_snapshot()
   var invalid=saved.duplicate(true)
   if damage=="revision": invalid.erase("save_revision")
   elif damage=="structure": invalid.erase("mana")
+  elif damage=="run_identity": invalid.initial_seed="42"
   var bytes="broken" if damage=="corrupt" else Store.pack(invalid)
   file=FileAccess.open(store.path("tower"),FileAccess.WRITE);file.store_string(bytes);file.close()
   if damage!="revision":

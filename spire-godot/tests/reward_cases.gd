@@ -28,7 +28,7 @@ static func run(t) -> void:
  for type in ["focus","tear","chain","peel","double_unlock"]:
   g=setup();var card=give(t,g,type)
   var before=JSON.stringify(g.state)
-  g.get_view();g.candidates()
+  g.get_view();g.command_facts()
   t.check(JSON.stringify(g.state)==before,"REWARD new card preview is readonly "+type)
   var energy=g.state.energy;var mana=g.state.mana;var hands=g.state.hand.size()
   t.check(play(t,g,card,"thigh").ok and g.state.energy==energy-g.Cards.Rules.SPECS[type].cost and g.state.mana==mana,"REWARD free branch pays listed energy only "+type)
@@ -85,7 +85,7 @@ static func run(t) -> void:
  t.check(play(t,g,card,"wrist",a.id).ok and g.state.card_chain.is_empty(),"REWARD peel automatically completes three hits")
  var sequence=preload("res://tests/follow_through_cases.gd").hits(g)
  t.check(sequence.size()==3 and sequence.all(func(hit):return hit.target==a.id) and g._equipment(b.id).durability==6 and g._equipment(c.id).durability==6,"REWARD surviving initial target keeps all three segments")
- t.check(g.state.energy==1 and not g.dispatch(action.id,version).ok,"REWARD pays once and stale submission cannot replay card")
+ t.check(g.state.energy==1 and not g.dispatch(g.command(action.payload,version),version).ok,"REWARD pays once and stale submission cannot replay card")
  g=setup();a=g.add_fixture("wrist",6);b=g.add_fixture("wrist",6);c=g.add_fixture("wrist",6)
  g.state.pressure=95;g.state.pressure_sources=[preload("res://tests/pressure_cases.gd").source("chain_pulse","slip",10)]
  card=give(t,g,"peel");play(t,g,card,"wrist",a.id)
@@ -169,7 +169,7 @@ static func run(t) -> void:
  # Invalid continuation is rejected before any damage or cleanup can occur.
  g=setup();g.state.card_chain={"type":"chain","slot":"wrist","remaining":99,"mode":"strain"}
  before=JSON.stringify(g.state)
- t.check(not g.dispatch("anything",g.state.version).ok and JSON.stringify(g.state)==before,"REWARD malformed multihit rejected atomically")
+ t.check(not g.dispatch(g.command({"kind":"card","uid":"anything"},g.state.version),g.state.version).ok and JSON.stringify(g.state)==before,"REWARD malformed multihit rejected atomically")
 
 static func reward_sampling(t) -> void:
  var rules=Game.Cards.Rules
@@ -265,7 +265,7 @@ static func configured_effects(t) -> void:
  t.check(g.escape_preview(g._equipment(a.id),"strain",5).damage>=0,"CONFIG negative in-hand modifier cannot turn damage into repair")
  g.Cards.Rules.SPECS.test_power.free_effects=[{"op":"unsupported","amount":1}]
  var before=g.state.duplicate(true)
- t.check(not g.dispatch("anything",g.state.version).ok and g.state==before,"CONFIG unsupported operation rejected without mutation")
+ t.check(not g.dispatch(g.command({"kind":"card","uid":"anything"},g.state.version),g.state.version).ok and g.state==before,"CONFIG unsupported operation rejected without mutation")
  g.Cards.Rules.SPECS=cards;g.B.CARD_NAMES=names;g.B.CARD_INFO=info
  for pair in [["test_charge","break_bracer"],["test_mana","ember_crystal"],["test_pose","turn_ribbon"]]:
   g.Relics.TYPES[pair[0]]=relics[pair[1]].duplicate(true)
@@ -326,7 +326,7 @@ static func resource_feedback(t) -> void:
  mana=result.get("resource_feedback",[]).filter(func(event):return event.field=="mana")
  t.check(result.ok and g.state.mana==60 and mana.size()==1 and mana[0].before==50 and mana[0].after==60 and mana[0].source==g.Relics.TYPES.ember.name and g._resource_feedback==null,"FX preparation ending reports recovery with structured relic source and clears receipt")
  var before=g.state.duplicate(true)
- result=g.dispatch("invalid",g.state.version)
+ result=g.dispatch(g.command({"kind":"card","uid":"invalid"},g.state.version),g.state.version)
  t.check(not result.ok and not result.has("resource_feedback") and g.state==before,"FX rejected action has no visual receipt")
 
 static func card_feedback(t) -> void:
@@ -339,7 +339,7 @@ static func card_feedback(t) -> void:
  t.check(result.ok and "discard" in kinds and "shuffle" in kinds and "draw" in kinds and kinds.find("discard")<kinds.find("shuffle") and kinds.find("shuffle")<kinds.find("draw"),"CARD FX preserves discard shuffle draw order even for returning cards")
  t.check(events.filter(func(event):return event.kind=="draw").size()==g.state.hand.size(),"CARD FX records only cards actually drawn")
  var stable=g.export_snapshot()
- var rejected=g.dispatch("missing",g.state.version)
+ var rejected=g.dispatch(g.command({"kind":"card","uid":"missing"},g.state.version),g.state.version)
  t.check(not rejected.ok and not rejected.has("card_feedback") and g.state==stable,"CARD FX rejected action cannot leak or replay transfers")
  var card=g.state.hand[0]
  result=t.action(g,"card",{"uid":card.uid,"free":true})

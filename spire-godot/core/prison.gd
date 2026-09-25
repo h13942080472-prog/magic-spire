@@ -190,10 +190,12 @@ static func end_turn(g) -> void:
  g.state.overloaded=false; g.state.overload_count=0; g.state.energy=0
  g._emit("event","紫发狱警打开牢门，例行巡视开始。可以接受检查，或立即反抗。")
 
+# 监狱显示点的事实构造（批 R5：行生产转发改显示事实构建）：形状恒为 prison＋action，extra 只带显示所需的
+# 非提交字段（site／direction／steps／wall_warning 等），提交身份由 command_params 投影。
 static func add(out: Array, g, action: String, label: String, copy, cost: int=0, reason: String="", extra: Dictionary={}) -> void:
  var payload={"kind":"prison","action":action}
  payload.merge(extra)
- g._candidate(out,payload,label,copy,cost,0,reason,"","prison")
+ out.append(g._fact(payload,label,copy,cost,0.0,reason,"","prison"))
 
 # R3（docs/ondemand-copy.md §11.5）：Prison.add 各站点文案的 builder，正文留在本模块，路由只做分派。
 static func enter_detail(_g, _args: Dictionary) -> String:
@@ -217,21 +219,23 @@ static func key_detail(_g, _args: Dictionary) -> String:
 static func door_exit_detail(_g, _args: Dictionary) -> String:
  return "自行开锁后速度须至少1；狱警钥匙路线不检查速度。点击离开时重新判定。"
 
-static func candidates(g, out: Array) -> void:
+# 监狱显示事实（批 R5：行生产转发改显示事实构建，docs/spec/candidate-removal.md §2.1 T5／T8）。
+static func facts(g) -> Array:
+ var out=[]
  if g.state.phase=="captured":
   var enter_args={"security":g.state.security}
   add(out,g,"enter","进入牢房",{"kind":"prison.enter","args":enter_args,"fallback":enter_detail(g,enter_args)})
-  return
+  return out
  if g.state.phase=="inspection":
   var stage=g.state.prison.stage
   var text={"arrival":["inspect","接受检查"],"result":["accept","让她继续"],"done":["resume","返回牢房"]}[stage]
   var stage_args={"stage":stage}
   add(out,g,text[0],text[1],{"kind":"prison.inspection","args":stage_args,"fallback":inspection_detail(g,stage_args)})
   add(out,g,"resist","反抗狱警",{"kind":"prison.resist","args":{},"fallback":resist_detail(g,{})})
-  return
- if g.state.phase!="prison": return
+  return out
+ if g.state.phase!="prison": return out
  var p=g.state.prison
- Space.candidates(g,out)
+ out.append_array(Space.facts(g))
  var kick=g.kick_profile()
  var reason=""
  if "vent" not in p.found: reason="先探索找到通风口。"
@@ -248,12 +252,22 @@ static func candidates(g, out: Array) -> void:
  if reason=="" and not p.key and g.movement_profile().speed<1: reason="自行开锁逃离需要行动速度至少1；请先站起。"
  if reason=="": reason=capacity_reason(g)
  add(out,g,"door_exit","离开牢门",{"kind":"prison.door_exit","args":{},"fallback":door_exit_detail(g,{})},0,reason)
+ out.append_array(unlock_facts(g))
+ return out
+
+# 牢门解锁事实（手牌域的手牌可用性输入，docs/spec/candidate-removal.md §2.1 T5／T8；批 R3）：
+# 手牌上屏的术式解锁牌可用性与牢门显示点共用同一份事实。
+static func unlock_facts(g) -> Array:
+ var facts=[]
+ if g.state.phase!="prison": return facts
+ var p=g.state.prison
  for card in g.state.hand:
   if g.Cards.Rules.SPECS[card.type].mode!="unlock": continue
-  reason="牢门已经打开。" if p.door_open else ("需要先到牢门前。" if not Space.at(g,"door") else g.Cards.body_reason(g,card.type))
+  var reason="牢门已经打开。" if p.door_open else ("需要先到牢门前。" if not Space.at(g,"door") else g.Cards.body_reason(g,card.type))
   var payload={"kind":"prison","action":"unlock","uid":card.uid,"type":card.type,"target":"prison_door","slot":"wrist","mode":"unlock","free":false}
   var door_args={"type":card.type}
-  g._candidate(out,payload,g.B.CARD_NAMES[card.type]+" · 牢门",{"kind":"prison.unlock_door","args":door_args,"fallback":unlock_door_detail(g,door_args)},g.Cards.energy_cost(g,card.type,false),g.Cards.face_mana(g,card.type,false),reason,"","prison")
+  facts.append(g._fact(payload,g.B.CARD_NAMES[card.type]+" · 牢门",{"kind":"prison.unlock_door","args":door_args,"fallback":unlock_door_detail(g,door_args)},g.Cards.energy_cost(g,card.type,false),g.Cards.face_mana(g,card.type,false),reason,"","prison"))
+ return facts
 
 static func capacity_reason(g) -> String:
  return "随身道具超出容量，请在道具栏使用或放弃多出的工具。" if g.carried_items()>g.item_capacity() else ""

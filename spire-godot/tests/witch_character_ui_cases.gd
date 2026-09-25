@@ -2,6 +2,7 @@ extends RefCounted
 const Click=preload("res://tests/interface_ui_cases.gd")
 const Art=preload("res://ui/pixel_art.gd")
 const Portrait=preload("res://ui/equipment_portrait.gd")
+const Queries=preload("res://ui/target_queries.gd")
 
 static func run(t) -> void:
  var ui=t.ui
@@ -22,7 +23,7 @@ static func run(t) -> void:
  var sidebar=ui.find_child("EquipmentPortrait",true,false)
  t.check(not hero.fixed_portrait and hero.get_node("HeroPose").texture==Art.WITCH_POSES.stand and sidebar.texture==Portrait.WITCH_SIDEBAR and not ui.view.body_groups.any(func(body):return body.id=="special_2"),"WITCH UI uses its standing and sidebar art and removes the incompatible body region")
  var button=ui.find_child("BasicAttack_witch_hand",true,false)
- t.check(button!=null and ui.actions.select("attack").all(func(c):return c.payload.get("witch_action",false)),"WITCH UI replaces original attacks with four paired basic actions")
+ t.check(button!=null and Queries.select(ui.view,"attack").all(func(c):return c.payload.get("witch_action",false)),"WITCH UI replaces original attacks with four paired basic actions")
  t.check(await t.click("attack",{"type":"witch_hand","form":0}),"WITCH UI charge submits the real action")
  t.check(ui.game.state.witch_charges.hand==1 and ui.view.statuses.any(func(row):return row.id=="witch_charge_hand" and row.value=="1层"),"WITCH UI charge count updates in status")
  t.check(await t.click("attack",{"type":"witch_hand","form":0}) and ui.game.state.witch_charges.hand==2,"WITCH UI builds multiple layers through real actions")

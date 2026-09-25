@@ -28,7 +28,7 @@ static func run(t) -> void:
  g=Game.new(42);g.state.equipment.clear();g.state.posture="lie";g._gain_tool("shard");tool=g.state.items[0]
  var c=t.find_action(g,"item_install",{"item":tool.id,"mount":"high_wall"})
  t.check(c.valid and c.payload.operator=="foot","HEIGHT lying toes can lift tool to high mount")
- t.check(g.dispatch(c.id,g.state.version).ok and g.state.energy==2,"HEIGHT toe high installation pays once")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.energy==2,"HEIGHT toe high installation pays once")
  g.add_fixture("toes",4);before=g.export_snapshot()
  t.check(not t.action(g,"item_retrieve",{"item":tool.id}).ok and g.export_snapshot()==before,"HEIGHT toe restraint prevents high retrieval without losing tool")
  for e in g.equipment_at("toes"): e.durability=0

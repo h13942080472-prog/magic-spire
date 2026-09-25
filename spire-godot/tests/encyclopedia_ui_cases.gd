@@ -334,8 +334,54 @@ static func run(t) -> void:
  await t.close_information()
  t.check(ui.show_home and not ui.show_encyclopedia,"BOOK closes back to homepage")
  ui.persistence_enabled=false;ui.feedback_duration=0.04
+ await card_terms(t)
  await static_cards(t)
  await character_catalog(t)
+
+# Encyclopedia faces have no physical instance: both sides must show the metadata terms of the
+# currently drawn face, one box each, without covering the card or intercepting its own click
+# (docs/spec/card-terms.md「接口」「失败语义」).
+static func card_terms(t) -> void:
+ var ui=t.ui
+ var Interface=preload("res://tests/interface_ui_cases.gd")
+ var Keys=preload("res://tests/keyboard_ui_cases.gd")
+ var Pointer=preload("res://tests/target_sidebar_ui_cases.gd")
+ ui.restart(42);await t.frames()
+ ui._open_drawer("show_encyclopedia");await t.frames()
+ await Click.press(t,"EncyclopediaCategory_cards")
+ var book=ui.find_child("Encyclopedia",true,false)
+ book.show_entry(book.rows.filter(func(row):return row.category=="cards" and row.id=="mana_search")[0]);await t.frames()
+ var face=ui.find_child("DisplayCard_encyclopedia_mana_search",true,false)
+ t.check(face!=null and not face.single_face,"TERMS UI encyclopedia sample card has two faces")
+ if face==null: return
+ var bound=Interface.pinned_terms("mana_search","bound");var free=Interface.pinned_terms("mana_search","free")
+ t.check(bound.size()==1 and free.size()==2 and bound!=free,"TERMS UI encyclopedia sample faces carry different term sets")
+ var before=ui.game.export_snapshot();var version=ui.view.version
+ await t.move_mouse(Vector2(70,300));await t.frames()
+ var anchor=face.get_global_rect()
+ await t.move_mouse(anchor.get_center());await t.frames()
+ var popup=ui.find_child("TermExplanation",true,false)
+ t.check(popup!=null and Interface.term_boxes(popup)==bound,"TERMS UI encyclopedia hover renders one box per bound term in metadata order: "+str(Interface.term_boxes(popup)))
+ var boxes=popup.get_child(0).get_children().filter(func(node):return node is PanelContainer) if popup!=null else []
+ t.check(popup!=null and boxes.size()==bound.size(),"TERMS UI encyclopedia box count equals the bound face term count")
+ var rect=popup.get_global_rect() if popup!=null else Rect2()
+ t.check(popup!=null and not rect.intersects(anchor) and Rect2(0,0,1600,900).encloses(rect),"TERMS UI term boxes clear the anchor card and stay inside the viewport")
+ await Pointer.press(t,face);await t.frames()
+ t.check(ui.modal_region()!=null,"TERMS UI real click on the hovered card still opens its own surface")
+ await Keys.tap(t,KEY_ESCAPE);await t.frames()
+ t.check(ui.modal_region()==null and ui.show_encyclopedia,"TERMS UI escape closes only the card surface")
+ await t.move_mouse(Vector2(70,300));await t.frames()
+ face.flip_requested.emit();await t.frames()
+ await t.move_mouse(face.get_global_rect().get_center());await t.frames()
+ popup=ui.find_child("TermExplanation",true,false)
+ t.check(popup!=null and Interface.term_boxes(popup)==free and Interface.term_boxes(popup)!=bound,"TERMS UI flipping the face replaces the boxes with the other side terms: "+str(Interface.term_boxes(popup)))
+ t.check(ui.game.export_snapshot()==before and ui.view.version==version,"TERMS UI hover, flip and close change no state and no view version")
+ ui._show_term(face,{"label":"","detail":"短提示"})
+ await t.frames()
+ var plain=ui.find_child("TermExplanation",true,false)
+ t.check(plain!=null and Interface.term_boxes(plain).is_empty() and t.visible_text(plain).strip_edges()=="短提示","TERMS UI a call without terms keeps the plain single panel")
+ ui._hide_term()
+ await t.close_information()
 
 static func character_catalog(t) -> void:
  var ui=t.ui;var before=ui.game.export_snapshot()

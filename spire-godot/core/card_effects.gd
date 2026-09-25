@@ -13,14 +13,17 @@ static func active_buffs(g, include_disabled: bool=false) -> Array:
   if id not in result: result.append(id)
  return result
 
-static func toggle_candidates(g, out: Array) -> void:
- if g.state.overloaded or g.state.phase in ["cleared","prison_end"]: return
+# 状态开关的显示事实（批 R5：行生产转发改显示事实构建，docs/spec/candidate-removal.md §2.1 T5／T8）。
+static func toggle_facts(g) -> Array:
+ var out=[]
+ if g.state.overloaded or g.state.phase in ["cleared","prison_end"]: return out
  for card in g.state.powers:
   var id=Rules.SPECS[card.type].self_faces[card.power_face].buff
   if not Rules.BUFFS[id].get("toggleable",false): continue
   var enabled=not card.get("power_enabled",true)
   var args={"power_name":Rules.BUFFS[id].name,"enabled":enabled}
-  g._candidate(out,{"kind":"status_toggle","status":"power_"+id,"uid":card.uid,"enabled":enabled},("开启" if enabled else "关闭")+args.power_name,{"kind":"game.status_toggle","args":args,"fallback":g.copy_status_toggle(g,args)},0,0,"","","status_toggle")
+  out.append(g._fact({"kind":"status_toggle","status":"power_"+id,"uid":card.uid,"enabled":enabled},("开启" if enabled else "关闭")+args.power_name,{"kind":"game.status_toggle","args":args,"fallback":g.copy_status_toggle(g,args)},0,0.0,"","","status_toggle"))
+ return out
 
 static func toggle_power(g, p: Dictionary) -> void:
  for card in g.state.powers:
@@ -670,7 +673,7 @@ static func replace_permanent(g, uid: String, type: String) -> void:
   for card in g.state[zone]:
    if card.uid==uid: card.type=type
 
-# Capture eligibility is shared by orientation, candidates and commit checks.
+# Capture eligibility is shared by orientation, display facts and commit checks.
 static func can_target_bind(type: String) -> bool:
  var spec=Rules.SPECS[type]
  return spec.mode=="lower" or (Rules.damage(type) and (not spec.has("target_slots") or spec.has("witch_training_stage")))
@@ -691,11 +694,12 @@ static func has_escape_target(g, type: String) -> bool:
 static func body_reason(g, type: String) -> String:
  return g.cast_view(cast_profile(g,type)).reason if Rules.SPECS[type].has("casting") else ""
 
-# Per-face usability reuses real candidates. Curse styling is explicitly exempt.
-static func availability(g, card: Dictionary, free: bool, choices: Array) -> Dictionary:
+# Per-face usability consumes the determination results of this card's command shapes (批 R3：显示事实，
+# 不再取候选行). Curse styling is explicitly exempt.
+static func availability(g, card: Dictionary, free: bool, facts: Array) -> Dictionary:
  if g.B.CARD_TRAITS.get(card.type,{}).get("unplayable",false): return {"usable":false,"dim":false,"text":""}
- var options=choices.filter(func(c):return Rules.single_face(card.type) or c.payload.get("free",false)==free)
- if options.any(func(c):return c.valid): return {"usable":true,"dim":false,"text":"可用"}
+ var options=facts.filter(func(f):return Rules.single_face(card.type) or f.payload.get("free",false)==free)
+ if options.any(func(f):return f.valid): return {"usable":true,"dim":false,"text":"可用"}
  var issue=body_reason(g,card.type)
  if g.state.overloaded: issue="本回合正在高潮"
  elif not g.state.card_chain.is_empty(): issue="请先完成当前连续效果"
@@ -705,7 +709,7 @@ static func availability(g, card: Dictionary, free: bool, choices: Array) -> Dic
   if options.is_empty(): issue="没有可用的自由部位" if Rules.free_effect(card.type,free) else "没有可处理的拘束具"
   else:
    # Prefer a structurally eligible target's resource shortage over another target's lock/cover reason.
-   var eligible=options.filter(func(c):return reason(g,c.payload)=="")
+   var eligible=options.filter(func(f):return f.source_reason=="")
    issue=eligible[0].reason if not eligible.is_empty() else options[0].reason
  return {"usable":false,"dim":true,"text":"（"+issue.trim_suffix("。")+"）"}
 
@@ -858,7 +862,10 @@ static func detail(g, p: Dictionary) -> String:
  if Rules.SPECS[p.type].get("follow_through",false): lower_text+="总计降紧%d档，目标解除后%s。" % [Rules.SPECS[p.type].hits,"超级顺延" if Rules.SPECS[p.type].get("follow_through_scope","region")=="body" else "顺延"]
  return lower_text
 
-static func target_candidate(g, out: Array, p: Dictionary, label: String, cost: int, mana: float, risk: String="") -> void:
+# 卡牌事实（手牌域，docs/spec/candidate-removal.md §2.1 T5／T8；批 R3）：行与显示事实的唯一来源。
+# 返回事实列表（payload／label／copy／cost／mana／reason／risk／group），判定与 detail 由 Game 的事实入口给出。
+static func target_facts(g, p: Dictionary, label: String, cost: int, mana: float, risk: String="") -> Array:
+ var facts=[]
  var choices=[p]
  if Rules.SPECS[p.type].get("exhaust_hand",false):
   choices=[]
@@ -869,7 +876,8 @@ static func target_candidate(g, out: Array, p: Dictionary, label: String, cost: 
    p.hand_uid="";choices.append(p)
  for choice in choices:
   # B3（docs/ondemand-copy.md §1.5）：descriptor 只留类别与参数，detail 由 Game.candidate_detail 现算。
-  g._candidate(out,choice,label,{"kind":"card.target","args":{"payload":choice}},cost,mana,reason(g,choice),risk,"card")
+  facts.append(g._fact(choice,label,{"kind":"card.target","args":{"payload":choice}},cost,mana,reason(g,choice),risk,"card"))
+ return facts
 
 # R3（docs/ondemand-copy.md §11.5）：转发包装的文案参数改走路由，签名与产出保持不变。
 # R6（docs/ondemand-copy.md §11.5）：单面卡面正文的 builder，正文留在本模块。
@@ -882,12 +890,13 @@ static func target_detail(g, args: Dictionary) -> String:
  if payload.get("hand_uid","")!="": text+="\n本次消耗「%s」。" % g.B.CARD_NAMES[g._card(payload.hand_uid).type]
  return text
 
-static func candidates(g, out: Array, card: Dictionary) -> void:
- if g.B.CARD_TRAITS.get(card.type,{}).get("unplayable",false): return
+static func card_facts(g, card: Dictionary) -> Array:
+ var facts=[]
+ if g.B.CARD_TRAITS.get(card.type,{}).get("unplayable",false): return facts
  var spec=Rules.SPECS[card.type]
  if spec.has("free_slots"):
   var free_payload={"kind":"card","uid":card.uid,"type":card.type,"slot":spec.free_slots[0],"target":"","free":true,"mode":spec.mode}
-  target_candidate(g,out,free_payload,"自由 · "+g.B.CARD_NAMES[card.type],energy_cost(g,card.type,true),face_mana(g,card.type,true))
+  facts.append_array(target_facts(g,free_payload,"自由 · "+g.B.CARD_NAMES[card.type],energy_cost(g,card.type,true),face_mana(g,card.type,true)))
  if spec.has("self_faces"):
   for side in ["bound","free"]:
    var p={"kind":"card","uid":card.uid,"type":card.type,"slot":"","target":"self","free":side=="free","mode":spec.mode,"self_target":true}
@@ -902,18 +911,28 @@ static func candidates(g, out: Array, card: Dictionary) -> void:
      p.hand_uid="";choices.append(p)
    for choice in choices:
     var face_label=Rules.face_name(card.type,choice.free)+"面" if spec.has("bound_modes") else ("自由面" if choice.free else "挣脱面")
-    g._candidate(out,choice,"打出「"+g.B.CARD_NAMES[card.type]+"」 · "+face_label,{"kind":"card.target","args":{"payload":choice}},energy_cost(g,card.type,choice.free),face_mana(g,card.type,choice.free),reason(g,choice),"","card")
-  return
+    facts.append(g._fact(choice,"打出「"+g.B.CARD_NAMES[card.type]+"」 · "+face_label,{"kind":"card.target","args":{"payload":choice}},energy_cost(g,card.type,choice.free),face_mana(g,card.type,choice.free),reason(g,choice),"","card"))
+  return facts
  if Rules.single_face(card.type):
   var p={"kind":"card","uid":card.uid,"type":card.type,"slot":"","target":"self","free":false,"mode":spec.mode,"self_target":true}
-  g._candidate(out,p,"打出「"+g.B.CARD_NAMES[card.type]+"」",{"kind":"card.target","args":{"payload":p}},energy_cost(g,card.type),0,reason(g,p),"","card")
-  return
+  facts.append(g._fact(p,"打出「"+g.B.CARD_NAMES[card.type]+"」",{"kind":"card.target","args":{"payload":p}},energy_cost(g,card.type),0.0,reason(g,p),"","card"))
+  return facts
  if can_target_bind(card.type) and g.CaptureBind.has_bind(g):
   for second in ([false,true] if spec.has("bound_modes") else [false]):
    var bind=bind_payload(g,card.type,card.uid,second)
    bind.kind="card";bind.uid=card.uid
    var mana=face_mana(g,card.type,second)
-   target_candidate(g,out,bind,"冲开捕缚 · %s伤害" % g.number(bind.preview.damage),energy_cost(g,card.type),mana)
+   facts.append_array(target_facts(g,bind,"冲开捕缚 · %s伤害" % g.number(bind.preview.damage),energy_cost(g,card.type),mana))
+ var bound_ids=g.B.keyword_ids(card.type,false)
+ var free_ids=g.B.keyword_ids(card.type,true)
+ var bound_mode=Rules.face_mode(card.type,false)
+ var free_mode=Rules.face_mode(card.type,true)
+ var collect_keys=["strain","slip","magic_slip","lower","unlock","follow_through"]
+ var need_slots=spec.has("target_slots")
+ if bound_mode in collect_keys and bound_mode in bound_ids: need_slots=true
+ if free_mode in collect_keys and free_mode in free_ids: need_slots=true
+ if "follow_through" in bound_ids or "follow_through" in free_ids: need_slots=true
+ if not need_slots: return facts
  var assist_profiles=g.HandAssist.profiles(g)
  var seen_special=[]
  var face_costs={}
@@ -922,14 +941,21 @@ static func candidates(g, out: Array, card: Dictionary) -> void:
  for slot in spec.get("target_slots",[]):
   if slot not in slots: slots.append(slot)
  for slot in slots:
-  var targets=g.targets_at(slot)
-  if slot in ["neck","shoulder"] or slot in g.SpecialEquipment.slots():
-   if targets.is_empty(): continue
-  elif targets.is_empty(): targets=[{}]
-  elif slot!="shoulder" and not g.occupied(slot): targets.append({})
+  var special=slot in ["neck","shoulder"] or slot in g.SpecialEquipment.slots()
+  var declared=not spec.has("target_slots") or slot in spec.target_slots
+  var targets
+  if not declared:
+   if special or spec.has("bound_modes") or g.occupied(slot): continue
+   targets=[{}]
+  else:
+   if not g.has_targets_at(slot):
+    if special: continue
+    targets=[{}]
+   else:
+    targets=g.targets_at(slot)
+    if not special and slot!="shoulder" and not g.occupied(slot): targets.append({})
   for target in targets:
    if target.is_empty() and spec.has("bound_modes"): continue
-   if not target.is_empty() and spec.has("target_slots") and slot not in spec.target_slots: continue
    if not target.is_empty() and g.SpecialEquipment.is_special(target):
     if target.id in seen_special: continue
     seen_special.append(target.id)
@@ -946,7 +972,8 @@ static func candidates(g, out: Array, card: Dictionary) -> void:
     var label="自由 · "+g.B.SLOT_NAMES[slot] if Rules.free_effect(card.type,p.free) else "解除 · "+g._equipment_name(target)
     if Rules.free_effect(card.type,p.free) and slot in ["palm","fingers"] and not g.equipment_at(slot).is_empty(): label="自由 · "+("右" if g.hand_blocked(slot,"left") else "左")+g.B.SLOT_NAMES[slot]
     if spec.has("bound_modes"): label=Rules.face_name(card.type,p.free)+" · "+g._equipment_name(target)
-    target_candidate(g,out,p,label,cost,mana,risk)
+    facts.append_array(target_facts(g,p,label,cost,mana,risk))
+ return facts
 
 static func can_select_retain(g, card: Dictionary) -> bool:
  return card.retain_until<0 and not g.B.CARD_TRAITS.get(card.type,{}).get("retain",false)
@@ -1227,7 +1254,7 @@ static func continuation_part(g, slot: String) -> Array:
 
 # Select within the current physical point, then body part, then original region.
 # Queries never roll; normalize chooses once during the enclosing transaction.
-static func follow_through_candidates(g) -> Array:
+static func follow_through_facts(g) -> Array:
  var chain=g.state.card_chain
  var whole_body=Rules.SPECS[chain.type].get("follow_through_scope","region")=="body"
  var out=[]
@@ -1237,7 +1264,7 @@ static func follow_through_candidates(g) -> Array:
   var p=target_payload(g,chain.type,chain.slot,current,profiles,"",chain.get("free",false))
   if reason(g,p)=="":
    p.kind="chain";p.action="hit"
-   g._candidate(out,p,"继续 · "+g._equipment_name(current),detail(g,p),0,0,"","","chain")
+   out.append(g._fact(p,"继续 · "+g._equipment_name(current),detail(g,p),0,0.0,"","","chain"))
   if not out.is_empty() or not whole_body: return out
  var region=Rules.FOLLOW_THROUGH_REGIONS[Rules.follow_through_region(chain.slot) if whole_body else chain.region]
  var part=continuation_part(g,chain.slot).filter(func(slot):return slot in region)
@@ -1262,7 +1289,7 @@ static func follow_through_candidates(g) -> Array:
     if priority<best_priority: continue
     if priority>best_priority: out.clear();best_priority=priority
    p.kind="chain";p.action="hit"
-   g._candidate(out,p,("超级顺延 · " if whole_body else "顺延 · ")+g._equipment_name(target),detail(g,p),0,0,"","","chain")
+   out.append(g._fact(p,("超级顺延 · " if whole_body else "顺延 · ")+g._equipment_name(target),detail(g,p),0,0.0,"","","chain"))
  return out
 
 static func selection_cards(g, exclude_uid: String="") -> Array:
@@ -1288,16 +1315,17 @@ static func select_exhaust(g, p: Dictionary) -> void:
  g.Pressure.gain(g,30,"强制高潮")
  g.Pressure.forced_climax(g,"强制高潮")
 
-static func chain_candidates(g) -> Array:
+# 连锁继续（批 R4：行与显示事实的唯一来源，docs/spec/candidate-removal.md §2.1 T5／T8）。
+static func chain_facts(g) -> Array:
  var out=[]
  var chain=g.state.card_chain
  if chain.is_empty(): return out
  if chain.mode=="select_exhaust":
   for entry in selection_cards(g):
    var zone_name={"draw":"抽牌堆","hand":"手牌","discard":"弃牌堆"}[entry.zone]
-   g._candidate(out,{"kind":"chain","action":"select_exhaust","type":chain.type,"free":chain.free,"selected_uid":entry.card.uid},"消耗 · "+g.B.CARD_NAMES[entry.card.type]+" · "+zone_name,"仅在本场消耗这张牌。",0,0,"","","chain")
+   out.append(g._fact({"kind":"chain","action":"select_exhaust","type":chain.type,"free":chain.free,"selected_uid":entry.card.uid},"消耗 · "+g.B.CARD_NAMES[entry.card.type]+" · "+zone_name,"仅在本场消耗这张牌。",0,0.0,"","","chain"))
   return out
- if Rules.SPECS[chain.type].get("follow_through",false) and chain.slot!=g.CaptureBind.BIND_TARGET: return follow_through_candidates(g)
+ if Rules.SPECS[chain.type].get("follow_through",false) and chain.slot!=g.CaptureBind.BIND_TARGET: return follow_through_facts(g)
  var assist_profiles=g.HandAssist.profiles(g)
  var targets=g.action_targets() if chain.mode=="unlock" else ([{"id":g.CaptureBind.BIND_TARGET}] if chain.slot==g.CaptureBind.BIND_TARGET and g.CaptureBind.has_bind(g) else g.targets_at(chain.slot))
  var seen=[]
@@ -1308,14 +1336,23 @@ static func chain_candidates(g) -> Array:
   var p=bind_payload(g,chain.type,"",chain.get("free",false)) if target.id==g.CaptureBind.BIND_TARGET else target_payload(g,chain.type,chain.slot,target,assist_profiles,"",chain.get("free",false))
   if reason(g,p)!="": continue
   p.kind="chain";p.action="hit"
-  g._candidate(out,p,"继续 · "+("捕缚" if target.id==g.CaptureBind.BIND_TARGET else g._equipment_name(target)),detail(g,p),0,0,"","","chain")
+  out.append(g._fact(p,"继续 · "+("捕缚" if target.id==g.CaptureBind.BIND_TARGET else g._equipment_name(target)),detail(g,p),0,0.0,"","","chain"))
  if chain.mode=="unlock" and g.state.phase=="prison" and not g.state.prison.door_open and body_reason(g,chain.type)=="":
-  g._candidate(out,{"kind":"chain","action":"hit","type":chain.type,"target":"prison_door","mode":"unlock","free":false},"继续 · 牢门锁","打开牢门锁，不额外消耗能量或魔力；离开时仍检查速度。",0,0,"需要先到牢门前。" if not g.Prison.Space.at(g,"door") else "","","chain")
+  out.append(g._fact({"kind":"chain","action":"hit","type":chain.type,"target":"prison_door","mode":"unlock","free":false},"继续 · 牢门锁","打开牢门锁，不额外消耗能量或魔力；离开时仍检查速度。",0,0.0,"需要先到牢门前。" if not g.Prison.Space.at(g,"door") else "","","chain"))
  return out
 
-static func continuation(g, out: Array) -> void:
- out.append_array(chain_candidates(g))
- if g.state.card_chain.mode=="unlock": g._candidate(out,{"kind":"chain","action":"stop","type":g.state.card_chain.type,"free":false,"mode":"unlock"},"结束连续开锁","保留已完成效果与已支付费用。",0,0,"","","chain")
+# 「结束连续开锁」的收尾行（只在 unlock 连锁中存在）：行与显示事实唯一来源。
+static func chain_stop_fact(g) -> Dictionary:
+ if g.state.card_chain.is_empty() or g.state.card_chain.mode!="unlock": return {}
+ return g._fact({"kind":"chain","action":"stop","type":g.state.card_chain.type,"free":false,"mode":"unlock"},"结束连续开锁","保留已完成效果与已支付费用。",0,0.0,"","","chain")
+
+# 连锁显示事实（批 R4 起、R5 收口）：连锁继续事实＋收尾事实（显示侧唯一来源）。
+static func chain_display_facts(g) -> Array:
+ if not g.chain_rows_active(): return []
+ var out=chain_facts(g)
+ var stop=chain_stop_fact(g)
+ if not stop.is_empty(): out.append(stop)
+ return out
 
 static func continue_card(g, p: Dictionary) -> void:
  if p.action=="select_exhaust":
@@ -1350,7 +1387,7 @@ static func finish_chain(g) -> void:
 static func normalize(g) -> void:
  # Recompute after cleanup, never reuse first-hit targets or damage.
  while not g.state.card_chain.is_empty():
-  var choices=chain_candidates(g)
+  var choices=chain_facts(g)
   if choices.is_empty():
    finish_chain(g)
    g._emit("event","没有可继续处理的目标，连续行动结束。")

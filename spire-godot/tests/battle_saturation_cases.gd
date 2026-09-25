@@ -46,7 +46,7 @@ static func run(t) -> void:
  g.state.enemies.back().gone=true
  enemy.intent={"kind":"lock","text":"上锁","delayed":false}
  before=g.state.duplicate(true)
- t.check(not g.dispatch("forged",g.state.version).ok and g.state==before,"SATURATION rejected commands cannot end battles")
+ t.check(not g.dispatch(g.command({"kind":"card","uid":"forged"},g.state.version),g.state.version).ok and g.state==before,"SATURATION rejected commands cannot end battles")
  t.check(t.action(g,"end").ok and g.state.phase=="reward","SATURATION formal turn boundary ends battle before a targetless enemy action")
  # Saturated initial encounters finish without pretending a lock has been defeated.
  g=Game.new(42)
@@ -121,9 +121,9 @@ static func long_battle_cases(t) -> void:
  human.intent.delayed=true
  var machine=g._append_enemies([{"type":"drone","grade":1}])[0]
  machine.intent=g._plan(machine);g.state.pressure=20
- before=g.export_snapshot();g.get_view();g.candidates()
- t.check(g.state==before,"LONG BATTLE reading candidates and view cannot trigger departure or arrest")
- t.check(not g.dispatch("forged",g.state.version).ok and g.state==before,"LONG BATTLE rejected action cannot trigger the limit")
+ before=g.export_snapshot();g.get_view();g.command_facts()
+ t.check(g.state==before,"LONG BATTLE reading facts and view cannot trigger departure or arrest")
+ t.check(not g.dispatch(g.command({"kind":"card","uid":"forged"},g.state.version),g.state.version).ok and g.state==before,"LONG BATTLE rejected action cannot trigger the limit")
  human=g._enemy(human.id);machine=g._enemy(machine.id)
  var result=t.action(g,"calm")
  human=g._enemy(human.id);machine=g._enemy(machine.id)
@@ -162,7 +162,7 @@ static func arrest_next_turn(t) -> void:
  t.check(t.action(g,"end").ok and g.state.phase=="battle" and g.state.round==round+1,"ARREST completing the last reinforcement gives the next player turn")
  enemy=g._enemy(enemy.id)
  t.check(enemy.intent.kind=="capture" and not g.CaptureBind.has_bind(g),"ARREST announces capture without requiring an existing capture bar")
- before=g.export_snapshot();g.get_view();g.candidates()
+ before=g.export_snapshot();g.get_view();g.command_facts()
  t.check(g.state==before,"ARREST reading the capture announcement is pure")
  var restored=preload("res://tests/persistence_cases.gd").roundtrip(t,g,"saturated capture announcement")
  t.check(restored.state.enemies[0].intent.kind=="capture","ARREST current snapshot preserves the announced action")

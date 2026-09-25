@@ -1,4 +1,5 @@
 extends RefCounted
+const Queries=preload("res://ui/target_queries.gd")
 
 static func build(ui) -> void:
  var panel=ui.view.reward_panel
@@ -11,15 +12,15 @@ static func build(ui) -> void:
  ui._place(subtitle,Rect2(420,144,760,35),root)
  if panel.get("selection","")=="card_copy":
   var choices={}
-  for id in panel.action_ids:
-   var choice=ui.actions.by_id[id]
+  for id in panel.action_keys:
+   var choice=Queries.fact_by_key(ui.view,id)
    choices[choice.payload.uid]=choice
   var browser=preload("res://ui/deck_browser.gd").new()
   ui._place(browser,Rect2(54,190,1492,510),root)
   browser.setup(ui,panel.cards,false,"没有可复制的卡牌。",choices)
-  var finish=ui.actions.by_id[panel.continue_id]
-  var skip=ui._button(panel.continue_label,func():ui._submit(finish),ui.MUTED)
-  skip.name="BundleContinue";ui._place(skip,Rect2(625,720,350,48),root);ui.candidate_buttons[finish.id]=skip
+  var finish=Queries.fact_by_key(ui.view,panel.continue_key)
+  var skip=ui._button(panel.continue_label,func():ui.command_router.emit(String(finish.payload.get("kind","")),finish),ui.MUTED)
+  skip.name="BundleContinue";ui._place(skip,Rect2(625,720,350,48),root);ui.candidate_buttons[finish.key]=skip
   return
  var width=280.0;var gap=28.0
  var left=(1600-panel.entries.size()*width-(panel.entries.size()-1)*gap)/2
@@ -38,15 +39,15 @@ static func build(ui) -> void:
   detail.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
   ui._place(detail,Rect2(22,191,236,109),card)
   if entry.status=="pending":
-   var claim=ui.actions.by_id[entry.claim_id]
-   var take=ui._button("领取",func():ui._submit(claim),ui.CYAN);take.disabled=not claim.valid
-   take.name="BundleClaim_"+str(entry.index);ui._place(take,Rect2(22,310,144,46),card);ui.candidate_buttons[claim.id]=take
-   var skip=ui.actions.by_id[entry.skip_id]
-   var pass_button=ui._button("跳过",func():ui._submit(skip),ui.MUTED)
-   pass_button.name="BundleSkip_"+str(entry.index);ui._place(pass_button,Rect2(176,310,82,46),card);ui.candidate_buttons[skip.id]=pass_button
+   var claim=Queries.fact_by_key(ui.view,entry.claim_key)
+   var take=ui._button("领取",func():ui.command_router.emit(String(claim.payload.get("kind","")),claim),ui.CYAN);take.disabled=not claim.valid
+   take.name="BundleClaim_"+str(entry.index);ui._place(take,Rect2(22,310,144,46),card);ui.candidate_buttons[claim.key]=take
+   var skip=Queries.fact_by_key(ui.view,entry.skip_key)
+   var pass_button=ui._button("跳过",func():ui.command_router.emit(String(skip.payload.get("kind","")),skip),ui.MUTED)
+   pass_button.name="BundleSkip_"+str(entry.index);ui._place(pass_button,Rect2(176,310,82,46),card);ui.candidate_buttons[skip.key]=pass_button
   else:
    var status=ui._label("✓ 已领取" if entry.status=="claimed" else "已跳过",20,ui.MUTED)
    status.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;ui._place(status,Rect2(22,315,236,40),card)
- var finish=ui.actions.by_id[panel.continue_id]
- var button=ui._button("完成领取" if panel.entries.all(func(entry):return entry.status!="pending") else "跳过剩余并返回",func():ui._submit(finish),ui.GOLD)
- button.name="BundleContinue";ui._place(button,Rect2(625,641,350,54),root);ui.candidate_buttons[finish.id]=button
+ var finish=Queries.fact_by_key(ui.view,panel.continue_key)
+ var button=ui._button("完成领取" if panel.entries.all(func(entry):return entry.status!="pending") else "跳过剩余并返回",func():ui.command_router.emit(String(finish.payload.get("kind","")),finish),ui.GOLD)
+ button.name="BundleContinue";ui._place(button,Rect2(625,641,350,54),root);ui.candidate_buttons[finish.key]=button

@@ -31,11 +31,11 @@ static func run(t) -> void:
   t.check(not t.action(g,"card",{"uid":card.uid,"free":false}).ok and g.state==before,"KIP bound face rejects non-lying pose atomically: "+pose)
  g.state.posture="lie";g.state.strength=4;g.state.energy=0
  var c=t.find_action(g,"card",{"uid":card.uid,"free":false});var before=g.export_snapshot()
- t.check(not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"KIP stale stand-up does not change pose or consume card")
- t.check(g.dispatch(c.id,g.state.version).ok and g.state.posture=="stand" and g.state.energy==0 and g.state.discard.any(func(x):return x.uid==card.uid),"KIP zero-energy bound play stands up and normally discards")
+ t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"KIP stale stand-up does not change pose or consume card")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.posture=="stand" and g.state.energy==0 and g.state.discard.any(func(x):return x.uid==card.uid),"KIP zero-energy bound play stands up and normally discards")
  g=fresh();g.state.posture="lie";g.state.pressure_sources=[preload("res://tests/pressure_cases.gd").source("kip_posture","posture",5)]
  card=Cards.give(g,"kip_up");c=t.find_action(g,"card",{"uid":card.uid,"free":false})
- t.check(c.risk.contains("5") and g.dispatch(c.id,g.state.version).ok and g.state.pressure==5,"KIP stance action previews and applies the existing posture trigger once")
+ t.check(c.risk.contains("5") and g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.pressure==5,"KIP stance action previews and applies the existing posture trigger once")
  for pose in ["sit","lie"]:
   for move in [["heavy",0],["heavy",1],["kick",0],["kick",1],["kick",2]]:
    g=fresh();g.state.posture=pose
@@ -43,9 +43,9 @@ static func run(t) -> void:
    var attack=Basic.attack(t,g,move[0],move[1])
    t.check(attack.valid and g.state.posture==pose,"KIP next leg move ignores pose without moving the player: "+str(move))
    t.check(not Basic.attack(t,g,"strike",0).valid,"KIP does not relax arm-only posture requirement")
-   before=g.export_snapshot();g.get_view();g.candidates()
+   before=g.export_snapshot();g.get_view();g.command_facts()
    t.check(g.state==before,"KIP previews cannot consume the next-attack effect")
-   t.check(g.dispatch(attack.id,g.state.version).ok and "kip_up_free" not in g.state.card_buffs and g.state.posture==pose,"KIP full multi-hit or all-target action consumes effect once without standing")
+   t.check(g.dispatch(g.command(attack.payload,g.state.version),g.state.version).ok and "kip_up_free" not in g.state.card_buffs and g.state.posture==pose,"KIP full multi-hit or all-target action consumes effect once without standing")
    if g.state.phase=="battle": t.check(not Basic.attack(t,g,"heavy",0).valid,"KIP posture requirement returns after the attack")
  g=fresh();Cards.play(t,g,"kip_up",true)
  t.check(t.action(g,"attack",{"type":"strike","form":0}).ok and "kip_up_free" in g.state.card_buffs,"KIP arm attack does not consume leg buff")
@@ -59,7 +59,7 @@ static func run(t) -> void:
  t.check(not Basic.attack(t,g,"kick",0).valid and Basic.attack(t,g,"kick",0).reason.contains("冷却"),"KIP does not bypass bound-kick cooldown")
  g=fresh();g.state.posture="sit";g.add_fixture("ankle",4);Cards.play(t,g,"kip_up",true)
  c=Basic.attack(t,g,"kick",0)
- t.check(c.valid and c.payload.fall and g.dispatch(c.id,g.state.version).ok and g.state.posture=="lie" and "kip_up_free" not in g.state.card_buffs,"KIP bound-feet kick keeps its normal after-attack fall and consumes the effect")
+ t.check(c.valid and c.payload.fall and g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.posture=="lie" and "kip_up_free" not in g.state.card_buffs,"KIP bound-feet kick keeps its normal after-attack fall and consumes the effect")
  g=Game.new(42,true,"binding_box_solo");g.CaptureBind.apply_bind(g,g.state.enemies[0])
  card=Cards.give(g,"kip_up");before=g.export_snapshot()
  t.check(not t.action(g,"card",{"uid":card.uid,"free":false}).ok and g.state==before,"KIP standing cannot override capture-imposed posture")
@@ -84,17 +84,17 @@ static func capture_priority(t) -> void:
   var before=g.export_snapshot()
   for move in [["heavy",0],["heavy",1],["kick",1]]:
    var attack=Basic.attack(t,g,move[0],move[1])
-   t.check(not attack.valid and not g.dispatch(attack.id,g.state.version).ok and g.state==before,"KIP CAPTURE forced seated posture rejects standing moves without consuming resources or buff: "+str(move))
+   t.check(not attack.valid and not g.dispatch(g.command(attack.payload,g.state.version),g.state.version).ok and g.state==before,"KIP CAPTURE forced seated posture rejects standing moves without consuming resources or buff: "+str(move))
   var seated=Basic.attack(t,g,"kick",2)
   t.check(seated.valid and seated.label.contains("坐着踢") and g.state==before,"KIP CAPTURE preview uses the seated move and remains read-only")
   var restored=fresh()
   t.check(restored.restore_snapshot(before).ok and not Basic.attack(t,restored,"heavy",0).valid,"KIP CAPTURE restored pending buff still respects forced posture")
   if bind_first:
-   t.check(g.dispatch(seated.id,g.state.version).ok and g.state.posture=="sit" and "kip_up_free" not in g.state.card_buffs,"KIP CAPTURE legal seated attack keeps the forced posture and consumes the next-attack buff normally")
+   t.check(g.dispatch(g.command(seated.payload,g.state.version),g.state.version).ok and g.state.posture=="sit" and "kip_up_free" not in g.state.card_buffs,"KIP CAPTURE legal seated attack keeps the forced posture and consumes the next-attack buff normally")
   else:
    g.CaptureBind.damage_bind(g,100.0,"test")
    var attack=Basic.attack(t,g,"heavy",0)
-   t.check(attack.valid and g.dispatch(attack.id,g.state.version).ok and g.state.posture=="sit","KIP CAPTURE unused posture waiver works again after actual capture removal")
+   t.check(attack.valid and g.dispatch(g.command(attack.payload,g.state.version),g.state.version).ok and g.state.posture=="sit","KIP CAPTURE unused posture waiver works again after actual capture removal")
  var g=Game.new(42,true,"guard");g.state.posture="lie";g.CaptureBind.apply_bind(g,g.state.enemies[0])
  var card=Cards.give(g,"kip_up");var before=g.export_snapshot()
  t.check(not t.action(g,"card",{"uid":card.uid,"free":false}).ok and g.state==before,"KIP CAPTURE bound face cannot skip the guard's lying-to-seated-to-standing sequence")
@@ -102,4 +102,4 @@ static func capture_priority(t) -> void:
  t.check(Cards.play(t,g,"kip_up",true).ok and Basic.attack(t,g,"heavy",0).valid,"KIP CAPTURE compatible forced standing posture still allows standing moves")
  g.add_fixture("ankle",4)
  var kick=Basic.attack(t,g,"kick",0);before=g.export_snapshot()
- t.check(not kick.valid and kick.reason.contains("无法在踢击后躺下") and not g.dispatch(kick.id,g.state.version).ok and g.state==before,"KIP CAPTURE cannot override the drone's prohibition on falling after a bound-feet kick")
+ t.check(not kick.valid and kick.reason.contains("无法在踢击后躺下") and not g.dispatch(g.command(kick.payload,g.state.version),g.state.version).ok and g.state==before,"KIP CAPTURE cannot override the drone's prohibition on falling after a bound-feet kick")

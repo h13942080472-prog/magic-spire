@@ -1,6 +1,7 @@
 extends RefCounted
 const Give=preload("res://tests/curse_cases.gd")
 const Click=preload("res://tests/curse_ui_cases.gd")
+const Queries=preload("res://ui/target_queries.gd")
 
 static func run(t) -> void:
  var ui=t.ui
@@ -43,11 +44,11 @@ static func run(t) -> void:
  var soup=Give.give(ui.game,"good_soup")
  var mouth=ui.game._install_template("mouth_band","mouth",20,30,false,"fixture",2,0)
  ui.render();await t.frames()
- t.check(ui.card_buttons[soup.uid].get_node("CardCost").text=="2" and ui.actions.find("card",{"uid":soup.uid,"free":false}).cost==2,"HANNYA UI mouth penalty changes displayed and paid energy together")
+ t.check(ui.card_buttons[soup.uid].get_node("CardCost").text=="2" and Queries.find(ui.view,"card",{"uid":soup.uid,"free":false}).cost==2,"HANNYA UI mouth penalty changes displayed and paid energy together")
  mouth.grade=3;mouth.durability=20;ui.render();await t.frames()
  t.check(ui.card_buttons[soup.uid].get_node("CardCost").text=="3","HANNYA UI score five displays three energy")
  mouth.durability=30;ui.render();await t.frames()
- t.check(not ui.actions.find("card",{"uid":soup.uid,"free":false}).valid and ui.view.hand.filter(func(c):return c.uid==soup.uid)[0].availability.bound.text.contains("无法饮用"),"HANNYA UI complete mouth blockage exposes specific reason")
+ t.check(not Queries.find(ui.view,"card",{"uid":soup.uid,"free":false}).valid and ui.view.hand.filter(func(c):return c.uid==soup.uid)[0].availability.bound.text.contains("无法饮用"),"HANNYA UI complete mouth blockage exposes specific reason")
  ui.game.state.equipment.clear();ui.game._finish_battle();ui.render();await t.frames()
  t.check(await t.click("reward",{"type":"skip"}) and ui.game.Cards.Hannya.level(ui.game)==2,"HANNYA UI rewards preserve level into preparation")
  t.check(await t.click("finish_prepare") and ui.game.Cards.Hannya.level(ui.game)==0 and not ui.game.state.deck.any(func(c):return c.type=="hannya_swallow"),"HANNYA UI preparation exit removes temporary gift and level")

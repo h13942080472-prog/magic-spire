@@ -1,4 +1,5 @@
 extends RefCounted
+const Queries=preload("res://ui/target_queries.gd")
 
 static func run(t) -> void:
  await quick_selection_refresh(t)
@@ -14,7 +15,7 @@ static func run(t) -> void:
  t.ui.restart(42);t.ui.game.state.round=2;t.ui.render();await t.frames()
  var ui=t.ui
  var kick=ui.find_child("BasicAttack_kick",true,false)
- var choice=ui.actions.find("attack",{"type":"kick","form":0,"enemy":ui.selected_enemy})
+ var choice=Queries.find(ui.view,"attack",{"type":"kick","form":0,"enemy":ui.selected_enemy})
  t.check(t.visible_text(kick).contains("正义飞踢") and choice.cost==2 and ui.find_child("BasicAttackDetail_kick",true,false).text=="18 伤害","JUSTICE UI displays official name two-energy cost and eighteen damage")
  ui.game.state.pressure=40;ui.render();await t.frames()
  var rail=ui.find_child("BasicActionRail",true,false)
@@ -24,7 +25,7 @@ static func run(t) -> void:
  t.check(slots.all(func(b):return rail.get_global_rect().encloses(b.get_global_rect()) and is_equal_approx(b.size.x,slots[0].size.x)),"BASIC UI five equal action tiles stay inside the rail")
  t.check(is_equal_approx(slots[0].position.x,rail.position.x+10) and is_equal_approx(slots[-1].position.x+slots[-1].size.x,rail.position.x+rail.size.x-60),"BASIC UI action slots reserve the far-right switch")
  for type in ["strike","heavy","kick","fireball"]:
-  var c=ui.actions.find("attack",{"type":type,"form":0,"enemy":ui.selected_enemy})
+  var c=Queries.find(ui.view,"attack",{"type":type,"form":0,"enemy":ui.selected_enemy})
   var label=ui.find_child("BasicAttackDetail_"+type,true,false)
   t.check(label.text==c.brief and not label.text.contains(ui.view.enemies[0].name),"BASIC UI compact damage uses the authoritative preview without target prose")
   check_alignment(t,ui.find_child("BasicAttack_"+type,true,false))
@@ -39,8 +40,8 @@ static func run(t) -> void:
   t.check(ui.attack_forms[type]==1 and ui.game.export_snapshot()==before,"BASIC UI right click flips form without cost or randomness")
   button=ui.find_child("BasicAttack_"+type,true,false)
   t.check(button.drag_payload.form==1,"BASIC UI drag payload preserves selected form")
-  var c=ui.actions.find("attack",{"type":type,"form":1,"enemy":ui.selected_enemy})
-  t.check(ui.candidate_buttons.has(c.id) and t.visible_text(button).contains(c.label),"BASIC UI flipped form uses its actual candidate")
+  var c=Queries.find(ui.view,"attack",{"type":type,"form":1,"enemy":ui.selected_enemy})
+  t.check(ui.candidate_buttons.has(ui.display_key(c.payload)) and t.visible_text(button).contains(c.label),"BASIC UI flipped form uses its actual candidate")
   if type=="heavy":
    t.check(button.size.x<240 and t.visible_text(button).contains("6 × 3 伤害"),"BASIC UI multi-hit short strike fits its action slot")
    check_alignment(t,button)
@@ -81,7 +82,8 @@ static func third_kick(t) -> void:
  t.check(ui.attack_forms.kick==2 and t.visible_text(button).contains("坐着踢") and ui.find_child("BasicAttackDetail_kick",true,false).text=="6 伤害","KICK UI current third form automatically updates after posture change")
  t.check(await t.click("attack",{"type":"kick","form":2,"enemy":ui.selected_enemy}),"KICK UI ordinary sitting kick remains reusable after standing kick")
  ui.game.add_fixture("ankle",4);ui.game.add_fixture("foot",4);ui.render();await t.frames()
- t.check(ui.find_child("BasicAttackDetail_kick",true,false).text=="2.4 伤害","KICK UI level-three sitting preview reads shared damage")
+ var preview=Queries.find(ui.view,"attack",{"type":"kick","form":2,"enemy":ui.selected_enemy})
+ t.check(preview.valid and is_equal_approx(preview.payload.damage,3.6) and ui.find_child("BasicAttackDetail_kick",true,false).text=="3.6 伤害","KICK UI level-three sitting preview reads shared damage")
  for slot in ["thigh","calf","toes"]: ui.game.add_fixture(slot,4)
  ui.render();await t.frames()
  t.check(ui.find_child("BasicAttack_kick",true,false).disabled and t.visible_text(ui.find_child("BasicAttack_kick",true,false)).contains("4级"),"KICK UI full leg restraint shows specific disabled reason")
@@ -123,14 +125,14 @@ static func justice_opening(t) -> void:
 static func bound_kick(t) -> void:
  var ui=t.ui
  ui.restart(42);ui.game.state.posture="sit";ui.game.add_fixture("ankle",4);ui.render();await t.frames()
- var c=ui.actions.find("attack",{"type":"kick","form":0,"enemy":ui.selected_enemy})
+ var c=Queries.find(ui.view,"attack",{"type":"kick","form":0,"enemy":ui.selected_enemy})
  t.check(c.valid and c.payload.fall and ui.game.candidate_detail(c).contains("3回合冷却") and c.risk.contains("躺下") and ui.find_child("BasicAttackDetail_kick",true,false).text.contains("4 伤害"),"BOUND KICK UI shows reduced seated damage shared cooldown and fall cost")
  ui.game.state.strength=2;ui.game.state.charge=1;ui.render();await t.frames()
  var hp=ui.game._enemy(ui.selected_enemy).hp
  t.check(ui.find_child("BasicAttackDetail_kick",true,false).text.contains("8 伤害"),"BOUND KICK UI includes strength and charge before body damage reduction")
  t.check(await t.click("attack",{"type":"kick","form":0,"enemy":ui.selected_enemy}) and ui.view.posture=="lie" and ui.game._enemy(ui.selected_enemy).hp==hp-8 and ui.game.state.charge==0,"BOUND KICK UI actual seated kick matches preview and consumes charge once")
  t.check(await t.click("posture",{"dest":"sit","wall":false}),"BOUND KICK UI recovers through actual posture action")
- c=ui.actions.find("attack",{"type":"kick","form":0,"enemy":ui.selected_enemy})
+ c=Queries.find(ui.view,"attack",{"type":"kick","form":0,"enemy":ui.selected_enemy})
  t.check(not c.valid and c.reason.contains("冷却") and ui.find_child("BasicAttack_kick",true,false).disabled and ui.view.statuses.any(func(s):return s.id=="kick_cooldown" and s.detail.contains("共用冷却")),"BOUND KICK UI displays cooldown in both actual action and status after sitting up")
 
 static func infusion(t) -> void:
@@ -138,10 +140,10 @@ static func infusion(t) -> void:
  ui.restart(42);ui.game._discard_end();ui.game.state.energy=6
  var card=preload("res://tests/curse_cases.gd").give(ui.game,"infusion")
  ui.card_faces[card.uid]=false;ui.render();await t.frames()
- var face=ui.card_buttons[card.uid];var c=ui.actions.find("card",{"uid":card.uid,"free":false})
+ var face=ui.card_buttons[card.uid];var c=Queries.find(ui.view,"card",{"uid":card.uid,"free":false})
  t.check(face.rarity=="rare" and t.visible_text(face).contains("腿部体术") and c.cost==2 and c.mana==10,"INFUSION UI rare bound face shows leg preparation and actual prices")
  var before=ui.game.export_snapshot();await t.flip(card.uid)
- face=ui.card_buttons[card.uid];c=ui.actions.find("card",{"uid":card.uid,"free":true})
+ face=ui.card_buttons[card.uid];c=Queries.find(ui.view,"card",{"uid":card.uid,"free":true})
  t.check(ui.game.state==before and t.visible_text(face).contains("手部体术") and c.cost==1 and c.mana==20,"INFUSION UI flip shows hand preparation without spending resources")
  await t.capture("ui-infusion.png")
  await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid);await t.frames()
@@ -153,7 +155,7 @@ static func check_alignment(t, button: Button) -> void:
  var detail=button.get_node("BasicAttackDetail_"+button.drag_payload.action_type)
  var meta=button.get_node("BasicAttackMeta")
  var energy=button.get_node("BasicActionEnergy")
- var candidate=t.ui.actions.find("attack",{"type":button.drag_payload.action_type,"form":button.drag_payload.form,"enemy":t.ui.selected_enemy})
+ var candidate=Queries.find(t.ui.view,"attack",{"type":button.drag_payload.action_type,"form":button.drag_payload.form,"enemy":t.ui.selected_enemy})
  t.check(energy.get_node("EnergyCost").get_global_rect().get_center().distance_to(energy.get_global_rect().get_center())<0.5,"BASIC UI available energy numeral is centered")
  t.check(energy.get_node("EnergyCost").text==str(candidate.cost) and energy.texture!=null and meta.text.contains(candidate.body_part) and not meta.text.contains("能量"),"BASIC UI left energy medallion replaces cost text and metadata identifies the body part")
  t.check(title.get_theme_font_size("font_size")>=10 and title.get_theme_font_size("font_size")<=16 and detail.get_theme_font_size("font_size")==title.get_theme_font_size("font_size") and meta.get_theme_font_size("font_size")>=12,"BASIC UI action name and damage share an adaptive readable font")
@@ -212,7 +214,7 @@ static func quick_selection_refresh(t) -> void:
  quick.toggle(ui);await t.frames()
  var button=ui.find_child("QuickRelease_region_upper",true,false)
  var frozen=ui.game.export_snapshot();var original_view=ui.view.duplicate(true)
- t.check(button.get_meta("target_id")==fingers.id,"QUICK REFRESH initial selection uses current candidates")
+ t.check(button.get_meta("target_id")==fingers.id,"QUICK REFRESH initial selection uses current facts")
  # These UI inputs change in the same View, without a transaction or a full render.
  ui.quick_release_parts.region_upper="hands";ui.quick_release_targets.region_upper=palm.id
  quick.refresh(ui)
@@ -221,7 +223,7 @@ static func quick_selection_refresh(t) -> void:
  var data={"card_uid":uid,"free":false,"version":ui.view.version}
  var c=quick.candidate(ui,"region_upper",data)
  quick.refresh(ui,data)
- t.check(c.valid and c.payload.target==palm.id and button.get_meta("target_selectable") and ui.actions.by_id[c.id]==c,"QUICK REFRESH highlight and selected target use the original candidate")
+ t.check(c.valid and c.payload.target==palm.id and button.get_meta("target_selectable") and Queries.fact_by_key(ui.view,Queries.fact_key(c))==c,"QUICK REFRESH highlight and selected target use the original candidate")
  ui.card_faces[uid]=true;var free=data.duplicate();free.free=true
  quick.refresh(ui,free)
  t.check(not button.get_meta("target_selectable") and button.get_meta("target_id")==palm.id and quick.candidate(ui,"region_upper",free).is_empty(),"QUICK REFRESH same-version face change cannot reuse the bound-face action or change target")
@@ -319,7 +321,7 @@ static func quick_release(t) -> void:
   frozen=ui.game.export_snapshot()
   await pointer.press(t,ui.find_child("ActionRailToggle",true,false));await pointer.press(t,ui.find_child("ActionRailToggle",true,false))
   t.check(ui.game.export_snapshot()==frozen,"QUICK noncombat page switches are read-only: "+phase)
-  var calm=ui.actions.find("pressure")
+  var calm=Queries.find(ui.view,"pressure")
   t.check(calm.valid,"QUICK noncombat breath original candidate remains valid")
   await pointer.press(t,ui.find_child("DeepBreath",true,false))
   t.check(ui.view.energy==frozen.energy-calm.cost and ui.game.state.pressure<frozen.pressure,"QUICK noncombat breath click still pays and lowers pressure")
@@ -474,18 +476,18 @@ static func exploration_fireball(t) -> void:
  ui.localization.set_locale("zh_CN");ui.render();await t.frames()
  var card=preload("res://tests/curse_cases.gd").give(ui.game,"flame_flourish")
  ui.render();await t.frames()
- var power=ui.actions.find("card",{"uid":card.uid,"free":false})
- ui._submit(power,ui.view.version);await t.frames()
+ var power=Queries.find(ui.view,"card",{"uid":card.uid,"free":false})
+ ui.command_router.emit(String(power.payload.get("kind","")),power,ui.view.version);await t.frames()
  fire=ui.find_child("BasicAttack_fireball",true,false)
  t.check(fire!=null and not fire.disabled and fire.drag_payload.action_type=="fireball" and ui.find_child("DeepBreath",true,false)!=null,"FIRE exploration power exposes draggable fireball beside breath")
- var c=ui.actions.find("attack",{"type":"fireball","target":target.id})
+ var c=Queries.find(ui.view,"attack",{"type":"fireball","target":target.id})
  await t.reveal_body("wrist")
  fire=ui.find_child("BasicAttack_fireball",true,false)
  var frozen=ui.game.export_snapshot()
  var point=fire.get_global_rect().get_center();await t.move_mouse(point);await t.mouse_button(point,MOUSE_BUTTON_LEFT,true);await t.move_mouse(point+Vector2(0,-40),true)
  t.check(t.root.gui_is_dragging(),"FIRE exploration native fireball drag starts")
  point=ui.body_buttons.wrist.get_global_rect().get_center();await t.move_mouse(point,true)
- await t.release_target(await t.reveal_drop_target(c.id))
+ await t.release_target(await t.reveal_drop_target(c.key))
  t.check(is_equal_approx(ui.game._equipment(target.id).durability,frozen.equipment[0].durability-c.payload.damage) and ui.view.energy==frozen.energy-c.cost and ui.view.mana<frozen.mana,"FIRE exploration drag to restraint pays official mana and energy and applies magic damage")
  ui.game.state.equipment.clear();ui.render();await t.frames()
  fire=ui.find_child("BasicAttack_fireball",true,false)

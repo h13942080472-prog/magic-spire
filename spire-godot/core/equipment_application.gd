@@ -296,7 +296,7 @@ static func _overrides(request: Dictionary) -> Dictionary:
  return result
 
 # Structural legality always delegates to the original factory/preparation APIs.
-# The definition-only form supplies blocked candidates to Replacement.plan.
+# The definition-only form supplies blocked requests to Replacement.plan.
 static func _request_reason(g, p: Dictionary, placement: bool=true, protected_ids: Array=[]) -> String:
  var grade=p.get("grade",2)
  var tier=p.get("tier",2)
@@ -366,14 +366,14 @@ static func _groups(g, raw: Array, spec: Dictionary, source: String) -> Array:
     var cost=Replacement.comparison_value(g,piece)
     if point=="upper_arm_top": cost+=root.components.filter(func(e):return E.is_shoulder(e)).size()
     minimum=maxi(minimum,cost)
-   var candidates=[]
+   var requests=[]
    for entry in raw:
     if entry.kind!="install" or point not in g._installation_points(entry.slot,entry.get("point","")): continue
     var request=entry.duplicate(true);request.tier=local.tier
     if Replacement.comparison_value(g,request)<=minimum: continue
-    candidates.append(request)
-   choices.append(candidates)
-  if choices.any(func(candidates):return candidates.is_empty()): continue
+    requests.append(request)
+   choices.append(requests)
+  if choices.any(func(requests):return requests.is_empty()): continue
   var requests=_covering_plan(g,choices,0,[],source,spec.get("protected_ids",[]))
   if requests.is_empty(): continue
   var rank=0

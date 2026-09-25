@@ -10,7 +10,7 @@ static func run(t) -> void:
   t.check(g._enemy(id).intent.move=="scatter" and g._enemy(id).hp==56,"MIXED opens with scatter at fifty-six HP")
   for turn in range(5):
    var enemy=g._enemy(id);var plan=enemy.intent.duplicate(true)
-   var prior=g.export_snapshot();g.get_view();g.candidates()
+   var prior=g.export_snapshot();g.get_view();g.command_facts()
    t.check(g.state==prior,"MIXED published weighted move is stable under queries")
    if plan.move=="swell" and not resumed:
     g.state.card_buffs.append("infusion_bound") # Interruption fixture; the card itself has separate casting tests.

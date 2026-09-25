@@ -193,7 +193,10 @@ static func attack_detail(g, args: Dictionary) -> String:
  if focus>0: detail+="本次各段魔法伤害＋%d，消耗全部精神集中。" % focus
  return detail
 
-static func attack_candidates(g, out: Array) -> void:
+# 角色2 的基础攻击事实（行动域，docs/spec/candidate-removal.md §2.1 T5／T8；批 R3）：行与显示事实的唯一来源。
+# brief 依赖本次判定的 mana_payment，故判定先算一次并随事实带走（同一实现、同一输入，不是第二份判定）。
+static func attack_facts(g) -> Array:
+ var facts=[]
  for enemy in g.state.enemies:
   if enemy.gone: continue
   for part in PARTS:
@@ -221,12 +224,18 @@ static func attack_candidates(g, out: Array) -> void:
     var discount=2 if g.state.card_buffs.has("witch_ready_to_strike_free") else 0
     var p={"kind":"attack","type":"witch_"+part,"part":part,"form":form,"charge_action":charge,"enemy":enemy.id,"all":all_targets,"hits":hits,"damage":damage,"damage_type":"physical" if part=="legs" else "magic","interrupt":part=="legs" and not charge,"fall":false,"witch_action":true}
     var copy_args={"part":part,"charge":charge,"stacks":n,"damage":damage,"hits":hits,"all_targets":all_targets,"focus":focus}
-    g._candidate(out,p,label,{"kind":"witch.attack","args":copy_args,"fallback":attack_detail(g,copy_args)},maxi(0,cost-discount),mana,reason,"","attack")
-    out.back().casting=casting
-    var own_after=maxf(0,g.state.mana-out.back().mana_payment.mana)
+    var cost_value=maxi(0,cost-discount)
+    var verdict=g.eligibility(p,cost_value,mana,reason,"")
+    var own_after=maxf(0,g.state.mana-verdict.mana_payment.mana)
     var target_multiplier=1.0 if all_targets else g.Enemies.damage_multiplier(g,enemy.type,p.damage_type)
-    out.back().brief="预备 %d → %d" % [n,n+1] if charge else ("全体 " if all_targets else "")+g.number(damage*damage_multiplier(g,own_after,maxf(0,g.state.temporary_mana-out.back().mana_payment.temporary_mana))*target_multiplier)+" × %d" % hits
-    out.back().brief_tags=""
+    var brief="预备 %d → %d" % [n,n+1] if charge else ("全体 " if all_targets else "")+g.number(damage*damage_multiplier(g,own_after,maxf(0,g.state.temporary_mana-verdict.mana_payment.temporary_mana))*target_multiplier)+" × %d" % hits
+    var fact=g._attack_fact_display(g._fact(p,label,{"kind":"witch.attack","args":copy_args,"fallback":attack_detail(g,copy_args)},cost_value,mana,reason,"","attack"))
+    fact.casting=casting
+    fact.brief=brief
+    fact.brief_tags=""
+    fact.verdict=verdict
+    facts.append(fact)
+ return facts
 
 static func consume_buff(g, id: String) -> void:
  if id not in g.state.card_buffs: return

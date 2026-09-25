@@ -1,4 +1,5 @@
 extends SceneTree
+const Queries=preload("res://ui/target_queries.gd")
 
 var ui
 var screenshots: Array=[]
@@ -137,6 +138,13 @@ func reveal_body(slot: String) -> void:
  await mouse_button(point,MOUSE_BUTTON_LEFT,true)
  await mouse_button(point,MOUSE_BUTTON_LEFT,false)
 
+# 显示键（R3 域）优先、行身份键（R4／R5 域）回落：按钮注册键随批迁移，测试语义不变。
+func candidate_button(c: Dictionary) -> Button:
+ var key=ui.display_key(c.payload)
+ if ui.candidate_buttons.has(key): return ui.candidate_buttons[key] as Button
+ if ui.candidate_buttons.has(String(c.get("key",""))): return ui.candidate_buttons[String(c.get("key",""))] as Button
+ return null
+
 func click(kind: String, extra: Dictionary={}, settle_feedback: bool=true) -> bool:
  # Result acknowledgement is a real UI click, not a rule action or skipped stage.
  if kind=="event":
@@ -146,24 +154,24 @@ func click(kind: String, extra: Dictionary={}, settle_feedback: bool=true) -> bo
    await move_mouse(point)
    await mouse_button(point,MOUSE_BUTTON_LEFT,true)
    await mouse_button(point,MOUSE_BUTTON_LEFT,false)
- for c in ui.view.candidates:
+ for c in ui.view.display_facts:
   if c.payload.kind!=kind or not c.valid: continue
   var matches=true
   for k in extra:
    if c.payload.get(k)!=extra[k]: matches=false
-  if matches and not ui.candidate_buttons.has(c.id) and ui.view.reward_panel.active:
-   var rows=ui.view.battle_rewards.filter(func(row):return c.id in row.action_ids)
+  if matches and candidate_button(c)==null and ui.view.reward_panel.active:
+   var rows=ui.view.battle_rewards.filter(func(row):return Queries.fact_key(c) in row.action_keys)
    if not rows.is_empty():
     var row=rows[0]
     var opener=ui.find_child("Reward_"+row.category+("_"+row.id if row.id!="" else ""),true,false)
     if opener!=null: opener.pressed.emit();await frames()
-  if matches and kind=="event" and not ui.candidate_buttons.has(c.id):
+  if matches and kind=="event" and candidate_button(c)==null:
    var groups=ui.view.room_event.selections.filter(func(group):return group.options.any(func(option):return option.choice==c.payload.get("choice","")))
    if not groups.is_empty(): await preload("res://tests/event_ui_cases.gd").open_selection(self,groups[0].id)
    elif c.payload.action=="reward" and c.payload.get("type","")!="skip": await preload("res://tests/event_ui_cases.gd").open_selection(self,"reward")
-  if matches and kind=="item_use" and not ui.candidate_buttons.has(c.id):
+  if matches and kind=="item_use" and candidate_button(c)==null:
    var item=ui.view.items.filter(func(i):return i.id==c.payload.item)[0]
-   var groups=item.target_groups.filter(func(group):return c.id in group.candidates)
+   var groups=item.target_groups.filter(func(group):return Queries.fact_key(c) in group.keys)
    if not groups.is_empty():
     ui.selected_item=item.id;ui.selected_item_slot=""
     if ui.show_items: ui.render(ui.view)
@@ -171,15 +179,16 @@ func click(kind: String, extra: Dictionary={}, settle_feedback: bool=true) -> bo
     await frames()
     var menu=ui.find_child("ToolSlot_"+groups[0].id,true,false)
     if menu!=null: menu.pressed.emit();await frames()
-  if matches and kind=="item_install" and not ui.candidate_buttons.has(c.id):
+  if matches and kind=="item_install" and candidate_button(c)==null:
    ui.selected_item=c.payload.item;ui.selected_item_slot=""
    if ui.show_items: ui.render(ui.view)
    else: ui._open_drawer("show_items")
    await frames()
    var install_menu=ui.find_child("ToolInstallMenu",true,false)
    if install_menu!=null: install_menu.pressed.emit();await frames()
-  if matches and ui.candidate_buttons.has(c.id):
-   ui.candidate_buttons[c.id].pressed.emit()
+  var button=candidate_button(c)
+  if matches and button!=null:
+   button.pressed.emit()
    await frames(2,settle_feedback)
    return true
  return false
@@ -240,7 +249,7 @@ func release_target(index: int=-1) -> void:
   return
  if index<0:
   var body=ui._body_at(drag_test_slot)
-  var matching=ui.drop_targets.keys().filter(func(id):return ui.actions.by_id[id].payload.get("slot","") in body.slots)
+  var matching=ui.drop_targets.keys().filter(func(id):return Queries.fact_by_key(ui.view,id).payload.get("slot","") in body.slots)
   index=ui.drop_targets.keys().find(matching[0]) if not matching.is_empty() else 0
  var target=ui.drop_targets.values()[index]
  var point=target.get_global_rect().get_center()
@@ -250,8 +259,8 @@ func release_target(index: int=-1) -> void:
 func reveal_drop_target(id: String) -> int:
  var key=id
  if not ui.drop_targets.has(key):
-  var physical=ui.actions.by_id.get(id,{}).get("payload",{}).get("target",id)
-  var matches=ui.drop_targets.keys().filter(func(candidate_id):return ui.actions.by_id.get(candidate_id,{}).get("payload",{}).get("target","")==physical)
+  var physical=Queries.fact_by_key(ui.view,id).get("payload",{}).get("target",id)
+  var matches=ui.drop_targets.keys().filter(func(entry_key):return Queries.fact_by_key(ui.view,entry_key).get("payload",{}).get("target","")==physical)
   if not matches.is_empty(): key=matches[0]
  var index=ui.drop_targets.keys().find(key)
  check(index>=0,"requested physical target appears in drag popout")
@@ -285,7 +294,7 @@ func finish_ui_room() -> void:
  if ui.view.phase=="event":
   for step in range(30):
    if ui.view.phase!="event": break
-   var next=preload("res://tests/route_driver.gd").event_action(ui.view.candidates)
+   var next=preload("res://tests/route_driver.gd").event_action(ui.view.display_facts)
    check(not next.is_empty(),"UI ROUTE event has an available real step")
    if next.is_empty(): break
    var version=ui.view.version
@@ -314,7 +323,7 @@ func finish_ui_room() -> void:
   if p.kind=="card":
    if ui.card_faces.get(p.uid,false): await flip(p.uid)
    await start_drag(p.uid,p.slot)
-   await release_target(await reveal_drop_target(preparation.id))
+   await release_target(await reveal_drop_target(preparation.key))
    check(not ui.card_buttons.has(p.uid),"UI ROUTE preparation consumes actual escape card")
   else:
    if p.kind=="manual":
@@ -331,11 +340,13 @@ func finish_ui_room() -> void:
   if not committed or ui.view.version==version: return
 
 func action_button(type: String, group: String="attack", destination: String="") -> Button:
- for c in ui.view.candidates:
+ for c in ui.view.display_facts:
   if c.group!=group: continue
   if group=="attack" and c.payload.type!=type: continue
   if group=="posture" and (c.payload.dest!=destination or c.payload.wall): continue
-  if ui.candidate_buttons.has(c.id): return ui.candidate_buttons[c.id]
+  var key=ui.display_key(c.payload)
+  if ui.candidate_buttons.has(key): return ui.candidate_buttons[key]
+  if ui.candidate_buttons.has(c.key): return ui.candidate_buttons[c.key]
  return null
 
 func drag_control_to(button: Button, actor: String) -> void:
@@ -380,7 +391,7 @@ func _actor_drag_tests() -> void:
  check(not ui.actor_targets.has("enemy_2") and JSON.stringify(ui.game.state)==before,"departed enemy has no drop target and rendering preserves state")
  var energy=ui.view.energy
  var round_number=ui.view.round
- var posture_cost=ui.actions.select("posture",{"dest":"sit","wall":false})[0].cost
+ var posture_cost=Queries.select(ui.view,"posture",{"dest":"sit","wall":false})[0].cost
  await drag_control_to(action_button("","posture","sit"),"hero")
  check(ui.view.posture=="sit" and ui.view.energy==energy-posture_cost and ui.view.round==round_number,"posture drag onto player uses normal rules")
  await capture("ui-09-actor-actions.png")
@@ -496,21 +507,21 @@ func _index_boundary_tests() -> void:
  await frames()
  var before=JSON.stringify(ui.game.state)
  var old_version=ui.view.version
- var old_action=ui.actions.find("attack",{"type":"strike","enemy":"enemy_1"})
- check(not old_action.is_empty() and ui.actions.find("attack",{"enemy":"missing"}).is_empty(),"indexed targets distinguish actual enemy from missing enemy")
- check(ui.actions.select("item").is_empty(),"empty action group stays empty")
+ var old_action=Queries.find(ui.view,"attack",{"type":"strike","enemy":"enemy_1"})
+ check(not old_action.is_empty() and Queries.find(ui.view,"attack",{"enemy":"missing"}).is_empty(),"indexed targets distinguish actual enemy from missing enemy")
+ check(Queries.select(ui.view,"item").is_empty(),"empty action group stays empty")
  ui.show_deck=true; ui.render(); await frames()
  check(JSON.stringify(ui.game.state)==before,"UI redraw does not advance rules or random cursors")
- var finish=ui.actions.find("flow",{"kind":"end"})
- check(ui.game.dispatch(finish.id,old_version).ok,"external turn advances state for stale UI test")
+ var finish=Queries.find(ui.view,"flow",{"kind":"end"})
+ check(ui.game.dispatch(ui.game.command(finish.payload,old_version),old_version).ok,"external turn advances state for stale UI test")
  before=JSON.stringify(ui.game.state)
- ui._submit(old_action,old_version)
+ ui.command_router.emit(String(old_action.payload.get("kind","")),old_action,old_version)
  await frames()
  check(JSON.stringify(ui.game.state)==before and ui.notice!="","stale displayed action rejected without spending")
  check(ui.view.version==ui.game.state.version and ui.view.energy==ui.game.state.energy,"failed submission refreshes displayed snapshot")
  check(ui._attack_drop_candidate({"version":old_version,"action_type":"strike"},"enemy_1").is_empty(),"old drag rejected after index replacement")
- var current=ui.actions.find("attack",{"type":"strike","enemy":"enemy_1"})
- check(not current.is_empty() and ui.actions.by_id.has(current.id),"current action index rebuilt after state change")
+ var current=Queries.find(ui.view,"attack",{"type":"strike","enemy":"enemy_1"})
+ check(not current.is_empty() and not Queries.fact_by_key(ui.view,String(current.get("key",""))).is_empty(),"current action index rebuilt after state change")
 
 func visible_text(node: Node) -> String:
  var result=""
@@ -543,8 +554,8 @@ func _equipment_practice_tests() -> void:
  var stone=ui.view.items[0].id
  var saw=ui.view.items[1].id
  ui.show_items=true; ui.selected_item=stone; ui.render(); await frames()
- var cut=ui.actions.find("item",{"kind":"item_use","item":stone,"target":plastic})
- check(not cut.valid and cut.reason.contains("不能切割塑料") and not ui.candidate_buttons.has(cut.id),"incompatible stone target is excluded from valid position menu with formal reason retained")
+ var cut=Queries.find(ui.view,"item",{"kind":"item_use","item":stone,"target":plastic})
+ check(not cut.valid and cut.reason.contains("不能切割塑料") and not ui.candidate_buttons.has(cut.key),"incompatible stone target is excluded from valid position menu with formal reason retained")
  await capture("ui-15-material-tools.png")
  ui.selected_item=saw; ui.render(); await frames()
  check(await click("item_use",{"item":saw,"target":plastic}),"saw action cuts plastic from UI")
@@ -576,7 +587,7 @@ func _new_encounter_map_tests() -> void:
  scroll.scroll_vertical=0; await frames()
  point=graph.buttons.exit.get_global_rect().get_center()
  await move_mouse(point); await mouse_button(point,MOUSE_BUTTON_LEFT,true); await mouse_button(point,MOUSE_BUTTON_LEFT,false)
- check(ui.route_focus=="exit" and JSON.stringify(ui.game.state)==before and ui.actions.find("route",{"room":"exit"}).is_empty(),"MAP future room inspection never bypasses route eligibility")
+ check(ui.route_focus=="exit" and JSON.stringify(ui.game.state)==before and Queries.find(ui.view,"route",{"room":"exit"}).is_empty(),"MAP future room inspection never bypasses route eligibility")
  check(ui.find_child("TowerMapScroll",true,false).scroll_vertical==0,"MAP inspecting nodes preserves scroll position")
  await capture("ui-19-spire-map.png")
  var overview=ui.find_child("MapOverview",true,false)
@@ -618,7 +629,7 @@ func _new_encounter_map_tests() -> void:
  before=JSON.stringify(ui.game.state)
  graph=ui.find_child("TowerRoute",true,false)
  graph.buttons.rest.pressed.emit(); await frames()
- check(JSON.stringify(ui.game.state)==before and ui.actions.select("route").is_empty(),"MAP battle inspection cannot move between rooms")
+ check(JSON.stringify(ui.game.state)==before and Queries.select(ui.view,"route").is_empty(),"MAP battle inspection cannot move between rooms")
 
 func _run() -> void:
  var selected: Array=["home"]
@@ -695,7 +706,7 @@ func _baseline_tests() -> void:
  for i in range(3): check(await click("end"),"advance to reward")
  check(ui.view.phase=="reward","reward appears after all enemies")
  await capture("ui-04-reward.png")
- check(await click("reward",{"type":ui.actions.select("reward")[0].payload.type}),"choose displayed reward card")
+ check(await click("reward",{"type":Queries.select(ui.view,"reward")[0].payload.type}),"choose displayed reward card")
  check(await click("reward",{"type":"skip"}),"continue after card pickup")
  for i in range(3): check(await click("end"),"preparation round")
  check(ui.view.phase=="map" and ui.view.deck_count==11,"preparation opens route")
@@ -711,7 +722,7 @@ func _baseline_tests() -> void:
   await finish_ui_room()
  var long_room_guard=0
  while ui.view.phase=="map" and long_room_guard<20:
-  var next=ui.actions.select("route")[0].payload.room
+  var next=Queries.select(ui.view,"route")[0].payload.room
   check(await click("depart",{"room":next}),"long tower next edge")
   while ui.view.phase=="travel": await click("travel_step")
   if ui.view.phase=="rest_choice": await click("rest_begin")
@@ -755,11 +766,11 @@ func _link_ui_tests() -> void:
  await inspect_body("calf")
  check(ui.body_buttons.ankle.text.contains("链") and visible_text(ui.layout).contains("链接绳"),"LINK both end buttons and equipment details identify the connection")
  var uid=ui.view.hand.filter(func(c):return c.type=="strain")[0].uid
- var candidate=ui.actions.find("card",{"uid":uid,"slot":"calf","target":link.id})
+ var candidate=Queries.find(ui.view,"card",{"uid":uid,"slot":"calf","target":link.id})
  var predicted=candidate.payload.preview.damage
  await start_drag(uid,"calf")
- var index=ui.drop_targets.keys().find(candidate.id)
- index=await reveal_drop_target(candidate.id)
+ var index=ui.drop_targets.keys().find(candidate.key)
+ index=await reveal_drop_target(candidate.key)
  check(index>=0 and visible_text(ui.term_popup).contains(ui.game.number(predicted)+"点挣扎伤害"),"LINK hovered target explains shared durability")
  await capture("ui-22-link-targets.png")
  await release_target(index)
@@ -792,26 +803,26 @@ func _composite_ui_tests() -> void:
  for i in range(2):
   if ui.game._equipment(left.id).is_empty(): break
   var uid=ui.view.hand.filter(func(c):return c.type=="slip")[0].uid
-  var c=ui.actions.find("card",{"uid":uid,"target":left.id,"free":false})
+  var c=Queries.find(ui.view,"card",{"uid":uid,"target":left.id,"free":false})
   check(not c.is_empty() and c.valid,"COMPOSITE shoulder has a current formal card candidate")
   if c.is_empty() or not c.valid: return
   var expected=maxf(0.0,ui.game._equipment(left.id).durability-c.payload.preview.damage)
   paid+=c.cost
   await start_drag(uid,"neck")
-  var index=await reveal_drop_target(c.id)
+  var index=await reveal_drop_target(c.key)
   if i==0:
-   check(ui.actions.find("hook",{"target":body.id}).reason.contains("肩带"),"COMPOSITE body target explains actual prerequisite")
+   check(Queries.find(ui.view,"hook",{"target":body.id}).reason.contains("肩带"),"COMPOSITE body target explains actual prerequisite")
    await capture("ui-24-glove-components.png")
   await release_target(index)
   check(is_equal_approx(ui.game._equipment(left.id).get("durability",0.0),expected),"COMPOSITE shoulder drag applies its current previewed damage")
  check(ui.game._equipment(left.id).is_empty() and ui.view.arms==3 and ui.view.energy==energy_before-paid,"COMPOSITE actual slip drags remove the selected shoulder, retain the body and pay only used cards")
  var uid=ui.view.hand.filter(func(c):return c.type=="strain")[0].uid
- var c=ui.actions.find("card",{"uid":uid,"target":body.id,"free":false})
+ var c=Queries.find(ui.view,"card",{"uid":uid,"target":body.id,"free":false})
  check(not c.is_empty() and c.valid,"COMPOSITE body has a current formal card candidate")
  if c.is_empty() or not c.valid: return
  paid+=c.cost
  await start_drag(uid,"forearm")
- var index=await reveal_drop_target(c.id)
+ var index=await reveal_drop_target(c.key)
  check(visible_text(ui.term_popup).contains("整件脱下"),"COMPOSITE shortcut is previewed before commitment")
  await capture("ui-25-glove-release-preview.png")
  await release_target(index)
@@ -824,12 +835,12 @@ func _composite_ui_tests() -> void:
  body=body_view.targets.values().filter(func(e):return e.part=="body")[0]
  var cross=ui.view.body_groups.filter(func(b):return b.id=="neck")[0].targets.values().filter(func(e):return e.part=="left")[0]
  ui.find_child("OpenRestHook",true,false).pressed.emit(); await frames()
- var blocked=ui.actions.find("hook",{"target":body.id})
+ var blocked=Queries.find(ui.view,"hook",{"target":body.id})
  check(not blocked.valid and blocked.reason!="" and visible_text(ui.layout).contains(blocked.reason),"COMPOSITE hook retains structural reason")
- check(not ui.actions.find("hook",{"target":cross.id}).valid and ui.view.hook_uses==3,"COMPOSITE crossed shoulder cannot use hook before reaching tier1")
+ check(not Queries.find(ui.view,"hook",{"target":cross.id}).valid and ui.view.hook_uses==3,"COMPOSITE crossed shoulder cannot use hook before reaching tier1")
  ui.show_hook=false; ui.show_items=true; ui.selected_item=ui.view.items[0].id; ui.render(); await frames()
  var item=ui.selected_item
- blocked=ui.actions.find("item",{"kind":"item_use","item":item,"target":body.id})
+ blocked=Queries.find(ui.view,"item",{"kind":"item_use","item":item,"target":body.id})
  check(not blocked.valid and blocked.reason.contains("手指"),"COMPOSITE handheld cutting correctly unavailable")
  check(await click("item_install",{"item":item,"mount":"foot_wall"}),"COMPOSITE toe wall installation remains available")
  ui.show_items=false; ui.render(); await frames()
@@ -852,12 +863,12 @@ func trigger_installed_tool(target_id: String, item_id: String) -> bool:
  ui.show_items=false;ui.render();await frames()
  var target=ui.game._equipment(target_id)
  var uid=ui.view.hand.filter(func(c):return c.type=="strain")[0].uid
- var c=ui.actions.find("card",{"uid":uid,"target":target_id})
+ var c=Queries.find(ui.view,"card",{"uid":uid,"target":target_id})
  if c.is_empty() or not c.valid or c.payload.get("tool_bonus",{}).get("item","")!=item_id: return false
  var expected=maxf(0,target.durability-c.payload.preview.damage-c.payload.tool_bonus.damage)
  var uses=ui.game._item(item_id).uses
  await start_drag(uid,c.payload.slot)
- await release_target(await reveal_drop_target(c.id))
+ await release_target(await reveal_drop_target(c.key))
  var after=ui.game._equipment(target_id)
  var tool=ui.game._item(item_id)
  return (after.is_empty() if expected==0 else not after.is_empty() and is_equal_approx(after.durability,expected)) and (tool.is_empty() if uses==1 else tool.uses==uses-1) and ui.view.energy==2
