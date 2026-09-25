@@ -2,6 +2,7 @@ extends RefCounted
 const Cases=preload("res://tests/event_cases.gd")
 const Catalog=preload("res://core/content_catalog.gd")
 const Flow=preload("res://tests/event_flow_cases.gd")
+const Queries=preload("res://ui/target_queries.gd")
 
 static func battle_preparation(t) -> void:
  await t.start_practice("Practice_floating_belt_cluster")
@@ -12,9 +13,9 @@ static func battle_preparation(t) -> void:
  var point=ui.find_child("BasicAttack_kick",true,false).get_global_rect().get_center()
  await t.mouse_button(point,MOUSE_BUTTON_RIGHT,true);await t.mouse_button(point,MOUSE_BUTTON_RIGHT,false)
  t.check(await t.click("attack",{"type":"kick","form":1}) and ui.view.phase=="event","EVENT UI winning combat action returns to authored result")
- var leave=ui.actions.find("event",{"action":"leave"})
- t.check(ui.candidate_buttons[leave.id].text=="开始整备" and t.visible_text(ui.layout).contains("3回合"),"EVENT UI victory offers preparation with clear duration")
- await press(t,ui.candidate_buttons[leave.id])
+ var leave=Queries.find(ui.view,"event",{"action":"leave"})
+ t.check(ui.candidate_buttons[leave.key].text=="开始整备" and t.visible_text(ui.layout).contains("3回合"),"EVENT UI victory offers preparation with clear duration")
+ await press(t,ui.candidate_buttons[leave.key])
  t.check(ui.view.phase=="prepare" and ui.view.prepare_left==3 and not ui.view.hand.is_empty() and ui.find_child("EndTurnButton",true,false)!=null,"EVENT UI result button opens normal playable preparation with hand and end-turn control")
  t.check(await t.click("finish_prepare") and ui.view.phase=="cleared","EVENT UI shared early finish completes event practice")
 
@@ -44,7 +45,7 @@ static func open_selection(t, id: String) -> void:
  t.check(t.ui.show_event_selection and t.ui.find_child("EventSelectionGrid",true,false)!=null,"EVENT UI native click opens secondary selection")
 
 static func event_button_count(ui) -> int:
- var ids=ui.actions.select("event").map(func(candidate):return candidate.id)
+ var ids=Queries.select(ui.view,"event").map(func(candidate):return Queries.fact_key(candidate))
  return ui.candidate_buttons.keys().filter(func(id):return id in ids).size()
 
 static func run(t) -> void:
@@ -73,7 +74,7 @@ static func run(t) -> void:
 
  await t.start_practice("Practice_succubus_magic_pawnshop")
  text=t.visible_text(ui.layout)
- t.check(ui.view.room_event.id=="succubus_magic_pawnshop" and ui.actions.select("event").size()==3 and text.contains("小额交易") and text.contains("大额交易") and text.contains("再加点料") and not text.contains("支付费用，离开"),"EVENT UI pawnshop presents exactly three mandatory trades")
+ t.check(ui.view.room_event.id=="succubus_magic_pawnshop" and Queries.select(ui.view,"event").size()==3 and text.contains("小额交易") and text.contains("大额交易") and text.contains("再加点料") and not text.contains("支付费用，离开"),"EVENT UI pawnshop presents exactly three mandatory trades")
  t.check(await t.click("event",{"action":"choose","choice":"extra_spice"}) and ui.view.room_event.stage=="reward","EVENT UI pawnshop extra trade commits and opens the rare reward")
  t.check(ui.view.room_event.report.contains("中级无线乳夹跳蛋") and ui.view.room_event.report.contains("中级无线后庭跳蛋") and ui.find_child("EventContinue",true,false)!=null,"EVENT UI pawnshop result displays both exact wear texts before reward selection")
  var reward_before=ui.game.export_snapshot()
@@ -86,11 +87,11 @@ static func run(t) -> void:
  ui.game._install_special("anal_egg_low","special_3_b")
  Cases.arrive(ui.game,"succubus_magic_pawnshop");ui.render();await t.frames()
  text=t.visible_text(ui.layout)
- t.check(ui.actions.select("event").size()==2 and text.contains("小额交易") and text.contains("大额交易") and not text.contains("再加点料") and not text.contains("支付费用，离开"),"EVENT UI occupied fixed slot hides only the extra trade without restoring an exit")
+ t.check(Queries.select(ui.view,"event").size()==2 and text.contains("小额交易") and text.contains("大额交易") and not text.contains("再加点料") and not text.contains("支付费用，离开"),"EVENT UI occupied fixed slot hides only the extra trade without restoring an exit")
 
  await t.start_practice("Practice_smuggled_mana_potions")
  text=t.visible_text(ui.layout)
- t.check(ui.view.room_event.id=="smuggled_mana_potions" and ui.actions.select("event").size()==2 and text.contains("偷渡商人的魔药箱") and text.contains("嘘，小声点。我可是偷偷溜进来做生意的。") and text.contains("魔瓶魔力＋90"),"EVENT UI smuggler presents the confirmed introduction and two compact decisions")
+ t.check(ui.view.room_event.id=="smuggled_mana_potions" and Queries.select(ui.view,"event").size()==2 and text.contains("偷渡商人的魔药箱") and text.contains("嘘，小声点。我可是偷偷溜进来做生意的。") and text.contains("魔瓶魔力＋90"),"EVENT UI smuggler presents the confirmed introduction and two compact decisions")
  var flask_before=ui.game.state.flask_mana
  var deposits_before=ui.game.state.flask_deposits
  t.check(await t.click("event",{"action":"choose","choice":"credit"}) and ui.view.room_event.stage=="result" and ui.game.state.flask_mana==flask_before+90 and ui.game.state.flask_deposits==deposits_before,"EVENT UI smuggler credit commits the direct flask reward without using a deposit")
@@ -98,7 +99,7 @@ static func run(t) -> void:
 
  await t.start_practice("Practice_floating_belt_cluster")
  text=t.visible_text(ui.layout)
- t.check(ui.view.room_event.id=="floating_belt_cluster" and ui.actions.select("event").size()==2 and text.contains("硬闯") and text.contains("接受灌注") and text.contains("恢复25魔力"),"EVENT UI floating belts present two compact authored decisions")
+ t.check(ui.view.room_event.id=="floating_belt_cluster" and Queries.select(ui.view,"event").size()==2 and text.contains("硬闯") and text.contains("接受灌注") and text.contains("恢复25魔力"),"EVENT UI floating belts present two compact authored decisions")
  ui.game.state.mana=50;ui.render();await t.frames()
  t.check(await t.click("event",{"action":"choose","choice":"infusion"}) and ui.view.room_event.stage=="result" and ui.game.state.mana==75 and ui.game.state.deck.any(func(card):return card.type=="lewd_mark"),"EVENT UI infusion restores personal mana and grants Lewd Mark")
  t.check(ui.view.room_event.report.contains("绕住肉棒根部") and ui.find_child("EventResultBanner",true,false).get_meta("result_status")=="neutral","EVENT UI infusion shows the confirmed scene through the shared result page")
@@ -110,7 +111,7 @@ static func run(t) -> void:
  await t.start_practice("Practice_alchemist_tasting_stall")
  text=t.visible_text(ui.layout)
  t.check(ui.view.room_event.id=="alchemist_tasting_stall" and text.contains("魔力补剂") and text.contains("解缚溶剂") and text.contains("魅魔特调") and not text.contains("香蕉") and not text.contains("甜甜圈") and not text.contains("盒子"),"EVENT UI alchemist replaces all three source props with setting-appropriate potions")
- t.check(ui.actions.select("event").size()==3 and not text.contains("支付费用，离开"),"EVENT UI alchemist presents exactly its three authored choices")
+ t.check(Queries.select(ui.view,"event").size()==3 and not text.contains("支付费用，离开"),"EVENT UI alchemist presents exactly its three authored choices")
  ui.game.state.mana=50;ui.render();await t.frames()
  t.check(await t.click("event",{"action":"choose","choice":"mana_tonic"}) and ui.game.state.mana==75 and ui.find_child("EventResultBanner",true,false).get_meta("result_status")=="success","EVENT UI mana tonic restores twenty-five personal mana and shows a clear success result")
 
@@ -118,8 +119,8 @@ static func run(t) -> void:
  await open_selection(t,"dissolve")
  var tasting_grid=ui.find_child("EventSelectionGrid",true,false)
  t.check(tasting_grid.get_child_count()==1,"EVENT UI solvent opens the shared restraint selection window")
- var tasting_candidate=ui.view.candidates.filter(func(c):return c.payload.get("choice","").begins_with("dissolve__"))[0]
- await press(t,ui.candidate_buttons[tasting_candidate.id])
+ var tasting_candidate=ui.view.display_facts.filter(func(c):return c.payload.get("choice","").begins_with("dissolve__"))[0]
+ await press(t,ui.candidate_buttons[tasting_candidate.key])
  t.check(ui.view.room_event.stage=="result" and ui.game.state.equipment.is_empty() and ui.find_child("EventResultBanner",true,false).get_meta("result_status")=="success","EVENT UI solvent removes the selected restraint through the formal event candidate")
 
  await t.start_practice("Practice_alchemist_tasting_stall")
@@ -130,7 +131,7 @@ static func run(t) -> void:
 
  await t.start_practice("Practice_abandoned_storeroom")
  text=t.visible_text(ui.layout)
- t.check(ui.view.room_event.id=="abandoned_storeroom" and text.contains("废弃储物室") and text.contains("随机药剂、随机卷轴和随机工具各一件") and ui.actions.select("event").size()==1,"EVENT UI storeroom begins with one concise search choice")
+ t.check(ui.view.room_event.id=="abandoned_storeroom" and text.contains("废弃储物室") and text.contains("随机药剂、随机卷轴和随机工具各一件") and Queries.select(ui.view,"event").size()==1,"EVENT UI storeroom begins with one concise search choice")
  t.check(await t.click("event",{"action":"choose","choice":"search"}) and ui.view.phase=="reward" and ui.view.reward_title=="找到的道具","EVENT UI storeroom search enters the shared reward screen with an event title")
  var reward_rows=ui.view.battle_rewards
  t.check(reward_rows.size()==3 and reward_rows.map(func(row):return row.id)==["potion","scroll","tool"] and reward_rows.all(func(row):return row.category=="item"),"EVENT UI storeroom shows one frozen row for each item category")
@@ -141,7 +142,7 @@ static func run(t) -> void:
 
  await t.start_practice("Practice_bound_dream_guest_room")
  text=t.visible_text(ui.layout)
- t.check(ui.view.room_event.id=="bound_dream_guest_room" and text.contains("缚梦客房") and text.contains("恢复全部魔力") and text.contains("最大魔力－8") and ui.actions.select("event").size()==2,"EVENT UI guest room presents exactly its two compact trades")
+ t.check(ui.view.room_event.id=="bound_dream_guest_room" and text.contains("缚梦客房") and text.contains("恢复全部魔力") and text.contains("最大魔力－8") and Queries.select(ui.view,"event").size()==2,"EVENT UI guest room presents exactly its two compact trades")
  ui.game.state.mana=17;ui.render();await t.frames()
  var guest_equipment=ui.game.state.equipment.size()
  t.check(await t.click("event",{"action":"choose","choice":"sleep"}) and ui.game.state.mana==ui.game.state.mana_max and ui.game.state.equipment.size()==guest_equipment+3,"EVENT UI guest-room sleep restores all mana and applies all three restraints")
@@ -155,8 +156,8 @@ static func run(t) -> void:
  await t.start_practice("Practice_mysterious_woman_statue")
  var statue_lock=ui.game._install_special("negative_plate_lock_medium","special_2_a",2)
  ui.render();await t.frames()
- var blocked_sleeve=ui.actions.find("event",{"action":"choose","choice":"use_sleeve"})
- var blocked_button=ui.candidate_buttons.get(blocked_sleeve.id) as Button
+ var blocked_sleeve=Queries.find(ui.view,"event",{"action":"choose","choice":"use_sleeve"})
+ var blocked_button=ui.candidate_buttons.get(blocked_sleeve.key) as Button
  var blocked_reason="平板锁封住了肉棒，无法插进浅盘上的飞机杯。"
  var event_content=ui.find_child("EventContent",true,false)
  t.check(not statue_lock.is_empty() and not blocked_sleeve.valid and blocked_button!=null and blocked_button.disabled and not t.visible_text(event_content).contains(blocked_reason),"EVENT UI worn plate lock keeps the sleeve choice visible and disabled without an inline rule note")
@@ -167,7 +168,7 @@ static func run(t) -> void:
 
  await t.start_practice("Practice_mysterious_woman_statue")
  text=t.visible_text(ui.layout)
- t.check(ui.view.room_event.id=="mysterious_woman_statue" and text.contains("神秘女人的雕像") and text.contains("浅盘") and text.contains("飞机杯") and ui.actions.select("event").size()==3,"EVENT UI statue presents the confirmed woman statue and three compact choices")
+ t.check(ui.view.room_event.id=="mysterious_woman_statue" and text.contains("神秘女人的雕像") and text.contains("浅盘") and text.contains("飞机杯") and Queries.select(ui.view,"event").size()==3,"EVENT UI statue presents the confirmed woman statue and three compact choices")
  t.check(not ui.view.room_event.intro.contains("翼魔") and not ui.view.room_event.intro.contains("魅魔圣像"),"EVENT UI statue does not restore the rejected creature identity")
  var statue_deck=ui.game.state.deck.size();var statue_climaxes=ui.game.state.overload_total
  t.check(await t.click("event",{"action":"choose","choice":"use_sleeve"}) and ui.view.room_event.stage=="remove_card" and ui.game.state.overload_total==statue_climaxes+1 and ui.game.state.deck.size()==statue_deck,"EVENT UI sleeve scene causes one climax before the shared removal stage")
@@ -183,7 +184,7 @@ static func run(t) -> void:
 
  await t.start_practice("Practice_maze_survey_team")
  text=t.visible_text(ui.layout)
- t.check(ui.view.room_event.id=="maze_survey_team" and text.contains("迷宫测绘队") and text.contains("独自探险") and text.contains("魔瓶魔力＋100") and text.contains("结伴而行") and text.contains("魔瓶魔力＋30") and ui.actions.select("event").size()==2,"EVENT UI survey team shows the two confirmed compact choices and flask rewards")
+ t.check(ui.view.room_event.id=="maze_survey_team" and text.contains("迷宫测绘队") and text.contains("独自探险") and text.contains("魔瓶魔力＋100") and text.contains("结伴而行") and text.contains("魔瓶魔力＋30") and Queries.select(ui.view,"event").size()==2,"EVENT UI survey team shows the two confirmed compact choices and flask rewards")
  var survey_portrait=ui.find_child("EventPortrait",true,false)
  t.check(survey_portrait!=null and survey_portrait.texture.resource_path=="res://assets/art/event-maze-survey-team-v1.png" and survey_portrait.stretch_mode==TextureRect.STRETCH_KEEP_ASPECT_CENTERED,"EVENT UI survey team uses its authored illustration at full aspect")
  var survey_installs=ui.game.state.room_event.options.filter(func(option):return option.id=="solo")[0].effects.filter(func(effect):return effect.op=="install")
@@ -201,17 +202,32 @@ static func run(t) -> void:
  t.check(await t.click("event",{"action":"choose","choice":"purify"}) and ui.view.room_event.stage=="remove_card" and ui.find_child("EventContinue",true,false)!=null,"EVENT UI cleric purification presents its committed scene before card selection")
  await open_selection(t,"remove")
  t.check(ui.find_child("EventSelectionGrid",true,false).get_child_count()==ui.view.deck_count,"EVENT UI cleric removal uses the shared physical card modal")
+ # The event card option is a real card face (docs/spec/card-terms.md「触发面」): hovering it must
+ # show one box per term of the face it displays, next to the card and never over it.
+ var event_face=ui.find_child("EventSelectionGrid",true,false).get_child(0).get_child(0)
+ var event_uid=String(event_face.get_meta("physical_uid",""))
+ var event_rows=ui.view.deck_cards.filter(func(row):return row.uid==event_uid)
+ t.check(not event_rows.is_empty(),"EVENT UI card option tile maps to a real deck card: "+event_uid)
+ if not event_rows.is_empty():
+  var event_terms=preload("res://data/balance.gd").card_metadata(event_rows[0].type).face_keywords["free" if event_face.free_face else "bound"]
+  t.check(not event_terms.is_empty(),"EVENT UI card option fixture carries face terms: "+event_rows[0].type)
+  await t.move_mouse(event_face.get_global_rect().get_center());await t.frames()
+  var event_popup=ui.find_child("TermExplanation",true,false)
+  t.check(event_popup!=null and preload("res://tests/interface_ui_cases.gd").term_boxes(event_popup)==event_terms,"EVENT UI card option hover boxes equal the hovered face terms: "+str(preload("res://tests/interface_ui_cases.gd").term_boxes(event_popup)))
+  var event_rect=event_popup.get_global_rect() if event_popup!=null else Rect2()
+  t.check(event_popup!=null and not event_rect.intersects(event_face.get_global_rect()),"EVENT UI card option term boxes clear the anchor card")
+  await t.move_mouse(Vector2(30,50));await t.frames()
 
  await t.start_practice("Practice_bound_adventurer_relic")
  text=t.visible_text(ui.layout)
  t.check(ui.view.room_event.id=="bound_adventurer_relic" and text.contains("拘束具堆里的微光") and text.contains("口球被头带紧紧勒住") and text.contains("25%成功") and text.contains("离开"),"EVENT UI bound adventurer opens through the shared compact event screen")
- t.check(ui.actions.select("event").size()==2 and ui.find_child("HeroSpeech",true,false)==null,"EVENT UI bound adventurer uses two event choices and no separate NPC dialogue interface")
+ t.check(Queries.select(ui.view,"event").size()==2 and ui.find_child("HeroSpeech",true,false)==null,"EVENT UI bound adventurer uses two event choices and no separate NPC dialogue interface")
 
  await t.start_practice("Practice_enchanters_empty_studio")
  text=t.visible_text(ui.layout)
  t.check(ui.view.room_event.id=="enchanters_empty_studio" and text.contains("回火") and text.contains("翻查") and text.contains("放下薄纱"),"EVENT UI empty studio exposes its three compact authored choices")
  var notes=ui.find_child("EventChoices",true,false).get_children().filter(func(node):return node is Label)
- t.check(notes.size()==1 and notes[0].text==ui.actions.select("event").filter(func(c):return c.payload.get("choice","")=="search")[0].detail,"EVENT UI only the additional reward and curse preview gets a note; empty details create no labels")
+ t.check(notes.size()==1 and notes[0].text==Queries.select(ui.view,"event").filter(func(c):return c.payload.get("choice","")=="search")[0].detail,"EVENT UI only the additional reward and curse preview gets a note; empty details create no labels")
  before=JSON.stringify(ui.game.state)
  await open_selection(t,"temper")
  var grid=ui.find_child("EventSelectionGrid",true,false)
@@ -224,7 +240,7 @@ static func run(t) -> void:
  t.check(confirm!=null and not confirm.disabled and t.visible_text(ui.find_child("EventSelectionCount",true,false)).contains("2 / 2"),"EVENT UI exact multi-selection enables the shared confirm action")
  await press(t,confirm)
  t.check(ui.view.room_event.stage=="result" and ui.game.state.equipment.is_empty() and ui.find_child("EventResultBanner",true,false).get_meta("result_status")=="success","EVENT UI confirmed pair removes both restraints and opens a prominent success result")
- var leaving=ui.actions.select("event").filter(func(c):return c.payload.action=="leave")
+ var leaving=Queries.select(ui.view,"event").filter(func(c):return c.payload.action=="leave")
  t.check(leaving.size()==1 and leaving[0].label=="离开" and leaving[0].detail=="" and ui.find_child("EventChoices",true,false).get_children().size()==1,"EVENT UI normal result has one short exit button without a duplicate caption")
 
  # The same event screen renders arbitrary authored stages; it does not know this
@@ -253,7 +269,7 @@ static func run(t) -> void:
  await t.capture("ui-event-portrait.png")
  text=t.visible_text(ui.layout)
  t.check(ui.view.practice_kind=="succubus_three_games" and ui.view.phase=="event" and text.contains("第一局 · 押牌") and text.contains("陪姐姐玩三把"),"EVENT UI practice entry opens with the shipped scene and first-round copy")
- t.check(ui.actions.select("event").size()==11 and text.contains("胜率2/3") and text.contains("慌乱") and event_button_count(ui)==1,"EVENT UI ten card candidates stay behind one compact selector plus refusal")
+ t.check(Queries.select(ui.view,"event").size()==11 and text.contains("胜率2/3") and text.contains("慌乱") and event_button_count(ui)==1,"EVENT UI ten card facts stay behind one compact selector plus refusal")
  var artwork=ui.find_child("EventArtwork",true,false).get_global_rect()
  var prose=ui.find_child("EventNarrativeScroll",true,false).get_global_rect()
  var choices=ui.find_child("EventChoices",true,false).get_global_rect()
@@ -275,8 +291,8 @@ static func run(t) -> void:
  await t.close_information()
  t.check(JSON.stringify(ui.game.state)==before,"EVENT UI close button cancels without modifying state")
  await open_selection(t,"wager_card")
- var candidate=ui.view.candidates.filter(func(c):return c.payload.get("choice","").begins_with("wager_card__"))[0]
- await press(t,ui.candidate_buttons[candidate.id])
+ var candidate=ui.view.display_facts.filter(func(c):return c.payload.get("choice","").begins_with("wager_card__"))[0]
+ await press(t,ui.candidate_buttons[candidate.key])
  t.check(ui.view.room_event.stage=="after_round_one" and not ui.show_event_selection,"EVENT UI selecting an actual card commits once and returns to event")
  var result=ui.view.room_event.report
  var banner=ui.find_child("EventResultBanner",true,false)
@@ -303,8 +319,8 @@ static func run(t) -> void:
  await t.close_information()
  t.check(JSON.stringify(ui.game.state)==before,"EVENT UI equipment cancellation changes no durability or random outcome")
  await open_selection(t,"wager_restraint")
- candidate=ui.view.candidates.filter(func(c):return c.payload.get("choice","").begins_with("wager_restraint__"))[0]
- await press(t,ui.candidate_buttons[candidate.id])
+ candidate=ui.view.display_facts.filter(func(c):return c.payload.get("choice","").begins_with("wager_restraint__"))[0]
+ await press(t,ui.candidate_buttons[candidate.key])
  t.check(ui.view.room_event.stage in ["restraint_penalty","after_round_two"] and not ui.show_event_selection,"EVENT UI equipment choice submits the existing formal event candidate")
 
  # Simulate another successful commit while an older selection window is open.
@@ -316,9 +332,9 @@ static func run(t) -> void:
  await t.mouse_button(outside,MOUSE_BUTTON_LEFT,true);await t.mouse_button(outside,MOUSE_BUTTON_LEFT,false)
  t.check(not ui.show_event_selection and JSON.stringify(ui.game.state)==before,"EVENT UI outside modal click only dismisses and does not pass through")
  await open_selection(t,"wager_card")
- candidate=ui.view.candidates.filter(func(c):return c.payload.get("choice","").begins_with("wager_card__"))[0]
- var stale_button=ui.candidate_buttons[candidate.id]
- t.check(ui.game.dispatch(candidate.id,ui.view.version).ok,"EVENT UI stale-window fixture advances through formal dispatch")
+ candidate=ui.view.display_facts.filter(func(c):return c.payload.get("choice","").begins_with("wager_card__"))[0]
+ var stale_button=ui.candidate_buttons[candidate.key]
+ t.check(ui.game.dispatch(ui.game.command(candidate.payload,ui.view.version),ui.view.version).ok,"EVENT UI stale-window fixture advances through formal dispatch")
  before=JSON.stringify(ui.game.state)
  await press(t,stale_button)
  t.check(JSON.stringify(ui.game.state)==before and ui.notice!="" and not ui.show_event_selection,"EVENT UI stale choice is rejected without another payment, reward or random advance")
@@ -327,13 +343,13 @@ static func run(t) -> void:
  await t.start_practice("Practice_succubus_three_games")
  ui.game.state.equipment.clear();ui.game.state.composites.clear();ui.game.state.links.clear();ui.render();await t.frames()
  await open_selection(t,"wager_card")
- candidate=ui.view.candidates.filter(func(c):return c.payload.get("choice","").begins_with("wager_card__"))[0]
- await press(t,ui.candidate_buttons[candidate.id])
+ candidate=ui.view.display_facts.filter(func(c):return c.payload.get("choice","").begins_with("wager_card__"))[0]
+ await press(t,ui.candidate_buttons[candidate.key])
  t.check(await t.click("event",{"action":"choose","choice":"continue"}) and ui.view.room_event.stage=="wager_restraint","EVENT UI no-restraint player reaches round two from the existing Continue action")
  await press(t,ui.find_child("EventContinue",true,false))
- var fallback=ui.view.candidates.filter(func(c):return c.payload.get("choice","")=="wager_without_restraint")
- t.check(fallback.size()==1 and fallback[0].valid and ui.candidate_buttons.has(fallback[0].id),"EVENT UI replaces the empty equipment picker with an enabled fallback")
+ var fallback=ui.view.display_facts.filter(func(c):return c.payload.get("choice","")=="wager_without_restraint")
+ t.check(fallback.size()==1 and fallback[0].valid and ui.candidate_buttons.has(String(fallback[0].get("key",""))),"EVENT UI replaces the empty equipment picker with an enabled fallback")
  var fallback_text=t.visible_text(ui.find_child("EventChoices",true,false))
  t.check(fallback_text.contains("直接翻牌") and fallback_text.contains("失败1/2") and fallback_text.contains("添加拘束具") and not fallback_text.contains("这一阶段没有能够执行的选项"),"EVENT UI compact fallback still previews the actual loss and remains playable")
- await press(t,ui.candidate_buttons[fallback[0].id])
+ await press(t,ui.candidate_buttons[String(fallback[0].get("key",""))])
  t.check(ui.view.room_event.stage in ["after_round_two","restraint_penalty"] and ui.find_child("EventResultBanner",true,false)!=null,"EVENT UI fallback resolves normally with a prominent result page")

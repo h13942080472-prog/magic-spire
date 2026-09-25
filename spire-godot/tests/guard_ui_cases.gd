@@ -1,4 +1,5 @@
 extends RefCounted
+const Queries=preload("res://ui/target_queries.gd")
 
 static func run(t) -> void:
  await sidebar_drag(t)
@@ -77,7 +78,7 @@ static func run(t) -> void:
  t.check(is_equal_approx(first_group.position.x-ui.ENEMY_STAGE_LEFT,ui.ENEMY_STAGE_LEFT+ui.ENEMY_STAGE_WIDTH-row_right) and ui.find_child("ActionSidebar",true,false)==null,"GUARD UI enemy row stays centered across the stage with no scene action log overlay")
  var first=ui.view.enemies[0].id
  var second=ui.view.enemies[1].id
- var kick=ui.view.candidates.filter(func(c):return c.payload.kind=="attack" and c.payload.type=="kick" and c.payload.form==0 and c.payload.enemy==second)[0]
+ var kick=ui.view.display_facts.filter(func(c):return c.payload.kind=="attack" and c.payload.type=="kick" and c.payload.form==0 and c.payload.enemy==second)[0]
  var second_health=ui.game._enemy(second).hp
  await t.drag_control_to(t.action_button("kick"),second)
  t.check(kick.valid and ui.game._enemy(first).hp==90 and ui.game._enemy(second).hp==second_health-kick.payload.damage and not ui.game._enemy(first).intent.delayed and ui.game._enemy(second).intent.delayed==kick.payload.interrupt,"GUARD UI direct attack applies the offered damage and interrupt only to the chosen guard")
@@ -126,7 +127,7 @@ static func sidebar_drag(t) -> void:
  for type in ["strain","slip","ease"]:
   var card=ui.view.hand.filter(func(entry):return entry.type==type)[0]
   if ui.card_faces.get(card.uid,false):await t.flip(card.uid)
-  var c=ui.actions.find("card",{"uid":card.uid,"target":"guard_bind","free":false})
+  var c=Queries.find(ui.view,"card",{"uid":card.uid,"target":"guard_bind","free":false})
   t.check(c.valid,"GUARD sidebar uses existing capture escape candidate "+type)
   var frozen=ui.game.export_snapshot()
   var point=t.card_point(card.uid)

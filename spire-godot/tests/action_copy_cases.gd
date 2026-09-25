@@ -7,12 +7,12 @@ static func run(t) -> void:
  var g=Game.new(42)
  t.check(g.get_view().speech.is_empty() and g.get_view().action_log.is_empty(),"COPY no invented opening actions or speech")
  var before=g.export_snapshot()
- t.check(not g.dispatch("missing",g.state.version).ok and g.export_snapshot()==before,"COPY rejected command leaves all text and mechanics unchanged")
+ t.check(not g.dispatch(g.command({"kind":"card","uid":"missing"},g.state.version),g.state.version).ok and g.export_snapshot()==before,"COPY rejected command leaves all text and mechanics unchanged")
  t.check(t.action(g,"attack",{"type":"strike","enemy":"enemy_1"}).ok and g.get_view().speech.cue=="hero.attack.upper.low.clear","COPY actual player action selects paid action and pleasure speech")
  var player_log=g.get_view().action_log
  t.check(player_log.size()==1 and player_log[0].actor=="魔法少女" and player_log[0].text.contains("造成") and player_log[0].text.contains("消耗1能量"),"COPY player attack records actual damage and paid resource once")
  var log_ids=player_log.map(func(row):return row.id)
- t.check(not g.dispatch("missing",g.state.version).ok and g.get_view().action_log.map(func(row):return row.id)==log_ids,"COPY rejected click adds no action row")
+ t.check(not g.dispatch(g.command({"kind":"card","uid":"missing"},g.state.version),g.state.version).ok and g.get_view().action_log.map(func(row):return row.id)==log_ids,"COPY rejected click adds no action row")
  before=g.export_snapshot()
  var speech=g.get_view().speech
  g.get_view();g.get_view()

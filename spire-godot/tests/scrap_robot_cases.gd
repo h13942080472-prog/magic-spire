@@ -22,13 +22,13 @@ static func run(t) -> void:
     var multiplier=(0.75 if owned else 0.5) if enemy_type!="rope" else 1.0
     var expected=c.payload.damage*multiplier
     t.check(c.valid and c.brief==g.number(expected)+(" × 2" if form==1 else "")+" 伤害","SCRAP single and multi-hit previews use target armor: "+str([owned,enemy_type,form]))
-    var before=g.export_snapshot();g.get_view();g.candidates()
-    t.check(g.state==before and not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"SCRAP preview and stale submission cannot change enemy health or relic state")
-    t.check(g.dispatch(c.id,g.state.version).ok and is_equal_approx(g._enemy(id).hp,hp-expected*c.payload.hits),"SCRAP real physical hit agrees with preview: "+str([owned,enemy_type,form]))
+    var before=g.export_snapshot();g.get_view();g.command_facts()
+    t.check(g.state==before and not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"SCRAP preview and stale submission cannot change enemy health or relic state")
+    t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and is_equal_approx(g._enemy(id).hp,hp-expected*c.payload.hits),"SCRAP real physical hit agrees with preview: "+str([owned,enemy_type,form]))
  g=fixture();var hp={}
  for e in g.state.enemies: hp[e.id]=e.hp
  var sweep=t.find_action(g,"attack",{"type":"kick","form":1})
- t.check(g.candidate_detail(sweep).contains("减少25%") and g.dispatch(sweep.id,g.state.version).ok,"SCRAP all-target preview describes current mechanical reduction")
+ t.check(g.candidate_detail(sweep).contains("减少25%") and g.dispatch(g.command(sweep.payload,g.state.version),g.state.version).ok,"SCRAP all-target preview describes current mechanical reduction")
  for e in g.state.enemies:
   t.check(is_equal_approx(e.hp,hp[e.id]-sweep.payload.damage*(0.75 if e.type!="rope" else 1.0)),"SCRAP mixed group resolves each target separately: "+e.type)
  for damage_type in ["magic","fixed"]:
@@ -37,7 +37,7 @@ static func run(t) -> void:
   t.check(g._enemy(id).hp==old_hp-8,"SCRAP leaves magic and fixed damage unchanged: "+damage_type)
  g=fixture();var target=g.state.enemies[0];var id=target.id;var old_hp=target.hp
  var fire=t.find_action(g,"attack",{"type":"fireball","enemy":id})
- t.check(g.dispatch(fire.id,g.state.version).ok and g._enemy(id).hp==old_hp-fire.payload.damage,"SCRAP real fireball retains full damage")
+ t.check(g.dispatch(g.command(fire.payload,g.state.version),g.state.version).ok and g._enemy(id).hp==old_hp-fire.payload.damage,"SCRAP real fireball retains full damage")
  g=fixture()
  var snapshot=g.export_snapshot();var restored=Game.new(42);var restoration=restored.restore_snapshot(snapshot)
  t.check(restoration.ok and restored.Enemies.damage_multiplier(restored,"drone","physical")==0.75,"SCRAP current snapshot retains armor override without new state: "+str(restoration))
@@ -54,4 +54,4 @@ static func run(t) -> void:
  var kick=t.find_action(g,"attack",{"type":"witch_legs","form":1,"enemy":id});old_hp=g._enemy(id).hp
  var own_after=g.state.mana-kick.mana_payment.mana
  var expected=kick.payload.damage*0.75*g.Character.damage_multiplier(g,own_after,g.state.temporary_mana-kick.mana_payment.temporary_mana)
- t.check(kick.valid and kick.brief==g.number(expected)+" × 1" and g.dispatch(kick.id,g.state.version).ok and is_equal_approx(g._enemy(id).hp,old_hp-expected),"SCRAP witch physical kick preview and execution share armor adjustment: "+str([kick.valid,kick.reason,kick.brief,expected,g._enemy(id).hp,old_hp]))
+ t.check(kick.valid and kick.brief==g.number(expected)+" × 1" and g.dispatch(g.command(kick.payload,g.state.version),g.state.version).ok and is_equal_approx(g._enemy(id).hp,old_hp-expected),"SCRAP witch physical kick preview and execution share armor adjustment: "+str([kick.valid,kick.reason,kick.brief,expected,g._enemy(id).hp,old_hp]))

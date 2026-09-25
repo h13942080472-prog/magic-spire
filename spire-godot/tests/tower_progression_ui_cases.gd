@@ -1,5 +1,6 @@
 extends RefCounted
 const Cases=preload("res://tests/tower_progression_cases.gd")
+const Queries=preload("res://ui/target_queries.gd")
 
 static func enter_room(t, target: String) -> void:
  Cases.before_room(t.ui.game,target)
@@ -37,7 +38,7 @@ static func run(t) -> void:
  ui.render();await t.frames()
  await t.capture("ui-42-tower-elite.png")
  var enemy=ui.view.enemies[0].id
- var kick=ui.view.candidates.filter(func(c):return c.payload.kind=="attack" and c.payload.type=="kick" and c.payload.form==0 and c.payload.enemy==enemy)[0]
+ var kick=ui.view.display_facts.filter(func(c):return c.payload.kind=="attack" and c.payload.type=="kick" and c.payload.form==0 and c.payload.enemy==enemy)[0]
  var enemy_health=ui.game._enemy(enemy).hp
  await t.drag_control_to(t.action_button("kick"),enemy)
  t.check(kick.valid and ui.game._enemy(enemy).hp==enemy_health-kick.payload.damage and ui.game._enemy(enemy).intent.delayed and ui.game.state.posture=="lie","SUMMIT UI actual leg restraint enables binding kick with offered damage, interrupt and fall cost")
@@ -75,13 +76,13 @@ static func run(t) -> void:
  ui.game.state.room_encounters.summit="six_bind_solo";ui.game.room_data("summit").encounter="six_bind_solo";ui.game.room_data("summit").name="塔顶 · 六缚"
  await enter_room(t,"summit")
  await t.finish_ui_room()
- t.check(ui.view.phase=="map" and ui.game.state.completed_rooms.has("summit") and ui.actions.find("route",{"room":"exit"}).valid,"SUMMIT UI actual victory/reward/preparation opens exit")
+ t.check(ui.view.phase=="map" and ui.game.state.completed_rooms.has("summit") and Queries.find(ui.view,"route",{"room":"exit"}).valid,"SUMMIT UI actual victory/reward/preparation opens exit")
  var reward=ui.view.reward_count;var mana=ui.view.mana
  t.check(await t.click("depart",{"room":"exit"}),"SUMMIT UI depart through newly unlocked exit")
  while ui.view.phase=="travel": t.check(await t.click("travel_step"),"SUMMIT UI final movement commits")
  t.check(ui.view.phase=="cleared" and ui.view.reward_count==reward and ui.view.mana==mana and t.visible_text(ui.layout).contains("第一阶段完成"),"SUMMIT UI clears after 六缚 without extra rewards or healing")
  await t.capture("ui-45-summit-cleared.png")
- t.check(t.visible_text(ui.layout).contains("感谢游玩这次demo") and ui.actions.select("demo_exit").any(func(c):return c.payload.kind=="demo_continue" and c.valid),"EXIT UI thanks player and offers continuation")
+ t.check(t.visible_text(ui.layout).contains("感谢游玩这次demo") and Queries.select(ui.view,"demo_exit").any(func(c):return c.payload.kind=="demo_continue" and c.valid),"EXIT UI thanks player and offers continuation")
  ui.game.state.pressure=75.0;ui.game.state.posture="lie";ui.render();await t.frames()
  t.check(t.visible_text(ui.layout).contains("快感降低40") and t.visible_text(ui.layout).contains("姿势变为站立"),"EXIT UI continuation explains its recovery before clicking")
  t.check(await t.click("demo_continue") and ui.view.demo_cycle==1 and ui.view.phase=="map" and ui.view.mana==ui.game.state.mana_max and ui.game.action_targets().is_empty(),"EXIT UI continue rebuilds tower and clears equipment")
@@ -93,5 +94,5 @@ static func run(t) -> void:
  ui.game.state.demo_cycle=2
  preload("res://tests/demo_exit_cases.gd").exit_fixture(ui.game)
  ui.render();await t.frames()
- t.check(ui.actions.select("demo_exit").size()==1 and ui.actions.select("demo_exit")[0].payload.kind=="demo_end","EXIT UI final cycle has no continue button")
+ t.check(Queries.select(ui.view,"demo_exit").size()==1 and Queries.select(ui.view,"demo_exit")[0].payload.kind=="demo_end","EXIT UI final cycle has no continue button")
  t.check(await t.click("demo_end") and ui.game.state.demo_finished and ui.find_child("HomeContinue",true,false).disabled,"EXIT UI end returns to menu with finished run unavailable")

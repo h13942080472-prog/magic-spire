@@ -1,4 +1,5 @@
 extends RefCounted
+const Queries=preload("res://ui/target_queries.gd")
 
 static func periodic_counter(t) -> void:
  var ui=t.ui
@@ -108,10 +109,10 @@ static func run(t) -> void:
  var uid=give(t,"peel")
  ui.render();await t.frames()
  t.check(ui.view.hand.filter(func(card):return card.uid==uid)[0].cost=="2","REWARD UI two-energy card shows actual cost")
- var choice=ui.actions.select("card",{"uid":uid,"slot":"wrist","target":a.id})[0]
- await t.start_drag(uid,"wrist");await t.release_target(await t.reveal_drop_target(choice.id))
+ var choice=Queries.select(ui.view,"card",{"uid":uid,"slot":"wrist","target":a.id})[0]
+ await t.start_drag(uid,"wrist");await t.release_target(await t.reveal_drop_target(choice.key))
  t.check(ui.view.card_chain.is_empty() and ui.view.energy==1,"REWARD UI real peel drag pays once and completes automatic continuation")
- t.check(ui.actions.select("chain").is_empty() and not t.visible_text(ui.layout).contains("选择下一段目标"),"REWARD UI automatic slip shows no obsolete target picker")
+ t.check(Queries.select(ui.view,"chain").is_empty() and not t.visible_text(ui.layout).contains("选择下一段目标"),"REWARD UI automatic slip shows no obsolete target picker")
  t.check(preload("res://tests/follow_through_cases.gd").hits(ui.game).size()==3 and ui.game._equipment(b.id).durability==6 and ui.game._equipment(c.id).durability==6,"REWARD UI three actual hits stay on surviving target")
 
  setup(t);uid=give(t,"peel")
@@ -132,8 +133,8 @@ static func run(t) -> void:
 
  setup(t);a=ui.game.add_fixture("thigh",4,10,true);b=ui.game.add_fixture("ankle",4,10,true);uid=give(t,"double_unlock")
  ui.render();await t.frames()
- choice=ui.actions.select("card",{"uid":uid,"slot":"thigh","target":a.id})[0]
- await t.start_drag(uid,"thigh");await t.release_target(await t.reveal_drop_target(choice.id))
+ choice=Queries.select(ui.view,"card",{"uid":uid,"slot":"thigh","target":a.id})[0]
+ await t.start_drag(uid,"thigh");await t.release_target(await t.reveal_drop_target(choice.key))
  t.check(not ui.game._equipment(a.id).locked and ui.view.mana==90 and not ui.view.card_chain.is_empty(),"REWARD UI spell drag opens first real lock and pays mana once")
  var chain_before=ui.game.export_snapshot()
  await preload("res://tests/interface_ui_cases.gd").press(t,"ReleaseEffectDetails")
@@ -146,26 +147,26 @@ static func run(t) -> void:
  ui.render();await t.frames()
  if not ui.card_faces.get(uid,false): await t.flip(uid)
  var route_before=ui.game.state.duplicate(true)
- var free_candidates=ui.actions.select("card",{"uid":uid,"free":true})
- t.check(not free_candidates.is_empty() and free_candidates.all(func(choice):return choice.valid) and ui.game.hand_cast_reason()!="" and ui.game.cast_view(ui.game.Cards.cast_profile(ui.game,"double_unlock")).part=="mouth","REWARD UI double unlock retains its mouth route when the hand route is blocked")
+ var free_facts=Queries.select(ui.view,"card",{"uid":uid,"free":true})
+ t.check(not free_facts.is_empty() and free_facts.all(func(choice):return choice.valid) and ui.game.hand_cast_reason()!="" and ui.game.cast_view(ui.game.Cards.cast_profile(ui.game,"double_unlock")).part=="mouth","REWARD UI double unlock retains its mouth route when the hand route is blocked")
  t.check(ui.game.state==route_before,"REWARD UI route projection does not mutate state or random counters")
  ui.game._install_template("mouth_band","mouth",24,24,false,"fixture",3,0)
  a=ui.game.add_fixture("ankle",4,10,true)
  ui.render();await t.frames()
  if ui.card_faces.get(uid,false): await t.flip(uid)
- var blocked=ui.actions.select("card",{"uid":uid,"free":false,"target":a.id})
+ var blocked=Queries.select(ui.view,"card",{"uid":uid,"free":false,"target":a.id})
  t.check(not blocked.is_empty() and blocked.all(func(choice):return not choice.valid and choice.reason.contains("施法成功率为0%")) and t.visible_text(ui.card_buttons[uid]).contains("施法成功率为0%"),"REWARD UI both ineffective casting routes expose the actual zero-chance reason")
- t.check(ui.actions.select("card",{"uid":uid,"free":true}).any(func(choice):return choice.valid),"REWARD UI preparation face still does not roll the bound spell chance")
+ t.check(Queries.select(ui.view,"card",{"uid":uid,"free":true}).any(func(choice):return choice.valid),"REWARD UI preparation face still does not roll the bound spell chance")
 
  setup(t);ui.game._install_assembly("wrap","left","fixture",1,1);uid=give(t,"unlock")
  ui.render();await t.frames()
  if not ui.card_faces.get(uid,false): await t.flip(uid)
- free_candidates=ui.actions.select("card",{"uid":uid,"free":true})
- t.check(not free_candidates.is_empty() and free_candidates.all(func(choice):return not choice.valid and choice.reason=="需要双手的手掌和手指都自由。"),"REWARD UI hand-only free spell exposes actual two-hand restriction")
+ free_facts=Queries.select(ui.view,"card",{"uid":uid,"free":true})
+ t.check(not free_facts.is_empty() and free_facts.all(func(choice):return not choice.valid and choice.reason=="需要双手的手掌和手指都自由。"),"REWARD UI hand-only free spell exposes actual two-hand restriction")
 
  setup(t);ui.game.state.phase="reward";ui.game.state.reward_options=["tear","peel","double_unlock"]
  ui.render();await t.frames()
- t.check(ui.actions.select("reward",{"kind":"reward"}).size()==4 and ui.find_child("Reward_card",true,false)!=null and ui.find_child("RewardSkip_card",true,false)!=null and ui.find_child("RewardChoice_tear",true,false)==null,"REWARD UI begins with a compact card reward row and a separate skip action")
+ t.check(Queries.select(ui.view,"reward",{"kind":"reward"}).size()==4 and ui.find_child("Reward_card",true,false)!=null and ui.find_child("RewardSkip_card",true,false)!=null and ui.find_child("RewardChoice_tear",true,false)==null,"REWARD UI begins with a compact card reward row and a separate skip action")
  ui.find_child("Reward_card",true,false).pressed.emit();await t.frames()
  t.check(ui.find_child("RewardChoice_tear",true,false)!=null,"REWARD UI row opens complete new card choices")
  await t.capture("ui-54-reward-cards.png")
@@ -235,6 +236,16 @@ static func battle_loot(t) -> void:
  var point=row.get_global_rect().get_center()
  await t.move_mouse(point);await t.mouse_button(point,MOUSE_BUTTON_LEFT,true);await t.mouse_button(point,MOUSE_BUTTON_LEFT,false)
  t.check(ui.show_reward_cards and ui.find_child("RewardBack",true,false)!=null and ui.game.state==before,"LOOT UI native row click opens choices without changing state")
+ # The reward card choice is a real card face (docs/spec/card-terms.md「触发面」): hovering it must
+ # show one box per term of the face it displays, next to the card and never over it.
+ var choice_face=ui.find_child("RewardChoice_"+ui.game.state.reward_options[0],true,false)
+ var choice_terms=preload("res://data/balance.gd").card_metadata(ui.game.state.reward_options[0]).face_keywords["free" if choice_face.free_face else "bound"]
+ t.check(not choice_terms.is_empty(),"LOOT UI reward choice fixture carries face terms: "+ui.game.state.reward_options[0])
+ await t.move_mouse(choice_face.get_global_rect().get_center());await t.frames()
+ var choice_popup=ui.find_child("TermExplanation",true,false)
+ t.check(choice_popup!=null and preload("res://tests/interface_ui_cases.gd").term_boxes(choice_popup)==choice_terms,"LOOT UI reward choice hover boxes equal the hovered face terms: "+str(preload("res://tests/interface_ui_cases.gd").term_boxes(choice_popup)))
+ var choice_rect=choice_popup.get_global_rect() if choice_popup!=null else Rect2()
+ t.check(choice_popup!=null and not choice_rect.intersects(choice_face.get_global_rect()),"LOOT UI reward choice term boxes clear the anchor card")
  var card=ui.find_child("RewardChoice_"+ui.game.state.reward_options[0],true,false)
  point=card.get_global_rect().get_center()
  await t.move_mouse(point);await t.mouse_button(point,MOUSE_BUTTON_RIGHT,true);await t.mouse_button(point,MOUSE_BUTTON_RIGHT,false)
@@ -282,7 +293,7 @@ static func resource_feedback(t) -> void:
  var ui=t.ui
  ui.restart(42);await t.frames()
  var energy=ui.view.energy
- var spell=ui.actions.find("attack",{"type":"fireball","enemy":ui.game.state.enemies[0].id})
+ var spell=Queries.find(ui.view,"attack",{"type":"fireball","enemy":ui.game.state.enemies[0].id})
  t.check(await t.click("attack",{"type":"fireball","enemy":ui.game.state.enemies[0].id}),"FX UI ordinary spell commits")
  t.check(ui.find_child("EnergyValue",true,false).text==str(ui.view.energy) and ui.view.energy==energy-spell.cost,"FX UI first fireball immediately displays its actual energy payment during mana animation")
  t.check(not ui.resource_feedback.shown.has("energy") and ui.resource_feedback.pending.all(func(event):return event.field!="energy") and ui.resource_feedback.active.get("field","")!="energy","FX UI energy has no float or interpolation queue")
@@ -410,7 +421,7 @@ static func pressure_relics(t) -> void:
   await t.move_mouse(icon.get_global_rect().get_center());await t.frames()
   t.check(is_instance_valid(ui.term_popup) and t.visible_text(ui.term_popup).contains(ui.game.Relics.TYPES[id].name) and ui.game.state==before,"PRESSURE RELIC UI hover explains relic without changing state")
  await t.move_mouse(Vector2(650,60));await t.frames()
- t.check(ui.actions.find("attack",{"type":"strike","form":0,"enemy":ui.selected_enemy}).payload.damage==10,"MAGIC BLOOD UI previews strength plus two damage")
+ t.check(Queries.find(ui.view,"attack",{"type":"strike","form":0,"enemy":ui.selected_enemy}).payload.damage==10,"MAGIC BLOOD UI previews strength plus two damage")
  t.check(await t.click("end") and ui.game.state.pressure==10,"PRESSURE RELIC UI real end turn reduces three, adds five, then free-state relief lowers two")
  ui.restart(42);await t.frames()
 
@@ -418,7 +429,7 @@ static func crystal_guarantee(t) -> void:
  var ui=t.ui
  ui.restart(42);ui.game.RelicEffects.gain(ui.game,"ember_crystal");ui.game.state.pressure=75
  ui.render();await t.frames()
- var c=ui.actions.find("attack",{"type":"fireball","enemy":ui.selected_enemy})
+ var c=Queries.find(ui.view,"attack",{"type":"fireball","enemy":ui.selected_enemy})
  t.check(c.valid and c.casting.percent=="100%" and c.casting.formula.contains("余烬晶石"),"CRYSTAL UI first paid spell displays actual guaranteed chance")
  var icon=ui.find_child("RelicShortcut_ember_crystal",true,false)
  await t.move_mouse(icon.get_global_rect().get_center());await t.frames()
@@ -426,8 +437,8 @@ static func crystal_guarantee(t) -> void:
  await t.move_mouse(Vector2(650,60));await t.frames()
  var mana=ui.game.state.mana
  t.check(await t.click("attack",{"type":"fireball","enemy":ui.selected_enemy}) and ui.game.state.mana==mana-c.mana and not ui.game._magic_failed,"CRYSTAL UI actual cast pays full price and succeeds")
- t.check(ui.actions.find("attack",{"type":"fireball","enemy":ui.selected_enemy}).casting.chance<1,"CRYSTAL UI remaining casts show ordinary probability")
- t.check(await t.click("end") and ui.actions.find("attack",{"type":"fireball","enemy":ui.selected_enemy}).casting.percent=="100%","CRYSTAL UI new turn restores guarantee")
+ t.check(Queries.find(ui.view,"attack",{"type":"fireball","enemy":ui.selected_enemy}).casting.chance<1,"CRYSTAL UI remaining casts show ordinary probability")
+ t.check(await t.click("end") and Queries.find(ui.view,"attack",{"type":"fireball","enemy":ui.selected_enemy}).casting.percent=="100%","CRYSTAL UI new turn restores guarantee")
  ui.restart(42);await t.frames()
 
 static func boss_relics(t) -> void:
@@ -455,7 +466,7 @@ static func boss_relics(t) -> void:
  var snapshot=ui.game.export_snapshot()
  ui.find_child("RewardBack",true,false).pressed.emit();await t.frames()
  t.check(ui.game.state==snapshot,"BOSS UI closing choices does not reroll or collect")
- var card=ui.actions.select("reward",{"category":"card"})[0]
+ var card=Queries.select(ui.view,"reward",{"category":"card"})[0]
  t.check(await t.click("reward",{"category":"card","type":card.payload.type}),"BOSS UI rare card reward remains independent")
  ui.find_child("Reward_relic",true,false).pressed.emit();await t.frames()
  t.check(ui.show_reward_relics and ui.find_child("BossRelicChoice_"+offered[0],true,false)!=null,"BOSS UI relic chooser opens after card reward was claimed")
@@ -502,7 +513,7 @@ static func rest_reward_layout(t) -> void:
   if kind=="rest_rare": await t.capture("ui-rest-rewards.png")
   if kind=="rest_card":
    await Pointer.press(t,ui.find_child("Reward_card_uncommon",true,false))
-   var cards=ui.actions.select("rest_service").filter(func(c):return c.payload.kind=="rest_card")
+   var cards=Queries.select(ui.view,"rest_service").filter(func(c):return c.payload.kind=="rest_card")
    t.check(cards.size()==3 and cards.all(func(c):return ui.find_child("RewardChoice_"+c.payload.type,true,false)!=null and ui.game.Cards.Rules.SPECS[c.payload.type].rarity=="uncommon"),"REST UI opens the three frozen uncommon choices")
    await Pointer.press(t,ui.find_child("RewardBack",true,false))
    t.check(ui.game.state==before,"REST UI returning from card choices neither pays nor rerolls")

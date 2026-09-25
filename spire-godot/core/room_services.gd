@@ -78,7 +78,10 @@ static func refresh_detail(_g, _args: Dictionary) -> String:
 static func leave_detail(_g, _args: Dictionary) -> String:
  return "保留已获得的物品，继续向上一层前进。"
 
-static func paid_candidate(g, out: Array, payload: Dictionary, label: String, info, price: float, reason: String, group: String, required_payment: String="") -> void:
+# 付费服务的显示事实（批 R5：行生产转发改显示事实构建，docs/spec/candidate-removal.md §2.1 T5／T8）：
+# 每个付费服务按支付来源产出各自的显示点（自身魔力／魔瓶），供投影与提交复核共用。
+static func paid_fact(g, payload: Dictionary, label: String, info, price: float, reason: String, group: String, required_payment: String="") -> Array:
+ var out=[]
  for source in (["self","flask"] if g.state.phase=="shop" else ["self"]):
   var action=payload.duplicate();action.payment=source
   var payment_reason=reason
@@ -86,12 +89,15 @@ static func paid_candidate(g, out: Array, payload: Dictionary, label: String, in
   var plate_blocked=reason=="" and not plate_release and required_payment!="flask" and payment_notice(g,source)!=""
   if required_payment!="" and source!=required_payment: payment_reason="仅可使用魔瓶购买。" if required_payment=="flask" else "仅可使用自身魔力购买。"
   elif plate_blocked: payment_reason=ShopCopy.PLATE_SELF_BLOCK_REASON
-  g._candidate(out,action,label,info,0,price,payment_reason,"",group)
+  var fact=g._fact(action,label,info,0,price,payment_reason,"",group)
   if plate_blocked:
-   out[-1].copy_context="plate_self_block"
-   out[-1].reason_scope="payment"
+   fact.copy_context="plate_self_block"
+   fact.reason_scope="payment"
+  out.append(fact)
+ return out
 
-static func candidates(g, out: Array) -> void:
+static func facts(g) -> Array:
+ var out=[]
  var room=g.room_data(g.state.room)
  for index in range(room.stock.size()):
   var offer=room.stock[index]
@@ -103,20 +109,21 @@ static func candidates(g, out: Array) -> void:
   var payload={"kind":"service","op":"take","index":index}
   if room.kind=="treasure":
    var treasure_args={"offer":offer}
-   g._candidate(out,payload,"打开宝箱 · "+name(g,offer),{"kind":"service.offer","args":treasure_args,"fallback":offer_detail(g,treasure_args)},0,0,reason,"","service")
+   out.append(g._fact(payload,"打开宝箱 · "+name(g,offer),{"kind":"service.offer","args":treasure_args,"fallback":offer_detail(g,treasure_args)},0,0.0,reason,"","service"))
   else:
    var required_payment=g.Relics.TYPES[offer.type].get("shop_payment","") if offer.kind=="relic" else ""
    var offer_args={"offer":offer}
-   paid_candidate(g,out,payload,"购买 · "+name(g,offer),{"kind":"service.offer","args":offer_args,"fallback":offer_detail(g,offer_args)},discounted_price(g,offer.price),reason,"service",required_payment)
+   out.append_array(paid_fact(g,payload,"购买 · "+name(g,offer),{"kind":"service.offer","args":offer_args,"fallback":offer_detail(g,offer_args)},discounted_price(g,offer.price),reason,"service",required_payment))
  if room.kind=="shop":
-  paid_candidate(g,out,{"kind":"service","op":"refresh"},"刷新商品",{"kind":"service.refresh","args":{},"fallback":refresh_detail(g,{})},discounted_price(g,Data.refresh_price(int(g.state.get("shop_refreshes",0)))),"","service_refresh")
+  out.append_array(paid_fact(g,{"kind":"service","op":"refresh"},"刷新商品",{"kind":"service.refresh","args":{},"fallback":refresh_detail(g,{})},discounted_price(g,Data.refresh_price(int(g.state.get("shop_refreshes",0)))),"","service_refresh"))
   for job in release_jobs(g):
    var job_args={"job":job}
-   paid_candidate(g,out,{"kind":"service","op":"release","target":job.id},"解除「"+job.name+"」",{"kind":"service.release_job","args":job_args,"fallback":release_job_detail(g,job_args)},job.price,job.reason,"service_release")
+   out.append_array(paid_fact(g,{"kind":"service","op":"release","target":job.id},"解除「"+job.name+"」",{"kind":"service.release_job","args":job_args,"fallback":release_job_detail(g,job_args)},job.price,job.reason,"service_release"))
  if room.kind=="shop" and not room.remove_used:
   for card in g.state.deck:
-   paid_candidate(g,out,{"kind":"service","op":"remove","uid":card.uid},"移除「"+g.B.CARD_NAMES[card.type]+"」",{"kind":"service.remove_card","args":{},"fallback":remove_card_detail(g,{})},discounted_price(g,Data.removal_price(g.state.shop_removals)),"","service_remove")
- g._candidate(out,{"kind":"service","op":"leave"},"离开房间",{"kind":"service.leave","args":{},"fallback":leave_detail(g,{})},0,0,"","","service_flow")
+   out.append_array(paid_fact(g,{"kind":"service","op":"remove","uid":card.uid},"移除「"+g.B.CARD_NAMES[card.type]+"」",{"kind":"service.remove_card","args":{},"fallback":remove_card_detail(g,{})},discounted_price(g,Data.removal_price(g.state.shop_removals)),"","service_remove"))
+ out.append(g._fact({"kind":"service","op":"leave"},"离开房间",{"kind":"service.leave","args":{},"fallback":leave_detail(g,{})},0,0.0,"","","service_flow"))
+ return out
 
 static func execute(g, p: Dictionary) -> String:
  var room=g.room_data(g.state.room)

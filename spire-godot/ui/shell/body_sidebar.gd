@@ -104,7 +104,7 @@ func _drop_callbacks(ui, button, id: String) -> void:
   return not candidate.is_empty() and candidate.valid
  button.receive_card=func(data):
   var candidate=ui._free_player_candidate(data,id)
-  if not candidate.is_empty() and candidate.valid:ui.call_deferred("_submit",candidate,int(data.version))
+  if not candidate.is_empty() and candidate.valid:ui.command_router.emit_deferred(String(candidate.payload.get("kind","")),candidate,int(data.version))
 
 func _presentation_key(ui) -> Array:
  # Only rendered facts: never retain an old View, candidate, or equipment graph.

@@ -27,7 +27,7 @@ static func event_mana_cost(t) -> void:
     var before=g.export_snapshot()
     var action=t.find_action(g,"event",{"action":"choose","choice":offer[1]})
     t.check(g.export_snapshot()==before,"EVENT MANA preview preserves all resources: "+offer[1])
-    t.check(g.dispatch(action.id,g.state.version).ok,"EVENT MANA option commits: "+offer[1])
+    t.check(g.dispatch(g.command(action.payload,g.state.version),g.state.version).ok,"EVENT MANA option commits: "+offer[1])
     var expected_loss=minf(remaining_mana,20.0*expected_count)
     t.check(g.state.overload_total-before.overload_total==expected_count and is_equal_approx(g.state.mana,remaining_mana-expected_loss),"EVENT MANA each event climax deducts twenty personal mana, clamped at zero: "+offer[1])
     t.check(g.state.temporary_mana==30 and g.state.flask_mana==40 and g.state.slip_ejaculation_turns==deferred_turns,"EVENT MANA leaves temporary mana, flask and pending combat penalty unchanged: "+offer[1])
@@ -35,7 +35,7 @@ static func event_mana_cost(t) -> void:
     for log in g.state.logs.slice(before.logs.size()): logged_loss+=float(log.data.get("mana_lost",0.0))
     t.check(is_equal_approx(logged_loss,expected_loss),"EVENT MANA log reports the actual loss exactly once: "+offer[1])
     var after=g.export_snapshot()
-    t.check(not g.dispatch(action.id,before.version).ok and g.export_snapshot()==after,"EVENT MANA stale repeat cannot charge again: "+offer[1])
+    t.check(not g.dispatch(g.command(action.payload,before.version),before.version).ok and g.export_snapshot()==after,"EVENT MANA stale repeat cannot charge again: "+offer[1])
 
 static func link_installation(t) -> void:
  var g=Game.new(42)
@@ -153,35 +153,35 @@ static func chain_documents() -> Array:
 
 static func empty_studio(t) -> void:
  var g=Game.new(90,true,"enchanters_empty_studio")
- var temper=g.candidates().filter(func(c):return c.payload.get("choice","").begins_with("temper__"))
+ var temper=g.command_facts().filter(func(c):return c.payload.get("choice","").begins_with("temper__"))
  var selection=g.get_view().room_event.selections.filter(func(group):return group.id=="temper")
  t.check(temper.size()==1 and temper[0].valid and selection.size()==1 and selection[0].count==2 and selection[0].options[0].selected is Array and selection[0].options[0].selected.size()==2,"STUDIO two-restraint option freezes one atomic pair and projects a count-two selector")
  var saved=g.export_snapshot();var resumed=Game.new(90)
  t.check(resumed.restore_snapshot(saved).ok and resumed.state.room_event.options.any(func(option):return option.id==temper[0].payload.choice and option.selected is Array and option.selected.size()==2),"STUDIO pending multi-restraint choice survives snapshot validation")
  var selected=g.state.room_event.options.filter(func(option):return option.id==temper[0].payload.choice)[0].selected
- t.check(g.dispatch(temper[0].id,g.state.version).ok and selected.all(func(row):return g._equipment(row.id).is_empty()) and g.state.room_event.report.contains(selected[0].name) and g.state.room_event.report.contains(selected[1].name),"STUDIO temper removes both selected restraints and names both in the result")
+ t.check(g.dispatch(g.command(temper[0].payload,g.state.version),g.state.version).ok and selected.all(func(row):return g._equipment(row.id).is_empty()) and g.state.room_event.report.contains(selected[0].name) and g.state.room_event.report.contains(selected[1].name),"STUDIO temper removes both selected restraints and names both in the result")
 
  g=Game.new(91,true,"enchanters_empty_studio")
  var deck_before=g.state.deck.size()
  t.check(t.action(g,"event",{"action":"choose","choice":"search"}).ok and "enchanters_needle_case" in g.state.relics and g.state.deck.size()==deck_before+1 and g.state.deck.any(func(card):return card.type=="lewd_mark"),"STUDIO search atomically grants the rare needle case and lewd-mark curse")
  var duplicate=Game.new(92);duplicate.state.relics.append("enchanters_needle_case");Events.arrive(duplicate,"enchanters_empty_studio")
- t.check(not duplicate.candidates().any(func(c):return c.payload.get("choice","")=="search"),"STUDIO already-owned event relic hides the complete search option")
+ t.check(not duplicate.command_facts().any(func(c):return c.payload.get("choice","")=="search"),"STUDIO already-owned event relic hides the complete search option")
 
  var sparse=Game.new(93);sparse.add_fixture("wrist",8);Events.arrive(sparse,"enchanters_empty_studio")
- t.check(not sparse.candidates().any(func(c):return c.payload.get("choice","").begins_with("temper__")) and sparse.candidates().any(func(c):return c.payload.get("choice","")=="leave"),"STUDIO fewer than two selectable restraints hides temper and preserves free departure")
+ t.check(not sparse.command_facts().any(func(c):return c.payload.get("choice","").begins_with("temper__")) and sparse.command_facts().any(func(c):return c.payload.get("choice","")=="leave"),"STUDIO fewer than two selectable restraints hides temper and preserves free departure")
  var state_before={"mana":sparse.state.mana,"pressure":sparse.state.pressure,"deck":sparse.state.deck.duplicate(true),"relics":sparse.state.relics.duplicate(true),"equipment":sparse.state.equipment.duplicate(true)}
  t.check(t.action(sparse,"event",{"action":"choose","choice":"leave"}).ok and sparse.state.mana==state_before.mana and sparse.state.pressure==state_before.pressure and sparse.state.deck==state_before.deck and sparse.state.relics==state_before.relics and sparse.state.equipment==state_before.equipment,"STUDIO leave changes no resources, cards, relics or equipment")
 
  var atomic=Game.new(94,true,"enchanters_empty_studio")
- temper=atomic.candidates().filter(func(c):return c.payload.get("choice","").begins_with("temper__"))
+ temper=atomic.command_facts().filter(func(c):return c.payload.get("choice","").begins_with("temper__"))
  selected=atomic.state.room_event.options.filter(func(option):return option.id==temper[0].payload.choice)[0].selected
  atomic._equipment(selected[0].id).durability=0;atomic._cleanup()
  var atomic_before=atomic.export_snapshot()
- t.check(not atomic.dispatch(temper[0].id,atomic.state.version).ok and atomic.export_snapshot()==atomic_before and not atomic._equipment(selected[1].id).is_empty(),"STUDIO missing one frozen target rejects the entire pair without partially removing the other")
+ t.check(not atomic.dispatch(atomic.command(temper[0].payload,atomic.state.version),atomic.state.version).ok and atomic.export_snapshot()==atomic_before and not atomic._equipment(selected[1].id).is_empty(),"STUDIO missing one frozen target rejects the entire pair without partially removing the other")
 
 static func smuggled_potions(t) -> void:
  var g=Game.new(95,true,"smuggled_mana_potions")
- var choices=g.candidates().filter(func(candidate):return candidate.payload.get("kind","")=="event" and candidate.payload.get("action","")=="choose")
+ var choices=g.command_facts().filter(func(candidate):return candidate.payload.get("kind","")=="event" and candidate.payload.get("action","")=="choose")
  t.check(choices.map(func(candidate):return candidate.payload.choice)==["credit","leave"],"SMUGGLER authored credit and free-departure choices are the only event decisions")
  t.check(g.get_view().room_event.intro.contains("“嘘，小声点。我可是偷偷溜进来做生意的。”"),"SMUGGLER uses the confirmed conversational introduction")
  var flask_before=g.state.flask_mana
@@ -200,7 +200,7 @@ static func smuggled_potions(t) -> void:
 
 static func floating_belts(t) -> void:
  var g=Game.new(97,true,"floating_belt_cluster")
- var choices=g.candidates().filter(func(candidate):return candidate.payload.get("kind","")=="event" and candidate.payload.get("action","")=="choose")
+ var choices=g.command_facts().filter(func(candidate):return candidate.payload.get("kind","")=="event" and candidate.payload.get("action","")=="choose")
  t.check(choices.map(func(candidate):return candidate.payload.choice)==["fight","infusion"],"BELT EVENT exposes only the authored fight and infusion decisions")
  var encounters_before=g.state.encounter
  var rewards_before=g.state.reward_count
@@ -209,7 +209,7 @@ static func floating_belts(t) -> void:
  t.check(g.state.room_event.battle.requires_defeat and not g._finish_if_saturated(),"BELT EVENT cannot count equipment saturation as victory")
  for enemy in g.state.enemies: enemy.hp=1.0
  var sweep=t.find_action(g,"attack",{"type":"kick","form":1})
- t.check(sweep.valid and g.dispatch(sweep.id,g.state.version).ok,"BELT EVENT final combat action resolves through the ordinary attack transaction")
+ t.check(sweep.valid and g.dispatch(g.command(sweep.payload,g.state.version),g.state.version).ok,"BELT EVENT final combat action resolves through the ordinary attack transaction")
  t.check(g.state.phase=="event" and g.state.room_event.stage=="result" and "softened_buckle" in g.state.relics and g.state.reward_count==rewards_before+1,"BELT EVENT victory returns to its result and grants the fixed rare relic")
  t.check(g.state.reward_options.is_empty() and g.state.battle_item_drop=="" and g.state.battle_relic_drop=="" and g.state.room_event.report.contains("软化扣环") and g.state.room_event.get("prepare_pending",false),"BELT EVENT victory keeps authored loot and schedules normal preparation after its result")
  var locked=g._install_template("belt","wrist",4,g.Equipment.maximum(1),true,"fixture",1)
@@ -241,10 +241,10 @@ static func battle_preparation(t) -> void:
   var serial=g.state.combat.serial
   var carried_charge=g.state.charge
   var version=g.state.version
-  t.check(g.dispatch(leave.id,version).ok and g.state.phase=="prepare" and g.state.prepare_left==(4 if extra else 3),"EVENT PREP enters normal preparation including hourglass modifier")
+  t.check(g.dispatch(g.command(leave.payload,version),version).ok and g.state.phase=="prepare" and g.state.prepare_left==(4 if extra else 3),"EVENT PREP enters normal preparation including hourglass modifier")
   t.check(not g.state.room_event.has("prepare_pending") and g.state.combat.serial==serial and g.state.energy==3 and g.state.charge==carried_charge and not g.state.hand.is_empty(),"EVENT PREP consumes pending flag and continues without repeating opening bonuses")
   unchanged=g.export_snapshot()
-  t.check(not g.dispatch(leave.id,version).ok and g.export_snapshot()==unchanged,"EVENT PREP stale result cannot duplicate opening effects")
+  t.check(not g.dispatch(g.command(leave.payload,version),version).ok and g.export_snapshot()==unchanged,"EVENT PREP stale result cannot duplicate opening effects")
   t.check(restored.restore_snapshot(g.restart_snapshot()).ok and restored.state.phase=="prepare" and restored.state.prepare_left==g.preparation_turns(),"EVENT PREP scene SL starts at preparation first turn")
   if extra:
    t.check(t.action(g,"finish_prepare").ok and g.state.phase=="cleared","EVENT PREP can finish early via shared preparation action")
@@ -257,20 +257,20 @@ static func alchemist_tasting(t) -> void:
  var g=Game.new(99,true,"alchemist_tasting_stall")
  var authored=JSON.stringify(g.Events.Data.TYPES.alchemist_tasting_stall)
  t.check(not authored.contains("香蕉") and not authored.contains("甜甜圈") and not authored.contains("盒子"),"ALCHEMIST replaces all three source-event props with tower-setting potions")
- var choices=g.candidates().filter(func(candidate):return candidate.payload.get("kind","")=="event" and candidate.payload.get("action","")=="choose")
+ var choices=g.command_facts().filter(func(candidate):return candidate.payload.get("kind","")=="event" and candidate.payload.get("action","")=="choose")
  t.check(choices.any(func(candidate):return candidate.payload.choice=="mana_tonic") and choices.any(func(candidate):return candidate.payload.choice=="succubus_mix") and choices.any(func(candidate):return candidate.payload.choice.begins_with("dissolve__")),"ALCHEMIST offers mana tonic, restraint solvent and succubus mix without a departure choice")
  g.state.mana=50
  t.check(t.action(g,"event",{"action":"choose","choice":"mana_tonic"}).ok and g.state.mana==75 and g.state.room_event.result_status=="success","ALCHEMIST mana tonic restores twenty-five personal mana through the shared effect")
 
  g=Game.new(100,true,"alchemist_tasting_stall")
- var dissolve=g.candidates().filter(func(candidate):return candidate.payload.get("choice","").begins_with("dissolve__"))
+ var dissolve=g.command_facts().filter(func(candidate):return candidate.payload.get("choice","").begins_with("dissolve__"))
  t.check(dissolve.size()==1 and dissolve[0].valid,"ALCHEMIST one-restraint solvent freezes one valid removal candidate")
  if not dissolve.is_empty():
   var selected=g.state.room_event.options.filter(func(option):return option.id==dissolve[0].payload.choice)[0].selected
   var selected_id=selected.id
-  t.check(g.dispatch(dissolve[0].id,g.state.version).ok and g._equipment(selected_id).is_empty() and g.state.room_event.report.contains(selected.name),"ALCHEMIST solvent fully removes and names the selected restraint")
+  t.check(g.dispatch(g.command(dissolve[0].payload,g.state.version),g.state.version).ok and g._equipment(selected_id).is_empty() and g.state.room_event.report.contains(selected.name),"ALCHEMIST solvent fully removes and names the selected restraint")
  var unbound=Game.new(101);Events.arrive(unbound,"alchemist_tasting_stall")
- t.check(not unbound.candidates().any(func(candidate):return candidate.payload.get("choice","").begins_with("dissolve__")),"ALCHEMIST hides the solvent choice when there is no restraint to select")
+ t.check(not unbound.command_facts().any(func(candidate):return candidate.payload.get("choice","").begins_with("dissolve__")),"ALCHEMIST hides the solvent choice when there is no restraint to select")
 
  g=Game.new(102,true,"alchemist_tasting_stall")
  var offered=g.state.room_event.relic
@@ -281,13 +281,13 @@ static func alchemist_tasting(t) -> void:
 static func abandoned_storeroom(t) -> void:
  var g=Game.new(103,true,"abandoned_storeroom")
  var search=g.state.room_event.options.filter(func(option):return option.id=="search")
- t.check(search.size()==1 and g.candidates().filter(func(candidate):return candidate.payload.get("choice","")=="search").size()==1,"STOREROOM starts with one authored search choice")
+ t.check(search.size()==1 and g.command_facts().filter(func(candidate):return candidate.payload.get("choice","")=="search").size()==1,"STOREROOM starts with one authored search choice")
  if search.is_empty(): return
  var frozen=search[0].item_rewards
  var by_id={}
  for row in frozen: by_id[row.id]=row.type
  t.check(frozen.size()==3 and by_id.potion in ["mana_potion","energy_potion","charge_potion"] and by_id.scroll in ["draw_scroll","mana_scroll","casting_scroll"] and by_id.tool in ["shard","saw"],"STOREROOM freezes exactly one potion, one scroll and one tool")
- var before=g.export_snapshot();g.get_view();g.candidates();g.route_view()
+ var before=g.export_snapshot();g.get_view();g.command_facts();g.route_view()
  t.check(g.export_snapshot()==before and g.state.room_event.options[0].item_rewards==frozen,"STOREROOM viewing and previewing do not reroll the three items")
  var twin=preload("res://tests/persistence_cases.gd").roundtrip(t,g,"storeroom frozen search rewards")
  t.check(twin.state.room_event.options[0].item_rewards==frozen,"STOREROOM pending grouped rewards survive snapshot validation")
@@ -305,9 +305,9 @@ static func abandoned_storeroom(t) -> void:
  g._gain_tool("mana_potion");g._gain_tool("draw_scroll")
  Events.arrive(g,"abandoned_storeroom")
  t.check(t.action(g,"event",{"action":"choose","choice":"search"}).ok,"STOREROOM capacity fixture reaches the reward page")
- var first=g.candidates().filter(func(candidate):return candidate.payload.get("reward_id","")!="" and candidate.valid)[0]
- t.check(g.dispatch(first.id,g.state.version).ok and g.carried_items()==g.item_capacity(),"STOREROOM can claim one item into the final free slot")
- var blocked=g.candidates().filter(func(candidate):return candidate.payload.get("reward_id","")!="")
+ var first=g.command_facts().filter(func(candidate):return candidate.payload.get("reward_id","")!="" and candidate.valid)[0]
+ t.check(g.dispatch(g.command(first.payload,g.state.version),g.state.version).ok and g.carried_items()==g.item_capacity(),"STOREROOM can claim one item into the final free slot")
+ var blocked=g.command_facts().filter(func(candidate):return candidate.payload.get("reward_id","")!="")
  t.check(blocked.size()==2 and blocked.all(func(candidate):return not candidate.valid and candidate.reason.contains("道具栏已满")),"STOREROOM remaining items show a concrete capacity reason instead of entering packing")
  t.check(t.action(g,"reward",{"type":"skip"}).ok and g.state.phase=="map" and g.state.completed_rooms.has(g.state.room),"STOREROOM abandoning remaining items returns directly to the tower route")
 
@@ -315,7 +315,7 @@ static func bound_dream_guest_room(t) -> void:
  var sleeper=Game.new(105,true,"bound_dream_guest_room")
  sleeper.state.mana_max=132;sleeper.state.mana=17
  Events.arrive(sleeper,"bound_dream_guest_room")
- var choices=sleeper.candidates().filter(func(candidate):return candidate.payload.get("action","")=="choose")
+ var choices=sleeper.command_facts().filter(func(candidate):return candidate.payload.get("action","")=="choose")
  t.check(choices.map(func(candidate):return candidate.payload.choice)==["sleep","take_core"] and choices.all(func(candidate):return candidate.valid),"GUEST ROOM exposes exactly the two authored trades")
  var sleep=sleeper.state.room_event.options.filter(func(option):return option.id=="sleep")[0]
  var installs=sleep.effects.filter(func(effect):return effect.op=="install")
@@ -349,7 +349,7 @@ static func bound_dream_guest_room(t) -> void:
 
 static func mysterious_woman_statue(t) -> void:
  var g=Game.new(109,true,"mysterious_woman_statue")
- var choices=g.candidates().filter(func(candidate):return candidate.payload.get("action","")=="choose")
+ var choices=g.command_facts().filter(func(candidate):return candidate.payload.get("action","")=="choose")
  t.check(choices.map(func(candidate):return candidate.payload.choice)==["use_sleeve","collect_mana","leave"] and choices.all(func(candidate):return candidate.valid),"STATUE exposes exactly the sleeve, flask-mana and free-departure choices")
  var authored=JSON.stringify(g.Events.Data.TYPES.mysterious_woman_statue)
  t.check(authored.contains("神秘") and authored.contains("女人像") and authored.contains("飞机杯") and not authored.contains("翼魔") and not authored.contains("魅魔圣像"),"STATUE presents a mysterious sensual woman statue with the fixed sleeve")
@@ -366,7 +366,7 @@ static func mysterious_woman_statue(t) -> void:
  var gains=collect.effects.filter(func(effect):return effect.op=="flask_mana_gain")
  t.check(gains.size()==1 and gains[0].amount is int and gains[0].amount>=30 and gains[0].amount<=60 and not collect.effects.any(func(effect):return effect.op=="random_amount"),"STATUE freezes the generic random amount into one fixed flask-mana effect")
  var frozen_amount=gains[0].amount
- var frozen_state=g.export_snapshot();g.get_view();g.candidates();g.route_view()
+ var frozen_state=g.export_snapshot();g.get_view();g.command_facts();g.route_view()
  t.check(g.export_snapshot()==frozen_state and g.state.room_event.options.filter(func(option):return option.id=="collect_mana")[0].effects[0].amount==frozen_amount,"STATUE viewing and probing do not reroll the frozen amount")
  var flask_before=g.state.flask_mana;var deposits_before=g.state.flask_deposits
  var result=t.action(g,"event",{"action":"choose","choice":"collect_mana"})
@@ -385,10 +385,10 @@ static func mysterious_woman_statue(t) -> void:
   var blocked=Game.new(112+index,true,"mysterious_woman_statue")
   var lock=blocked._install_special(lock_types[index],"special_2_a",3 if lock_types[index].ends_with("_high") else 2)
   var sleeve=t.find_action(blocked,"event",{"action":"choose","choice":"use_sleeve"})
-  var alternatives=blocked.candidates().filter(func(candidate):return candidate.payload.get("choice","") in ["collect_mana","leave"])
+  var alternatives=blocked.command_facts().filter(func(candidate):return candidate.payload.get("choice","") in ["collect_mana","leave"])
   t.check(not lock.is_empty() and not sleeve.valid and sleeve.get("reason","")==blocked_reason and sleeve.get("reason_surface","")=="secondary" and alternatives.all(func(candidate):return candidate.valid),"STATUE every worn plate-lock model blocks only the sleeve option with its authored explanation: "+lock_types[index]+" | lock="+str(lock)+" sleeve="+str(sleeve)+" validate="+blocked.validate()+" special="+blocked.SpecialEquipment.validate(blocked.state.special_equipment))
   var before=blocked.export_snapshot()
-  t.check(not blocked.dispatch(sleeve.id,blocked.state.version).ok and blocked.export_snapshot()==before,"STATUE blocked sleeve submission rolls back every state surface: "+lock_types[index])
+  t.check(not blocked.dispatch(blocked.command(sleeve.payload,blocked.state.version),blocked.state.version).ok and blocked.export_snapshot()==before,"STATUE blocked sleeve submission rolls back every state surface: "+lock_types[index])
   if index==0:
    lock.locked=false
    t.check(not t.find_action(blocked,"event",{"action":"choose","choice":"use_sleeve"}).valid,"STATUE an unlocked but still worn plate lock continues to block sleeve insertion")
@@ -400,14 +400,14 @@ static func mysterious_woman_statue(t) -> void:
 
 static func maze_survey_team(t) -> void:
  var g=Game.new(112,true,"maze_survey_team")
- var choices=g.candidates().filter(func(candidate):return candidate.payload.get("action","")=="choose")
+ var choices=g.command_facts().filter(func(candidate):return candidate.payload.get("action","")=="choose")
  t.check(choices.map(func(candidate):return candidate.payload.choice)==["solo","together"] and choices.all(func(candidate):return candidate.valid),"SURVEY TEAM exposes exactly solo exploration and travelling together")
  var authored=JSON.stringify(g.Events.Data.TYPES.maze_survey_team)
  t.check(not authored.contains("金币") and not authored.contains("生命") and authored.contains("独自探险") and authored.contains("结伴而行"),"SURVEY TEAM replaces source gold and health language with the two confirmed choices")
  var solo=g.state.room_event.options.filter(func(option):return option.id=="solo")[0]
  var installs=solo.effects.filter(func(effect):return effect.op=="install")
  t.check(solo.effects.any(func(effect):return effect.op=="flask_mana_gain" and effect.amount==100) and installs.size()==2 and installs.all(func(effect):return effect.grade==2 and effect.tier==2 and not effect.locked) and not solo.effects.any(func(effect):return effect.op=="link"),"SURVEY TEAM freezes one hundred flask mana and two medium tier-two single restraints")
- var frozen=g.export_snapshot();g.get_view();g.candidates();g.route_view()
+ var frozen=g.export_snapshot();g.get_view();g.command_facts();g.route_view()
  t.check(g.export_snapshot()==frozen,"SURVEY TEAM viewing and probing do not reroll either restraint")
  var flask_before=g.state.flask_mana;var deposits_before=g.state.flask_deposits;var equipment_before=g.state.equipment.size()
  var result=t.action(g,"event",{"action":"choose","choice":"solo"})
@@ -494,9 +494,9 @@ static func event_node_empty_policy_kept(t) -> void:
  t.check(Catalog.compile(g,[document]).ok,"EVENT EMPTY NODE single-node empty fixture compiles")
  Catalog.commit(g,Catalog.compile(g,[document]).tables)
  var walk=Game.new(42);Events.arrive(walk,"empty_node_fixture")
- t.check(walk.state.room_event.options.is_empty() and walk.state.room_event.stage=="choice" and walk.state.room_event.result_status=="neutral","EVENT EMPTY NODE single node keeps zero candidates instead of failing")
- t.check(walk.candidates().filter(func(c):return c.payload.get("kind","")=="event").is_empty(),"EVENT EMPTY NODE zero candidates stay consistent")
- t.check(walk.validate()=="","EVENT EMPTY NODE zero candidates stay valid")
+ t.check(walk.state.room_event.options.is_empty() and walk.state.room_event.stage=="choice" and walk.state.room_event.result_status=="neutral","EVENT EMPTY NODE single node keeps zero facts instead of failing")
+ t.check(walk.command_facts().filter(func(c):return c.payload.get("kind","")=="event").is_empty(),"EVENT EMPTY NODE zero facts stay consistent")
+ t.check(walk.validate()=="","EVENT EMPTY NODE zero facts stay valid")
  var staged=document();staged.data.id="empty_stage_fixture"
  for choice in staged.data.nodes[2].choices: choice.when={"counter":"seen","equals":1}
  var staged_compile=Catalog.compile(g,[staged])
@@ -507,7 +507,7 @@ static func event_node_empty_policy_kept(t) -> void:
  t.check(flow.Events.enter_node(flow,"finale")=="这一阶段没有能够执行的选项。","EVENT EMPTY NODE staged node reports its named issue")
  var empty_issue=flow.Events.enter_node(flow,"penalty")
  if empty_issue!="": t.check(false,"EVENT EMPTY NODE penalty node stays enterable: "+empty_issue)
- var blocked=flow.candidates().filter(func(c):return c.payload.get("choice","")=="two_ropes")
+ var blocked=flow.command_facts().filter(func(c):return c.payload.get("choice","")=="two_ropes")
  t.check(blocked.size()==1 and not blocked[0].valid and str(blocked[0].get("reason",""))!="","EVENT EMPTY NODE an option whose next node is empty turns invalid: "+str(blocked[0].get("reason","")) if not blocked.is_empty() else "EVENT EMPTY NODE an option whose next node is empty turns invalid")
  var hollow_probe=flow.Events.probe(flow,[],{"id":"two_ropes","label":"安装","reward":"none","next":"finale","effects":[]})
  t.check(hollow_probe=="这一阶段没有能够执行的选项。","EVENT EMPTY NODE the probe path reports the empty next node: "+hollow_probe)
@@ -566,7 +566,7 @@ static func event_chain_loop_refused(t) -> void:
  var domain=walk.state.rng.duplicate(true)
  var loop_option=walk.state.room_event.options.filter(func(option):return option.id=="loop_back")
  t.check(loop_option.size()==1,"EVENT CHAIN LOOP the looping option stays among the frozen options")
- var loop=walk.candidates().filter(func(candidate):return candidate.payload.get("choice","")=="loop_back")
+ var loop=walk.command_facts().filter(func(candidate):return candidate.payload.get("choice","")=="loop_back")
  t.check(loop.size()==1 and not loop[0].valid,"EVENT CHAIN LOOP the looping option stays visible but invalid: "+str(loop[0].get("reason","")) if not loop.is_empty() else "EVENT CHAIN LOOP the looping option stays visible but invalid")
  var result=walk.Events.evaluate_option(walk,walk.Events.request_for(walk,loop_option[0],"candidate"))
  t.check(result.decision=="disabled" and result.gates.size()==1 and str(result.gates[0].gate)=="chain_loop" and str(result.gates[0].kind)=="chain" and str(result.gates[0].detail)=="chain_source_fixture","EVENT CHAIN LOOP the looping option reports the chain_loop gate: "+JSON.stringify(result.gates))
@@ -609,7 +609,7 @@ static func event_chain_trace_rows(t) -> void:
   probe.set_meta("event_trace_enabled",true)
   Events.arrive(probe,"chain_source_fixture")
   t.check(t.action(probe,"event",{"action":"choose","choice":"depart"}).ok,"EVENT CHAIN TRACE the emptied-target chain still jumps")
-  probe.candidates()
+  probe.command_facts()
   # Gate node_empty also names the per-option feasibility hit (kind feasibility); the A31 row
   # is the node-level one, identified by its empty option_id.
   var empty=probe.Events.event_trace(probe).filter(func(row):return row.gate=="node_empty" and str(row.option_id)=="")
@@ -741,26 +741,26 @@ static func event_stacked_conditions(t) -> void:
  Catalog.commit(g,compiled.tables)
  var single=Game.new(42);Events.arrive(single,"stacked_fixture_0")
  var option=single.state.room_event.options.filter(func(row):return row.id=="stacked")
- t.check(option.size()==1 and single.candidates()[0].valid==false and single.candidates()[0].get("reason","")=="你还没有拿到那件扣环。","EVENT STACKED optional condition keeps the option visible but disabled")
- t.check(single.candidates()[0].get("reason_surface","")=="secondary","EVENT STACKED disabled option keeps the secondary reason surface")
+ t.check(option.size()==1 and single.command_facts()[0].valid==false and single.command_facts()[0].get("reason","")=="你还没有拿到那件扣环。","EVENT STACKED optional condition keeps the option visible but disabled")
+ t.check(single.command_facts()[0].get("reason_surface","")=="secondary","EVENT STACKED disabled option keeps the secondary reason surface")
  var single_result=single.Events.evaluate_option(single,single.Events.request_for(single,option[0],"candidate"))
  t.check(single_result.decision=="disabled" and single_result.gates.size()==1 and single_result.gates[0].mode=="optional" and single_result.reason=="你还没有拿到那件扣环。","EVENT STACKED one optional hit reports one gate with its authored reason")
  var hidden=Game.new(42);Events.arrive(hidden,"stacked_fixture_1")
  t.check(not hidden.state.room_event.options.any(func(row):return row.id=="stacked"),"EVENT STACKED hidden condition keeps the option out of the frozen options")
- t.check(not hidden.candidates().any(func(c):return c.payload.get("choice","")=="stacked"),"EVENT STACKED hidden condition keeps the option out of the candidates")
+ t.check(not hidden.command_facts().any(func(c):return c.payload.get("choice","")=="stacked"),"EVENT STACKED hidden condition keeps the option out of the facts")
  var both=Game.new(42)
  both._install_special("negative_plate_lock_medium","special_2_a")
  Events.arrive(both,"stacked_fixture_2")
  t.check(not both.state.room_event.options.any(func(row):return row.id=="stacked"),"EVENT STACKED a hidden hit hides the option even when another mode is declared")
- t.check(not both.candidates().any(func(c):return c.payload.get("choice","")=="stacked"),"EVENT STACKED a hidden hit keeps the option out of the candidates")
+ t.check(not both.command_facts().any(func(c):return c.payload.get("choice","")=="stacked"),"EVENT STACKED a hidden hit keeps the option out of the facts")
  var mixed=Game.new(43);Events.arrive(mixed,"stacked_fixture_2")
  var mixed_option=mixed.state.room_event.options.filter(func(row):return row.id=="stacked")
- t.check(mixed_option.size()==1 and not mixed.candidates()[0].valid,"EVENT STACKED an unhit hidden entry leaves the option disabled by the optional entry")
+ t.check(mixed_option.size()==1 and not mixed.command_facts()[0].valid,"EVENT STACKED an unhit hidden entry leaves the option disabled by the optional entry")
  var mixed_result=mixed.Events.evaluate_option(mixed,mixed.Events.request_for(mixed,mixed_option[0],"candidate"))
  t.check(mixed_result.decision=="disabled" and mixed_result.gates.size()==1 and mixed_result.gates[0].mode=="optional","EVENT STACKED only the hitting optional entry reaches the gate list")
  mixed.state.relics.append("softened_buckle")
  mixed.Events.enter_node(mixed,"choice")
- t.check(mixed.state.room_event.options.any(func(row):return row.id=="stacked") and mixed.candidates()[0].valid,"EVENT STACKED clearing every hit restores the option")
+ t.check(mixed.state.room_event.options.any(func(row):return row.id=="stacked") and mixed.command_facts()[0].valid,"EVENT STACKED clearing every hit restores the option")
  var many=Game.new(42);Events.arrive(many,"stacked_fixture_3")
  var result=many.Events.evaluate_option(many,many.Events.request_for(many,many.state.room_event.options[0],"candidate"))
  t.check(result.decision=="disabled" and result.gates.size()==2 and result.gates[0].reason=="条件甲。" and result.gates[1].reason=="条件乙。" and result.reason=="条件甲。\n条件乙。","EVENT STACKED every optional hit is listed in declaration order and joined with newlines")
@@ -779,13 +779,13 @@ static func event_hidden_relic_option_traced(t) -> void:
  Events.arrive(g,"floating_belt_cluster")
  var rows=g.Events.event_trace(g)
  t.check(rows.any(func(row):return row.source_choice=="fight" and str(row.gate)!="" and row.decision in ["dropped","hidden"]),"EVENT TRACE the hidden fight option is traced with a named gate")
- var choices=g.candidates().filter(func(c):return c.payload.get("kind","")=="event" and c.payload.get("action","")=="choose")
+ var choices=g.command_facts().filter(func(c):return c.payload.get("kind","")=="event" and c.payload.get("action","")=="choose")
  t.check(choices.map(func(c):return c.payload.choice)==["infusion","leave"],"EVENT TRACE the held-relic candidate set matches the baseline")
  g.set_meta("event_trace_enabled",false)
  var silent=Game.new(42)
  silent.state.relics.append("softened_buckle")
  Events.arrive(silent,"floating_belt_cluster")
- t.check(JSON.stringify(silent.state.room_event.options)==JSON.stringify(g.state.room_event.options) and JSON.stringify(silent.candidates())==JSON.stringify(g.candidates()),"EVENT TRACE the candidate set is identical with the switch off")
+ t.check(JSON.stringify(silent.state.room_event.options)==JSON.stringify(g.state.room_event.options) and JSON.stringify(silent.command_facts())==JSON.stringify(g.command_facts()),"EVENT TRACE the candidate set is identical with the switch off")
 
 # docs/spec/event-pipeline.md「trace（debug 开关）」: stacked hits follow declaration
 # order; switching trace off clears rows, and entering an event clears previous rows.
@@ -811,7 +811,7 @@ static func event_stacked_condition_trace_and_release(t) -> void:
  walk.set_meta("event_trace_enabled",false)
  var silent=Game.new(42)
  Events.arrive(silent,"trace_stacked_fixture")
- silent.candidates()
+ silent.command_facts()
  t.check(silent.Events.event_trace(silent).is_empty(),"EVENT TRACE release leaves the trace empty")
  t.check(not JSON.stringify(silent.export_snapshot()).contains("event_trace") and not JSON.stringify(silent.get_view()).contains("event_trace"),"EVENT TRACE neither the save nor the view carries trace data")
  Catalog.commit(g,baseline)
@@ -861,7 +861,7 @@ static func run(t) -> void:
  g=flow(t)
  var item=g._install_special("shaft_ring_low","special_2_a")
  Events.arrive(g,"flow_test")
- var before=g.export_snapshot();var view=g.get_view();g.candidates();g.route_view()
+ var before=g.export_snapshot();var view=g.get_view();g.command_facts();g.route_view()
  t.check(g.state==before,"EVENT FLOW preview and projection do not mutate or reroll")
  t.check(not JSON.stringify(view).contains("结果一") and not JSON.stringify(view).contains("结果二"),"EVENT FLOW frozen hidden outcome is not projected")
 
@@ -880,8 +880,8 @@ static func run(t) -> void:
  var rope_choice=t.find_action(g,"event",{"action":"choose","choice":"two_ropes"})
  t.check(rope_choice.valid and rope_choice.detail.contains("绳索"),"EVENT FLOW random installation is frozen into a public concrete preview")
  var version=g.state.version;var restored_before=g.export_snapshot()
- t.check(not g.dispatch(rope_choice.id,version-1).ok and g.state==restored_before,"EVENT FLOW staged choice rejects stale version atomically")
- var entered_finale=g.dispatch(rope_choice.id,version)
+ t.check(not g.dispatch(g.command(rope_choice.payload,version-1),version-1).ok and g.state==restored_before,"EVENT FLOW staged choice rejects stale version atomically")
+ var entered_finale=g.dispatch(g.command(rope_choice.payload,version),version)
  t.check(entered_finale.ok and g.state.room_event.stage=="finale","EVENT FLOW generated effects commit and advance")
  t.check(entered_finale.get("resource_feedback",[]).is_empty() and g.state.mana==restored_before.mana,"EVENT FLOW freezing an unchosen future cost emits no payment or refund receipt")
  t.check(g.state.equipment.size()==2 and g.state.equipment.all(func(e):return e.template=="rope" and g.tier(e.durability,e.maximum)==2),"EVENT FLOW batch random install reuses ordinary equipment factory")
@@ -928,9 +928,9 @@ static func run(t) -> void:
  g=Game.new(42,true,"succubus_three_games")
  t.check(g.state.phase=="event" and g.state.room_event.id=="succubus_three_games" and g.state.room_event.stage=="wager_card","GAMBLE practice opens shipped event through formal start")
  t.check(g.state.equipment.size()==2 and g.state.equipment.any(func(e):return e.locked),"GAMBLE practice keeps declared real restraint setup")
- var card_options=g.candidates().filter(func(c):return c.payload.get("choice","").begins_with("wager_card__"))
+ var card_options=g.command_facts().filter(func(c):return c.payload.get("choice","").begins_with("wager_card__"))
  t.check(card_options.size()==10 and card_options.all(func(c):return c.valid),"GAMBLE first round generates one legal wager per non-curse permanent card")
- t.check(g.get_view().room_event.result_status=="neutral" and card_options.all(func(c):return not c.payload.has("result_status")),"EVENT RESULT future frozen win/loss is not exposed by view or candidates")
+ t.check(g.get_view().room_event.result_status=="neutral" and card_options.all(func(c):return not c.payload.has("result_status")),"EVENT RESULT future frozen win/loss is not exposed by view or facts")
  var frozen_status=g.state.room_event.options.filter(func(option):return option.id==card_options[0].payload.choice)[0].result_status
  var pending_result_save=g.export_snapshot();var result_resume=Game.new(42)
  t.check(result_resume.restore_snapshot(pending_result_save).ok and result_resume.state.room_event.options[0].result_status==g.state.room_event.options[0].result_status,"EVENT RESULT frozen marker survives a pending-selection save")
@@ -941,7 +941,7 @@ static func run(t) -> void:
  t.check(selection_view[0].options.all(func(option):return option.keys().size()==2 and not option.has("effects") and not option.has("report")) and g.state==selection_before,"EVENT VIEW selector reveals no frozen result and does not mutate state or random domains")
  var wager_uid=card_options[0].payload.choice.get_slice("__",1)
  var wager_before=g.state.deck.filter(func(card):return card.uid==wager_uid)[0].type
- t.check(g.dispatch(card_options[0].id,g.state.version).ok and g.state.room_event.stage=="after_round_one","GAMBLE card wager commits frozen round outcome")
+ t.check(g.dispatch(g.command(card_options[0].payload,g.state.version),g.state.version).ok and g.state.room_event.stage=="after_round_one","GAMBLE card wager commits frozen round outcome")
  t.check(g.get_view().room_event.result_status==frozen_status and frozen_status in ["success","failure"],"EVENT RESULT committed page displays its explicit outcome")
  t.check(result_resume.restore_snapshot(g.export_snapshot()).ok and result_resume.get_view().room_event.result_status==frozen_status,"EVENT RESULT committed result survives restore without reroll")
  var damaged_result=g.export_snapshot();damaged_result.room_event.result_status="maybe"
@@ -957,11 +957,11 @@ static func run(t) -> void:
  t.check(t.action(g,"event",{"action":"choose","choice":"continue"}).ok and g.state.room_event.stage=="wager_restraint","GAMBLE player can continue from first-round cashout stage")
  t.check(g.get_view().room_event.result_status=="neutral","EVENT RESULT ordinary continuation clears previous win/loss")
  t.check(not g.state.room_event.report.contains(prior_report) and g.state.logs.slice(0,prior_logs.size())==prior_logs and g.get_view().room_event.page_id!=prior_page,"EVENT FLOW each forward page has only its own result while historical logs remain intact")
- var restraint_options=g.candidates().filter(func(c):return c.payload.get("choice","").begins_with("wager_restraint__"))
+ var restraint_options=g.command_facts().filter(func(c):return c.payload.get("choice","").begins_with("wager_restraint__"))
  t.check(restraint_options.size()>=2 and restraint_options.all(func(c):return c.valid),"GAMBLE second round generates wagers from actual worn restraints")
  var equipment_view=g.get_view().room_event.selections[0]
  t.check(equipment_view.kind=="restraint" and equipment_view.options.all(func(option):return option.selected.durability==g._equipment(option.selected.id).durability and option.selected.locked==g._equipment(option.selected.id).locked),"EVENT VIEW equipment modal receives actual durability and lock facts")
- t.check(g.dispatch(restraint_options[0].id,g.state.version).ok,"GAMBLE selected restraint resolves through frozen even odds")
+ t.check(g.dispatch(g.command(restraint_options[0].payload,g.state.version),g.state.version).ok,"GAMBLE selected restraint resolves through frozen even odds")
  if g.state.room_event.stage=="restraint_penalty":
   t.check(t.action(g,"event",{"action":"choose","choice":"locked_belt"}).ok,"GAMBLE failed second round executes selected formal penalty")
  t.check(g.state.room_event.stage=="after_round_two","GAMBLE second round reaches its cashout stage")
@@ -978,23 +978,23 @@ static func run(t) -> void:
  t.check(semen_sources.size()==climaxes and semen_sources.all(func(source):return g.state.room_event.report.contains(source)) and g.state.room_event.report.find(semen_sources[0])<g.state.room_event.report.find(semen_outcome_report),"GAMBLE payout result shows every committed ejaculation scene before its card outcome copy")
  t.check(g.state.room_event.held.is_empty() and g.state.special_equipment.any(func(item):return item==held_item),"GAMBLE narrative-only removal leaves the exact penis equipment installed throughout the closed scene")
  t.check(g.get_view().room_event.intro.contains("一件件重新戴回原处"),"GAMBLE payout narrates restoring the original toys without a restore effect")
- var payout=g.candidates().filter(func(candidate):return candidate.payload.get("kind","")=="event")[0]
- t.check(g.dispatch(payout.id,g.state.version).ok,"GAMBLE payout follows the actual accumulated chip count")
+ var payout=g.command_facts().filter(func(candidate):return candidate.payload.get("kind","")=="event")[0]
+ t.check(g.dispatch(g.command(payout.payload,g.state.version),g.state.version).ok,"GAMBLE payout follows the actual accumulated chip count")
  if g.state.room_event.stage=="reward": t.check(t.action(g,"event",{"action":"reward","type":"skip"}).ok,"GAMBLE card payout may be skipped through existing reward UI")
- elif g.state.room_event.stage=="remove_reward": t.check(g.dispatch(g.candidates()[0].id,g.state.version).ok,"GAMBLE three-chip payout removes one selected card")
+ elif g.state.room_event.stage=="remove_reward": t.check(g.dispatch(g.command(g.command_facts()[0].payload,g.state.version),g.state.version).ok,"GAMBLE three-chip payout removes one selected card")
  t.check(g.state.room_event.stage=="result" and t.action(g,"event",{"action":"leave"}).ok,"GAMBLE resolves and leaves through one formal command")
  t.check(g.state.phase=="cleared" and g.state.special_equipment.any(func(item):return item==held_item),"GAMBLE practice completion preserves the exact narrative-only penis equipment instance")
 
  var saw_loss=false
  for seed in range(40):
   var loss=Game.new(seed,true,"succubus_three_games")
-  var option=loss.candidates().filter(func(c):return c.payload.get("choice","").begins_with("wager_card__"))[0]
+  var option=loss.command_facts().filter(func(c):return c.payload.get("choice","").begins_with("wager_card__"))[0]
   if not option.detail.contains("慌乱"): continue
   # The public detail deliberately shows both outcomes; inspect frozen effects only in this mechanics test.
   var frozen=loss.state.room_event.options.filter(func(o):return o.id==option.payload.choice)[0]
   if not frozen.effects.any(func(e):return e.op=="transform_card"): continue
   var uid=frozen.selected.id
-  t.check(loss.dispatch(option.id,loss.state.version).ok and loss.state.deck.filter(func(card):return card.uid==uid)[0].type=="panic","GAMBLE losing first round transforms the selected permanent card into panic")
+  t.check(loss.dispatch(loss.command(option.payload,loss.state.version),loss.state.version).ok and loss.state.deck.filter(func(card):return card.uid==uid)[0].type=="panic","GAMBLE losing first round transforms the selected permanent card into panic")
   t.check(loss.get_view().room_event.result_status=="failure","EVENT RESULT losing draw explicitly projects failure")
   saw_loss=true;break
  t.check(saw_loss,"GAMBLE deterministic seed set includes first-round loss")
@@ -1005,11 +1005,11 @@ static func run(t) -> void:
  var selected_uid=removal.state.deck[0].uid
  var removal_choice=t.find_action(removal,"event",{"action":"choose","choice":"remove__"+selected_uid})
  var before_removal=removal.export_snapshot()
- t.check(removal_choice.get("valid",false) and removal.dispatch(removal_choice.id,removal.state.version).ok,"EVENT removal uses the selected physical card candidate")
+ t.check(removal_choice.get("valid",false) and removal.dispatch(removal.command(removal_choice.payload,removal.state.version),removal.state.version).ok,"EVENT removal uses the selected physical card candidate")
  t.check(["deck","draw","hand","discard","exhaust"].all(func(zone):return removal.state[zone]==before_removal[zone].filter(func(card):return card.uid!=selected_uid)),"EVENT removes only selected uid, preserving equal-type cards and pile order")
  t.check(removal.state.mana==before_removal.mana and removal.state.energy==before_removal.energy and removal.state.rng==before_removal.rng and removal.state.items.size()==before_removal.items.size()+1,"EVENT removal pays and grants exactly its declared payout without reroll")
  var completed=removal.export_snapshot()
- t.check(not removal.dispatch(removal_choice.id,removal.state.version).ok and removal.export_snapshot()==completed,"EVENT paid removal cannot be applied a second time")
+ t.check(not removal.dispatch(removal.command(removal_choice.payload,removal.state.version),removal.state.version).ok and removal.export_snapshot()==completed,"EVENT paid removal cannot be applied a second time")
 
  # With no worn restraints the second round must use its authored add-restraint
  # fallback instead of leaving the previous Continue candidate invalid.
@@ -1017,29 +1017,29 @@ static func run(t) -> void:
  for seed in range(40):
   var empty=Game.new(seed,true,"succubus_three_games")
   empty.state.equipment.clear();empty.state.composites.clear();empty.state.links.clear()
-  var first=empty.candidates().filter(func(c):return c.payload.get("choice","").begins_with("wager_card__"))[0]
-  t.check(empty.dispatch(first.id,empty.state.version).ok,"GAMBLE empty-loadout fixture resolves first wager")
+  var first=empty.command_facts().filter(func(c):return c.payload.get("choice","").begins_with("wager_card__"))[0]
+  t.check(empty.dispatch(empty.command(first.payload,empty.state.version),empty.state.version).ok,"GAMBLE empty-loadout fixture resolves first wager")
   var advance=t.find_action(empty,"event",{"action":"choose","choice":"continue"})
-  t.check(advance.valid and empty.dispatch(advance.id,empty.state.version).ok,"GAMBLE no-restraint loadout can still enter round two")
+  t.check(advance.valid and empty.dispatch(empty.command(advance.payload,empty.state.version),empty.state.version).ok,"GAMBLE no-restraint loadout can still enter round two")
   var fallback=t.find_action(empty,"event",{"action":"choose","choice":"wager_without_restraint"})
   t.check(fallback.valid and empty.state.room_event.options.size()==1 and not empty.state.room_event.options[0].has("selected"),"GAMBLE round two substitutes exactly one non-selector fallback")
   var frozen=empty.state.room_event.options[0]
-  var frozen_before=empty.state.duplicate(true);empty.get_view();empty.candidates()
+  var frozen_before=empty.state.duplicate(true);empty.get_view();empty.command_facts()
   t.check(empty.state==frozen_before and fallback.detail.contains("添加拘束具"),"GAMBLE fallback preview is readonly and discloses add-restraint loss")
-  t.check(empty.dispatch(fallback.id,empty.state.version).ok,"GAMBLE no-restraint wager uses the normal event transaction")
+  t.check(empty.dispatch(empty.command(fallback.payload,empty.state.version),empty.state.version).ok,"GAMBLE no-restraint wager uses the normal event transaction")
   if frozen.result_status=="success":
    saw_empty_win=true
    t.check(empty.state.room_event.stage=="after_round_two" and empty.state.room_event.values.heart_chips>=1,"GAMBLE empty-loadout win grants a chip and advances")
   else:
    saw_empty_loss=true
-   t.check(empty.state.room_event.stage=="restraint_penalty" and empty.candidates().size()>=2,"GAMBLE empty-loadout loss opens add-restraint penalties")
+   t.check(empty.state.room_event.stage=="restraint_penalty" and empty.command_facts().size()>=2,"GAMBLE empty-loadout loss opens add-restraint penalties")
   if saw_empty_win and saw_empty_loss: break
  t.check(saw_empty_win and saw_empty_loss,"GAMBLE deterministic seeds cover empty-loadout win and loss")
 
  # The pawnshop is a mandatory one-choice event. Its premium branch is a
  # two-item atomic offer, never two independent partial installations.
  var shop=Game.new(62,true,"succubus_magic_pawnshop")
- var shop_choices=shop.candidates().filter(func(c):return c.payload.get("action","")=="choose")
+ var shop_choices=shop.command_facts().filter(func(c):return c.payload.get("action","")=="choose")
  t.check(shop_choices.map(func(c):return c.payload.choice)==["small_trade","large_trade","extra_spice"] and shop_choices.all(func(c):return c.valid),"PAWNSHOP free loadout exposes exactly three mandatory trades without refusal")
  var old_ring=shop._install_special("shaft_ring_low","special_2_a").duplicate(true)
  var shop_climax_before=shop.state.overload_total
@@ -1051,7 +1051,7 @@ static func run(t) -> void:
  var blocked=Game.new(63)
  blocked._install_special("anal_egg_low","special_3_b")
  Events.arrive(blocked,"succubus_magic_pawnshop")
- var blocked_choices=blocked.candidates().filter(func(c):return c.payload.get("action","")=="choose")
+ var blocked_choices=blocked.command_facts().filter(func(c):return c.payload.get("action","")=="choose")
  t.check(blocked_choices.map(func(c):return c.payload.choice)==["small_trade","large_trade"] and blocked_choices.all(func(c):return c.valid),"PAWNSHOP one unavailable fixed toy hides the entire extra trade while preserving both normal trades")
  shop_climax_before=blocked.state.overload_total
  t.check(t.action(blocked,"event",{"action":"choose","choice":"large_trade"}).ok and blocked.state.overload_total-shop_climax_before==2 and blocked.state.room_event.stage=="reward","PAWNSHOP large trade remains usable and causes exactly two climaxes")
@@ -1073,7 +1073,7 @@ static func run(t) -> void:
  var cleric=Game.new(71,true,"binding_cleric")
  cleric.state.mana=45
  Events.arrive(cleric,"binding_cleric")
- var cleric_choices=cleric.candidates().filter(func(c):return c.payload.get("action","")=="choose")
+ var cleric_choices=cleric.command_facts().filter(func(c):return c.payload.get("action","")=="choose")
  t.check(cleric_choices.map(func(c):return c.payload.choice)==["restore","purify","leave_free"] and cleric_choices.all(func(c):return c.valid),"CLERIC exposes exactly two services and one free exit")
  var restore=cleric.state.room_event.options.filter(func(option):return option.id=="restore")[0]
  var installs=restore.effects.filter(func(effect):return effect.op=="install")
@@ -1162,7 +1162,7 @@ static func run(t) -> void:
   var fill_applied=full.Application.execute_concrete(full,fill_concrete,"fixture:full",false)
   if not fill_applied.ok: break
  Events.arrive(full,"bound_adventurer_relic")
- var full_choices=full.candidates().filter(func(candidate):return candidate.payload.get("action","")=="choose")
+ var full_choices=full.command_facts().filter(func(candidate):return candidate.payload.get("action","")=="choose")
  t.check(full_choices.size()==1 and full_choices[0].payload.choice=="leave","BOUND ADVENTURER no legal ordinary position removes the reach choice and preserves the free exit")
 
  Catalog.commit(g,baseline)

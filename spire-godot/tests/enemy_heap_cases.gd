@@ -9,7 +9,7 @@ static func run(t) -> void:
  skin_cases(t)
  var g=Game.new(42,true,"rope_heap_solo")
  var id=g.state.enemies[0].id
- var before=g.export_snapshot();g.get_view();g.candidates()
+ var before=g.export_snapshot();g.get_view();g.command_facts()
  t.check(g.state==before and g.state.enemies[0].intent.kind=="turn_install" and active(g).is_empty(),"HEAP initial plan is readonly and does not activate effect early")
  var twin=Save.roundtrip(t,g,"heap first intent")
  Save.step_both(t,g,twin,"end")
@@ -135,7 +135,7 @@ static func skin_cases(t) -> void:
    var selected=g.state.room_encounters.entrance
    if selected not in observed[family]: observed[family].append(selected)
    t.check(selected in g.Enemies.ENCOUNTERS[family].variants and g.state.rng.encounter==counter+1 and g.state.enemies.size()==1,"SKIN family resolves once to one individual")
-   var before=g.export_snapshot();g.get_view();g.candidates()
+   var before=g.export_snapshot();g.get_view();g.command_facts()
    t.check(g.state==before,"SKIN material cannot reroll through previews")
   t.check(observed[family].size()==2,"SKIN both material variants actually sampled from "+family)
  for size in ["mass","heap"]:

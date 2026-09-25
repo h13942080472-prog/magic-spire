@@ -87,7 +87,7 @@ static func meters(t) -> void:
 static func suggestion(t) -> void:
  var g=fresh();var card=give(t,g,"psychological_suggestion")
  t.check(t.action(g,"card",{"uid":card.uid,"free":false}).ok and g.Cards.action_ignores_restraints(g),"LEWD suggestion grants next action without consuming itself")
- var saved=g.export_snapshot();g.candidates();g.get_view()
+ var saved=g.export_snapshot();g.command_facts();g.get_view()
  t.check(g.export_snapshot()==saved,"LEWD suggestion previews do not consume use")
  g.add_fixture("mouth",8,10,false,3)
  var profile=g.Cards.cast_profile(g,"fireball")
@@ -109,7 +109,7 @@ static func selection(t) -> void:
  t.check(t.action(g,"card",{"uid":card.uid,"free":false}).ok and g.state.card_chain.remaining==3,"LEWD successful cast opens three-card selection")
  var saved=g.export_snapshot();var restored=Game.new(9)
  t.check(restored.restore_snapshot(saved).ok,"LEWD pending selection snapshot restores")
- var choices=g.candidates().filter(func(c):return c.payload.kind=="chain")
+ var choices=g.command_facts().filter(func(c):return c.payload.kind=="chain")
  t.check(not choices.any(func(c):return c.payload.get("selected_uid","")==card.uid),"LEWD selection excludes its own played card")
  for uid in selected:
   t.check(t.action(g,"chain",{"selected_uid":uid}).ok,"LEWD selected zone card commits through dispatcher")
@@ -140,8 +140,8 @@ static func failures(t) -> void:
  var card=give(t,g,"forced_climax")
  t.check(t.action(g,"card",{"uid":card.uid,"free":false}).ok,"LEWD threshold fixture starts selection")
  for i in range(3):
-  var choice=g.candidates().filter(func(c):return c.payload.kind=="chain")[0]
-  t.check(g.dispatch(choice.id,g.state.version).ok,"LEWD threshold selection commits")
+  var choice=g.command_facts().filter(func(c):return c.payload.kind=="chain")[0]
+  t.check(g.dispatch(g.command(choice.payload,g.state.version),g.state.version).ok,"LEWD threshold selection commits")
  t.check(g.state.pressure==20 and g.state.overload_total==2,"LEWD natural threshold and explicit climax both occur; explicit one preserves remainder")
  g=fresh();g.Cards.grant_buff(g,"psychological_suggestion")
  card=give(t,g,"forced_climax")
@@ -153,8 +153,8 @@ static func failures(t) -> void:
   saved.card_chain.action_buffs=bad
   t.check(not restored.restore_snapshot(saved).ok,"LEWD malformed pending action bonus type or duplicate is rejected")
  for i in range(3):
-  var choice=g.candidates().filter(func(c):return c.payload.kind=="chain")[0]
-  t.check(g.dispatch(choice.id,g.state.version).ok,"LEWD protected continuation commits")
+  var choice=g.command_facts().filter(func(c):return c.payload.kind=="chain")[0]
+  t.check(g.dispatch(g.command(choice.payload,g.state.version),g.state.version).ok,"LEWD protected continuation commits")
  t.check(not g.Cards.action_ignores_restraints(g),"LEWD suggestion consumed once when full card resolves")
 
 static func prison(t) -> void:

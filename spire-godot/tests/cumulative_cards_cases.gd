@@ -17,7 +17,7 @@ static func run(t) -> void:
  var g=setup()
  for n in range(3): t.check(Give.play(t,g,"echo_cast",true).ok and g.state.card_buff_uses.echo_cast_free==n+1,"ECHO free face accumulates one replay per play")
  var before=g.export_snapshot();var shot=t.find_action(g,"attack",{"type":"fireball"});var hp=g.state.enemies[0].hp
- t.check(g.dispatch(shot.id,g.state.version).ok and g.state.enemies[0].hp==hp-shot.payload.damage*4 and g.state.mana==before.mana-shot.mana and g.BasicAttacks.usage(g,"fireball").used==1,"ECHO three stacks create three extra hits with one payment and use")
+ t.check(g.dispatch(g.command(shot.payload,g.state.version),g.state.version).ok and g.state.enemies[0].hp==hp-shot.payload.damage*4 and g.state.mana==before.mana-shot.mana and g.BasicAttacks.usage(g,"fireball").used==1,"ECHO three stacks create three extra hits with one payment and use")
  t.check(not g.state.card_buff_uses.has("echo_cast_free") and not g.state.card_buffs.has("echo_cast_free"),"ECHO consumes all matching stacks together")
  g=setup()
  for n in range(3): t.check(Give.play(t,g,"echo_cast",false).ok and g.state.card_buff_uses.echo_cast_bound==n+1,"ECHO bound face accumulates despite replaying its own preparation")
@@ -27,8 +27,8 @@ static func run(t) -> void:
  g=setup();Give.play(t,g,"echo_cast",false)
  t.check(rules.distinct_faces("mana_surge") and Give.play(t,g,"mana_surge",false).ok and g.state.charge==4 and not g.state.card_buffs.has("echo_cast_bound"),"SURGE different faces now qualify for bound replay")
  g=setup();var card=Give.give(g,"mana_surge");var c=t.find_action(g,"card",{"uid":card.uid,"free":true});before=g.export_snapshot()
- t.check(not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"SURGE stale request preserves both mana pools")
- t.check(g.dispatch(c.id,g.state.version).ok and g.state.temporary_mana==10 and g.state.charge==0 and g.state.exhaust.any(func(x):return x.uid==card.uid),"SURGE free face grants two layers of reserve mana and exhausts")
+ t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"SURGE stale request preserves both mana pools")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.temporary_mana==10 and g.state.charge==0 and g.state.exhaust.any(func(x):return x.uid==card.uid),"SURGE free face grants two layers of reserve mana and exhausts")
  var face=Book.card("mana_surge").face_mana.free
  t.check(face.size()==1 and face[0].kind=="temporary" and face[0].amount==10,"SURGE free badge shows only ten temporary mana and no cost")
  var embers=Book.card("embers")

@@ -1,6 +1,6 @@
 extends RefCounted
 
-# Presentation only. Never receives Game, state, candidates, or RNG.
+# Presentation only. Never receives Game, state, display facts, or RNG.
 signal locale_changed(locale: String)
 const DEFAULT_LOCALE="zh_CN"
 const LOCALES=["zh_CN","en_US","ja_JP"]

@@ -2,6 +2,7 @@ extends RefCounted
 const Navigation=preload("res://tests/interface_ui_cases.gd")
 const Give=preload("res://tests/curse_cases.gd")
 const Settings=preload("res://ui/display_settings.gd")
+const Queries=preload("res://ui/target_queries.gd")
 
 static func run(t) -> void:
  var ui=t.ui
@@ -125,7 +126,7 @@ static func mandarin_duck(t) -> void:
  var original=ui.card_music.stream
  card=Give.give(ui.game,"hannya_2");ui.render();await t.frames()
  if ui.card_faces.get(card.uid,false): await t.flip(card.uid)
- t.check(ui.actions.find("card",{"uid":card.uid,"free":false}).valid,"DUCK MUSIC repeated-play fixture can pay for the next real card")
+ t.check(Queries.find(ui.view,"card",{"uid":card.uid,"free":false}).valid,"DUCK MUSIC repeated-play fixture can pay for the next real card")
  await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
  var exhausted=ui.game.state.exhaust.any(func(c):return c.uid==card.uid)
  var same_stream=ui.card_music.stream==original

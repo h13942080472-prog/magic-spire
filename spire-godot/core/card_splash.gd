@@ -29,7 +29,7 @@ static func options(g, p: Dictionary) -> Array:
     if point not in source_points and point not in points: points.append(point)
  var targets=g.action_targets()
  for point in points:
-  var candidates=[]
+  var pool=[]
   var lowest=INF
   for target in targets:
    if target.id==p.target or target.durability<=0: continue
@@ -41,15 +41,15 @@ static func options(g, p: Dictionary) -> Array:
    if p.mode!="strain":
     var tightness=g._effective_ratio(target)
     if tightness>lowest+0.000001: continue
-    if tightness<lowest-0.000001: candidates.clear();lowest=tightness
-   candidates.append({"target":target.id,"name":g._equipment_name(target),"point":point,"preview":preview})
-  if not candidates.is_empty(): groups.append(candidates)
+    if tightness<lowest-0.000001: pool.clear();lowest=tightness
+   pool.append({"target":target.id,"name":g._equipment_name(target),"point":point,"preview":preview})
+  if not pool.is_empty(): groups.append(pool)
  return groups
 
 static func select(g, p: Dictionary) -> Array:
  var selected=[];var seen=[p.target]
- for candidates in options(g,p):
-  var choices=candidates if p.mode=="strain" else [candidates[g._random_index("card_target",candidates.size())] if candidates.size()>1 else candidates[0]]
+ for pool in options(g,p):
+  var choices=pool if p.mode=="strain" else [pool[g._random_index("card_target",pool.size())] if pool.size()>1 else pool[0]]
   for choice in choices:
    if choice.target in seen: continue
    seen.append(choice.target);selected.append(choice)
@@ -72,11 +72,11 @@ static func detail(g, p: Dictionary) -> String:
  var groups=options(g,p)
  if groups.is_empty(): return ""
  var parts=[];var seen=[]
- for candidates in groups:
+ for pool in groups:
   if p.mode=="strain":
-   candidates=candidates.filter(func(c):return c.target not in seen)
-   for choice in candidates: seen.append(choice.target)
-  if candidates.is_empty(): continue
-  var entries=candidates.map(func(c):return c.name+" "+g.number(c.preview.damage)+"伤害")
-  parts.append(g.Equipment.point_name(candidates[0].point)+"："+("随机1件（"+"／".join(entries)+"）" if p.mode!="strain" and candidates.size()>1 else "、".join(entries)))
+   pool=pool.filter(func(c):return c.target not in seen)
+   for choice in pool: seen.append(choice.target)
+  if pool.is_empty(): continue
+  var entries=pool.map(func(c):return c.name+" "+g.number(c.preview.damage)+"伤害")
+  parts.append(g.Equipment.point_name(pool[0].point)+"："+("随机1件（"+"／".join(entries)+"）" if p.mode!="strain" and pool.size()>1 else "、".join(entries)))
  return "\n波及："+"；".join(parts)+"。"

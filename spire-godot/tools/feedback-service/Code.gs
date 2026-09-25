@@ -1,16 +1,41 @@
 // Deploy as a Google Apps Script web app: execute as yourself, access Anyone.
 // Fixed recipient: callers cannot turn this endpoint into an arbitrary mail relay.
+// GET reports the service capabilities (schema>=2 = accepts the optional save attachment);
+// the report format field p.schema stays 1.
 const FEEDBACK_RECIPIENT = 'towerlover7787@gmail.com';
+const SCHEMA_VERSION = 2;
 const MAX_REPORTS_PER_DAY = 80;
 const DAY = 86400000;
+const MAX_REPORT_CHARS = 12 * 1024 * 1024;
+const MAX_SAVE_BYTES = 2097152;
+const MAX_SAVE_CHARS = 2796204;
 
 function response(value) {
   return ContentService.createTextOutput(JSON.stringify(value))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+// Optional save attachment: a single `.json` file the game already serialized; the service
+// only checks its shape, size and envelope and forwards the original bytes untouched.
+function validateSave(raw) {
+  if (raw === undefined) return null;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('invalid');
+  const keys = Object.keys(raw);
+  if (keys.length !== 2 || !keys.includes('name') || !keys.includes('data')) throw new Error('invalid');
+  if (typeof raw.name !== 'string' || !/^[A-Za-z0-9_-]{1,32}\.json$/.test(raw.name)) throw new Error('invalid');
+  if (typeof raw.data !== 'string' || raw.data.length > MAX_SAVE_CHARS ||
+      raw.data.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(raw.data)) throw new Error('invalid');
+  const bytes = Utilities.base64Decode(raw.data);
+  if (bytes.length < 4 || bytes.length > MAX_SAVE_BYTES) throw new Error('invalid');
+  const envelope = JSON.parse(Utilities.newBlob(bytes).getDataAsString());
+  if (!envelope || typeof envelope !== 'object' || Array.isArray(envelope) || envelope.format !== 2) {
+    throw new Error('invalid');
+  }
+  return Utilities.newBlob(bytes, 'application/json', raw.name);
+}
+
 function validateReport(raw) {
-  if (typeof raw !== 'string' || raw.length > 9 * 1024 * 1024) throw new Error('invalid');
+  if (typeof raw !== 'string' || raw.length > MAX_REPORT_CHARS) throw new Error('invalid');
   const p = JSON.parse(raw);
   if (!p || p.schema !== 1 || !/^[a-f0-9]{32}$/.test(p.id) ||
       !['bug', 'suggestion'].includes(p.kind)) throw new Error('invalid');
@@ -36,7 +61,7 @@ function validateReport(raw) {
         (bytes[bytes.length - 1] & 255) !== 217) throw new Error('invalid');
     return Utilities.newBlob(bytes, 'image/jpeg', 'screenshot-' + (i + 1) + '.jpg');
   });
-  return {p, context, images};
+  return {p, context, images, save: validateSave(p.save)};
 }
 
 function doPost(e) {
@@ -46,7 +71,7 @@ function doPost(e) {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(5000)) return response({ok: false, code: 'busy'});
   try {
-    const {p, context, images} = report;
+    const {p, context, images, save} = report;
     const properties = PropertiesService.getScriptProperties();
     const now = Date.now();
     const hash = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,
@@ -65,9 +90,10 @@ function doPost(e) {
     const body = [kind + '：' + p.title, '', p.description, '', '反馈编号：' + p.id,
       '游戏版本：' + context.version, '平台：' + context.platform, '场景：' + context.scene,
       '阶段：' + context.phase, '层数：' + context.floor, '回合：' + context.round, '种子：' + context.seed,
-      '', p.logs ? '玩家勾选附带的行动日志：\n' + p.logs : '玩家未附带行动日志。'].join('\n');
+      '', p.logs ? '玩家勾选附带的行动日志：\n' + p.logs : '玩家未附带行动日志。',
+      save ? '附带当前进度存档：' + p.save.name : '未附带进度存档。'].join('\n');
     MailApp.sendEmail({to: FEEDBACK_RECIPIENT, subject: '[紧缚尖塔][' + kind + '] ' + p.title,
-      body, attachments: images, name: '紧缚尖塔 · 游戏反馈'});
+      body, attachments: save ? images.concat(save) : images, name: '紧缚尖塔 · 游戏反馈'});
     properties.setProperty(receiptKey, JSON.stringify({hash, time: now}));
     // Receipts prevent duplicate mail on explicit retries for the following 48 hours.
     const all = properties.getProperties();
@@ -88,5 +114,5 @@ function doGet(e) {
     const receipt = PropertiesService.getScriptProperties().getProperty('receipt_' + id);
     return response(receipt ? {ok: true, id} : {ok: false, code: 'not_found'});
   }
-  return response({service: 'spire-feedback', schema: 1});
+  return response({service: 'spire-feedback', schema: SCHEMA_VERSION});
 }

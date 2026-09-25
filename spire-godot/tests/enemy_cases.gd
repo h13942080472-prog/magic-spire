@@ -71,7 +71,7 @@ static func mouth_cases(t) -> void:
   var e=g.state.enemies[0]
   var rng=g.state.rng.duplicate(true)
   var before=g.state.duplicate(true)
-  g.get_view();g.candidates()
+  g.get_view();g.command_facts()
   t.check(g.state==before and e.intent.kind=="charge","MOUTH charge preview is readonly")
   t.check(t.action(g,"end").ok and g.state.equipment.is_empty() and g.state.enemies[0].stage==2,"MOUTH first turn only charges")
   t.check(t.action(g,"end").ok and g.state.equipment.is_empty() and g.state.enemies[0].intent.kind=="apply","MOUTH second turn only charges then announces application")
@@ -138,7 +138,7 @@ static func vision_cases(t) -> void:
  var v=g.get_view()
  t.check(v.enemies.all(func(e):return not e.intent_visible and e.stage==0 and e.intent_icons.size()==1 and e.intent_icons[0].kind=="hidden"),"VISION all live enemies concealed at any eye tightness")
  t.check(g.state==before and g.state.enemies==frozen,"VISION viewing does not change frozen plans, resources or random")
- t.check(v.candidates.any(func(c):return c.payload.kind=="attack" and c.valid),"VISION ordinary attacks remain usable")
+ t.check(v.display_facts.any(func(c):return c.payload.kind=="attack" and c.valid),"VISION ordinary attacks remain usable")
  t.check(t.action(g,"manual",{"target":second.id}).ok and not g.can_observe_intents(),"VISION removing one of stacked masks does not restore sight")
  var remaining=g.state.enemies.duplicate(true)
  t.check(t.action(g,"manual",{"target":first.id}).ok and g.get_view().enemies.all(func(e):return e.intent_visible) and g.state.enemies==remaining,"VISION last mask removal restores same plans immediately")
@@ -167,7 +167,7 @@ static func library_cases(t) -> void:
   var g=encounter(type+"_solo")
   t.check(Enemies.TYPES[type].strength in [1,2] and not g.get_view().enemies[0].has("strength"),"WEAK independent strength within budget "+type)
   t.check(g.state.enemies[0].hp==Enemies.TYPES[type].hp and g.state.enemies[0].grade==1,"WEAK strength does not scale HP or grade "+type)
-  var before=g.export_snapshot();g.get_view();g.candidates()
+  var before=g.export_snapshot();g.get_view();g.command_facts()
   t.check(g.state==before,"WEAK projection does not reroll "+type)
   Save.roundtrip(t,g,"new weak "+type)
  for seed_value in t.seed_values("enemy_pool"):
@@ -357,7 +357,7 @@ static func lock_departure_cases(t) -> void:
   var id=g.state.enemies[0].id
   for turn in range(4): t.check(t.action(g,"end").ok,"LOCK DEPARTURE ordinary locking cycle commits")
   t.check(g.state.phase=="battle" and g._enemy(id).intent.final and g._enemy(id).intent.templates==["negative_plate_lock_medium"],"LOCK DEPARTURE exhaustion announces fixed medium plate without early victory")
-  var before=g.export_snapshot();g.get_view();g.candidates()
+  var before=g.export_snapshot();g.get_view();g.command_facts()
   t.check(g.state==before,"LOCK DEPARTURE preview does not install or reroll")
   g.state.card_buffs.append("infusion_bound")
   t.check(t.action(g,"attack",{"type":"kick","form":2,"enemy":id}).ok,"LOCK DEPARTURE final attachment can be interrupted")
@@ -399,7 +399,7 @@ static func weak_group_cases(t) -> void:
    t.check(g.state.enemies.filter(func(e):return e.type==type).size()<=1,"POOL real arrival never duplicates limited monster: "+type)
   for e in g.state.enemies:seen[e.type]=true
   duplicated=duplicated or (g.state.enemies.size()==2 and g.state.enemies[0].type==g.state.enemies[1].type)
-  before=g.export_snapshot();g.get_view();g.route_view();g.candidates()
+  before=g.export_snapshot();g.get_view();g.route_view();g.command_facts()
   t.check(g.state==before,"POOL previews preserve frozen room roster and random counters")
  if t.exhaustive:
   # Route seeds cover entry; direct pool draws cover an extensible roster without
@@ -520,7 +520,7 @@ static func strong_group_cases(t) -> void:
     bad_room.enemy_members[-1]=bad_room.enemy_members[0].duplicate(true)
     t.check(not g.restore_snapshot(broken).ok and g.state==original,"STRONG same-strength duplicate type in four-weak roster rejects atomically")
     checked_duplicate=true
-   var before=g.export_snapshot();g.get_view();g.route_view();g.candidates()
+   var before=g.export_snapshot();g.get_view();g.route_view();g.command_facts()
    t.check(g.state==before,"STRONG preview preserves members, variant and no-repeat history")
    g.state.completed_rooms.append(room.id)
  if t.exhaustive:

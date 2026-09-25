@@ -17,7 +17,7 @@
 - 一次玩家输入的全部去向：选择类点击（只改本地选中态）、提交类点击（进唯一提交入口）、
   被拒／无效分支（只呈现原因）、以及提交成功后的投影与界面落地。
 - 文件域：`ui/main.gd`（唯一允许 `preload` core 的 UI 文件；唯一提交入口与全部节重建函数）、
-  `ui/keyboard_input.gd`、`ui/touch_input.gd`、`ui/first_turn_presenter.gd`、`ui/action_index.gd`、`ui/target_queries.gd`、
+  `ui/keyboard_input.gd`、`ui/touch_input.gd`、`ui/first_turn_presenter.gd`、`ui/target_queries.gd`、
   `ui/shell/game_layout.gd`、`ui/shell/body_sidebar.gd`、`ui/shell/header.gd`、
   反馈模块 `card_motion.gd`／`resource_feedback.gd`／`combat_feedback.gd`／`enemy_feedback.gd`／
   `impact_feedback.gd`；
@@ -36,10 +36,10 @@
 | 模块 | 边界（谁） | 小接口 | 内部（藏） |
 | --- | --- | --- | --- |
 | M1 输入适配 | `ui/keyboard_input.gd`、`ui/touch_input.gd` | `handle(event) -> bool`；触摸只合成既有鼠标事件 | 键位表、选择状态机、长按阈值、弹窗桥 |
-| M1a 自动接管展示 | `ui/first_turn_presenter.gd` | `sync`／`advance`／`outcome`；调用同一 `_submit(c, version, true)` | 台词、模拟鼠标、动画等待与过期任务取消；只读 View，不选规则动作、不支付 |
-| M2 提交 | `ui/main.gd` 的 `_submit` | `_submit(c, expected_version=-1, takeover=false) -> void` | 分流、守卫、反馈编排 |
+| M1a 自动接管展示 | `ui/first_turn_presenter.gd` | `sync`／`advance`／`outcome`；经指令路由 `emit` 进同一提交入口（takeover 标记不变） | 台词、模拟鼠标、动画等待与过期任务取消；只读 View，不选规则动作、不支付 |
+| M2 提交 | `ui/main.gd` 的 `_submit`（指令路由的执行段） | `_submit(cmd: Dictionary, takeover=false) -> void`（`expected_version` 随指令携带） | 分流、守卫、反馈编排 |
 | M3 展示调度 | `ui/main.gd` 的 `render` 与 `_refresh_drawers` | `render(snapshot={})`；`_refresh_drawers()` | 页面重建、抽屉局部刷新；身体栏和立绘沿自身显示键复用 |
-| M4 只读查询 | `ui/action_index.gd`、`ui/target_queries.gd` | `_init(actions)`／`select`／`find`／`first_usable`；static 查询 | 去重、排序、首／末拒绝原因选择 |
+| M4 只读查询 | `ui/target_queries.gd` | `facts`／`select`／`find`／`first_usable`／`fact_by_key`（static、只读一个 View 的显示事实表） | 组取用、首／末拒绝原因选择（行索引文件已在批 R5 删除） |
 | M5 静态场景与实例 | `ui/shell/game_layout.gd`、`ui/shell/body_sidebar.gd` | `begin_frame`／`hero_portrait`／`enemy_group`／`body_sidebar`／`end_frame`；`configure`／`_presentation_key`／`expand_applied` | 场景节点、按外观比对、展开预算、滚动 |
 | M6 提交后反馈 | `card_motion.gd`、`resource_feedback.gd`、`combat_feedback.gd`、`enemy_feedback.gd`、`impact_feedback.gd` | `positions`／`enqueue`／`play`／`consume`／`finish` | 补间、队列、播报分页与高亮；瞬时层单帧合并与淡出包络 |
 
@@ -60,12 +60,14 @@
 
 | 接口 | 输入／返回 | 谁能调 | 信任依据 |
 | --- | --- | --- | --- |
-| `game.dispatch(candidate_id, expected_version) -> Dictionary` | `candidate_id` 必须来自当前 View 的 `candidates`；`expected_version` 为 UI 当前 `view.version`（`_submit` 允许调用方传 `-1`，此时 UI 补 `view.version`）。成功 `{ok:true, version, resource_feedback, card_feedback, music_feedback, checkpoint}`：前三个是本次提交的展示事件，`checkpoint` 为固定点键；失败 `{ok:false, error:String}`（不带以上任何键） | 只有 M2 `_submit`（测试可直调，UI 其它文件禁止） | 只有 `ok=true` 才写状态：`state=state.duplicate(true)` 后执行事务，失败回滚，不留部分付款／部分装备；core 侧拒绝语义与 `tests/test_game.gd` 的 TC-CORE-0002／0003 锁定 |
-| `game.get_view() -> Dictionary` | 无输入；纯只读投影（`View.build` 内调 `Game.candidates()`、每 action 的 `ReleaseView.preview`、显示集合 `card_texts`、room_event／shop／relics／prison 四个 view） | 唯一允许的调用点集合：`_resume_snapshot`（显示初始投影）、`render`（空快照）、`_submit`（成功或被拒均取）、`restart`。新增调用点即契约违例 | `view.version` 等于投影来源的已提交 `state.version`；UI 只能减少 `get_view` 的调用次数，不能降低单次成本；投影结果不得当规则判定来源 |
+| `game.dispatch(cmd, expected_version) -> Dictionary` | `cmd`＝类型化指令 `{kind, params, expected_version}`（kind 与键面见 `docs/spec/candidate-removal.md` §3.3；`params` 只用稳定 ID）；`expected_version` 为 UI 当前 `view.version`（`_submit` 允许调用方传 `-1`，此时 UI 补 `view.version`）。复核＝指令形状＋参数合法性＋唯一判定（形状或键面不合法、形状无对应行动 → 与失效同一条拒绝）。成功 `{ok:true, version, resource_feedback, card_feedback, music_feedback, checkpoint}`：前三个是本次提交的展示事件，`checkpoint` 为固定点键；失败 `{ok:false, error:String}`（不带以上任何键） | 只有 M2 `_submit`（测试可直调，UI 其它文件禁止） | 只有 `ok=true` 才写状态：`state=state.duplicate(true)` 后执行事务，失败回滚，不留部分付款／部分装备；core 侧拒绝语义与 `tests/test_game.gd` 的 TC-CORE-0002／0003 锁定 |
+| `game.command_params(kind, source) -> Dictionary`／`game.command(source, expected_version=-1) -> Dictionary`（R2 新增） | 指令装配的唯一投影（意图来源 → 该 kind 的声明键面＋默认值）／唯一装箱（`{kind, params, expected_version}`；版本默认取当前 `state.version`） | UI 指令层（`ui/command_router.gd`／`ui/command_routes.gd`）与测试；不得在别处二次装配 | 同一形状 → 同一 `params` 只有一条路径；键面＝`COMMAND_KEYS` 的 39 kind 声明 |
+| `game.command_issue(cmd) -> String`／`game.command_fact(cmd) -> Dictionary`（R2 新增，R5 改名） | 形状与参数合法性复核（失败返回「该行动已经失效，请重新选择。」）／形状 → 当前状态下该显示点的投影事实（唯一判定经事实出口给出） | `command_issue` 由 `dispatch` 内调用；`command_fact` 供提交复核、显示读取路径与测试 | 形状与 `params` 相等的事实恰有一条；不写 `valid`／`reason`（结论只由唯一判定给出）、不产事件、不推进随机、不跨调用保留 |
+| `game.get_view() -> Dictionary` | 无输入；纯只读投影（`View.build` 内调 `Game.command_facts()` 取显示事实、每条显示事实的 `ReleaseView.preview`、显示集合 `card_texts`、room_event／shop／relics／prison 四个 view） | 唯一允许的调用点集合：`_resume_snapshot`（显示初始投影）、`render`（空快照）、`_submit`（成功或被拒均取）、`restart`。新增调用点即契约违例 | `view.version` 等于投影来源的已提交 `state.version`；UI 只能减少 `get_view` 的调用次数，不能降低单次成本；投影结果不得当规则判定来源 |
 | `restore_snapshot(saved)`／`restart_snapshot()` | 返回 `{ok,error}`／快照字典；UI 只判断 `ok`，不解析结构、不迁移字段 | 快照入口只允许 `_resume_snapshot`、`restart`、`_quick_sl` 三处 | 见 `docs/spec/save-fixed-points.md` 与 `docs/spec/transition-pipeline.md` 的冻结时机约定 |
 | `game.number(n) -> String`、`game.Prison.*` 常量 | 显示格式化与立绘选择 | M3／M5 节函数 | 只读显示调用，不参与判定 |
-| `ActionIndex` | `_init(actions)` 只建 `by_id`／`by_group`；`select` 按 payload 相等筛选；`find` 取首个匹配（无匹配 `{}`）；`first_usable` 全不可用返回**末项** | 构造点唯一：View 更新时（`render`） | 登记在 `by_id` 的候选就是该 View 的候选；不保证提交成功（由 `dispatch` 复核）；陈旧索引只允许用于"按旧版本提交并得到拒绝"的测试路径 |
-| `TargetQueries` | static、无状态；输入只有 View 数据、`ActionIndex`、本次载荷 | 各节函数 | 返回原候选（不复制、不改写）；`RELEASE_MODES` 是唯一模式定义处；`first_usable` 全不可用返回**首项**，与 `ActionIndex.first_usable` 语义不同，不得按名字相近合并 |
+| 行动行索引类（`ActionIndex`，R5 已删除） | 曾按 `by_id`／`by_group` 取行；行载体与索引在批 R5 一并删除 | — | 提交复核现走指令形状＋唯一判定（`game.command_fact`）；不保证提交成功，陈旧版本由 `expected_version` 拒绝 |
+| `TargetQueries` | static、无状态；输入只有 View 数据（含显示事实表）与本次载荷 | 各节函数 | 返回显示事实（不复制、不改写）；`RELEASE_MODES` 是唯一模式定义处；`first_usable` 全不可用返回**首项**，末项回退由 `fallback="last"` 显式声明，两者不得按名字相近合并 |
 
 **三个按需只读入口不属于 `get_view` 白名单**：`game.live_card_text`、`game.live_card_text_set`、
 `game.candidate_detail`（语义见 `docs/spec/ondemand-copy.md`）。它们不改白名单，也不得经 `get_view`
@@ -95,9 +97,10 @@
 
 - 首回合规则由 `core/first_turn_control.gd` 从已有正式候选中选出下一步，经 `GameView` 输出
   `view.first_turn_control`（`name`／`locked`／`candidate`／`key`）；具体玩法见 `docs/design/game-design.md`。
-  展示层不能重选动作、重算资格或推进规则随机；`control_next` 由 core 在事务内消费，UI 原样提交候选 ID 与版本。
-- `_submit(c, expected_version=-1, takeover=false)` 是唯一提交入口。普通输入在接管锁定时返回；
-  `takeover=true` 仅供 `FirstTurnPresenter` 的已选步骤进入该入口，仍受首页／敌方播报守卫、候选身份与版本复核约束。
+  展示层不能重选动作、重算资格或推进规则随机；`control_next` 由 core 在事务内消费，UI 经指令路由原样提交该条指令（含 `expected_version`）。
+- `_submit(cmd, takeover=false)` 是唯一提交入口（R2 起为指令路由的执行段；`expected_version` 随指令携带）。
+  普通输入在接管锁定时返回；`takeover=true` 仅供 `FirstTurnPresenter` 的已选步骤进入该入口，
+  仍受首页／敌方播报守卫、指令形状＋参数合法性＋唯一判定与版本复核约束。
   此参数不是跳过规则验证的权限。成功和失败均刷新投影；自动提交结果另交 `outcome` 播放反馈。
 - 接管展示跨等待保留候选及版本，以游戏对象身份、`generation`、版本、首页状态与接管锁定状态共同失效；
   改局、返回首页或版本变化后，旧步骤不得提交。节点使用前重新检查有效性；该显示生命周期不适用 core 装备查询的调用内作用域限制。
@@ -128,7 +131,7 @@ func present_rejection(reason: String, source: String, dirty: Array[String]) -> 
   `snapshot` 非空则原子替换 View＋`ActionIndex`；为空则用当前 `ui.view`；
   **禁止 `present` 在非空 snapshot 下再调 `get_view`**；`render(snapshot)` 兼容入口保留
   "空 snapshot 才 `get_view`"的语义。每次 `present` 的固定动作顺序：
-  `DragTargets.clear(self,false)` → `_hide_term` → View/ActionIndex 同步 → 节键比对 → 重建脏节 →
+  `DragTargets.clear(self,false)` → `_hide_term` → View 同步 → 节键比对 → 重建脏节 →
   `layout.end_frame()` → `keyboard_input.refresh_hints`（`call_deferred`）→ `_localize_controls`。
 - `present_rejection`：7 处拒绝分支（下表 6 处选择类＋提交被拒）的**唯一**呈现入口，不得各自实现。
   载荷至少三项：`reason`（当次从候选／View 读出的原文，不得另造文案）、`source`
@@ -179,15 +182,16 @@ func present_rejection(reason: String, source: String, dirty: Array[String]) -> 
 用译文、颜色、名称、图片识别玩法对象；把投影结果当规则判定来源（UI 不得自行推断资格或作废范围）。
 
 准入线：**复用必须附可证失效规则；无证明即禁止。** 跨操作持有投影（`ui.view`／`ui.actions`）与
-自己的显示态允许；增量与局部构建的分工见 `docs/spec/candidate-delta.md`。
+自己的显示态允许。
 
 ## 输入域
 
-现行入口为 `_submit(c, expected_version=-1)` 与 `render(snapshot={})`。本节中 `commit`／`present`／
+现行入口为 `_submit(cmd, takeover=false)`（经指令路由）与 `render(snapshot={})`。本节中 `commit`／`present`／
 `present_rejection` 及下方脏集表均为待实现设计；不能据它们推断当前界面已经采用局部拒绝刷新。
 
-- `dispatch`：`candidate_id` 必须来自**当前 View** 的 `candidates`（陈旧候选只会被 core 拒绝，
-  不得由 UI 预判）；`expected_version` 为 UI 当前 `view.version`，调用方传 `-1` 时由 UI 补。
+- `dispatch`：`cmd` 是**类型化指令**（`kind`＋`params`，只用稳定 ID，不含候选提交身份 id）；
+  形状与键面由 core 的声明表复核，形状无对应行动只会被 core 拒绝，不得由 UI 预判；
+  `expected_version` 为 UI 当前 `view.version`，调用方传 `-1` 时由 UI 补。
 - `get_view`：无输入；调用点必须落在唯一集合内（`_resume_snapshot`／`render` 空快照／`_submit`／`restart`）。
 - `commit`：`c` 为当前 View 的候选字典（不要求同一引用）；`expected_version < 0` 时取 `view.version`。
 - `impact_feedback.play`：`events` 只接受 `dispatch` 返回值的 `resource_feedback` 数组（字段名与增量口径见
@@ -219,14 +223,16 @@ func present_rejection(reason: String, source: String, dirty: Array[String]) -> 
 ## 失败语义
 
 现行 `_submit`：主页或敌人播报中直接返回；其余提交在 `dispatch` 后无论成功或被拒都会重新 `get_view`，
-设置 `notice` 并调用 `render(updated)` 同步 View 与 ActionIndex。只有成功提交才进入反馈分支，
+设置 `notice` 并调用 `render(updated)` 同步 View。只有成功提交才进入反馈分支，
 只有成功结果的 `checkpoint` 非空才自动写盘。选择类拒绝继续沿各自既有提示入口，不存在统一 `present_rejection`。
 下方「同版本零重算」「只刷新 notice」「统一拒绝入口」是待实现目标，不能作为当前源码已经满足的契约。
 
-- `dispatch` 拒绝语义（core 侧，UI 不得改写文案）：版本不符 → `"状态已更新，请重新选择行动。"`；
-  候选 ID 不在新候选里 → `"该行动已经失效，请重新选择。"`；候选存在但 `valid=false` → 该候选的
-  `reason` 原文；五个 `validate`（Consumables／Binding／SpecialEquipment／Cards／RelicEffects）失败 →
-  各自的 `error`。UI 义务：不自行判定资格、不改牌面、不按名称／颜色／译文识别对象、不重试、不改派候选。
+- `dispatch` 拒绝语义（core 侧，UI 不得改写文案；顺序以源码为准，见 `docs/spec/candidate-removal.md`
+  §1.6 D-1）：五预检分列版本比对两侧——`Consumables.validate_buffs`、`Binding.state_issue` 在版本比对
+  **之前**，`SpecialEquipment.validate`、`Cards.validate`、`RelicEffects.validate` 在**之后**，各自返回
+  自己的 `error`；版本不符 → `"状态已更新，请重新选择行动。"`；指令形状或键面不合法，或形状在当前状态
+  没有对应行动 → `"该行动已经失效，请重新选择。"`；形状合法但判定不通过（`valid=false`）→ 判定的
+  `reason` 原文。UI 义务：不自行判定资格、不改牌面、不按名称／颜色／译文识别对象、不重试、不改派候选。
 - 待实现的被拒分界（目标："不要重算"）：
   - **同版本被拒 → 零重算**：不 `get_view`、不替换 `ui.actions`、不落盘、不反馈，只刷新 `notice` 节。
   - **版本落后被拒 → 必须重同步**：`get_view` ＋ `view`／`actions` 同一批原子替换，
@@ -275,9 +281,9 @@ func present_rejection(reason: String, source: String, dirty: Array[String]) -> 
 | 9 | `touch_rejection_notice_visible` | 触屏点按被拒目标：提示可见且文本等于该分支原因、未调 `get_view`、状态与存档零变化、`actions` 未替换；长按详情等既有抑制规则不变 | `tests/touch_ui_cases.gd`（`touch`） |
 
 - 测量口径（"先测，不改 core，不成门禁"；用于收益判断，不用于通过判据）：
-  - 分段计时点：`commit` 内 guard／五个 validate／`dispatch` 内 `candidates()`／
+  - 分段计时点：`commit` 内 guard／五个 validate／`dispatch` 内 `command_fact()`／
     `state.duplicate(true)`／`_execute`＋清理／dispatch 总计；`get_view` 内 `_begin_equipment_read`／
-    `candidates()`／每 action 的 `ReleaseView.preview`／`card_texts` 循环／`hand` 循环／`bodies`／
+    `command_facts()`／每条显示事实的 `ReleaseView.preview`／`card_texts` 循环／`hand` 循环／`bodies`／
     route／reward／prison／总计；`save`（`write_game`）的 validate／读旧档／`restart_snapshot()` 深拷贝／
     JSON／大小检查／临时文件／回读校验／备份 rename／总计；`present` 各节重建与**每节键计算**。
   - 样本轴：装备 0／12／26 件（相同种子与正式安装工厂，记录实际物理件数）× 两条路径
@@ -288,14 +294,15 @@ func present_rejection(reason: String, source: String, dirty: Array[String]) -> 
   - 产物与清理：计时脚本与 JSON 只放已忽略的 `build/<topic>-<date>/`，不入库、不进运行时；
     摘要（机器／件数／函数名／中位数／样本数）登记 `docs/record/verification.md` 后删除原始目录；
     生产源码不留计数器、开关或计时钩子。
-- 候选生成成本的口径：`View.build` 在 `get_view()` 内调 `Game.candidates()`，因此"完整 View 耗时"
+- 候选生成成本的口径：`View.build` 在 `get_view()` 内调 `Game.command_facts()`，因此"完整 View 耗时"
   已含候选生成；按行均值折算的单行数字不是一次调用成本，不得用于收益预期或完成判据。
 - 跨文件：`card_texts` 的按需化由 `docs/spec/ondemand-copy.md` 承接（投影可见集合 S）；本文件只约束
-  "UI 不得用缓存／懒加载／跳过投影绕过 `get_view`"。增量与局部构建见 `docs/spec/candidate-delta.md`。
+  "UI 不得用缓存／懒加载／跳过投影绕过 `get_view`"。
 
 ## 未排期方向（已讨论、未授权；落地前须走契约与人批）
 
-**结算窗口与输入队列**：版本号是唯一的意图守卫——候选 ID 是 `payload` 的哈希，同 payload 的候选在
+**结算窗口与输入队列**：版本号是唯一的意图守卫——提交身份已改为指令形状（`kind`＋`params`）加
+参数合法性复核，同形状的指令在同状态下解析到同一条行动；同一状态的
 新版本里哈希相同，因此卡顿时连点两次【结束回合】，第二次迟到但仍合法，会把下一个回合也结束掉。
 现状事实：菜单／抽屉是纯 UI 本地状态（不进 `state`、不是候选、不经 `dispatch`）；输入层混合
 （`keyboard_input.handle` 既提交动作也切抽屉／地图）；没有"回合窗口"概念，非交互阶段靠"没有候选"
@@ -305,11 +312,12 @@ func present_rejection(reason: String, source: String, dirty: Array[String]) -> 
 `collapse`，"连续 end turn"改为按声明拦截）；③窗口关闭由核心／结算驱动，不由 UI 判断动画播完；
 ④闭环检查：每个候选 kind 必须在策略表内，表外即红。顺序与风险：先把点击变便宜（提交不再重建整表、
 `present(dirty)` 局部刷新）→ 窗口自然缩短；**动画体系成形前不引入队列**；落地前必须与提交路径去重
-（见 `docs/spec/candidate-delta.md`）合并考虑，避免两处各自维护"提交是否有效"。
+合并考虑，避免两处各自维护"提交是否有效"。
 
-**术语与增量方向**：本仓文档里的"路由"专指**测试按源码变更选套件**（见 `docs/spec/project-map.md`
-与 `tools/check.ps1`）；"把指令收到同一接口再分发"在本链统一称**指令收口／分发**（core 侧唯一入口
-`Game.dispatch(candidate_id, expected_version)`，UI 侧收口在同一提交入口）。延伸口径：
+**术语与增量方向**：测试按源码变更选套件统一称**套件选择**（见 `docs/spec/project-map.md`
+与 `tools/check.ps1`，原被称作"检查路由"）；"把指令收到同一接口再分类分发"在本链统一称
+**指令收口／分发**（core 侧唯一入口 `Game.dispatch(cmd, expected_version)`，UI 侧唯一入口是
+`ui/command_router.gd` 的 `emit`，分类转发表在其 `ROUTES`，装配在 `ui/command_routes.gd`）。延伸口径：
 ①不新增入口，玩家有效操作都从既有唯一入口走；②每次有效操作只做增量——由"本次操作改变了什么"
 推出"哪些投影／候选需要更新"；③**覆盖优先**：先把"哪些状态变化必须触发哪些更新"枚举完整
 （枚举不全＝过期视图／候选，属正确性问题，省时间排在覆盖之后）。

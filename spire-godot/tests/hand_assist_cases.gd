@@ -32,11 +32,11 @@ static func run(t) -> void:
  t.check(not root.is_empty() and Assist.preview(g,target).hands==["right"] and g.escape_preview(target,"strain",5).damage==6,"ASSIST independent left wrap leaves only right-hand bonus")
  var wrap=root.components[0]
  t.check(Assist.preview(g,wrap).hands==["right"],"ASSIST other hand can assist exposed wrap, wrapped hand cannot assist itself")
- var before=g.export_snapshot();g.get_view();g.candidates()
+ var before=g.export_snapshot();g.get_view();g.command_facts()
  t.check(g.state==before,"ASSIST preview never mutates state or RNG")
  var card=t.hand_card(g,"strain");var c=t.find_action(g,"card",{"uid":card.uid,"target":target.id})
- t.check(g.candidate_detail(c).contains("右手辅助＋1") and not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"ASSIST candidate explains side and rejects stale version atomically")
- t.check(g.dispatch(c.id,g.state.version).ok and g._equipment(target.id).is_empty() and g.state.energy==before.energy-1,"ASSIST actual card applies damage once without extra energy")
+ t.check(g.candidate_detail(c).contains("右手辅助＋1") and not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"ASSIST candidate explains side and rejects stale version atomically")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g._equipment(target.id).is_empty() and g.state.energy==before.energy-1,"ASSIST actual card applies damage once without extra energy")
  t.check(g.state.logs.any(func(e):return e.data.has("assist") and e.data.assist.hands==["right"] and e.text.contains("手部辅助")),"ASSIST mechanical log preserves actual helper and formula")
  g=Game.new(42);g.state.wall_distance=1
  var inner=g.add_fixture("thigh",8,10,false,0);g._install_template("belt","thigh",4,10,false,"fixture",1,1,0,inner.points[0])
@@ -110,9 +110,9 @@ static func run(t) -> void:
  t.check(result.reasons.any(func(r):return r.side=="right" and r.code=="fingers_blocked"),"ASSIST finger condition wins over palm condition")
  g._gain_tool("shard")
  t.check(not t.find_action(g,"item_use",{"item":g.state.items.back().id,"target":target.id}).valid,"ASSIST half assistance does not enable handheld cutting")
- before=g.export_snapshot();g.get_view();g.candidates()
+ before=g.export_snapshot();g.get_view();g.command_facts()
  t.check(g.state==before,"ASSIST fractional preview remains read-only")
  card=t.hand_card(g,"strain");c=t.find_action(g,"card",{"uid":card.uid,"target":target.id})
  t.check(g.candidate_detail(c).contains("＋0.5") and c.payload.preview.assist.bonus==0.5,"ASSIST candidate exposes exact half contribution")
  var energy=g.state.energy
- t.check(g.dispatch(c.id,g.state.version).ok and g.state.energy==energy-1 and g.state.logs.any(func(e):return e.data.has("assist") and e.data.assist.bonus==0.5),"ASSIST real action pays once and logs half contribution")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.energy==energy-1 and g.state.logs.any(func(e):return e.data.has("assist") and e.data.assist.bonus==0.5),"ASSIST real action pays once and logs half contribution")

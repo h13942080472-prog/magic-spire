@@ -52,6 +52,10 @@
 
 - 指引只写长期规范与索引；细节、操作与历史拆到 docs/ 与项目 skill。
 
+- 改动文档没有门禁兜底：`docs/` 不在检查指纹集合内，改文档不会让任何检查变红。
+  文档改动必须自证——点名的路径与符号存在、依赖表与实现的文件面一致、被取代的段落改写或删除而不是加批注；
+  细则见 `.zcode/skills/spire-docs/SKILL.md`。
+
 ## 实现规约（改动前必读）
 
 - 完成需要有检查证据；返工使受影响域的既有结论作废，必须在该域重新取证。
@@ -79,7 +83,7 @@
 - 不复制第二套 Demo 或规则内核。
   不从历史部署归档恢复当前源码。
 
-- 不绕过正式候选修正界面结果。
+- 不绕过指令路由与唯一判定修正界面结果。
   不由组件直接修改资源、装备或回合。
 
 - 不为了展示效果伪造装备或状态。
@@ -156,7 +160,12 @@
 | 事件管线与事件结构 | docs/spec/event-pipeline.md |
 | 状态迁移管线（单写入者） | docs/spec/transition-pipeline.md |
 | 固定点存档 | docs/spec/save-fixed-points.md |
-| 候选局部筛查契约 | docs/spec/candidate-delta.md |
+| 本局种子标识与查看复制 | docs/spec/seed-identity.md |
+| 本片依赖约束（cleaner 核对） | docs/spec/seed-feedback-dependencies.md |
+| 本局回顾（战报面板） | docs/spec/run-review.md |
+| 本局回顾依赖约束（cleaner 核对） | docs/spec/run-review-dependencies.md |
+| 卡面词条悬停显示 | docs/spec/card-terms.md |
+| 卡面词条依赖约束（cleaner 核对） | docs/spec/card-terms-dependencies.md |
 | 装备只读查询 | docs/spec/equipment-query-seam.md |
 | 玩家可见文案的收口与按需 | docs/spec/ondemand-copy.md |
 | 界面拆分与装备详情 | docs/spec/release-interface.md |
@@ -178,6 +187,7 @@
 细节规范与操作按类拆到本目录技能，改动前按需读取：
 
 - `repo-ops`：命令与操作流程（检查门禁及语义、内容包校验、引擎定位、打包发布）。
+- `spire-docs`：文档规范（五类生命周期、符号锚点、判据优先、依赖表与允许改动表、记录诚实、文档守卫）。
 - `spire-architecture`：架构边界与数据流（提交入口、只读投影、候选与索引、随机、只读复用、装备事务、分层）。
 - `spire-ui-content`：界面、文案、本地化、立绘与素材。
 - `spire-validation-release`：验证口径、测试夹具隔离、自动推送与打包发布边界。

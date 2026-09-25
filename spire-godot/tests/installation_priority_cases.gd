@@ -65,7 +65,7 @@ static func run(t) -> void:
  var icon=g.get_view().enemies[0].intent_icons[0]
  t.check(icon.kind=="bind" and icon.detail=="敌人准备对你施加拘束","LINK intent shares concise restraint icon")
  before=g.state.duplicate(true)
- g.get_view();g.candidates()
+ g.get_view();g.command_facts()
  t.check(g.state==before,"LINK preview does not install or advance RNG")
  var h=Save.roundtrip(t,g,"pending enemy link")
  Save.step_both(t,g,h,"end")
@@ -128,7 +128,7 @@ static func empty_point_priority(t) -> void:
  forced=g.Application.choose(g,{"templates":["rope"],"slot":"upper_arm","point":"upper_arm_top","grade":1},"fixture")
  t.check(forced.get("point")=="upper_arm_top","EMPTY PRIORITY explicit physical target is never widened to an empty location")
  var options=g.EquipmentOffers.for_pool(g,1,["rope"]).filter(func(o):return o.kind=="install" and o.slot=="upper_arm")
- t.check(g.EquipmentOffers.preferred(g,options)==options,"EMPTY PRIORITY all occupied candidates keep the original tie")
+ t.check(g.EquipmentOffers.preferred(g,options)==options,"EMPTY PRIORITY all occupied facts keep the original tie")
  # Whole-slot regional level can already be four while a precise segment is still empty.
  for slot in ["forearm","palm","thigh","calf","ankle","foot","toes"]: g.add_fixture(slot,8)
  t.check(g.level("arms")==4 and g.level("legs")==4,"EMPTY PRIORITY fixture has full regional degrees")

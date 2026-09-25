@@ -4,21 +4,21 @@ const Game=preload("res://tests/game_fixture.gd")
 static func shop(g) -> bool:
  preload("res://tests/service_cases.gd").arrive(g,"shop")
  var id=g.room_data(g.state.room).next.filter(func(next):return g.room_data(next).kind=="shop")[0]
- var departure=g.candidates().filter(func(c):return c.payload.kind=="depart" and c.payload.room==id)[0]
- if not g.dispatch(departure.id,g.state.version).ok: return false
+ var departure=g.command_facts().filter(func(c):return c.payload.kind=="depart" and c.payload.room==id)[0]
+ if not g.dispatch(g.command(departure.payload,g.state.version),g.state.version).ok: return false
  while g.state.phase=="travel":
-  var step=g.candidates().filter(func(c):return c.payload.kind=="travel_step")[0]
-  if not g.dispatch(step.id,g.state.version).ok: return false
+  var step=g.command_facts().filter(func(c):return c.payload.kind=="travel_step")[0]
+  if not g.dispatch(g.command(step.payload,g.state.version),g.state.version).ok: return false
  return g.state.phase=="shop"
 
 static func run(t) -> void:
  var g=Game.new(42);g.state.relics.append("mana_earring")
  var before=g.export_snapshot();var pick=t.find_action(g,"flask",{"op":"deposit"})
- g.get_view();g.candidates()
+ g.get_view();g.command_facts()
  t.check(g.state==before,"FLASK preview never moves mana or spends deposit uses")
- t.check(g.dispatch(pick.id,g.state.version).ok and g.state.mana==90 and g.state.flask_mana==10 and g.state.flask_deposits==1,"FLASK deposit transfers ten")
+ t.check(g.dispatch(g.command(pick.payload,g.state.version),g.state.version).ok and g.state.mana==90 and g.state.flask_mana==10 and g.state.flask_deposits==1,"FLASK deposit transfers ten")
  var committed=g.export_snapshot()
- t.check(not g.dispatch(pick.id,before.version).ok and g.state==committed,"FLASK stale deposit rejects atomically")
+ t.check(not g.dispatch(g.command(pick.payload,before.version),before.version).ok and g.state==committed,"FLASK stale deposit rejects atomically")
  t.check(t.action(g,"flask",{"op":"deposit"}).ok and g.state.mana==80 and g.state.flask_mana==20,"FLASK second deposit succeeds")
  t.check(t.action(g,"flask",{"op":"deposit"}).ok and g.state.mana==70 and g.state.flask_mana==30,"FLASK third deposit succeeds")
  committed=g.export_snapshot()
@@ -28,7 +28,7 @@ static func run(t) -> void:
  t.check(g.state.mana==100 and g.state.flask_mana==0 and g.state.flask_deposits==3 and g.state.combat.flask_withdrawals==3,"FLASK transfers use separate three-use allowances")
  g.state.mana=70;g.state.flask_mana=30;committed=g.export_snapshot()
  var denied=t.find_action(g,"flask",{"op":"withdraw"},false)
- t.check(not denied.valid and not g.dispatch(denied.id,g.state.version).ok and g.state==committed,"FLASK fourth withdrawal rejects despite available mana and capacity")
+ t.check(not denied.valid and not g.dispatch(g.command(denied.payload,g.state.version),g.state.version).ok and g.state==committed,"FLASK fourth withdrawal rejects despite available mana and capacity")
  var twin=Game.new(42)
  t.check(twin.restore_snapshot(committed).ok and not t.find_action(twin,"flask",{"op":"withdraw"},false).valid,"FLASK snapshot preserves exhausted withdrawal allowance")
  var restored=twin.export_snapshot()
@@ -69,19 +69,19 @@ static func run(t) -> void:
  var offer=t.find_action(g,"service",{"op":"take","payment":"flask"});var price=offer.mana
  before=g.export_snapshot()
  t.check(not t.find_action(g,"service",{"op":"take","index":offer.payload.index,"payment":"self"}).valid and offer.valid,"FLASK shop rejects temporary mana despite plentiful independent balance")
- t.check(g.dispatch(offer.id,g.state.version).ok and g.state.flask_mana==300-price and g.state.mana==1 and g.state.temporary_mana==1000,"FLASK shop pays full price despite blocked mouth and spell discounts")
+ t.check(g.dispatch(g.command(offer.payload,g.state.version),g.state.version).ok and g.state.flask_mana==300-price and g.state.mana==1 and g.state.temporary_mana==1000,"FLASK shop pays full price despite blocked mouth and spell discounts")
  t.check(g.state.tick==before.tick and g.state.flask_deposits==before.flask_deposits,"FLASK purchase cannot refresh turn deposit limit")
  committed=g.export_snapshot()
- t.check(not g.dispatch(offer.id,g.state.version).ok and g.state==committed,"FLASK sold goods cannot charge either currency again")
+ t.check(not g.dispatch(g.command(offer.payload,g.state.version),g.state.version).ok and g.state==committed,"FLASK sold goods cannot charge either currency again")
  var target=g.add_fixture("thigh",4)
  var release=t.find_action(g,"service",{"op":"release","target":target.id,"payment":"flask"})
  var balance=g.state.flask_mana
- t.check(g.dispatch(release.id,g.state.version).ok and g._equipment(target.id).is_empty() and g.state.flask_mana==balance-release.mana and g.state.mana==1,"FLASK release service uses the same selected currency")
+ t.check(g.dispatch(g.command(release.payload,g.state.version),g.state.version).ok and g._equipment(target.id).is_empty() and g.state.flask_mana==balance-release.mana and g.state.mana==1,"FLASK release service uses the same selected currency")
  var count=g.state.deck.size()
  t.check(t.action(g,"service",{"op":"remove","payment":"flask"}).ok and g.state.deck.size()==count-1 and g.state.mana==1,"FLASK card removal also accepts bottle mana")
  g.state.flask_mana=0
  var item=t.find_action(g,"service",{"op":"take","payment":"flask"});committed=g.export_snapshot()
- t.check(not item.valid and not g.dispatch(item.id,g.state.version).ok and g.state==committed,"FLASK insufficient payment rolls back item and all resources")
+ t.check(not item.valid and not g.dispatch(g.command(item.payload,g.state.version),g.state.version).ok and g.state==committed,"FLASK insufficient payment rolls back item and all resources")
  outside_battle(t)
  prison_limits(t)
  var loc=preload("res://ui/localization.gd").new();loc.set_locale("en_US")
@@ -122,7 +122,7 @@ static func prison_limits(t) -> void:
  t.check(t.action(g,"flask",{"op":"deposit"}).ok and g.state.mana==40 and g.state.flask_mana==110 and g.state.flask_deposits==1,"FLASK cell deposit keeps ten-mana transfer and spends one use")
  var saved=g.export_snapshot()
  var denied=t.find_action(g,"flask",{"op":"deposit"},false)
- t.check(not denied.valid and denied.reason=="本回合已存入1次。" and not g.dispatch(denied.id,g.state.version).ok and g.state==saved,"FLASK second cell deposit rejects atomically with one-use reason")
+ t.check(not denied.valid and denied.reason=="本回合已存入1次。" and not g.dispatch(g.command(denied.payload,g.state.version),g.state.version).ok and g.state==saved,"FLASK second cell deposit rejects atomically with one-use reason")
  var twin=Game.new(42)
  t.check(twin.restore_snapshot(saved).ok and not t.find_action(twin,"flask",{"op":"deposit"},false).valid,"FLASK loading cell snapshot cannot refresh used deposit")
  for i in range(5): t.check(t.action(g,"flask",{"op":"withdraw"}).ok,"FLASK cell withdrawal remains unlimited after deposit")
@@ -149,7 +149,7 @@ static func preparation_transfers(t,g) -> void:
  for i in range(3): t.check(t.action(g,"flask",{"op":"deposit"}).ok,"FLASK preparation allows each of three deposits")
  var saved=g.export_snapshot()
  var denied=t.find_action(g,"flask",{"op":"deposit"},false)
- t.check(not denied.valid and denied.reason=="本回合已存入3次。" and not g.dispatch(denied.id,g.state.version).ok and g.state==saved,"FLASK fourth preparation deposit rejects atomically")
+ t.check(not denied.valid and denied.reason=="本回合已存入3次。" and not g.dispatch(g.command(denied.payload,g.state.version),g.state.version).ok and g.state==saved,"FLASK fourth preparation deposit rejects atomically")
  var twin=Game.new(42)
  t.check(twin.restore_snapshot(saved).ok and not t.find_action(twin,"flask",{"op":"deposit"},false).valid,"FLASK restore preserves exhausted preparation deposit allowance")
  for i in range(5): t.check(t.action(g,"flask",{"op":"withdraw"}).ok,"FLASK preparation permits more than three withdrawals after deposits exhaust")

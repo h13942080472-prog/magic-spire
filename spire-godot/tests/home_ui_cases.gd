@@ -56,7 +56,7 @@ static func run(t) -> void:
  t.check(ui.show_home and not ui.show_settings and ui.game.export_snapshot()==initial,"HOME Escape returns from practice without starting it")
  ui.persistence_enabled=false;ui.feedback_duration=0.04
  await Click.press(t,"HomeNewGame")
- t.check(not ui.show_home and ui.view.phase=="departure" and not ui.view.candidates.is_empty() and ui.game.state.chastity_locks_enabled and ui.game.state.chastity_lock_chance==30,"HOME new tower opens floor zero with the selected chastity generation settings")
+ t.check(not ui.show_home and ui.view.phase=="departure" and not ui.view.display_facts.is_empty() and ui.game.state.chastity_locks_enabled and ui.game.state.chastity_lock_chance==30,"HOME new tower opens floor zero with the selected chastity generation settings")
  await t.open_menu();await Click.press(t,"ReturnHome")
  t.check(ui.show_home and not ui.map_auto_travel,"HOME returning from new tower pauses navigation")
  await custom_opening(t)

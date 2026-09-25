@@ -54,6 +54,7 @@ git diff --name-only
 - **判读**：退出码、每个分类的 `SUITE RESULT: <name> PASS|FAIL`、完成标记（`PASS: N assertions`／`UI PASS: N assertions`）与 `summary.json`（`status`／`before`／`after`／`rules.retry`）。检查期间源码或内容变化会打印 `SOURCE CHANGED:`、整轮记为 `source_changed` 并 exit 1，须重跑全部原选范围——`source_changed` 不得当作冻结版本通过。口径见 `.zcode/skills/spire-validation-release/SKILL.md`。
 - 日志与证据：每轮写入 `build/checks/<运行号>/`（`check-rules.log`、`check-ui.log`、`summary.json` 等），不入库；摘要登记到 `docs/record/verification.md`。
 - 内容包校验：`& tools/check-content.ps1`（改动 `spire-godot/content/packs/` 后必跑）；`-Path <目录>` 可指向别处，如 `-Path content/templates`。
+- 规则类文档引用门禁 `spire-godot/tools/check-docs.ps1`：现在是 `tools/check.ps1` 的**独立阶段**（先用引擎无关的它开路，有自己的 `DOCS RESULT: PASS|FAIL` 结果行与 `summary.json` 的 `docs` 字段，失败即整轮失败），也可单跑做局部核对；改 `docs/spec`／`docs/design`／`docs/guide`／根 `AGENTS.md`／`.zcode/skills` 后必跑（或随主门禁带上）。检查点名路径存在、`文件::符号` 锚点已声明、本地 md 链接可达，并打印允许清单条数；扫描范围与排除理由的唯一声明在 `tools/doc-scan-scope.ps1`，`-ListTokens` 逐条打印。这些规则类文档同时在源码指纹内：改动它们会触发 `SOURCE CHANGED`。
 - 引擎与启动：`tools/find-godot.ps1` 提供 `Find-SpireGodot`（`GODOT_BIN` → `godot`／`godot4` → `%USERPROFILE%\Downloads` 顺序探测），`tools/launch.ps1` 启动游戏。
 - 打包输出默认写到仓库根 `outputs/`（`package.ps1 -OutputRoot` 可覆盖）；打包入口 `tools/package.ps1`、`tools/package-android.ps1`，成品检查 `tools/check-package.ps1`、`tools/check-android-package.ps1`；先读 `docs/spec/packaging.md`，不以旧发布说明代替当前脚本。
 - **打包脚本必须用 PowerShell 7**（`pwsh`）：`package.ps1`／`package-android.ps1` 用 `[IO.Path]::GetRelativePath`，`powershell.exe` 是 5.1、没有该方法，第一段就抛 `MethodNotFound`。2026-09-17 实测。

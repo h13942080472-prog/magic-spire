@@ -19,7 +19,7 @@ static func run(t) -> void:
   g._start_battle()
   t.check(g.state.mana==40+scenario.gain and triggers(g).size()==(1 if scenario.gain>0 else 0),"AXE entry uses final encounter rank and boss precedence: "+str(scenario))
   t.check(g.state.flask_mana==flask and g.state.temporary_mana==temporary,"AXE entry restores personal mana only")
-  var before=g.export_snapshot();g.get_view();g.candidates()
+  var before=g.export_snapshot();g.get_view();g.command_facts()
   t.check(g.state==before,"AXE read-only queries cannot retrigger recovery")
   g._start_round()
   t.check(triggers(g).size()==(1 if scenario.gain>0 else 0),"AXE later rounds do not count as room entry")
@@ -31,9 +31,9 @@ static func run(t) -> void:
 
 static func prison(t) -> void:
  var g=setup();var c=t.find_action(g,"surrender");var before=g.export_snapshot()
- t.check(not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"AXE stale surrender cannot heal or enter prison")
- t.check(g.dispatch(c.id,g.state.version).ok and g.state.phase=="captured" and g.state.mana==40 and triggers(g).size()==1,"AXE formal surrender drains twenty during intake, then applies its one prison-entry recovery")
- t.check(not g.dispatch(c.id,g.state.version).ok and g.state.mana==40,"AXE repeated surrender is rejected without recovery")
+ t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"AXE stale surrender cannot heal or enter prison")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.phase=="captured" and g.state.mana==40 and triggers(g).size()==1,"AXE formal surrender drains twenty during intake, then applies its one prison-entry recovery")
+ t.check(not g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.mana==40,"AXE repeated surrender is rejected without recovery")
  t.check(t.action(g,"prison",{"action":"enter"}).ok and g.state.phase=="prison" and g.state.mana==40,"AXE intake confirmation does not repeat either milking or recovery")
  g.state.prison.left=1
  t.action(g,"end");t.action(g,"prison",{"action":"inspect"});t.action(g,"prison",{"action":"accept"});t.action(g,"prison",{"action":"resume"})

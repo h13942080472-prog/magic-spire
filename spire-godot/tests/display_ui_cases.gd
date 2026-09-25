@@ -3,6 +3,202 @@ const Navigation=preload("res://tests/interface_ui_cases.gd")
 const Settings=preload("res://ui/display_settings.gd")
 const Portrait=preload("res://ui/equipment_portrait.gd")
 const Art=preload("res://ui/pixel_art.gd")
+const Cases=preload("res://tests/architecture_cases.gd")
+
+# docs/spec/candidate-removal.md §5 G5（批 R3 的手牌／行动／姿态／墙面／底栏域）：夹具矩阵 0／12／26／44 件
+# × 战斗／整备／休息（同种子 42）。①每个显示点的可用／原因／风险／费用与唯一判定对同一形状的输出逐字段相等
+# （同一形状恰有一条候选行＝G2 已断言的前提）；②显示文本与未改源码基线逐字相等（基线于批 R3 前用未改源码复算，
+# 只含显示文本字段，不含提交身份 id）。键＝显示点（kind＋声明 params 的 8 位摘要；手牌点＝hand|uid）。
+const R3_G5_CELLS=[["battle",0],["battle",12],["battle",26],["battle",44],["prepare",0],["prepare",12],["prepare",26],["prepare",44],["rest",0],["rest",12],["rest",26],["rest",44]]
+const R3_G5_BASELINE={
+ "battle:0":{"attack|08fca583":"ebcecd4a035227be67b22d098ba35a83","attack|0c0c7bd1":"0a1b193599a04105a0d109039781b9b8","attack|113750c3":"237d7d23d5ab52c223807e9a90b3bf70","attack|2c270d2a":"eb89680af2670fe8c0f8b312b9861e0b","attack|52271fb5":"4de1bd5271b4cda78e40e480149e5920","attack|52fc0492":"9eed933e9067640e55df0697bf87aae5","attack|576c7b23":"638426dd3d8bc3f4cfc2ce8c351d6d32","attack|57c9f6c8":"9d8c1538d03513e2dc45f55a28a5546d","attack|6234891c":"495dfff5b54eba4ba4d31aa180db5c06","attack|828e3ba0":"1b01362e632760344a9d3c8fd687ae49","attack|a2e396da":"e24c68f50bc5da0b10030899f2e348a6","attack|d845d27a":"e0cf1531d0f801334eb0b6112957f9b7","attack|e01afa84":"e03c0e7604d0d09f5874c40bf3707e6b","attack|e271ef98":"93e85e7c5148fb4adb815a0e1cc062e9","attack|e8b9ed92":"21c8238f2244fe1a2e94c381bc0efc85","attack|edbfd60b":"237d7d23d5ab52c223807e9a90b3bf70","attack|f1466260":"59035bc1ddd448038b67af9bd27ab48a","attack|fd8648f7":"36c7a68bbc66301508eeec21d95013c2","calm|44136fa3":"22f22bd5655c18cf140d6b62a6d553c0","end|44136fa3":"669b85ed16826d266af4864f98c18aff","hand|card_1":"2cef93ec87602eca7a69f21b2dd03bfe","hand|card_10":"dc7af853ad29313100ec20d785605a3f","hand|card_4":"b6c18d758f81d807b1e6082e625c5efb","hand|card_7":"2cef93ec87602eca7a69f21b2dd03bfe","hand|card_9":"25301a25f02a59e025f9fe69d72a77a1","posture|415624d6":"2dd0890dd2101b22bb642e55937056c0","posture|99cbd16f":"f19cc76fdf4e9eddc9289705ea7c699b","posture|b7ae54f1":"1ba4b0f2263a41546ccdefde8482bf31","surrender|44136fa3":"be8c1cda992e77565be9e8d4c859f37a","wall_move|3c876c16":"5f366e62149218c26561a0c838ac79ff","wall_move|8d07fe3f":"57383e77989ec6113b5bcd39b30ae430"},
+ "battle:12":{"attack|08fca583":"6fc557d137f0980f6469cff113cf059f","attack|0c0c7bd1":"ec60867ee6befbea6b04befac9d3b2e4","attack|113750c3":"187dd276d48337c9351f73f86651a8cf","attack|2c270d2a":"a388e0c26f0abf0f4c96743da1b57a1a","attack|52271fb5":"f7342cf5520c97bee4425ed69ab7d2df","attack|52fc0492":"c31235bb26bba9b7db939b7f1b1b0996","attack|576c7b23":"08401c88d053d4aa4e8dd539b3d50abe","attack|57c9f6c8":"732abe3ba841068a101537b8d18e2cc7","attack|6234891c":"fdaa61935e43240f89bbebaba020acda","attack|828e3ba0":"afdfb2a5e743000cb0576e684ac2fdb8","attack|a2e396da":"febd5617f363b273eafd5d718fc10373","attack|d845d27a":"bd728aa7a950c3e6b3c9516b86ffe9b6","attack|e01afa84":"a7ce455637c28c61542c83891e079be3","attack|e271ef98":"4c3628ce5c4d941f517e2a0398e8e512","attack|e8b9ed92":"beb6d0508599c0026a617aff36c2bd10","attack|edbfd60b":"187dd276d48337c9351f73f86651a8cf","attack|f1466260":"86dafa295a7c4d4388009121f3446110","attack|fd8648f7":"f5972417ee2f3f33a859b8e0d8dbd553","calm|44136fa3":"41ea03020ea2e37ff17b9aa376452480","end|44136fa3":"669b85ed16826d266af4864f98c18aff","hand|card_1":"a227f1b4f8ca3f81c9adde7512fec8de","hand|card_10":"6a43699b10926047d1f401cd755856fe","hand|card_4":"d634fc537a1de9bf73f2a74480de9a13","hand|card_7":"a227f1b4f8ca3f81c9adde7512fec8de","hand|card_9":"d9dccd7e156b95a9c8063c1bfcd9901d","posture|415624d6":"c068e1c3526291d1cddfb6cfce8891a4","posture|99cbd16f":"893f5abd33222c88851a76cdbd17f95e","posture|b7ae54f1":"b2ab8c5543f2ef0dee335d72d9383b8f","surrender|44136fa3":"be8c1cda992e77565be9e8d4c859f37a","wall_move|3c876c16":"cb750472dd2c00db35c4a8096ff7ae20","wall_move|8d07fe3f":"92135c9b7739223dd37b80192ffe4dd6"},
+ "battle:26":{"attack|08fca583":"6fc557d137f0980f6469cff113cf059f","attack|0c0c7bd1":"ec60867ee6befbea6b04befac9d3b2e4","attack|113750c3":"187dd276d48337c9351f73f86651a8cf","attack|2c270d2a":"a388e0c26f0abf0f4c96743da1b57a1a","attack|52271fb5":"f7342cf5520c97bee4425ed69ab7d2df","attack|52fc0492":"c31235bb26bba9b7db939b7f1b1b0996","attack|576c7b23":"08401c88d053d4aa4e8dd539b3d50abe","attack|57c9f6c8":"732abe3ba841068a101537b8d18e2cc7","attack|6234891c":"fdaa61935e43240f89bbebaba020acda","attack|828e3ba0":"afdfb2a5e743000cb0576e684ac2fdb8","attack|a2e396da":"febd5617f363b273eafd5d718fc10373","attack|d845d27a":"bd728aa7a950c3e6b3c9516b86ffe9b6","attack|e01afa84":"a7ce455637c28c61542c83891e079be3","attack|e271ef98":"4c3628ce5c4d941f517e2a0398e8e512","attack|e8b9ed92":"beb6d0508599c0026a617aff36c2bd10","attack|edbfd60b":"187dd276d48337c9351f73f86651a8cf","attack|f1466260":"86dafa295a7c4d4388009121f3446110","attack|fd8648f7":"f5972417ee2f3f33a859b8e0d8dbd553","calm|44136fa3":"41ea03020ea2e37ff17b9aa376452480","end|44136fa3":"669b85ed16826d266af4864f98c18aff","hand|card_1":"a227f1b4f8ca3f81c9adde7512fec8de","hand|card_10":"6a43699b10926047d1f401cd755856fe","hand|card_4":"d634fc537a1de9bf73f2a74480de9a13","hand|card_7":"a227f1b4f8ca3f81c9adde7512fec8de","hand|card_9":"d9dccd7e156b95a9c8063c1bfcd9901d","posture|415624d6":"c068e1c3526291d1cddfb6cfce8891a4","posture|99cbd16f":"893f5abd33222c88851a76cdbd17f95e","posture|b7ae54f1":"b2ab8c5543f2ef0dee335d72d9383b8f","surrender|44136fa3":"be8c1cda992e77565be9e8d4c859f37a","wall_move|3c876c16":"cb750472dd2c00db35c4a8096ff7ae20","wall_move|8d07fe3f":"92135c9b7739223dd37b80192ffe4dd6"},
+ "battle:44":{"attack|08fca583":"6fc557d137f0980f6469cff113cf059f","attack|0c0c7bd1":"ec60867ee6befbea6b04befac9d3b2e4","attack|113750c3":"187dd276d48337c9351f73f86651a8cf","attack|2c270d2a":"4369f312c78ee15fb41002b26d1e3b4f","attack|52271fb5":"f7342cf5520c97bee4425ed69ab7d2df","attack|52fc0492":"c31235bb26bba9b7db939b7f1b1b0996","attack|576c7b23":"08401c88d053d4aa4e8dd539b3d50abe","attack|57c9f6c8":"732abe3ba841068a101537b8d18e2cc7","attack|6234891c":"fdaa61935e43240f89bbebaba020acda","attack|828e3ba0":"bdcd892e2dbb67f40cf741789e2531a8","attack|a2e396da":"febd5617f363b273eafd5d718fc10373","attack|d845d27a":"bd728aa7a950c3e6b3c9516b86ffe9b6","attack|e01afa84":"a7ce455637c28c61542c83891e079be3","attack|e271ef98":"4c3628ce5c4d941f517e2a0398e8e512","attack|e8b9ed92":"beb6d0508599c0026a617aff36c2bd10","attack|edbfd60b":"187dd276d48337c9351f73f86651a8cf","attack|f1466260":"86dafa295a7c4d4388009121f3446110","attack|fd8648f7":"f5972417ee2f3f33a859b8e0d8dbd553","calm|44136fa3":"41ea03020ea2e37ff17b9aa376452480","end|44136fa3":"669b85ed16826d266af4864f98c18aff","hand|card_1":"a227f1b4f8ca3f81c9adde7512fec8de","hand|card_10":"6a43699b10926047d1f401cd755856fe","hand|card_4":"d634fc537a1de9bf73f2a74480de9a13","hand|card_7":"a227f1b4f8ca3f81c9adde7512fec8de","hand|card_9":"d9dccd7e156b95a9c8063c1bfcd9901d","posture|415624d6":"c068e1c3526291d1cddfb6cfce8891a4","posture|99cbd16f":"893f5abd33222c88851a76cdbd17f95e","posture|b7ae54f1":"b2ab8c5543f2ef0dee335d72d9383b8f","surrender|44136fa3":"be8c1cda992e77565be9e8d4c859f37a","wall_move|3c876c16":"cb750472dd2c00db35c4a8096ff7ae20","wall_move|8d07fe3f":"92135c9b7739223dd37b80192ffe4dd6"},
+ "prepare:0":{"calm|44136fa3":"22f22bd5655c18cf140d6b62a6d553c0","end|44136fa3":"ccf506b0f535604ecfd0b85263063020","finish_prepare|44136fa3":"16e153aaa7bcde7b75927b5313c20f3b","hand|card_2":"b6c18d758f81d807b1e6082e625c5efb","hand|card_3":"2cef93ec87602eca7a69f21b2dd03bfe","hand|card_4":"b6c18d758f81d807b1e6082e625c5efb","hand|card_5":"2cef93ec87602eca7a69f21b2dd03bfe","hand|card_6":"b6c18d758f81d807b1e6082e625c5efb","posture|415624d6":"2dd0890dd2101b22bb642e55937056c0","posture|99cbd16f":"f19cc76fdf4e9eddc9289705ea7c699b","posture|b7ae54f1":"1ba4b0f2263a41546ccdefde8482bf31","wall_move|3c876c16":"5f366e62149218c26561a0c838ac79ff","wall_move|8d07fe3f":"57383e77989ec6113b5bcd39b30ae430"},
+ "prepare:12":{"calm|44136fa3":"41ea03020ea2e37ff17b9aa376452480","end|44136fa3":"ccf506b0f535604ecfd0b85263063020","finish_prepare|44136fa3":"16e153aaa7bcde7b75927b5313c20f3b","hand|card_2":"d634fc537a1de9bf73f2a74480de9a13","hand|card_3":"a227f1b4f8ca3f81c9adde7512fec8de","hand|card_4":"d634fc537a1de9bf73f2a74480de9a13","hand|card_5":"a227f1b4f8ca3f81c9adde7512fec8de","hand|card_6":"d634fc537a1de9bf73f2a74480de9a13","posture|415624d6":"c068e1c3526291d1cddfb6cfce8891a4","posture|99cbd16f":"893f5abd33222c88851a76cdbd17f95e","posture|b7ae54f1":"b2ab8c5543f2ef0dee335d72d9383b8f","wall_move|3c876c16":"cb750472dd2c00db35c4a8096ff7ae20","wall_move|8d07fe3f":"92135c9b7739223dd37b80192ffe4dd6"},
+ "prepare:26":{"calm|44136fa3":"41ea03020ea2e37ff17b9aa376452480","end|44136fa3":"ccf506b0f535604ecfd0b85263063020","finish_prepare|44136fa3":"16e153aaa7bcde7b75927b5313c20f3b","hand|card_2":"d634fc537a1de9bf73f2a74480de9a13","hand|card_3":"a227f1b4f8ca3f81c9adde7512fec8de","hand|card_4":"d634fc537a1de9bf73f2a74480de9a13","hand|card_5":"a227f1b4f8ca3f81c9adde7512fec8de","hand|card_6":"d634fc537a1de9bf73f2a74480de9a13","posture|415624d6":"c068e1c3526291d1cddfb6cfce8891a4","posture|99cbd16f":"893f5abd33222c88851a76cdbd17f95e","posture|b7ae54f1":"b2ab8c5543f2ef0dee335d72d9383b8f","wall_move|3c876c16":"cb750472dd2c00db35c4a8096ff7ae20","wall_move|8d07fe3f":"92135c9b7739223dd37b80192ffe4dd6"},
+ "prepare:44":{"calm|44136fa3":"41ea03020ea2e37ff17b9aa376452480","end|44136fa3":"ccf506b0f535604ecfd0b85263063020","finish_prepare|44136fa3":"16e153aaa7bcde7b75927b5313c20f3b","hand|card_2":"d634fc537a1de9bf73f2a74480de9a13","hand|card_3":"a227f1b4f8ca3f81c9adde7512fec8de","hand|card_4":"d634fc537a1de9bf73f2a74480de9a13","hand|card_5":"a227f1b4f8ca3f81c9adde7512fec8de","hand|card_6":"d634fc537a1de9bf73f2a74480de9a13","posture|415624d6":"c068e1c3526291d1cddfb6cfce8891a4","posture|99cbd16f":"893f5abd33222c88851a76cdbd17f95e","posture|b7ae54f1":"b2ab8c5543f2ef0dee335d72d9383b8f","wall_move|3c876c16":"cb750472dd2c00db35c4a8096ff7ae20","wall_move|8d07fe3f":"92135c9b7739223dd37b80192ffe4dd6"},
+ "rest:0":{"calm|44136fa3":"22f22bd5655c18cf140d6b62a6d553c0","end|44136fa3":"ccf506b0f535604ecfd0b85263063020","finish_rest|44136fa3":"080e941244f81ab6fb9b5f4aeaf3ae69","hand|card_1":"e490995e413e23d65606cc925a4cdd61","hand|card_10":"bb2d9be540a8cb6ec4c2713e85fde8e4","hand|card_4":"3c12bac8e29d0304432814eeea7b4d52","hand|card_7":"e490995e413e23d65606cc925a4cdd61","hand|card_9":"5d2f81969b0798537bc18a05cc83ff4f","posture|415624d6":"2dd0890dd2101b22bb642e55937056c0","posture|99cbd16f":"f19cc76fdf4e9eddc9289705ea7c699b","posture|b7ae54f1":"1ba4b0f2263a41546ccdefde8482bf31","wall_move|3c876c16":"5f366e62149218c26561a0c838ac79ff","wall_move|8d07fe3f":"57383e77989ec6113b5bcd39b30ae430"},
+ "rest:12":{"calm|44136fa3":"41ea03020ea2e37ff17b9aa376452480","end|44136fa3":"ccf506b0f535604ecfd0b85263063020","finish_rest|44136fa3":"080e941244f81ab6fb9b5f4aeaf3ae69","hand|card_1":"a227f1b4f8ca3f81c9adde7512fec8de","hand|card_10":"6a43699b10926047d1f401cd755856fe","hand|card_4":"d634fc537a1de9bf73f2a74480de9a13","hand|card_7":"a227f1b4f8ca3f81c9adde7512fec8de","hand|card_9":"d9dccd7e156b95a9c8063c1bfcd9901d","posture|415624d6":"c068e1c3526291d1cddfb6cfce8891a4","posture|99cbd16f":"893f5abd33222c88851a76cdbd17f95e","posture|b7ae54f1":"b2ab8c5543f2ef0dee335d72d9383b8f","wall_move|3c876c16":"cb750472dd2c00db35c4a8096ff7ae20","wall_move|8d07fe3f":"92135c9b7739223dd37b80192ffe4dd6"},
+ "rest:26":{"calm|44136fa3":"41ea03020ea2e37ff17b9aa376452480","end|44136fa3":"ccf506b0f535604ecfd0b85263063020","finish_rest|44136fa3":"080e941244f81ab6fb9b5f4aeaf3ae69","hand|card_1":"a227f1b4f8ca3f81c9adde7512fec8de","hand|card_10":"6a43699b10926047d1f401cd755856fe","hand|card_4":"d634fc537a1de9bf73f2a74480de9a13","hand|card_7":"a227f1b4f8ca3f81c9adde7512fec8de","hand|card_9":"d9dccd7e156b95a9c8063c1bfcd9901d","posture|415624d6":"c068e1c3526291d1cddfb6cfce8891a4","posture|99cbd16f":"893f5abd33222c88851a76cdbd17f95e","posture|b7ae54f1":"b2ab8c5543f2ef0dee335d72d9383b8f","wall_move|3c876c16":"cb750472dd2c00db35c4a8096ff7ae20","wall_move|8d07fe3f":"92135c9b7739223dd37b80192ffe4dd6"},
+ "rest:44":{"calm|44136fa3":"41ea03020ea2e37ff17b9aa376452480","end|44136fa3":"ccf506b0f535604ecfd0b85263063020","finish_rest|44136fa3":"080e941244f81ab6fb9b5f4aeaf3ae69","hand|card_1":"a227f1b4f8ca3f81c9adde7512fec8de","hand|card_10":"6a43699b10926047d1f401cd755856fe","hand|card_4":"d634fc537a1de9bf73f2a74480de9a13","hand|card_7":"a227f1b4f8ca3f81c9adde7512fec8de","hand|card_9":"d9dccd7e156b95a9c8063c1bfcd9901d","posture|415624d6":"c068e1c3526291d1cddfb6cfce8891a4","posture|99cbd16f":"893f5abd33222c88851a76cdbd17f95e","posture|b7ae54f1":"b2ab8c5543f2ef0dee335d72d9383b8f","wall_move|3c876c16":"cb750472dd2c00db35c4a8096ff7ae20","wall_move|8d07fe3f":"92135c9b7739223dd37b80192ffe4dd6"},
+}
+
+# 显示点的显示文本字段（与基线同一取数口径：标签、费用、可用性、原因、风险、短文案、部位、施法、详情）。
+static func r3_point_fields(c: Dictionary) -> Array:
+ var casting=c.get("casting",{})
+ return [String(c.label),str(c.cost),str(c.mana),str(c.valid),String(c.reason),String(c.risk),String(c.get("brief","")),String(c.get("brief_tags","")),String(c.get("body_part","")),str(casting.get("percent","")),str(casting.get("formula","")),String(c.get("detail",""))]
+
+# 本批删边的核对面（docs/spec/candidate-removal.md §2.2 的 D13 对应行）：手牌／行动／姿态／墙面／底栏域的
+# 显示读只经显示事实，不再在点名函数里按 payload 字段取候选行。域外显示点（练习／捕获／路线／身体／道具／
+# 拖放等）本批不动，仍按行读，故按函数点名核对而不是全文件扫描。
+const R3_DISPLAY_POINTS={
+ "_build_action_rail":["attack","pressure"],
+ "_posture_layout":["wall_move"],
+ "_posture_controls":["posture"],
+ "_wall_controls":["wall_move","posture"],
+ "_bottom_controls":["flow","surrender"],
+ "_hand_choice":["card"],
+}
+
+static func r3_display_points_do_not_read_rows(t) -> void:
+ var handle=FileAccess.open("res://ui/main.gd",FileAccess.READ)
+ var declaration=RegEx.new()
+ var slash=String.chr(92)
+ declaration.compile("^"+slash+"s*func"+slash+"s+([A-Za-z_][A-Za-z0-9_]*)")
+ var offenders=[]
+ var current=""
+ var text="" if handle==null else handle.get_as_text()
+ for line in text.split(String.chr(10)):
+  var code=String(line).split("#")[0]
+  var declared=declaration.search(code)
+  if declared!=null: current=declared.get_string(1)
+  if not R3_DISPLAY_POINTS.has(current): continue
+  if not (code.contains("actions.select(") or code.contains("actions.find(")): continue
+  for group in R3_DISPLAY_POINTS[current]:
+   if code.contains(String.chr(34)+group+String.chr(34)): offenders.append(current+" "+code.strip_edges())
+ t.check(offenders.is_empty(),"G5 display_facts_match_determination: the R3 display points read display facts instead of candidate rows: "+str(offenders.slice(0,3)))
+
+static func r3_point_key(g, payload: Dictionary) -> String:
+ var kind=String(payload.get("kind",""))
+ return kind+"|"+JSON.stringify(g.command_params(kind,payload)).sha256_text().substr(0,8)
+
+# 判定参考（docs/spec/candidate-removal.md §2.1 P2）：唯一判定对同一显示点输入的重算。原始输入来自
+# core/game.gd::command_facts（未合并判定的事实），投影来自 view.display_facts；接管锁定的显示点在接管期内
+# 的结论由接管锁给出（G8 覆盖面），此处按其锁结论核对。
+static func r3_determination_mismatches(g, view: Dictionary, groups: Array) -> Array:
+ var queries=preload("res://ui/target_queries.gd")
+ var raw={}
+ for f in g._fact_source(): raw[g.shape_key(f.payload)]=f
+ var lock=g.eligibility_takeover()
+ var chosen=""
+ for f in view.display_facts:
+  if bool(f.get("automated",false)): chosen=String(queries.fact_key(f))
+ var mismatches=[]
+ for group in groups:
+  for f in queries.facts(view,group):
+   var key=g.shape_key(f.payload)
+   var source=raw.get(key,{})
+   if source.is_empty():
+    mismatches.append("no source fact for "+key)
+    continue
+   var verdict=g.eligibility(source.payload,source.get("cost",0),source.get("mana",0.0),String(source.get("source_reason","")),String(source.get("risk","")))
+   if not lock.is_empty() and String(queries.fact_key(f))!=chosen: verdict=lock
+   for field in ["valid","reason","risk","cost","mana"]:
+    if f.get(field)!=verdict.get(field): mismatches.append(key+"."+field+" fact="+str(f.get(field))+" determination="+str(verdict.get(field)))
+   if JSON.stringify(f.get("mana_payment",{}))!=JSON.stringify(verdict.get("mana_payment",{})): mismatches.append(key+".mana_payment fact="+JSON.stringify(f.get("mana_payment",{}))+" determination="+JSON.stringify(verdict.get("mana_payment",{})))
+ return mismatches
+
+static func display_facts_match_determination(t) -> void:
+ var queries=preload("res://ui/target_queries.gd")
+ for cell in R3_G5_CELLS:
+  var name="%s:%d" % [cell[0],cell[1]]
+  var g=Cases.r1_build(cell[0],cell[1])
+  var view=g.get_view()
+  var points={}
+  var mismatches=r3_determination_mismatches(g,view,["attack","pressure","flow","surrender","posture","wall_move","card","prison"])
+  for group in ["attack","pressure","flow","surrender","posture","wall_move"]:
+   for f in queries.facts(view,group): points[r3_point_key(g,f.payload)]=r3_point_fields(f)
+  for card in view.hand:
+   points["hand|"+String(card.uid)]=[JSON.stringify(card.availability),String(card.bound),String(card.free),String(card.cost)]
+  t.check(mismatches.is_empty(),"G5 display_facts_match_determination: every display fact equals the single determination for the same shape ("+name+"): "+str(mismatches.slice(0,3)))
+  var expected=R3_G5_BASELINE.get(name,{})
+  var problems=[]
+  for key in points:
+   var digest=JSON.stringify(points[key]).sha256_text().substr(0,32)
+   if expected.get(key,"")!=digest: problems.append(key+" baseline="+str(expected.get(key,""))+" current="+digest)
+  for key in expected:
+   if not points.has(key): problems.append(key+" missing")
+  t.check(problems.is_empty(),"G5 display_facts_match_determination: display text equals the unmodified-source baseline ("+name+"): "+str(problems.slice(0,3)))
+
+# docs/spec/candidate-removal.md §5 G5（批 R4 的装备／快捷解除／拖放／道具域）。
+# 夹具与 R3 相同，并补上商店／事件／监狱（该节 Given 的其余阶段）。文本基线在未改源码上复算后冻结。
+# 冻结基线的前缀（View 键名）；事实组名由 R4_POINT_GROUPS 声明。
+const R4_FACT_GROUPS=["equipment","hooks","items","chain","retain"]
+const R4_G5_CELLS=[["battle",0],["battle",12],["battle",26],["battle",44],["prepare",0],["prepare",12],["prepare",26],["prepare",44],["rest",0],["rest",12],["rest",26],["rest",44],["shop",0],["shop",12],["shop",26],["shop",44],["event",0],["event",12],["event",26],["event",44],["prison",0],["prison",12],["prison",26],["prison",44]]
+const R4_G5_BASELINE={
+ "battle:0":"cd11601cef15dee6221c6b67194dc3f5","battle:12":"dc76ae993b1ece44d0e6dbc6fa3489b4","battle:26":"747f1f340aa4a487bb4a6e3859734ce1","battle:44":"c8245d8251be3248813419d915e27f0d",
+ "prepare:0":"4686740a193e4ccc3949dabddf08d22c","prepare:12":"79c6856820354267857b66fd23bef424","prepare:26":"5585eedfffa067602b30a044b0784ec8","prepare:44":"bd5c73996249d50ec0f2279c5b5e0aa0",
+ "rest:0":"88bb205f9ffc3093160531e9fee2b42f","rest:12":"62f2f96078c1a53ccf59789b61754431","rest:26":"76cf5608dc0c0ea0d6f1c25374667e3b","rest:44":"3b6385ebe71ab599b63d02c6a57c549b",
+ "shop:0":"e3b0c44298fc1c149afbf4c8996fb924","shop:12":"e3b0c44298fc1c149afbf4c8996fb924","shop:26":"e3b0c44298fc1c149afbf4c8996fb924","shop:44":"e3b0c44298fc1c149afbf4c8996fb924",
+ "event:0":"e3b0c44298fc1c149afbf4c8996fb924","event:12":"e3b0c44298fc1c149afbf4c8996fb924","event:26":"e3b0c44298fc1c149afbf4c8996fb924","event:44":"e3b0c44298fc1c149afbf4c8996fb924",
+ "prison:0":"9ace64537bb8d66433e1b8282826f18b","prison:12":"455261e120f7e7baee46523ec5ba40c0","prison:26":"db91e6b5ccec79b4c6085c7ab7c45449","prison:44":"0d164eed90414ba73198c3d0de0c7a4e",
+}
+const R4_ROW_FREE_FUNCTIONS={
+ "res://ui/main.gd":["_equipment_actions","_attack_drop_candidate","_item_details","_door_candidate","_free_player_candidate","_hook_drawer","_guard_bind_card_candidate","_chain_screen"],
+}
+
+# R4 点面：View 键名（冻结基线的前缀）→ 事实组名（事实自带的 group 字段）。
+const R4_POINT_GROUPS=[["equipment","manual"],["hooks","hook"],["items","item"],["chain","chain"],["retain","retain"]]
+
+static func r4_entries(view: Dictionary, group: String) -> Array:
+ return preload("res://ui/target_queries.gd").facts(view,group)
+
+static func r4_points(g, view: Dictionary) -> Dictionary:
+ var queries=preload("res://ui/target_queries.gd")
+ var points={}
+ for pair in R4_POINT_GROUPS:
+  for f in r4_entries(view,pair[1]):
+   points[pair[0]+"|"+r3_point_key(g,f.payload)]=r3_point_fields(f)
+ for f in r4_entries(view,"card"):
+  if not (String(f.payload.get("mode","")) in queries.RELEASE_MODES): continue
+  points["release|"+r3_point_key(g,f.payload)]=[String(f.label),str(f.valid),String(f.reason),str(f.cost),str(f.mana)]
+ for item in view.items:
+  points["itemview|"+String(item.id)]=[JSON.stringify(item.get("unavailable_reasons",[])),JSON.stringify(item.get("target_groups",[]))]
+ return points
+
+static func r4_digest(points: Dictionary) -> String:
+ var keys=points.keys()
+ keys.sort()
+ var lines=[]
+ for key in keys: lines.append(String(key)+"="+JSON.stringify(points[key]))
+ return "\n".join(lines).sha256_text().substr(0,32)
+
+static func r4_fact_mismatches(g, view: Dictionary) -> Array:
+ var queries=preload("res://ui/target_queries.gd")
+ var mismatches=r3_determination_mismatches(g,view,["manual","hook","item","chain","retain","card","service","event","prison","route","reward","relic","flask","status_toggle","rest_service","departure","demo_exit"])
+ return mismatches
+
+static func r4_display_points_do_not_read_rows(t) -> void:
+ var declaration=RegEx.new()
+ var slash=String.chr(92)
+ declaration.compile("^"+slash+"s*func"+slash+"s+([A-Za-z_][A-Za-z0-9_]*)")
+ var offenders=[]
+ for path in R4_ROW_FREE_FUNCTIONS:
+  var handle=FileAccess.open(path,FileAccess.READ)
+  var text="" if handle==null else handle.get_as_text()
+  var current=""
+  var watched=R4_ROW_FREE_FUNCTIONS[path]
+  for line in text.split(String.chr(10)):
+   var code=String(line).split("#")[0]
+   var declared=declaration.search(code)
+   if declared!=null: current=declared.get_string(1)
+   if not (current in watched): continue
+   if code.contains("actions.select(") or code.contains("actions.find(") or code.contains("actions.first_usable(") or code.contains("actions.by_id"):
+    offenders.append(path+" "+current)
+ var keyboard=FileAccess.open("res://ui/keyboard_input.gd",FileAccess.READ)
+ var keyboard_text="" if keyboard==null else keyboard.get_as_text()
+ if keyboard_text.contains("host.actions"): offenders.append("ui/keyboard_input.gd host.actions")
+ for path in ["res://ui/quick_release_bar.gd","res://ui/drag_targets.gd"]:
+  var reader=FileAccess.open(path,FileAccess.READ)
+  var body="" if reader==null else reader.get_as_text()
+  if body.contains("ui.actions") or body.contains(".actions.select") or body.contains(".actions.find"): offenders.append(path)
+ var queries=FileAccess.open("res://ui/target_queries.gd",FileAccess.READ)
+ var query_text="" if queries==null else queries.get_as_text()
+ if query_text.contains(".by_id") or query_text.contains("Action"+"Index"): offenders.append("ui/target_queries.gd row index")
+ t.check(offenders.is_empty(),"G5 display_facts_match_determination: R4 display points read display facts instead of candidate rows: "+str(offenders.slice(0,4)))
+
+static func r4_display_facts_match_determination(t) -> void:
+ for cell in R4_G5_CELLS:
+  var name="%s:%d" % [cell[0],cell[1]]
+  var g=Cases.r1_build(cell[0],cell[1])
+  var view=g.get_view()
+  var mismatches=r4_fact_mismatches(g,view)
+  t.check(mismatches.is_empty(),"G5 display_facts_match_determination: every R4 display fact equals the single determination for the same shape ("+name+"): "+str(mismatches.slice(0,3)))
+  var digest=r4_digest(r4_points(g,view))
+  var expected=String(R4_G5_BASELINE.get(name,""))
+  t.check(expected!="" and expected==digest,"G5 display_facts_match_determination: R4 display text equals the unmodified-source baseline ("+name+"): baseline="+expected+" current="+digest)
 
 static func choose(t, name: String, index: int) -> void:
  var picker=t.ui.find_child(name,true,false)
@@ -53,7 +249,7 @@ static func portrait_composite_boundary(t) -> void:
   var exposed=ui.view.duplicate(true)
   var retained=Portrait.snapshot(exposed)
   exposed.composite_portrait_layers.clear();exposed.body_coverage.clear();exposed.bodies[0].occupied=not exposed.bodies[0].occupied
-  t.check(retained==Portrait.snapshot(ui.view) and not retained.has("candidates") and ui.game.export_snapshot()==before,"DISPLAY retained appearance is detached from mutable input and does not retain gameplay candidates: "+practice)
+  t.check(retained==Portrait.snapshot(ui.view) and not retained.has("facts") and ui.game.export_snapshot()==before,"DISPLAY retained appearance is detached from mutable input and does not retain gameplay facts: "+practice)
  ui.display_settings.fixed_hero_portrait=saved_fixed;ui.restart(42);await t.frames()
 
 static func portrait_refresh(t) -> void:
@@ -178,8 +374,151 @@ static func copy_missing_key_never_crashes(t) -> void:
  t.check(ui.projection_misses.any(func(entry):return entry.point=="card_entry" and entry.key.begins_with(card.type)),"COPY deleted card key is recomputed through the single entry and recorded: "+str(ui.projection_misses))
  t.check(ui.game.export_snapshot()==before,"COPY missing-key rendering never changes state or random cursors")
 
+# docs/spec/candidate-removal.md §5 G3（批 R2）：拒绝语义不变。三类拒绝（陈旧版本／形状不合法／判定不通过）
+# 与五预检各一例，文案逐字、失败全回滚；真实窗口、真实输入，不绕过 UI 入口。
+static func g3_reject_probes(g) -> Array:
+ return [
+  {"name":"Consumables.validate_buffs","break":func():g.state.body_buffs=[{"type":"not_a_tool","group":"torso"}],
+   "restore":func():g.state.body_buffs=[]},
+  {"name":"Binding.state_issue","break":func():
+   if g.state.equipment.is_empty(): g.add_fixture("wrist",7,10)
+   g.state.equipment[0].binding={"kind":"no_such_binding"},
+   "restore":func():g.state.equipment[0].erase("binding")},
+  {"name":"SpecialEquipment.validate","break":func():
+   g.state.special_equipment=[{"id":"probe","type":"not_a_special"}],
+   "restore":func():g.state.special_equipment=[]},
+  {"name":"Cards.validate","break":func():g.state.evasion=-1,
+   "restore":func():g.state.evasion=0},
+  {"name":"RelicEffects.validate","break":func():g.state.cursed_plate_released="probe",
+   "restore":func():g.state.cursed_plate_released=false},
+ ]
+
+static func submit_reject_semantics_unchanged(t) -> void:
+ var ui=t.ui
+ ui.restart(42);await t.frames()
+ var g=ui.game
+ var usable=ui.view.display_facts.filter(func(c):return c.valid)
+ t.check(not usable.is_empty(),"REJECT fixture exposes a usable command")
+ if usable.is_empty(): return
+ var version=ui.view.version
+ var before=g.export_snapshot()
+ # 1) 陈旧 expected_version
+ var stale=g.dispatch(g.command(usable[0].payload,version-1),version-1)
+ t.check(not stale.ok and String(stale.error)=="状态已更新，请重新选择行动。" and g.export_snapshot()==before,"REJECT stale expected_version keeps its verbatim text and rolls back")
+ # 2) 当前状态不可提交的指令形状（表外 kind／键面外参数）
+ var unknown=g.dispatch({"kind":"no_such_command","params":{},"expected_version":version},version)
+ t.check(not unknown.ok and String(unknown.error)=="该行动已经失效，请重新选择。" and g.export_snapshot()==before,"REJECT an unknown kind keeps its verbatim text and rolls back")
+ var forged=g.dispatch({"kind":"end","params":{"label":"probe"},"expected_version":version},version)
+ t.check(not forged.ok and String(forged.error)=="该行动已经失效，请重新选择。" and g.export_snapshot()==before,"REJECT a parameter outside the declared face keeps its verbatim text and rolls back")
+ # 3) 判定不通过：判定 reason 原文
+ var blocked=ui.view.display_facts.filter(func(c):return not c.valid and c.reason!="")
+ if not blocked.is_empty():
+  var rejected=g.dispatch(g.command(blocked[0].payload,version),version)
+  t.check(not rejected.ok and String(rejected.error)==String(blocked[0].reason) and g.export_snapshot()==before,"REJECT a blocked command returns the determination reason verbatim and rolls back")
+ # 4) 五预检各一例失败：error 逐字等于该预检文本，失败后全回滚
+ for probe in g3_reject_probes(g):
+  probe["break"].call()
+  var expected=""
+  match String(probe.name):
+   "Consumables.validate_buffs": expected=g.Consumables.validate_buffs(g,g.state.body_buffs)
+   "Binding.state_issue": expected=g.Binding.state_issue(g)
+   "SpecialEquipment.validate": expected=g.SpecialEquipment.validate(g.state.special_equipment)
+   "Cards.validate": expected=g.Cards.validate(g)
+   "RelicEffects.validate": expected=g.RelicEffects.validate(g)
+  var frozen=g.export_snapshot()
+  var refused=g.dispatch(g.command(usable[0].payload,g.state.version),g.state.version)
+  t.check(expected!="" and not refused.ok and String(refused.error)==expected and g.export_snapshot()==frozen,"REJECT precheck keeps its verbatim text and rolls back: "+String(probe.name)+" error="+str(refused.get("error","")))
+  probe["restore"].call()
+
+# docs/spec/candidate-removal.md §5 G8（批 R2）：接管路径不变。真实演示入口、真实输入；
+# 只有已选步骤可提交，其余显示同一文案；手动输入被接管锁阻挡；换局后旧步骤不提交。
+static func takeover_path_unchanged(t) -> void:
+ var ui=t.ui
+ await t.start_practice("StartDoubaoPractice")
+ t.check(ui.view.practice_kind=="doubao" and ui.view.phase=="battle" and ui._takeover_locked(),"TAKEOVER the real practice entry starts the locked takeover")
+ var banner=ui.find_child("FirstTurnControlBanner",true,false)
+ t.check(banner!=null and banner.text=="豆包接管中","TAKEOVER the banner keeps its text")
+ var rows=ui.view.display_facts
+ var automated=rows.filter(func(c):return c.get("automated",false))
+ var blocked=rows.filter(func(c):return String(c.get("reason",""))=="豆包接管中")
+ var still_open=blocked.filter(func(c):c.valid)
+ t.check(automated.size()==1 and not blocked.is_empty() and still_open.is_empty(),"TAKEOVER only the selected step is committable and the rest keep the same reason: automated="+str(automated.size())+" blocked="+str(blocked.size())+" open="+str(still_open.map(func(c):return [c.payload,c.valid])))
+ if automated.is_empty() or blocked.is_empty(): return
+ # 手动输入被挡：真实点击被挡行动 + 同一入口不带接管标记
+ var before=ui.game.export_snapshot()
+ var button=ui.candidate_buttons.get(String(blocked[0].get("key","")))
+ if button!=null:
+  var point=button.get_global_rect().get_center()
+  await t.move_mouse(point);await t.mouse_button(point,MOUSE_BUTTON_LEFT,true);await t.mouse_button(point,MOUSE_BUTTON_LEFT,false)
+  await t.frames()
+ t.check(ui.game.export_snapshot()==before,"TAKEOVER a manual click on a blocked step changes nothing")
+ ui.command_router.emit(String(blocked[0].payload.get("kind","")),blocked[0],ui.view.version)
+ t.check(ui.game.export_snapshot()==before,"TAKEOVER a manual command without the takeover flag is refused by the lock")
+ # 只有已选步骤可提交，且经同一入口（takeover 参数语义不变）
+ var version=ui.view.version
+ var outcome=ui.command_router.emit(String(automated[0].payload.get("kind","")),automated[0],version,true)
+ t.check(outcome.submitted and ui.view.version>version,"TAKEOVER the selected step commits through the single entry")
+ # 返回首页后旧步骤不提交（首页守卫与接管锁都在同一入口上）
+ ui._return_home();await t.frames()
+ var home_before=ui.game.export_snapshot()
+ ui.command_router.emit(String(automated[0].payload.get("kind","")),automated[0],version)
+ t.check(ui.show_home and ui.game.export_snapshot()==home_before,"TAKEOVER a previous step cannot commit after returning home")
+ ui.restart(42);await t.frames()
+
+# docs/spec/candidate-removal.md §5 G5（批 R5 的服务／事件／监狱／路线／奖励／出发域）：夹具矩阵同 R4，
+# 另按真实阶段补奖励／路线／出发／demo 四个夹具。文本基线由 G6 的 facts_text 摘要承担（全显示点），
+# 这里承担「每个显示点的可用／原因／风险／费用＝唯一判定对同一形状的输出」的逐字段相等与域覆盖。
+const R5_G5_GROUPS=["attack","pressure","flow","surrender","posture","wall_move","card","prison","manual","hook","item","chain","retain","relic","flask","status_toggle","service","event","reward","rest_service","route","departure","demo_exit"]
+const R5_G5_REQUIRED={"shop":"service","event":"event","prison":"prison","battle":"attack","prepare":"flow","rest":"flow"}
+
+static func r5_group_counts(view: Dictionary) -> Dictionary:
+ var counts={}
+ for f in view.display_facts:
+  var group=String(f.get("group","action"))
+  counts[group]=int(counts.get(group,0))+1
+ return counts
+
+static func r5_cell_problems(g, name: String, required: Array=[]) -> Array:
+ var view=g.get_view()
+ var problems=r3_determination_mismatches(g,view,R5_G5_GROUPS)
+ if not problems.is_empty(): problems=[name+": "+str(problems.slice(0,2))]
+ var counts=r5_group_counts(view)
+ for group in required:
+  if int(counts.get(group,0))<=0: problems.append(name+" missing "+String(group))
+ return problems
+
+static func r5_display_facts_match_determination(t) -> void:
+ var problems=[]
+ for cell in R4_G5_CELLS:
+  var name="%s:%d" % [cell[0],cell[1]]
+  problems.append_array(r5_cell_problems(Cases.r1_build(cell[0],cell[1]),name,[String(R5_G5_REQUIRED.get(cell[0],"attack"))]))
+ # 奖励阶段：真实战斗胜利后停在奖励屏。
+ var reward=Cases.r1_build("battle",12)
+ reward._finish_battle("victory")
+ problems.append_array(r5_cell_problems(reward,"reward stage",["reward"]))
+ # 路线阶段：领完奖励并结束整备后进入塔图（route 显示点与 depart 事实）。
+ var route=Cases.r1_build("prepare",12)
+ problems.append_array(r5_cell_problems(route,"route stage",["route"]))
+ # 出发阶段：新局的出狱起点选择（departure 显示点；其事实组名为 reward／flow，按 kind 核对到达）。
+ var departure=preload("res://core/game.gd").new(42)
+ var departure_problems=r5_cell_problems(departure,"departure stage",[])
+ if not departure.get_view().display_facts.any(func(f):return String(f.payload.get("kind",""))=="departure"): departure_problems.append("departure stage missing departure facts")
+ problems.append_array(departure_problems)
+ # demo 出口：真实通关夹具的显示点。
+ var demo=preload("res://tests/game_fixture.gd").new(42)
+ preload("res://tests/demo_exit_cases.gd").exit_fixture(demo)
+ problems.append_array(r5_cell_problems(demo,"demo stage",["demo_exit"]))
+ t.check(problems.is_empty(),"G5 display_facts_match_determination: every R5 display domain equals the single determination and is really reached: "+str(problems.slice(0,3)))
+
 static func run(t) -> void:
+ r3_display_points_do_not_read_rows(t)
+ display_facts_match_determination(t)
+ r4_display_points_do_not_read_rows(t)
+ r4_display_facts_match_determination(t)
+ r5_display_facts_match_determination(t)
  await portrait_snapshot_boundary(t)
+ await submit_reject_semantics_unchanged(t)
+ await takeover_path_unchanged(t)
  await portrait_composite_boundary(t)
  await copy_missing_key_never_crashes(t)
  var ui=t.ui

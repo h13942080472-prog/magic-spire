@@ -90,8 +90,8 @@ static func event_gate_names_are_total(t) -> void:
     t.check(choice_rows.all(func(row):return str(row.option_id) in instances),"EVENT GATE an expanded selector option never keeps the authored id: "+id+"/"+cid)
    elif frozen.has(cid):
     t.check(choice_rows.size()==1 and str(choice_rows[0].option_id)==cid,"EVENT GATE a plain frozen option has exactly one arrival row: "+id+"/"+cid)
-  var candidates=on.candidates()
-  var choices=candidates.filter(func(candidate):return candidate.payload.get("kind","")=="event" and candidate.payload.get("action","")=="choose").map(func(candidate):return str(candidate.payload.choice))
+  var facts=on.command_facts()
+  var choices=facts.filter(func(candidate):return candidate.payload.get("kind","")=="event" and candidate.payload.get("action","")=="choose").map(func(candidate):return str(candidate.payload.choice))
   for choice in start_node.choices:
    var cid=str(choice.id)
    if frozen.has(cid):
@@ -133,8 +133,8 @@ static func event_gate_names_are_total(t) -> void:
    t.check(all.any(func(other):return other.purpose=="arrival" and other.option_id==row.option_id and other.gate==row.gate and other.index==row.index),"EVENT GATE every candidate state condition row keeps its arrival twin: "+id+"/"+str(row.option_id))
   var off=Game.new(42)
   arrive(off,id)
-  var off_candidates=off.candidates()
-  t.check(JSON.stringify(off.state.room_event.options)==JSON.stringify(on.state.room_event.options) and JSON.stringify(off_candidates)==JSON.stringify(candidates),"EVENT GATE the switch changes no frozen option or candidate: "+id)
+  var off_facts=off.command_facts()
+  t.check(JSON.stringify(off.state.room_event.options)==JSON.stringify(on.state.room_event.options) and JSON.stringify(off_facts)==JSON.stringify(facts),"EVENT GATE the switch changes no frozen option or candidate: "+id)
   t.check(JSON.stringify(off.state.rng)==JSON.stringify(on.state.rng) and JSON.stringify(off.get_view())==JSON.stringify(on.get_view()),"EVENT GATE the switch changes no random domain or view: "+id)
   t.check(not off.Events.trace_enabled(off) and off.Events.event_trace(off).is_empty(),"EVENT GATE the switch off records nothing: "+id)
  # selector_empty: a real authored selector that expands to nothing keeps its gate and no option
@@ -143,7 +143,7 @@ static func event_gate_names_are_total(t) -> void:
  arrive(studio,"enchanters_empty_studio")
  var studio_rows=studio.Events.event_trace(studio).filter(func(row):return row.source_choice=="temper")
  t.check(studio_rows.size()==1 and str(studio_rows[0].gate)=="selector_empty" and str(studio_rows[0].kind)=="selector" and studio_rows[0].decision=="dropped" and str(studio_rows[0].option_id)=="temper","EVENT GATE an empty selector records selector_empty once without an instance: "+JSON.stringify(studio_rows))
- t.check(not studio.state.room_event.options.any(func(option):return str(option.get("id",""))=="temper") and not studio.candidates().any(func(candidate):return str(candidate.payload.get("choice","")).begins_with("temper__")),"EVENT GATE an empty selector enters no frozen and no candidate option")
+ t.check(not studio.state.room_event.options.any(func(option):return str(option.get("id",""))=="temper") and not studio.command_facts().any(func(candidate):return str(candidate.payload.get("choice","")).begins_with("temper__")),"EVENT GATE an empty selector enters no frozen and no candidate option")
  # stage_missing: the node pipeline names an unknown target node and keeps the current stage
  var missing_result=studio.Events.enter_node_result(studio,"missing")
  t.check(missing_result.gate=="stage_missing" and str(missing_result.detail)=="missing" and missing_result.issue=="下一阶段不存在。","EVENT GATE an unknown node reports stage_missing with its id and its current wording: "+JSON.stringify(missing_result))
@@ -199,7 +199,7 @@ static func event_gate_names_are_total(t) -> void:
   walk.set_meta("event_trace_enabled",true)
   arrive(walk,"gate_names_stacked")
   var hits=walk.Events.event_trace(walk).filter(func(row):return row.purpose=="arrival" and row.source_choice=="stacked" and row.gate=="availability_unmet")
-  walk.candidates()
+  walk.command_facts()
   var twins=walk.Events.event_trace(walk).filter(func(row):return row.purpose=="candidate" and row.source_choice=="stacked" and row.gate=="availability_unmet")
   t.check(hits.size()==1 and hits[0].decision=="disabled" and str(hits[0].mode)=="optional" and str(hits[0].reason)=="条件甲。","EVENT GATE an optional state condition is traced once at arrival: "+JSON.stringify(walk.Events.event_trace(walk)))
   t.check(twins.size()==1,"EVENT GATE the optional state condition row is not missing in the candidate evaluation: "+JSON.stringify(walk.Events.event_trace(walk)))
@@ -245,7 +245,7 @@ static func run(t) -> void:
   arrive(g,"binding_cleric")
   var before=JSON.stringify(g.state)
   var view=g.get_view()
-  g.candidates();g.route_view();g.EquipmentOffers.options(g)
+  g.command_facts();g.route_view();g.EquipmentOffers.options(g)
   t.check(JSON.stringify(g.state)==before,"EVENT offers, projection and equipment probes do not mutate")
   t.check(g.state.rng.deck==domain.deck and g.state.rng.enemy==domain.enemy and g.state.rng.equipment==domain.equipment,"EVENT random domain remains independent of deck, enemies and equipment")
   t.check(view.room_event.id=="binding_cleric" and g.state.room_event.options.size()==3,"EVENT current authored event exposes its frozen legal choices")

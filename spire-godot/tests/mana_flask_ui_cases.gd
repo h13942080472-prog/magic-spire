@@ -1,5 +1,6 @@
 extends RefCounted
 const Pointer=preload("res://tests/target_sidebar_ui_cases.gd")
+const Queries=preload("res://ui/target_queries.gd")
 
 static func rows_aligned(ui) -> bool:
  var bounds=ui.find_child("MainResourcePanel",true,false).get_global_rect()
@@ -64,7 +65,7 @@ static func run(t) -> void:
  ui.restart(42)
  t.check(preload("res://tests/mana_flask_cases.gd").shop(ui.game),"FLASK UI reaches actual shop through travel")
  ui.game.state.flask_mana=100;ui.game.state.mana=0;ui.render();await t.frames()
- var candidate=ui.actions.find("service",{"op":"take","payment":"flask"})
+ var candidate=Queries.find(ui.view,"service",{"op":"take","payment":"flask"})
  var index=candidate.payload.index
  t.check(ui.find_child("ShopOffer%d" % index,true,false).disabled,"FLASK UI personal payment begins blocked when mana is empty")
  before=ui.game.export_snapshot()

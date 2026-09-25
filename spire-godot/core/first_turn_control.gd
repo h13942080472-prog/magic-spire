@@ -45,10 +45,13 @@ static func _tag(c: Dictionary, d: Dictionary) -> Dictionary:
  result.control_next=d.duplicate(true)
  return result
 
-static func select(g, candidates: Array) -> Array:
- if not active(g): return candidates
+# 接管步骤的唯一选择（docs/spec/candidate-removal.md §2.1 T5／T9；批 R5 行载体删除后）：输入＝投影显示事实
+# （已带判定结论），输出＝标注 automated／control_next 的那一步＋其余各条 merge 接管锁结论。本文件不写
+# valid／reason：阻断结论来自唯一判定的 core/game.gd::eligibility_takeover。
+static func select(g, facts: Array) -> Array:
+ if not active(g): return facts
  var d=g.state.combat.first_turn_control.duplicate(true)
- var valid=candidates.filter(func(c):return c.valid)
+ var valid=facts.filter(func(c):return c.valid)
  var selected={}
  # Resolve consequences of the last committed action before proceeding to its next stage.
  var pending=valid.filter(func(c):return c.payload.kind in ["chain","retain","retain_skip"])
@@ -94,24 +97,24 @@ static func select(g, candidates: Array) -> Array:
   d.stage=6
  if selected.is_empty():
   # A card can forbid ending the turn. Return control without bypassing that restriction.
-  var finish=[]
-  g._candidate(finish,{"kind":"relic_control_done"},"接管结束",{"kind":"relic.control_done","args":{}},0,0,"","","relic")
-  selected=finish[0]
+   selected=g.RelicEffects.control_done_fact(g)
  var result=[_tag(selected,d)]
  # Keep the full layout available to the presenter, but only the chosen command can commit.
- for c in candidates:
-  if c.id==selected.id: continue
+ # The blocked verdict comes from the single eligibility determination (docs/spec/candidate-removal.md
+ # DUP2); this file never writes valid／reason itself.
+ for c in facts:
+  if String(c.get("key",""))==String(selected.get("key","")): continue
   var blocked=c.duplicate(true)
-  blocked.valid=false;blocked.reason="豆包接管中"
+  blocked.merge(g.eligibility_takeover(),true)
   result.append(blocked)
  return result
 
-static func view(g, candidates: Array) -> Dictionary:
+static func view(g, facts: Array) -> Dictionary:
  var d=g.state.combat.get("first_turn_control",{})
  if not d.is_empty() and d.mode==1 and g.state.combat.active and d.phase==g.state.phase and d.tick==g.state.tick:
   return {"name":"大肥鱼吃掉了你的白饭","locked":false,"candidate":{},"key":"%s:%s" % [d.phase,d.tick]}
  if not active(g): return {}
- var next=candidates.filter(func(c):return c.get("automated",false))
+ var next=facts.filter(func(c):return c.get("automated",false))
  return {"name":"豆包接管中","locked":true,"candidate":next[0] if not next.is_empty() else {},"key":"%s:%s" % [d.phase,d.tick]}
 
 static func validate(g) -> String:

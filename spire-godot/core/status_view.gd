@@ -10,10 +10,10 @@ static func mark(out: Array, icon: String, badge: String="", active: bool=true, 
  out.back().merge({"icon":icon,"badge":badge,"active":active,"owner":owner},true)
  if owner!="hero": out.back().category="enemy"
 
-# Fixed cutters have no direct-use candidate; their formal card bonus identifies them.
-static func append_usable_items(out: Array, items: Array, actions: Array) -> void:
+# Fixed cutters have no direct-use display point; their formal card bonus identifies them.
+static func append_usable_items(out: Array, items: Array, facts: Array) -> void:
  var usable={}
- for action in actions:
+ for action in facts:
   if not action.valid: continue
   var payload=action.payload
   var bonus=payload.get("tool_bonus",{})

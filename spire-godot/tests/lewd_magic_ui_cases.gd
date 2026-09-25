@@ -1,6 +1,7 @@
 extends RefCounted
 const Cards=preload("res://tests/curse_cases.gd")
 const Click=preload("res://tests/curse_ui_cases.gd")
+const Queries=preload("res://ui/target_queries.gd")
 
 static func run(t) -> void:
  var ui=t.ui
@@ -18,7 +19,7 @@ static func run(t) -> void:
  t.check(not ui.view.card_chain.is_empty() and t.visible_text(ui.layout).contains("选择要消耗的牌"),"LEWD UI actual card click opens selection")
  await t.capture("ui-lewd-selection.png")
  for i in range(3):
-  var choices=ui.actions.select("chain")
+  var choices=Queries.select(ui.view,"chain")
   if choices.is_empty():
    t.check(false,"LEWD UI pending selection must show formal choices")
    return

@@ -22,8 +22,8 @@ static func run(t) -> void:
    var row=g.get_view().hand.filter(func(item):return item.uid==card.uid)[0]
    t.check(c.valid and c.cost==1 and c.mana==0 and c.payload.self_target and row.face_names=={"bound":"拘束1","free":"拘束2"} and not row.free_faces.bound and not row.free_faces.free,"BIND POWER both faces are one-energy noncasting bound self actions")
    t.check(g.Cards.face_text(g,"binding_power",second).contains("当前："+("获得%d层蓄力。" if second else "力量＋%d。") % expected) and g.state==before,"BIND POWER live preview includes formula and exact rounded gain without state writes")
-   t.check(not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"BIND POWER stale submission cannot pay or grant")
-   t.check(g.dispatch(c.id,g.state.version).ok and g.RelicEffects.attribute(g,"strength")==(0 if second else expected) and g.state.charge==(expected if second else 0) and g.state.energy==19 and g.state.exhaust.any(func(item):return item.uid==card.uid) and g.state.rng.magic==before.rng.magic,"BIND POWER actual odd and even counts grant exact resource and exhaust once: "+str([count,second]))
+   t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"BIND POWER stale submission cannot pay or grant")
+   t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.RelicEffects.attribute(g,"strength")==(0 if second else expected) and g.state.charge==(expected if second else 0) and g.state.energy==19 and g.state.exhaust.any(func(item):return item.uid==card.uid) and g.state.rng.magic==before.rng.magic,"BIND POWER actual odd and even counts grant exact resource and exhaust once: "+str([count,second]))
  for second in [false,true]:
   g=setup(4);var card=Give.give(g,"binding_power");g.state.energy=0;var before=g.export_snapshot()
   t.check(not t.action(g,"card",{"uid":card.uid,"free":second}).ok and g.state==before,"BIND POWER insufficient energy is atomic")

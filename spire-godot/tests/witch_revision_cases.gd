@@ -24,8 +24,8 @@ static func run(t) -> void:
  t.check(g.Character.reward_member(g,"witch_binding_lure","witch") and not g.Character.reward_member(g,"witch_binding_lure","original"),"INDUCTION reward eligibility is witch-exclusive")
  Base.play(t,g,"witch_binding_lure");Base.play(t,g,"witch_binding_lure",true);Base.play(t,g,"witch_binding_lure",true)
  t.check(g.state.card_buffs.count("witch_induction_hand")==1 and "witch_induction_mouth" in g.state.card_buffs,"INDUCTION faces coexist and repeated same face does not multiply redirects")
- var before=g.export_snapshot();g.get_view();g.candidates()
- t.check(g.state==before and not g.dispatch("missing",g.state.version).ok and g.state==before,"INDUCTION preview and rejected command leave state and random stream intact")
+ var before=g.export_snapshot();g.get_view();g.command_facts()
+ t.check(g.state==before and not g.dispatch(g.command({"kind":"card","uid":"missing"},g.state.version),g.state.version).ok and g.state==before,"INDUCTION preview and rejected command leave state and random stream intact")
  var mouth={"kind":"install","template":"mouth_band","slot":"mouth","grade":2,"tier":3,"variant":0}
  g.state.witch_charges.hand=4;g.state.witch_charges.mouth=4
  for n in range(2):
@@ -103,19 +103,19 @@ static func _card_revision(t) -> void:
   var snapshot=limited.export_snapshot()
   t.check(limited.level("arms")== (4 if blocked else 3) and candidate.valid==not blocked,"CIRCLE free activation accepts level three and rejects level four")
   if blocked:
-   t.check(not limited.dispatch(candidate.id,limited.state.version).ok and limited.state==snapshot,"CIRCLE failed body requirement preserves resources and powers")
+   t.check(not limited.dispatch(limited.command(candidate.payload,limited.state.version),limited.state.version).ok and limited.state==snapshot,"CIRCLE failed body requirement preserves resources and powers")
    t.check(t.find_action(limited,"card",{"uid":card.uid,"free":false}).valid,"CIRCLE bound face has no upper-body restriction")
-  else: t.check(limited.dispatch(candidate.id,limited.state.version).ok,"CIRCLE level-three free ability really activates")
+  else: t.check(limited.dispatch(limited.command(candidate.payload,limited.state.version),limited.state.version).ok,"CIRCLE level-three free ability really activates")
  t.check(Base.play(t,g,"witch_magic_circle",true).ok,"CIRCLE free power enters through formal card action")
  g.state.mana=0;g.state.temporary_mana=0
  for part in g.Character.PARTS:
   var c=t.find_action(g,"attack",{"type":"witch_"+part,"form":0})
-  t.check(c.valid and c.mana==0 and c.cost==1 and g.dispatch(c.id,g.state.version).ok and g.state.witch_charges[part]==1 and g.state.mana==0,"CIRCLE all preparation actions work without mana "+part)
+  t.check(c.valid and c.mana==0 and c.cost==1 and g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.witch_charges[part]==1 and g.state.mana==0,"CIRCLE all preparation actions work without mana "+part)
  t.check(t.find_action(g,"attack",{"type":"witch_hand","form":1}).mana==5,"CIRCLE release still costs mana")
  var restored=Save.roundtrip(t,g,"circle preparation")
  if restored!=null: t.check(t.find_action(restored,"attack",{"type":"witch_hand","form":0}).mana==0,"CIRCLE power survives save restore")
  g=Base.fresh();Base.play(t,g,"witch_magic_circle")
- var before=g.export_snapshot();g.get_view();g.candidates()
+ var before=g.export_snapshot();g.get_view();g.command_facts()
  t.check(g.state==before and g.state.card_buff_uses.witch_circle_skills==3,"CIRCLE previews preserve charge count")
  t.check(Base.play(t,g,"witch_magic_circle",true).ok and g.state.card_buff_uses.witch_circle_skills==3,"CIRCLE ability face does not spend skill discount")
  t.check(Base.play(t,g,"witch_mana_transfer",true).ok and g.state.card_buff_uses.witch_circle_skills==3,"CIRCLE magic face of mixed card does not spend skill discount")
@@ -126,13 +126,13 @@ static func _card_revision(t) -> void:
   var card=Give.give(g,type)
   var c=t.find_action(g,"card",{"uid":card.uid,"free":true})
   before=g.export_snapshot()
-  t.check(c.valid and c.cost==0 and not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"CIRCLE discounted skill preview and stale rollback")
-  t.check(g.dispatch(c.id,g.state.version).ok and g.state.card_buff_uses.get("witch_circle_skills",0)==2-index,"CIRCLE each skill including natural zero-cost spends exactly one use")
+  t.check(c.valid and c.cost==0 and not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"CIRCLE discounted skill preview and stale rollback")
+  t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.card_buff_uses.get("witch_circle_skills",0)==2-index,"CIRCLE each skill including natural zero-cost spends exactly one use")
  t.check(g.Cards.energy_cost(g,"witch_slip",true)==1,"CIRCLE fourth skill returns to normal cost")
  var x_game=Base.fresh();Base.play(t,x_game,"witch_magic_circle");x_game.state.energy=3
  var x_card=Give.give(x_game,"self_binding")
  var x_candidate=t.find_action(x_game,"card",{"uid":x_card.uid,"free":true})
- t.check(x_candidate.valid and x_candidate.cost==2 and x_candidate.payload.x==2 and x_game.dispatch(x_candidate.id,x_game.state.version).ok and x_game.state.energy==1 and x_game.state.card_buff_uses.witch_circle_skills==2,"CIRCLE X skill discounts actual payment and uses the same paid X in its effect")
+ t.check(x_candidate.valid and x_candidate.cost==2 and x_candidate.payload.x==2 and x_game.dispatch(x_game.command(x_candidate.payload,x_game.state.version),x_game.state.version).ok and x_game.state.energy==1 and x_game.state.card_buff_uses.witch_circle_skills==2,"CIRCLE X skill discounts actual payment and uses the same paid X in its effect")
  Base.play(t,g,"witch_magic_circle");Base.play(t,g,"witch_magic_circle")
  t.check(g.state.card_buff_uses.witch_circle_skills==6 and g.Cards.energy_cost(g,"witch_slip",true)==0,"CIRCLE repeated bound powers add uses without stacking per-card reduction")
  g._begin_player_turn()
@@ -156,7 +156,7 @@ static func _presentation(t) -> void:
  g.state.enemies.clear();g._finish_battle()
  t.check(not g.get_view().end_turn_locked,"WITCH end lock visual clears after victory")
  g=preload("res://tests/game_fixture.gd").new(42,true,"prison_test",true,false,25,false,false,"witch")
- t.check(not g.candidates().any(func(c):return c.payload.kind=="attack" and c.payload.type=="fireball"),"WITCH prison offers no original-character fireball")
+ t.check(not g.command_facts().any(func(c):return c.payload.kind=="attack" and c.payload.type=="fireball"),"WITCH prison offers no original-character fireball")
 
 static func _boundaries(t) -> void:
  var g=Base.fresh()

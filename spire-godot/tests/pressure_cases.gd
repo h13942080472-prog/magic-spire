@@ -9,7 +9,7 @@ static func overload_charge(t) -> void:
  for pair in [[0,0],[1,0],[2,1],[3,1],[5,2],[8,4]]:
   for all_charge in [false,true]:
    var g=Game.new(42);g.state.charge=pair[0];g.state.charge_all=all_charge and pair[0]>0
-   var before=g.export_snapshot();g.get_view();g.candidates()
+   var before=g.export_snapshot();g.get_view();g.command_facts()
    t.check(g.state==before,"CLIMAX CHARGE queries cannot consume stacks")
    P.gain(g,99,"fixture",true)
    t.check(g.state.charge==pair[0],"CLIMAX CHARGE below threshold leaves stacks unchanged")
@@ -57,9 +57,9 @@ static func flat_mana_cost(t) -> void:
  var c=t.find_action(g,"card",{"uid":card.uid,"target":target.id,"free":false})
  t.check(c.valid and c.mana==10 and c.mana_payment.temporary_mana==4 and c.mana_payment.mana==6 and g.cast_view(g.Cards.cast_profile(g,"unlock")).chance==0.25,"MANA exact base balance can cast at high pressure while success probability stays reduced")
  var before=g.export_snapshot()
- t.check(not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"MANA stale flat-cost candidate remains atomic")
+ t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"MANA stale flat-cost candidate remains atomic")
  g.state.sure_cast=true;c=t.find_action(g,"card",{"uid":card.uid,"target":target.id,"free":false})
- t.check(g.dispatch(c.id,g.state.version).ok and g.state.mana==0 and g.state.temporary_mana==0 and not g._equipment(target.id).locked,"MANA formal success pays exact base cost from original pools")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.mana==0 and g.state.temporary_mana==0 and not g._equipment(target.id).locked,"MANA formal success pays exact base cost from original pools")
 
 static func calm_mouth(t) -> void:
  for template in ["mouth_band","mouth_tape"]:
@@ -72,11 +72,11 @@ static func calm_mouth(t) -> void:
     var expected=20-4*(grade+tightness-1)
     var before=g.export_snapshot();var c=t.find_action(g,"calm")
     t.check(g.state==before and c.detail.contains("快感－%d" % expected) and c.detail.contains("下回合能量＋1"),"CALM preview reads the same reduction and full deferred energy without mutation")
-    t.check(not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"CALM stale mouth preview refuses without changing any state")
+    t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"CALM stale mouth preview refuses without changing any state")
     if expected==0:
-     t.check(not c.valid and c.reason.contains("高级、紧度3档") and not g.dispatch(c.id,g.state.version).ok and g.state==before,"CALM complete mouth block refuses without payment or deferred energy")
+     t.check(not c.valid and c.reason.contains("高级、紧度3档") and not g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state==before,"CALM complete mouth block refuses without payment or deferred energy")
     else:
-     t.check(g.dispatch(c.id,g.state.version).ok and g.state.pressure==90-expected and g.state.energy==2 and g.state.next_energy==1,"CALM all grades and tightness levels reduce only pressure relief, never deferred energy")
+     t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.pressure==90-expected and g.state.energy==2 and g.state.next_energy==1,"CALM all grades and tightness levels reduce only pressure relief, never deferred energy")
      t.check(g.state.mana==before.mana and g.state.tick==before.tick and g.state.rng==before.rng and g.state.equipment==before.equipment and g.state.hand==before.hand,"CALM mouth penalty introduces no spell roll, turn, mana, equipment or card mutation")
      t.check(g.state.logs.any(func(row):return row.text.contains("深呼吸：快感降低%d" % expected) and row.text.contains("下回合能量＋1")),"CALM log records actual relief and full energy reward")
  var g=Game.new(42);g.state.pressure=90
@@ -84,7 +84,7 @@ static func calm_mouth(t) -> void:
  var blocked=t.find_action(g,"calm");var version=g.state.version
  t.check(t.action(g,"manual",{"target":mouth.id}).ok and g.equipment_at("mouth").is_empty(),"CALM formal removal frees the mouth")
  var before=g.export_snapshot()
- t.check(not g.dispatch(blocked.id,version).ok and g.state==before and t.find_action(g,"calm").detail.contains("快感－20"),"CALM removal invalidates old preview and restores full relief")
+ t.check(not g.dispatch(g.command(blocked.payload,version),version).ok and g.state==before and t.find_action(g,"calm").detail.contains("快感－20"),"CALM removal invalidates old preview and restores full relief")
  g._install_template("eye_leather","eyes",20,20,true,"fixture",3)
  t.check(P.calm(g).reduction==20,"CALM other body slots and locks do not cause mouth attenuation")
  mouth=g._install_template("mouth_band","mouth",20,20,true,"fixture",3)
@@ -106,8 +106,8 @@ static func calm_next_energy(t) -> void:
  t.check(t.action(g,"calm").ok and g.state.energy==1 and g.state.next_energy==2 and g.state.pressure==20,"CALM repeated successful uses stack deferred energy")
  before=g.export_snapshot()
  var limited=t.find_action(g,"calm")
- t.check(g.state.calm_uses==2 and not limited.valid and limited.reason.contains("已使用2次") and limited.detail.contains("剩余0／2次") and not g.dispatch(limited.id,g.state.version).ok and g.state==before,"CALM third use is blocked despite remaining energy and pressure, without payment or mutation")
- t.check(not g.dispatch(offered.id,version).ok and g.state==before,"CALM stale submission cannot duplicate its energy reward")
+ t.check(g.state.calm_uses==2 and not limited.valid and limited.reason.contains("已使用2次") and limited.detail.contains("剩余0／2次") and not g.dispatch(g.command(limited.payload,g.state.version),g.state.version).ok and g.state==before,"CALM third use is blocked despite remaining energy and pressure, without payment or mutation")
+ t.check(not g.dispatch(g.command(offered.payload,version),version).ok and g.state==before,"CALM stale submission cannot duplicate its energy reward")
  var restored=preload("res://tests/persistence_cases.gd").roundtrip(t,g,"deep breath deferred energy")
  for game in [g,restored]:
   t.check(game.state.calm_uses==2 and not t.action(game,"calm").ok,"CALM saving cannot restore spent uses in the same turn")
@@ -139,8 +139,8 @@ static func free_cooling(t) -> void:
    target.locked=false;g._apply_manual_release(target,0.0)
   g._cleanup();g.state.pressure_sources=[];g.state.relics=[];g.state.pressure=10
   for enemy in g.state.enemies: enemy.intent.delayed=true
-  var before=g.export_snapshot();g.get_view();g.candidates()
-  t.check(g.state==before and not g.dispatch("missing",g.state.version).ok and g.state==before,"FREE COOLING queries and refused actions do not advance time")
+  var before=g.export_snapshot();g.get_view();g.command_facts()
+  t.check(g.state==before and not g.dispatch(g.command({"kind":"card","uid":"missing"},g.state.version),g.state.version).ok and g.state==before,"FREE COOLING queries and refused actions do not advance time")
   t.check(t.action(g,"end").ok and g.state.pressure==8,"FREE COOLING actual turn lowers two exactly once: "+phase)
  for kind in ["eyes","mouth","wrist","special","composite"]:
   var g=Game.new(42);g.state.pressure=10
@@ -178,12 +178,12 @@ static func committed_receipt(t) -> void:
  t.check(delta>0.0 and Impact.pressure_rise(rises)>0.0 and Impact.will_play(rises,{"kind":"end"}),"FEEDBACK net rising receipt is the trigger the pleasure filter consumes")
  g.state.pressure_sources=[]
  var calm=t.find_action(g,"calm")
- var relief=g.dispatch(calm.id,g.state.version)
+ var relief=g.dispatch(g.command(calm.payload,g.state.version),g.state.version)
  t.check(relief.ok and Impact.pressure_rise(relief.get("resource_feedback",[]))==0.0 and Impact.border_kind_of(relief.get("resource_feedback",[]),calm.payload)=="calm","FEEDBACK relief receipt asks for the border and never for the filter")
  var spell=t.find_action(g,"attack",{"type":"fireball","form":0,"enemy":g.state.enemies[0].id})
  t.check(spell.valid,"FEEDBACK mana payment is measured on a real fireball candidate")
  if not spell.valid: return
- var paid=g.dispatch(spell.id,g.state.version)
+ var paid=g.dispatch(g.command(spell.payload,g.state.version),g.state.version)
  var paid_delta=Impact.deltas(paid.get("resource_feedback",[]))
  t.check(paid.ok and paid_delta.has("mana") and not paid_delta.has("pressure") and Impact.pressure_rise(paid.get("resource_feedback",[]))==0.0,"FEEDBACK mana payment receipt changes mana only and cannot drive the filter")
  t.check(Impact.border_kind_of(paid.get("resource_feedback",[]),spell.payload)=="mana" and Impact.border_spec("mana",paid_delta,{}).variant=="loss","FEEDBACK a real mana payment asks for the blue loss border")
@@ -195,7 +195,7 @@ static func committed_receipt(t) -> void:
  var witch=Witch.fresh()
  var preparation=t.hand_card(witch,"witch_preparation")
  var grant=t.find_action(witch,"card",{"uid":preparation.uid,"free":false})
- var cast=witch.dispatch(grant.id,witch.state.version)
+ var cast=witch.dispatch(witch.command(grant.payload,witch.state.version),witch.state.version)
  var focus_delta=Impact.deltas(cast.get("resource_feedback",[]))
  t.check(cast.ok and witch.state.witch_focus==2 and focus_delta.get("witch_focus",0.0)==2.0 and float(focus_delta.get("temporary_mana",0.0))>0.0,"FEEDBACK the receipt carries the witch focus grant like any other field")
  t.check(Impact.border_kind_of(cast.get("resource_feedback",[]),grant.payload)=="mana","FEEDBACK a focus grant asks for the blue border family")
@@ -205,7 +205,7 @@ static func committed_receipt(t) -> void:
  release_witch.state.enemies[0].hp=1000.0
  release_witch.state.enemies[0].max_hp=1000.0
  var release=t.find_action(release_witch,"attack",{"type":"witch_hand","form":1})
- var spent=release_witch.dispatch(release.id,release_witch.state.version)
+ var spent=release_witch.dispatch(release_witch.command(release.payload,release_witch.state.version),release_witch.state.version)
  var spent_delta=Impact.deltas(spent.get("resource_feedback",[]))
  t.check(spent.ok and release_witch.state.witch_focus==0 and Impact.border_kind_of(spent.get("resource_feedback",[]),release.payload)=="mana" and Impact.border_spec("mana",spent_delta,{}).variant=="loss","FEEDBACK a focus-consuming release asks for the blue loss border")
 
@@ -247,7 +247,7 @@ static func run(t) -> void:
  var version=g.state.version
  t.action(g,"calm")
  old=JSON.stringify(g.state)
- t.check(not g.dispatch(stale.id,version).ok and JSON.stringify(g.state)==old,"PRESSURE stale calm candidate rejects without second reduction")
+ t.check(not g.dispatch(g.command(stale.payload,version),version).ok and JSON.stringify(g.state)==old,"PRESSURE stale calm candidate rejects without second reduction")
 
  g=Game.new(42,true,"pressure")
  var belt=g.state.equipment[0].id
@@ -260,9 +260,9 @@ static func run(t) -> void:
  t.check(t.action(g,"card",{"uid":card.uid,"slot":"wrist","target":belt}).ok and g.state.overloaded and g.state.pressure==10 and g.state.mana==80,"PRESSURE second strain immediately overloads with remainder")
  var climax_view=g.get_view()
  t.check(climax_view.climax.cue=="climax.narration.normal" and climax_view.climax.text.begins_with("你的") and climax_view.speech.cue=="hero.climax.normal.clear","PRESSURE committed climax projects second-person narration separately from spoken dialogue")
- t.check(g.state.energy==0 and g.state.hand.is_empty() and g.candidates().filter(func(c):return c.payload.kind not in ["flask","item_discard"]).size()==1 and g.candidates()[0].payload.kind=="end","PRESSURE no card, ordinary tool, posture or early exit after interruption")
+ t.check(g.state.energy==0 and g.state.hand.is_empty() and g.command_facts().filter(func(c):return c.payload.kind not in ["flask","item_discard"]).size()==1 and g.command_facts()[0].payload.kind=="end","PRESSURE no card, ordinary tool, posture or early exit after interruption")
  old=JSON.stringify(g.state)
- t.check(not g.dispatch(c.id,g.state.version).ok and JSON.stringify(g.state)==old,"PRESSURE interrupted card cannot be submitted again")
+ t.check(not g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and JSON.stringify(g.state)==old,"PRESSURE interrupted card cannot be submitted again")
  t.check(t.action(g,"end").ok and g.state.pressure==35 and g.state.energy==2 and g.state.rest_left==5 and not g.state.overloaded,"PRESSURE finish interrupted rest once, end pulse once and apply next penalty once")
  t.action(g,"end")
  t.check(g.state.energy==3 and g.state.pressure==60 and g.state.overload_energy==0,"PRESSURE energy penalty is consumed, pressure carries into following round")
@@ -350,7 +350,7 @@ static func formal_sources(t) -> void:
  var Save=preload("res://tests/persistence_cases.gd")
  var g=Game.new(42)
  var before=g.state.duplicate(true)
- g.get_view();g.candidates();g.EquipmentOffers.options(g)
+ g.get_view();g.command_facts();g.EquipmentOffers.options(g)
  t.check(g.state==before,"SOURCE view and generation probes are read-only")
  var restored
  g=Game.new(42,true,"guard")
@@ -369,13 +369,13 @@ static func climax_card_practice(t) -> void:
  var card=cards[-1];var before=g.export_snapshot()
  var choice=t.find_action(g,"card",{"uid":card.uid,"free":true})
  t.check(choice.valid and choice.cost==1 and choice.mana==0 and g.get_view().practice_options.any(func(row):return row.id=="climax_card" and row.node=="Practice_climax_card") and g.state==before,"CLIMAX PRACTICE uses a readonly ordinary paid card candidate")
- var stale=g.dispatch(choice.id,g.state.version-1)
+ var stale=g.dispatch(g.command(choice.payload,g.state.version-1),g.state.version-1)
  t.check(not stale.ok and g.state==before,"CLIMAX PRACTICE stale submission cannot trigger special equipment or climax")
- var result=g.dispatch(choice.id,g.state.version)
+ var result=g.dispatch(g.command(choice.payload,g.state.version),g.state.version)
  t.check(g.state.charge==4 and g.state.charge_all,"CLIMAX CHARGE real card grants one charge before halving eight to four")
  t.check(result.ok and g.state.overloaded and g.state.overload_total==1 and g.state.overload_count==1 and g.state.pressure==5,"CLIMAX PRACTICE paid card triggers the existing special equipment and one formal climax")
  t.check(g.state.energy==0 and g.state.mana==before.mana-g.B.OVERLOAD_MANA and g.state.overload_energy==g.B.OVERLOAD_ENERGY and g.state.special_equipment[0].type=="urethral_rod_low","CLIMAX PRACTICE uses normal interruption, mana loss, weakness and keeps the real equipment")
- var actions=g.candidates().filter(func(candidate):return candidate.payload.kind not in ["flask","item_discard"])
+ var actions=g.command_facts().filter(func(candidate):return candidate.payload.kind not in ["flask","item_discard"])
  t.check(actions.size()==2 and actions.any(func(c):return c.payload.kind=="end") and actions.any(func(c):return c.payload.kind=="surrender") and result.get("music_feedback",[]).is_empty(),"CLIMAX PRACTICE keeps continue and surrender while ordinary actions stay blocked")
  var normal=Game.new(42)
  t.check(normal.state.pressure==0 and normal.state.special_equipment.is_empty(),"CLIMAX PRACTICE setup never enters a normal run")
@@ -394,8 +394,8 @@ static func climax_release_energy(t) -> void:
    g.state.pressure=P.maximum(g)-deficit
    var before=g.export_snapshot()
    var c=t.find_action(g,"card",{"uid":card.uid,"target":target.id,"free":false})
-   t.check(c.valid and not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"CLIMAX RELEASE stale paid escape preserves pressure and equipment")
-   var result=g.dispatch(c.id,g.state.version)
+   t.check(c.valid and not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"CLIMAX RELEASE stale paid escape preserves pressure and equipment")
+   var result=g.dispatch(g.command(c.payload,g.state.version),g.state.version)
    var interrupted=deficit<=12.0
    t.check(result.ok and g._equipment(target.id).is_empty() and g.state.overloaded==interrupted and g.state.overload_total==int(interrupted),"CLIMAX RELEASE cursed lock and embrace commit paid escape at deficit "+str(deficit)+" free="+str(free)+": "+result.get("error",""))
    t.check(g.state.energy==(0 if interrupted else before.energy-c.cost+int(free)) and g.validate()=="","CLIMAX RELEASE energy stays zero after interruption and normal refunds remain")
@@ -443,14 +443,14 @@ static func forced_loop_exit(t) -> void:
   var stages=g.state.enemies.map(func(enemy):return enemy.stage)
   t.check(t.action(g,"end").ok and g.state.round==round_before+1 and g.state.overloaded and g.state.energy==0,"FEEDBACK continue advances a new round and reproduces repeated interruption")
   t.check(g.state.enemies[0].stage==stages[0]+1 and g.state.enemies[1].stage==stages[1]+1,"FEEDBACK each enemy acts once per continued round")
- var exits=g.candidates().filter(func(c):return c.payload.kind=="surrender")
+ var exits=g.command_facts().filter(func(c):return c.payload.kind=="surrender")
  t.check(exits.size()==1 and exits[0].valid,"FEEDBACK interrupted battle keeps its formal surrender exit")
  if not exits.is_empty():
   var before=g.export_snapshot();var exit=exits[0]
-  t.check(not g.dispatch(exit.id,g.state.version-1).ok and g.state==before,"FEEDBACK stale forced-loop surrender rolls back")
-  t.check(g.dispatch(exit.id,g.state.version).ok and g.state.phase=="captured" and g.state.security==1 and g.validate()=="","FEEDBACK surrender exits the interrupted battle through the actual intake page")
+  t.check(not g.dispatch(g.command(exit.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"FEEDBACK stale forced-loop surrender rolls back")
+  t.check(g.dispatch(g.command(exit.payload,g.state.version),g.state.version).ok and g.state.phase=="captured" and g.state.security==1 and g.validate()=="","FEEDBACK surrender exits the interrupted battle through the actual intake page")
   before=g.export_snapshot()
-  t.check(not g.dispatch(exit.id,g.state.version).ok and g.state==before,"FEEDBACK repeated surrender cannot apply a second intake")
+  t.check(not g.dispatch(g.command(exit.payload,g.state.version),g.state.version).ok and g.state==before,"FEEDBACK repeated surrender cannot apply a second intake")
  g=forced_loop_fixture()
  for enemy in g.state.enemies.duplicate(): g._damage_enemy(enemy,9999,"magic","fixture")
  g._finish_battle()
@@ -464,5 +464,5 @@ static func forced_loop_exit(t) -> void:
 
  g=forced_loop_fixture();g.state.security=4
  var exit=t.find_action(g,"surrender")
- t.check(exit.valid and g.dispatch(exit.id,g.state.version).ok and g.state.phase=="captured" and g.state.security==5,"FEEDBACK security-four surrender reaches the security-five intake page")
+ t.check(exit.valid and g.dispatch(g.command(exit.payload,g.state.version),g.state.version).ok and g.state.phase=="captured" and g.state.security==5,"FEEDBACK security-four surrender reaches the security-five intake page")
  t.check(t.action(g,"prison",{"action":"enter"}).ok and g.state.phase=="prison" and g.state.prison.left==g.B.PRISON_INTERVALS[4],"FEEDBACK security-five intake proceeds into the ordinary cell")

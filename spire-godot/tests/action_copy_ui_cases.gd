@@ -81,7 +81,7 @@ static func concise_log(t) -> void:
  ui.restart(42)
  preload("res://tests/action_log_cases.gd").prepare_failure(ui.game)
  ui.render();await t.frames()
- var choice=ui.game.candidates().filter(func(c):return c.valid and c.payload.kind=="attack" and c.payload.type=="fireball")[0]
+ var choice=ui.game.command_facts().filter(func(c):return c.valid and c.payload.kind=="attack" and c.payload.type=="fireball")[0]
  var before=ui.game.export_snapshot()
  await t.drag_control_to(t.action_button("fireball"),choice.payload.enemy)
  await t.open_menu();await preload("res://tests/interface_ui_cases.gd").press(t,"OpenLog")

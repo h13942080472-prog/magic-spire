@@ -1,5 +1,6 @@
 extends RefCounted
 const Navigation=preload("res://tests/interface_ui_cases.gd")
+const Queries=preload("res://ui/target_queries.gd")
 
 static func run(t) -> void:
  await read_only_details(t)
@@ -12,8 +13,8 @@ static func run(t) -> void:
  var frozen=ui.game.export_snapshot()
  await Navigation.press(t,"ToolSlot_thigh")
  t.check(ui.find_child("ToolTarget_"+fixture.link,true,false)!=null and ui.game.export_snapshot()==frozen,"CONTACT UI precise exposed connection is selectable without mutating state")
- var link_action=ui.actions.find("item",{"kind":"item_use","item":fixture.tool,"target":fixture.link})
- var link_button=ui.candidate_buttons[link_action.id]
+ var link_action=Queries.find(ui.view,"item",{"kind":"item_use","item":fixture.tool,"target":fixture.link})
+ var link_button=ui.candidate_buttons[link_action.key]
  var scroll=link_button.get_parent()
  while scroll!=null and not scroll is ScrollContainer: scroll=scroll.get_parent()
  if scroll!=null: scroll.ensure_control_visible(link_button)
@@ -32,28 +33,28 @@ static func run(t) -> void:
  await Navigation.press(t,"ToolSlot_thigh")
  t.check(ui.game.export_snapshot()==before and ui.find_child("ToolTarget_"+target.id,true,false)!=null,"TOOL UI position expansion is read-only and reveals real target")
  await t.capture("ui-118-tool-position-menu.png")
- var c=ui.actions.find("item",{"kind":"item_use","item":tool,"target":target.id})
- var point=ui.candidate_buttons[c.id].get_global_rect().get_center()
+ var c=Queries.find(ui.view,"item",{"kind":"item_use","item":tool,"target":target.id})
+ var point=ui.candidate_buttons[c.key].get_global_rect().get_center()
  await t.move_mouse(point);await t.mouse_button(point,MOUSE_BUTTON_LEFT,true);await t.mouse_button(point,MOUSE_BUTTON_LEFT,false)
  t.check(ui.game._equipment(target.id).durability==3 and ui.game._item(tool).uses==2 and ui.view.energy==3,"TOOL UI native submenu use costs one charge and no energy")
  await t.close_information()
  ui.restart(42);ui.game.state.equipment.clear();ui.game.state.items.clear();ui.game.state.wall="normal"
  target=ui.game.add_fixture("wrist",8,10,true);ui.game._gain_tool("shard");tool=ui.game.state.items[0].id
  ui.render();await t.frames();await Navigation.press(t,"OpenItems")
- var install_actions=ui.actions.select("item",{"kind":"item_install","item":tool})
+ var install_actions=Queries.select(ui.view,"item",{"kind":"item_install","item":tool})
  before=ui.game.export_snapshot()
- t.check(install_actions.size()==3 and install_actions.all(func(action):return not ui.candidate_buttons.has(action.id)),"TOOL installation choices start collapsed behind one menu")
+ t.check(install_actions.size()==3 and install_actions.all(func(action):return not ui.candidate_buttons.has(action.key)),"TOOL installation choices start collapsed behind one menu")
  await Navigation.press(t,"ToolInstallMenu")
  for action in install_actions:
-  var button=ui.candidate_buttons.get(action.id)
+  var button=ui.candidate_buttons.get(action.key)
   t.check(button!=null and button.text.begins_with(action.label) and button.disabled==not action.valid,"TOOL submenu preserves each formal installation label and availability")
  t.check(ui.game.export_snapshot()==before,"TOOL expanding installation menu costs no resources or turns")
  await t.capture("ui-tool-install-menu.png")
  await Navigation.press(t,"ToolInstallMenu")
- t.check(install_actions.all(func(action):return not ui.candidate_buttons.has(action.id)) and ui.game.export_snapshot()==before,"TOOL collapsing installation menu removes choices without changing state")
+ t.check(install_actions.all(func(action):return not ui.candidate_buttons.has(action.key)) and ui.game.export_snapshot()==before,"TOOL collapsing installation menu removes choices without changing state")
  t.check(await t.click("item_install",{"item":tool,"mount":"hand_wall"}),"TOOL UI installs through formal action")
  t.check(t.visible_text(ui.layout).contains("尖锐类 · 已安装"),"ENV UI installed tool retains its class label")
- t.check(t.visible_text(ui.layout).contains("伤害时触发") and ui.actions.select("item",{"kind":"item_use","item":tool}).is_empty(),"TOOL UI installed details show passive instead of direct cutting")
+ t.check(t.visible_text(ui.layout).contains("伤害时触发") and Queries.select(ui.view,"item",{"kind":"item_use","item":tool}).is_empty(),"TOOL UI installed details show passive instead of direct cutting")
  await t.capture("ui-119-installed-tool-passive.png")
  await t.close_information()
  await Navigation.press(t,"ActionRailToggle")
@@ -69,7 +70,7 @@ static func run(t) -> void:
  t.check(installed_panel!=null and not installed_panel.get_global_rect().intersects(flask.get_global_rect()),"TOOL installed shortcuts no longer overlap the flask")
  for control in ui.find_children("BasicAttack_*","",true,false)+[ui.find_child("DeepBreath",true,false)]:
   if control!=null: t.check(not installed_panel.get_global_rect().intersects(control.get_global_rect()),"TOOL shortcuts have reserved space beside all basic actions")
- var deposit=ui.actions.find("flask",{"op":"deposit"})
+ var deposit=Queries.find(ui.view,"flask",{"op":"deposit"})
  var flask_before=ui.game.state.flask_mana
  t.check(deposit.valid,"TOOL flask deposit remains eligible after wall installation")
  await Navigation.press(t,"FlaskDeposit")
@@ -79,18 +80,18 @@ static func run(t) -> void:
  await t.close_information()
  var uid=ui.view.hand.filter(func(card):return card.type=="strain")[0].uid
  if ui.card_faces.get(uid,false): await t.flip(uid)
- c=ui.actions.find("card",{"uid":uid,"target":target.id,"free":false})
+ c=Queries.find(ui.view,"card",{"uid":uid,"target":target.id,"free":false})
  t.check(ui.detail_of(c).contains("固定切割") and c.payload.tool_bonus.damage==5,"TOOL UI card preview identifies selected fixed bonus")
  var old=target.durability;var damage=c.payload.preview.damage
  await t.start_drag(uid,"wrist")
- await t.reveal_drop_target(c.id)
+ await t.reveal_drop_target(c.key)
  var shown=t.visible_text(ui.term_popup)
  t.check(shown.contains(ui.game.number(damage)+"点挣扎伤害") and shown.contains("另加5点切割伤害") and not shown.contains("能量"),"TOOL UI hovered target separates actual struggle and fixed cutting damage without costs")
  await t.capture("ui-120-card-tool-bonus.png")
- await t.release_target(await t.reveal_drop_target(c.id))
+ await t.release_target(await t.reveal_drop_target(c.key))
  t.check(is_equal_approx(ui.game._equipment(target.id).durability,old-damage-5) and ui.game._item(tool).uses==2 and ui.view.energy==1,"TOOL UI real drag pays card and triggers fixed bonus exactly once")
  ui.restart(42);await t.frames()
- t.check(ui.active_drag.is_empty() and ui.view.candidates.map(func(entry):return entry.id)==ui.game.candidates().map(func(entry):return entry.id),"TOOL UI restarting after a target drag rebuilds candidates without reading removed equipment")
+ t.check(ui.active_drag.is_empty() and ui.view.display_facts.map(func(entry):return Queries.fact_key(entry))==ui.game.command_facts().map(func(entry):return Queries.fact_key(entry)),"TOOL UI restarting after a target drag rebuilds facts without reading removed equipment")
 
 static func read_only_details(t) -> void:
  var ui=t.ui

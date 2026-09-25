@@ -492,12 +492,12 @@ static func run(t) -> void:
  t.check("example_spare_pocket" in g.Relics.REWARDS and "example_soft_belt" in g.Enemies.TYPES.belt.install_pool,"PACK sources join real reward and enemy pools")
 
  g=Game.new(42);Events.arrive(g,"example_travel_cache")
- var before=g.export_snapshot();g.get_view();g.candidates()
+ var before=g.export_snapshot();g.get_view();g.command_facts()
  t.check(g.state==before,"PACK imported event previews do not mutate state/RNG")
  var c=t.find_action(g,"event",{"action":"choose","choice":"take_tool"})
  t.check(c.valid and c.detail.contains("支付5") and c.detail.contains("备用口袋"),"PACK all costs/rewards projected before choosing")
- t.check(not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"PACK stale event command is atomic")
- t.check(g.dispatch(c.id,g.state.version).ok,"PACK imported event executes through formal transaction")
+ t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"PACK stale event command is atomic")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok,"PACK imported event executes through formal transaction")
  t.check(g.state.mana==95 and g.state.items[0].type=="saw" and "example_spare_pocket" in g.state.relics and g.state.equipment[0].template=="example_soft_belt","PACK event actually pays/grants/installs")
  t.check(g.item_capacity()==4 and g.escape_preview(g.state.equipment[0],"strain",5).damage>0,"PACK relic modifier and restraint escape participate in rules")
  SaveCases.roundtrip(t,g,"imported event, equipment and relic")
@@ -508,7 +508,7 @@ static func run(t) -> void:
  Catalog.commit(g,result.tables)
  g=Game.new(42);g.state.mana=4;Events.arrive(g,"example_travel_cache");before=g.export_snapshot()
  c=t.find_action(g,"event",{"action":"choose","choice":"take_tool"})
- t.check(not c.valid and not g.dispatch(c.id,g.state.version).ok and g.state==before,"PACK insufficient payment prevents all rewards atomically")
+ t.check(not c.valid and not g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state==before,"PACK insufficient payment prevents all rewards atomically")
 
  g=Game.new(42);Events.arrive(g,"example_vibration_ring_arrival")
  t.check(t.action(g,"event",{"action":"choose","choice":"equip"}).ok and g.state.special_equipment.size()==1,"PACK special acquired by normal event command")
@@ -525,7 +525,7 @@ static func run(t) -> void:
  g.state=before
  Events.arrive(g,"example_vibration_ring_arrival");before=g.export_snapshot()
  c=t.find_action(g,"event",{"action":"choose","choice":"equip"})
- t.check(not c.valid and not g.dispatch(c.id,g.state.version).ok and g.state==before,"PACK special occupied slot rejects duplicate without mutation")
+ t.check(not c.valid and not g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state==before,"PACK special occupied slot rejects duplicate without mutation")
  SaveCases.roundtrip(t,g,"expired imported special")
 
  g=Game.new(42);Events.arrive(g,"example_travel_cache")

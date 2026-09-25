@@ -3,8 +3,15 @@ extends Node
 const DRAFT="user://feedback-draft.json"
 const MAX_IMAGES=3
 const MAX_IMAGE_BYTES=2*1024*1024
+# docs/spec/feedback-deployment.md「存档附件」: decoded limit 2 MiB (base64 stays under 2796204 chars).
+const MAX_SAVE_BYTES=2*1024*1024
+# Stable reason codes for a missing attachment; the visible line maps them, so a failure never
+# borrows another reason's wording (docs/spec/feedback-deployment.md「存档附件」).
+const SAVE_NONE="none"
+const SAVE_INVALID="invalid"
+const SAVE_OVERSIZED="oversized"
 var host
-var draft={"id":"","kind":"bug","title":"","description":"","include_logs":false,"context":{},"logs":"","images":[]}
+var draft={"id":"","kind":"bug","title":"","description":"","include_logs":false,"include_save":true,"context":{},"logs":"","images":[]}
 var message=""
 var busy=false
 var confirming=false
@@ -13,6 +20,16 @@ var save_timer: Timer
 var transport: Callable
 var response_redirects=0
 var checking_receipt=false
+# The attachment and the probe answer belong to one draft identity: captured and probed once,
+# only serialized through SaveStore.fixed_point_text, never written into the draft file, so a
+# retry of the same draft sends a byte-identical body (docs/spec/feedback-deployment.md).
+# `save_reason` is the code of the failed capture; "" means this draft never ran its capture.
+var save_attachment={}
+var save_reason=""
+var save_captured=false
+var save_probed=false
+var save_declined=false
+var probing=false
 
 func _ready() -> void:
  request=HTTPRequest.new();request.timeout=40;request.max_redirects=0;request.body_size_limit=65536
@@ -23,10 +40,13 @@ func _ready() -> void:
   var file=FileAccess.open(DRAFT,FileAccess.READ)
   if file!=null and file.get_length()<9*1024*1024:
    var restored=JSON.parse_string(file.get_as_text())
-   if restored is Dictionary and valid_draft(restored): draft=restored
+   if restored is Dictionary and valid_draft(restored):
+    draft=restored
+    if not draft.has("include_save"): draft.include_save=true
 
 static func valid_draft(value: Dictionary) -> bool:
  if value.get("kind","") not in ["bug","suggestion"] or not value.get("id") is String: return false
+ if not value.get("include_save",true) is bool: return false
  if not value.get("title") is String or value.title.length()>100 or not value.get("description") is String or value.description.length()>4000: return false
  if not value.get("include_logs") is bool or not value.get("context") is Dictionary or not value.get("logs") is String or value.logs.length()>18000: return false
  if not value.get("images") is Array or value.images.size()>MAX_IMAGES: return false
@@ -40,7 +60,8 @@ func save_draft() -> void:
  if file!=null: file.store_string(JSON.stringify(draft))
 
 func changed() -> void:
- draft.id="";confirming=false;message="";save_timer.start()
+ # A changed draft is a new identity: the next submit probes the service again.
+ draft.id="";confirming=false;message="";save_probed=false;save_declined=false;save_timer.start()
 
 func open() -> void:
  _capture_context()
@@ -60,12 +81,56 @@ func _capture_context() -> void:
   draft.context.version=version
   changed()
   save_draft()
+ _capture_save_once()
+
+# One capture per draft identity: a draft with its context captured right away attaches the run of
+# that moment, and a draft restored from disk (context already present) attaches at its first use,
+# where the game is the playing run instead of this process's startup game. Editing stays inside
+# the same identity, so a retry never recaptures and never changes the body
+# (docs/spec/feedback-deployment.md「存档附件」).
+func _capture_save_once() -> void:
+ if save_captured or not draft.include_save: return
+ save_captured=true
+ _capture_save()
 
 func endpoint() -> String:
  return str(ProjectSettings.get_setting("feedback/endpoint","")).strip_edges()
 
+# Read-only capture of this run's current fixed point: no file access, no state change.
+func _capture_save() -> void:
+ save_attachment={};save_reason=""
+ if host.saves==null or host.game==null:
+  save_reason=SAVE_NONE;return
+ var result=host.saves.fixed_point_text(host.game,host.map_drawings)
+ if not result.ok:
+  save_reason=SAVE_INVALID;return
+ var bytes=String(result.text).to_utf8_buffer()
+ if bytes.size()>MAX_SAVE_BYTES:
+  save_reason=SAVE_OVERSIZED;return
+ save_attachment={"name":String(result.filename),"data":Marshalls.raw_to_base64(bytes),"bytes":bytes.size()}
+
+# The visible attachment line: the confirmation page shows the name and size, or the real reason
+# this draft carries no attachment. Every variant is player copy and reads its zh_CN source key.
+func save_status_text() -> String:
+ if draft.context.is_empty(): return ""
+ if save_declined: return host._text("ui.feedback.save.declined","当前反馈服务暂不支持附带存档。")
+ if not draft.include_save: return host._text("ui.feedback.save.unchecked","未附带存档：已取消勾选。")
+ if save_attachment.is_empty():
+  match save_reason:
+   SAVE_NONE: return host._text("ui.feedback.save.none","未附带存档：当前没有可附带的存档。")
+   SAVE_INVALID: return host._text("ui.feedback.save.invalid","未附带存档：当前进度存档校验未通过，未附带。")
+   SAVE_OVERSIZED: return host._text("ui.feedback.save.oversized","未附带存档：存档过大（超过 2 MB），未附带。")
+   _: return host._text("ui.feedback.save.uncaptured","未附带存档：本次草稿没有捕获到存档。")
+ return host._text("ui.feedback.save.attached","将附带当前进度存档：{name}（{size} KB）",{"name":save_attachment.name,"size":"%.1f" % (float(save_attachment.bytes)/1024.0)})
+
+func _save_included() -> bool:
+ return draft.include_save and not save_declined and not save_attachment.is_empty()
+
 func payload() -> Dictionary:
- return {"schema":1,"id":draft.id,"kind":draft.kind,"title":draft.title.strip_edges(),"description":draft.description.strip_edges(),"context":draft.context.duplicate(true),"logs":draft.logs if draft.include_logs else "","images":draft.images.duplicate(true)}
+ var body={"schema":1,"id":draft.id,"kind":draft.kind,"title":draft.title.strip_edges(),"description":draft.description.strip_edges(),"context":draft.context.duplicate(true),"logs":draft.logs if draft.include_logs else "","images":draft.images.duplicate(true)}
+ # The report format stays 1; `save` is additive and only set after a successful probe.
+ if _save_included(): body.save={"name":save_attachment.name,"data":save_attachment.data}
+ return body
 
 func validation() -> String:
  if draft.title.strip_edges().is_empty(): return "请填写标题。"
@@ -131,6 +196,14 @@ func build(column: VBoxContainer) -> void:
   empty.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;empty.custom_minimum_size.y=220;gallery.add_child(empty)
  else: _pictures(gallery,not confirming)
  attachments.add_child(host._label("点击截图可放大查看。" if confirming else "截图时会隐藏此窗口，图片自动压缩。",13,host.MUTED))
+ var save_heading=HBoxContainer.new();attachments.add_child(save_heading)
+ var save_label=host._label("进度存档",18,host.GOLD);save_label.size_flags_horizontal=Control.SIZE_EXPAND_FILL;save_heading.add_child(save_label)
+ if not confirming:
+  var include_save=CheckBox.new();include_save.name="FeedbackIncludeSave";include_save.text="一并附带当前进度存档";include_save.button_pressed=draft.include_save
+  include_save.add_theme_stylebox_override("normal",StyleBoxEmpty.new());save_heading.add_child(include_save)
+  include_save.toggled.connect(func(value):draft.include_save=value;changed();_capture_save_once();save_draft();refresh())
+  attachments.add_child(host._label("反馈会连同当前进度存档一起发送；取消勾选则只发送上面的内容。",13,host.MUTED))
+ if save_status_text()!="": attachments.add_child(host._label(save_status_text(),14,host.CYAN if _save_included() else host.MUTED))
  column.add_child(HSeparator.new())
  column.add_child(host._label("提交反馈需要开启梯子（能访问 Google 服务）。",14,host.GOLD))
  var notice=host._label(message if not message.is_empty() else "关闭会保留草稿；确认后仅发送本次预览内容。",14,host.CYAN if message.begins_with("提交成功") else host.MUTED)
@@ -229,6 +302,17 @@ func submit() -> void:
   message="反馈服务尚未开通，草稿已保留。";save_draft();refresh();return
  if draft.id.is_empty(): draft.id=Crypto.new().generate_random_bytes(16).hex_encode()
  save_draft();busy=true;response_redirects=0;checking_receipt=false;message="正在提交，请稍候…";refresh()
+ # docs/spec/feedback-deployment.md「服务版本门控」: never attach the save before the
+ # same endpoint answered the GET schema probe; the answer is cached per draft identity.
+ if draft.include_save and not save_probed and not save_attachment.is_empty():
+  probing=true
+  if _send_request(url,HTTPClient.METHOD_GET)==OK: return
+  # The probe never left the process: degrade to the old format and keep submitting.
+  probing=false;save_probed=true;save_declined=true
+ _send_report(url)
+
+func _send_report(url: String) -> void:
+ message="正在提交，请稍候…";refresh()
  var error=_send_request(url,HTTPClient.METHOD_POST,JSON.stringify(payload()))
  if error!=OK: busy=false;message="无法连接反馈服务，草稿已保留，请稍后重试。";refresh()
 
@@ -239,6 +323,13 @@ func _send_request(url: String, method: int, body: String="") -> int:
 
 func _completed(result: int, status: int, headers: PackedStringArray, body: PackedByteArray) -> void:
  if not busy: return
+ # The schema probe answered: only a well-formed version document with schema>=2 may carry
+ # the save; anything else (non-200, timeout, bad JSON) degrades without blocking the submit.
+ if probing:
+  probing=false;save_probed=true
+  save_declined=not _service_supports_save(result,status,body)
+  _send_report(endpoint())
+  return
  # Apps Script receipts are a separate GET; never forward the report to a redirect.
  if result in [HTTPRequest.RESULT_SUCCESS,HTTPRequest.RESULT_REDIRECT_LIMIT_REACHED] and status in [302,303] and response_redirects<4:
   for header in headers:
@@ -261,7 +352,21 @@ func _completed(result: int, status: int, headers: PackedStringArray, body: Pack
  message={"limited":"反馈服务今日额度已用完，请明天重试。","busy":"反馈服务繁忙，请稍后重试。","invalid":"反馈内容未通过检查，请返回修改后重试。"}.get(code,"未确认提交成功，请稍后重试；相同反馈会沿用原编号。")+"草稿已保留。"
  save_draft();refresh()
 
+# The service version document is the only source of the schema level; a missing or
+# mismatched service name counts as unsupported, which only drops the attachment.
+static func _service_supports_save(result: int, status: int, body: PackedByteArray) -> bool:
+ if result!=HTTPRequest.RESULT_SUCCESS or status!=200: return false
+ # A parser instance keeps a malformed document a plain "not supported" answer instead of an
+ # engine error; the report body is never trusted from this response.
+ var parser=JSON.new()
+ if parser.parse(body.get_string_from_utf8())!=OK or not parser.data is Dictionary: return false
+ var reply=parser.data
+ if reply.get("service","")!="spire-feedback": return false
+ var schema=reply.get("schema",0)
+ return (schema is int or schema is float) and schema>=2
+
 func clear_draft() -> void:
  if busy: return
- draft={"id":"","kind":"bug","title":"","description":"","include_logs":false,"context":{},"logs":"","images":[]}
+ draft={"id":"","kind":"bug","title":"","description":"","include_logs":false,"include_save":true,"context":{},"logs":"","images":[]}
+ save_attachment={};save_reason="";save_captured=false;save_probed=false;save_declined=false
  confirming=false;message="";save_draft();refresh()

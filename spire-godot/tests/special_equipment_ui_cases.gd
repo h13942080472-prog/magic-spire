@@ -1,6 +1,7 @@
 extends RefCounted
 const Pointer=preload("res://tests/target_sidebar_ui_cases.gd")
 const Game=preload("res://tests/game_fixture.gd")
+const Queries=preload("res://ui/target_queries.gd")
 
 static func expand_description(t, card: Control) -> void:
  if not card.find_child("EquipmentActions",true,false).visible:
@@ -45,12 +46,12 @@ static func run(t) -> void:
  details=ui.find_child("EquipmentDetails",true,false)
  t.check(t.visible_text(details).contains("手掌") and t.visible_text(details).contains("手指"),"SPECIAL UI merged detail retains precise positions")
  var uid=ui.view.hand.filter(func(c):return c.type=="strain")[0].uid
- var c=ui.actions.find("card",{"uid":uid,"slot":"fingers","target":fingers.id,"free":false})
+ var c=Queries.find(ui.view,"card",{"uid":uid,"slot":"fingers","target":fingers.id,"free":false})
  var old=ui.game._equipment(fingers.id).durability
  if ui.card_faces.get(uid,false): await t.flip(uid)
  await t.start_drag(uid,"hands")
- t.check(ui.drop_targets.has(c.id),"SPECIAL UI merged hand drag exposes physical finger target")
- await t.release_target(await t.reveal_drop_target(c.id))
+ t.check(ui.drop_targets.has(c.key),"SPECIAL UI merged hand drag exposes physical finger target")
+ await t.release_target(await t.reveal_drop_target(c.key))
  t.check(ui.game._equipment(fingers.id).get("durability",0)<old and ui.game._equipment(palm.id).durability==4,"SPECIAL UI drag damages only selected physical part")
  # Full-width resource bars remain readable after a viewport resize.
  ui.get_window().size=Vector2i(1280,720);await t.frames();ui.render();await t.frames()
@@ -72,13 +73,13 @@ static func run(t) -> void:
  t.check(ui.game.SpecialEquipment.used_capacity(ui.game.state.special_equipment,"special_2_a")==2 and ui.game._install_special("urethral_full_cup_high","special_2_a").is_empty(),"SPECIAL UI simplification preserves formal capacity restrictions")
  await t.close_information()
  uid=ui.view.hand.filter(func(h):return h.type=="strain")[0].uid
- c=ui.actions.find("card",{"uid":uid,"target":second.id,"free":false})
+ c=Queries.find(ui.view,"card",{"uid":uid,"target":second.id,"free":false})
  if ui.card_faces.get(uid,false): await t.flip(uid)
  await t.start_drag(uid,"special_2")
- t.check(ui.drop_targets.has(c.id),"SPECIAL UI special body drag exposes individual root")
+ t.check(ui.drop_targets.has(c.key),"SPECIAL UI special body drag exposes individual root")
  var collateral=ui.game.Cards.Splash.select(ui.game,c.payload).filter(func(hit):return hit.target==first.id)[0].preview.damage
  await t.capture("ui-108-special-equipment-drag.png")
- await t.release_target(await t.reveal_drop_target(c.id))
+ await t.release_target(await t.reveal_drop_target(c.key))
  t.check(ui.game._equipment(second.id).durability<12.8 and is_equal_approx(ui.game._equipment(first.id).durability,8-collateral),"SPECIAL UI drag commits the selected root and current same-position splash")
 
  # Existing crotch equipment supplies a shared link target in both body regions.
@@ -92,13 +93,13 @@ static func run(t) -> void:
  t.check(t.visible_text(details).contains(link.name) and ui.body_buttons.special_3.text.contains("·链"),"CROTCH LINK UI special region displays existing shared rope")
  await t.close_information()
  uid=ui.view.hand.filter(func(h):return h.type=="strain")[0].uid
- c=ui.actions.find("card",{"uid":uid,"target":link.id,"slot":"special_3_a"})
+ c=Queries.find(ui.view,"card",{"uid":uid,"target":link.id,"slot":"special_3_a"})
  if ui.card_faces.get(uid,false): await t.flip(uid)
  await t.start_drag(uid,"special_3")
- t.check(c.valid and ui.drop_targets.has(c.id),"CROTCH LINK UI special-side drag uses formal rope candidate")
+ t.check(c.valid and ui.drop_targets.has(c.key),"CROTCH LINK UI special-side drag uses formal rope candidate")
  var damage=c.payload.preview.damage
  collateral=ui.game.Cards.Splash.select(ui.game,c.payload).filter(func(hit):return hit.target==anchor.id)[0].preview.damage
- await t.release_target(await t.reveal_drop_target(c.id))
+ await t.release_target(await t.reveal_drop_target(c.key))
  t.check(is_equal_approx(ui.game._equipment(link.id).durability,8-damage) and is_equal_approx(ui.game._equipment(anchor.id).durability,8-collateral) and ui.game._equipment(thigh.id).durability==8,"CROTCH LINK UI charges the selected rope, splashes its shared position and preserves the other endpoint")
  await t.inspect_body("thigh")
  t.check(t.visible_text(ui.find_child("EquipmentDetails",true,false)).contains(link.name),"CROTCH LINK UI opposite region displays same surviving rope")
@@ -119,16 +120,16 @@ static func run(t) -> void:
  var lock_icon=lock_card.find_child("EquipmentLock_"+lock.id,true,false)
  t.check(lock.locked and lock_icon!=null and lock_icon.locked and lock_icon.lockable and text.contains("状态：已上锁") and text.contains("开锁"),"CHASTITY UI shows the auto-locked root with the normal closed-lock icon, explicit state and unlock method")
  await t.capture("ui-118-chastity-lock.png")
- # Unlocked owner with a tighter attached band: selection and damage use real candidates.
+ # Unlocked owner with a tighter attached band: selection and damage use real facts.
  ui.game.state.equipment.clear();ui.game.state.composites.clear();ui.game.state.links.clear()
  lock.locked=false;lock.durability=lock.maximum*0.8
  var strap=ui.game.state.special_equipment.filter(func(e):return e.owner_id==lock.id)[0]
  var strain_card=preload("res://tests/curse_cases.gd").give(ui.game,"strain")
  ui.render();await t.frames()
  await t.start_drag(strain_card.uid,"special_2")
- var strain_action=ui.actions.find("card",{"uid":strain_card.uid,"target":lock.id,"free":false})
+ var strain_action=Queries.find(ui.view,"card",{"uid":strain_card.uid,"target":lock.id,"free":false})
  t.check(strain_action.valid and strain_action.release_preview.after==0,"PLATE STRAIN UI previews whole removal with attached band")
- await t.release_target(await t.reveal_drop_target(strain_action.id))
+ await t.release_target(await t.reveal_drop_target(strain_action.key))
  t.check(ui.game._equipment(lock.id).is_empty() and ui.game._equipment(strap.id).is_empty(),"PLATE STRAIN UI real drag removes owner and its band together")
 
  # Full-cup fixing bands share the component projection without borrowing lock state.

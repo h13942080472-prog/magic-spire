@@ -1,4 +1,5 @@
 extends RefCounted
+const Queries=preload("res://ui/target_queries.gd")
 
 static func floating_illustrations(t) -> void:
  var arena=preload("res://ui/arena.gd")
@@ -70,7 +71,7 @@ static func run(t) -> void:
  t.check(await t.click("attack",{"type":"strike","form":0,"enemy":master}) and ui.find_child("StatusIcon_damage_barrier_"+master,true,false).find_child("StatusCount",true,false).text=="22","PUPPET UI direct attack immediately reduces barrier badge by actual damage")
  t.check(await t.click("end") and ui.view.statuses.any(func(s):return s.id=="puppet_"+doll and s.detail.contains("单体攻击必须选择玩偶")),"PUPPET UI awakening updates the shared puppet status")
  t.check(ui.find_child("StatusIcon_damage_barrier_"+master,true,false).find_child("StatusCount",true,false).text=="30","PUPPET UI next turn resets barrier badge to thirty")
- t.check(not ui.actions.find("attack",{"type":"strike","enemy":master}).valid and ui.actions.find("attack",{"type":"strike","enemy":master}).reason.contains("嘲讽"),"PUPPET UI master target gives the actual taunt reason")
+ t.check(not Queries.find(ui.view,"attack",{"type":"strike","enemy":master}).valid and Queries.find(ui.view,"attack",{"type":"strike","enemy":master}).reason.contains("嘲讽"),"PUPPET UI master target gives the actual taunt reason")
  var target_point=ui.find_child("EnemySelect_"+doll,true,false).get_global_rect().get_center()
  await t.mouse_button(target_point,MOUSE_BUTTON_LEFT,true)
  await t.mouse_button(target_point,MOUSE_BUTTON_LEFT,false)
@@ -148,10 +149,10 @@ static func run(t) -> void:
  var heap_id=ui.view.enemies[0].id
  t.check(ui.view.enemies[0].template=="rope_heap" and ui.view.enemies[0].maximum==96 and ui.layout.find_child("EnemyArt_"+heap_id,true,false).mode=="rope_heap","HEAP UI practice has distinct elite silhouette and actual HP")
  t.check(await t.click("end") and ui.view.statuses.any(func(s):return s.id=="turn_install_"+heap_id),"HEAP UI first action exposes active source effect")
- var hit=ui.actions.find("attack",{"type":"strike","enemy":heap_id})
+ var hit=Queries.find(ui.view,"attack",{"type":"strike","enemy":heap_id})
  ui.game._enemy(heap_id).hp=47+hit.payload.damage;ui.render();await t.frames()
  t.check(await t.click("attack",{"type":"strike","enemy":heap_id}) and ui.view.enemies.filter(func(e):return not e.gone).size()==3,"HEAP UI formal attack splits elite into three actual targets")
- t.check(ui.view.statuses.all(func(s):return s.id!="turn_install_"+heap_id) and ui.view.enemies.filter(func(e):return not e.gone).all(func(e):return ui.actions.select("attack").any(func(c):return c.payload.enemy==e.id)),"HEAP UI removes source status and supplies child attack targets")
+ t.check(ui.view.statuses.all(func(s):return s.id!="turn_install_"+heap_id) and ui.view.enemies.filter(func(e):return not e.gone).all(func(e):return Queries.select(ui.view,"attack").any(func(c):return c.payload.enemy==e.id)),"HEAP UI removes source status and supplies child attack targets")
  t.check(ui.layout.find_child("EnemyGroup_"+heap_id,true,false)==null and not ui.actor_targets.has(heap_id),"CROWD split parent immediately releases its entire visual slot")
  var large_child=ui.view.enemies.filter(func(e):return not e.gone and e.template=="rope_mass")[0]
  ui.game._enemy(large_child.id).hp=1;ui.render();await t.frames()
@@ -185,7 +186,7 @@ static func run(t) -> void:
  t.check(await t.click("attack",{"type":"strike","enemy":mass_id}) and ui.view.phase=="battle" and ui.view.enemies.filter(func(e):return not e.gone).size()==2,"MASS UI lethal attack creates two selectable children without reward screen")
  var children=ui.view.enemies.filter(func(e):return not e.gone)
  t.check(children.all(func(e):return e.intent_icons.any(func(row):return row.kind=="wait")) and ui.view.action_log.any(func(l):return l.cue=="enemy.split"),"MASS UI shows entry timing and split result")
- t.check(children.all(func(e):return ui.actions.select("attack").any(func(c):return c.payload.enemy==e.id and c.valid)),"MASS UI children receive actual attack candidates")
+ t.check(children.all(func(e):return Queries.select(ui.view,"attack").any(func(c):return c.payload.enemy==e.id and c.valid)),"MASS UI children receive actual attack facts")
  await t.start_practice("Practice_gag_solo")
  for button in ui.card_buttons.values():
   var illustration=button.get_node("CardIllustration")
@@ -201,18 +202,18 @@ static func run(t) -> void:
  ui.selected_slot="mouth";ui.render();await t.frames()
  var target=ui.view.bodies.filter(func(b):return b.id=="mouth")[0].equipment[0]
  var card=ui.view.hand.filter(func(c):return c.type=="strain")[0]
- var candidate=ui.actions.find("card",{"uid":card.uid,"slot":"mouth","target":target.id})
+ var candidate=Queries.find(ui.view,"card",{"uid":card.uid,"slot":"mouth","target":target.id})
  var damage=candidate.payload.preview.damage
  var original=target.durability
  await t.start_drag(card.uid,"mouth")
- await t.release_target(await t.reveal_drop_target(candidate.id))
+ await t.release_target(await t.reveal_drop_target(candidate.key))
  var remaining=ui.view.bodies.filter(func(b):return b.id=="mouth")[0].equipment
  t.check((remaining.is_empty() and damage>=original) or (not remaining.is_empty() and is_equal_approx(remaining[0].durability,original-damage)),"MOUTH native drag applies actual equipment damage")
  await t.start_practice("Practice_belt_gag")
  t.check(ui.view.enemies.size()==2 and ui.view.enemies[0].type=="belt" and ui.view.enemies[1].type=="silencer","MOUTH strong practice renders actual separate targets")
  for i in range(3): t.check(await t.click("end"),"MOUTH mixed battle progresses via real turns")
  t.check(ui.view.phase=="battle" and ui.view.enemies[1].gone and not ui.view.enemies[0].gone,"MOUTH one departure does not end mixed encounter")
- t.check(ui.view.candidates.any(func(c):return c.payload.kind=="attack" and c.payload.type=="fireball" and c.valid) and ui.view.casting.chance>0 and ui.view.casting.chance<1,"MOUTH UI receives actual reduced spell chance")
+ t.check(ui.view.display_facts.any(func(c):return c.payload.kind=="attack" and c.payload.type=="fireball" and c.valid) and ui.view.casting.chance>0 and ui.view.casting.chance<1,"MOUTH UI receives actual reduced spell chance")
  await t.capture("ui-63-mouth-restriction.png")
 
  # Controlled visibility boundary; normal-play runs below never use fixtures.
@@ -223,13 +224,13 @@ static func run(t) -> void:
  await t.capture("ui-66-hidden-intents.png")
  var slip=ui.view.hand.filter(func(c):return c.type=="slip")[0]
  if ui.card_faces.get(slip.uid,false): await t.flip(slip.uid)
- var escape=ui.actions.find("card",{"uid":slip.uid,"slot":"eyes","target":mask.id})
+ var escape=Queries.find(ui.view,"card",{"uid":slip.uid,"slot":"eyes","target":mask.id})
  var plans=ui.game.state.enemies.duplicate(true)
  await t.start_drag(slip.uid,"eyes")
- await t.release_target(await t.reveal_drop_target(escape.id))
+ await t.release_target(await t.reveal_drop_target(escape.key))
  t.check(ui.view.enemies.all(func(e):return e.intent_visible) and ui.game.state.enemies==plans,"VISION native escape reveals unchanged intent in same turn")
  await t.capture("ui-67-restored-intents.png")
- var attack=ui.actions.select("attack").filter(func(c):return c.valid)[0]
+ var attack=Queries.select(ui.view,"attack").filter(func(c):return c.valid)[0]
  ui.selected_enemy=attack.payload.enemy;ui.render();await t.frames()
  var old_hp=ui.view.enemies.filter(func(e):return e.id==attack.payload.enemy)[0].hp
  t.check(await t.click("attack",attack.payload),"ART feedback follows a real legal attack")
@@ -278,7 +279,7 @@ static func run(t) -> void:
 
  ui.game_factory=preload("res://core/game.gd");ui.restart(42);await t.frames()
  t.check(await t.click("departure",{"op":"skip"}) and ui.view.phase=="map","POOL UI completes the formal opening before choosing a room")
- var destinations=ui.actions.select("route")
+ var destinations=Queries.select(ui.view,"route")
  t.check(not destinations.is_empty(),"POOL UI opening map exposes actual destinations")
  if destinations.is_empty(): return
  var destination=destinations[0].payload.room

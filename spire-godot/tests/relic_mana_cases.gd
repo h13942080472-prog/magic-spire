@@ -17,7 +17,7 @@ static func pleasure_extractor(t) -> void:
  g=Game.new(42);g.state.relics=[];g.state.flask_mana=7;g.state.mana=50;g.state.temporary_mana=3;g.state.flask_deposits=2
  g.RelicEffects.gain(g,"pleasure_extractor")
  t.check(g.state.flask_mana==7 and g.Relics.TYPES.pleasure_extractor.rarity=="uncommon","EXTRACTOR uncommon pickup grants no immediate mana")
- var before=g.export_snapshot();g.get_view();g.candidates()
+ var before=g.export_snapshot();g.get_view();g.command_facts()
  t.check(g.state==before,"EXTRACTOR queries never trigger the reward")
  P.gain(g,99,"fixture",true)
  t.check(g.state.flask_mana==7,"EXTRACTOR pressure below the threshold gives no mana")
@@ -42,10 +42,10 @@ static func pleasure_extractor(t) -> void:
  for enemy in g.state.enemies: enemy.intent.delayed=true
  var action=t.find_action(g,"end");var version=g.state.version
  before=g.export_snapshot()
- t.check(not g.dispatch(action.id,version-1).ok and g.state==before,"EXTRACTOR rejected turn cannot trigger a reward")
- t.check(g.dispatch(action.id,version).ok and g.state.flask_mana==10,"EXTRACTOR formal turn commits automatic flask gain")
+ t.check(not g.dispatch(g.command(action.payload,version-1),version-1).ok and g.state==before,"EXTRACTOR rejected turn cannot trigger a reward")
+ t.check(g.dispatch(g.command(action.payload,version),version).ok and g.state.flask_mana==10,"EXTRACTOR formal turn commits automatic flask gain")
  before=g.export_snapshot()
- t.check(not g.dispatch(action.id,version).ok and g.state==before,"EXTRACTOR duplicate turn cannot repeat flask gain")
+ t.check(not g.dispatch(g.command(action.payload,version),version).ok and g.state==before,"EXTRACTOR duplicate turn cannot repeat flask gain")
  g=Game.new(42);g.state.relics=[]
  var excluded=g.Relics.REWARDS.filter(func(id):return id!="pleasure_extractor")
  t.check(LogCases.offer_tier(g,"uncommon",excluded)=="pleasure_extractor","EXTRACTOR is available through the shared uncommon reward pool")
@@ -85,16 +85,16 @@ static func cloak(t) -> void:
  var action=t.find_action(g,"card",{"uid":card.uid,"free":false})
  t.check(action.valid and action.mana==3 and action.mana_payment.temporary_mana==1 and action.mana_payment.mana==2,"CLOAK candidate payment matches discounted face cost")
  var version=g.state.version
- t.check(g.dispatch(action.id,version).ok and g.state.mana==18 and g.state.temporary_mana==0,"CLOAK formal card play pays only the discounted total")
+ t.check(g.dispatch(g.command(action.payload,version),version).ok and g.state.mana==18 and g.state.temporary_mana==0,"CLOAK formal card play pays only the discounted total")
  var saved=g.export_snapshot();var twin=Game.new(42)
  t.check(twin.restore_snapshot(saved).ok and twin.Cards.face_mana(twin,"mana_surge",false)==3,"CLOAK stacked reduction survives snapshot restoration")
- t.check(not g.dispatch(action.id,version).ok and g.state==saved,"CLOAK stale card cannot spend discounted mana twice")
+ t.check(not g.dispatch(g.command(action.payload,version),version).ok and g.state==saved,"CLOAK stale card cannot spend discounted mana twice")
  for i in range(4): g.RelicEffects.gain(g,"intellect_cloak")
  t.check(g.Cards.face_mana(g,"mana_surge",false)==0 and g.Cards.face_mana(g,"mana_surge",true)==0,"CLOAK over-discounted and zero-cost faces remain zero")
  g.state.mana=0;g.state.temporary_mana=0
  card=Rewards.give(t,g,"mana_surge")
  t.check(t.action(g,"card",{"uid":card.uid,"free":false}).ok and g.state.mana==0,"CLOAK zero-mana discounted card is playable without generating mana")
- var attacks=[];g._attack_candidates(attacks)
+ var attacks=g.attack_facts()
  t.check(attacks.filter(func(c):return c.payload.type=="fireball").all(func(c):return c.mana==g._mana_cost(g.B.SPELL_COST)),"CLOAK basic fireball is not a card and keeps its mana cost")
  var PrisonCases=preload("res://tests/prison_cases.gd")
  g=PrisonCases.intake(t);PrisonCases.clear_fixture(g)
@@ -104,7 +104,7 @@ static func cloak(t) -> void:
  card=t.grant_fixture_card(g,"unlock")
  action=t.find_action(g,"prison",{"action":"unlock","uid":card.uid})
  t.check(action.valid and action.mana==9 and action.mana==g.Cards.face_mana(g,"unlock",false),"CLOAK prison door shares the card cost and allows exact discounted payment")
- t.check(g.dispatch(action.id,g.state.version).ok and g.state.prison.door_open and g.state.mana==0,"CLOAK formal prison spell opens the door using discounted mana")
+ t.check(g.dispatch(g.command(action.payload,g.state.version),g.state.version).ok and g.state.prison.door_open and g.state.mana==0,"CLOAK formal prison spell opens the door using discounted mana")
 
 static func fallback(t) -> void:
  var g=Game.new(42)

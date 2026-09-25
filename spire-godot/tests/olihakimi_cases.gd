@@ -9,8 +9,8 @@ static func run(t) -> void:
  var g=fresh()
  var excluded=g.Relics.REWARDS.filter(func(id):return id!="olihakimi");g.state.relics=[]
  t.check(preload("res://tests/rolling_log_cases.gd").offer_tier(g,"uncommon",excluded)=="olihakimi","OLI real uncommon reward pool")
- g=fresh();var before=g.export_snapshot();g.get_view();g.candidates()
- t.check(g.state==before and not g.dispatch("missing",g.state.version).ok and g.state==before,"OLI read-only and invalid actions never spend or reward")
+ g=fresh();var before=g.export_snapshot();g.get_view();g.command_facts()
+ t.check(g.state==before and not g.dispatch(g.command({"kind":"card","uid":"missing"},g.state.version),g.state.version).ok and g.state==before,"OLI read-only and invalid actions never spend or reward")
  var ended=t.action(g,"end")
  t.check(ended.ok and g.state.mana==48 and not g.state.combat.mana_used,"OLI actual unspent turn restores eight and next turn resets flag")
  t.check(ended.resource_feedback.any(func(event):return event.field=="mana" and event.source=="奥利哈基米" and event.after-event.before==8),"OLI named resource animation receives actual recovery")

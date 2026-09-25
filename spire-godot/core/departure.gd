@@ -69,26 +69,28 @@ static func reason(g, entry: Dictionary) -> String:
   if issue!="": return issue
  return ""
 
-static func candidates(g) -> Array:
+# 出发面板的显示事实（批 R5：行生产转发改显示事实构建，docs/spec/candidate-removal.md §2.1 T5／T8）。
+# 标签按本函数自建的顺序取 Data.CATEGORIES（与改动前的行序一致）。
+static func facts(g) -> Array:
  var out=[];var d=g.state.departure
  if d.stage=="choose":
   for entry in d.options:
    var choose_args={"entry_id":entry.id}
-   g._candidate(out,{"kind":"departure","op":"choose","option":entry.id},Data.CATEGORIES[out.size()],{"kind":"departure.description","args":choose_args,"fallback":description_detail(g,choose_args)},0,0,reason(g,entry),"","reward")
-  g._candidate(out,{"kind":"departure","op":"skip"},"直接出发",{"kind":"departure.skip","args":{},"fallback":skip_detail(g,{})},0,0,"","","flow")
+   out.append(g._fact({"kind":"departure","op":"choose","option":entry.id},Data.CATEGORIES[out.size()],{"kind":"departure.description","args":choose_args,"fallback":description_detail(g,choose_args)},0,0.0,reason(g,entry),"","reward"))
+  out.append(g._fact({"kind":"departure","op":"skip"},"直接出发",{"kind":"departure.skip","args":{},"fallback":skip_detail(g,{})},0,0.0,"","","flow"))
  elif d.stage=="card":
   var entry=selected(g)
   if entry.id in ["remove","transform"]:
    for card in g.state.deck:
     if entry.id=="transform" and not entry.changes.has(card.uid): continue
     var card_args={"entry_id":entry.id}
-    g._candidate(out,{"kind":"departure","op":"card","uid":card.uid,"type":card.type},g.B.CARD_NAMES[card.type],{"kind":"departure.description","args":card_args,"fallback":description_detail(g,card_args)},0,0,reason(g,entry),"","reward")
+    out.append(g._fact({"kind":"departure","op":"card","uid":card.uid,"type":card.type},g.B.CARD_NAMES[card.type],{"kind":"departure.description","args":card_args,"fallback":description_detail(g,card_args)},0,0.0,reason(g,entry),"","reward"))
   else:
    for type in entry.cards:
     var type_args={"entry_id":entry.id}
-    g._candidate(out,{"kind":"departure","op":"card","type":type},g.B.CARD_NAMES[type],{"kind":"departure.description","args":type_args,"fallback":description_detail(g,type_args)},0,0,reason(g,entry),"","reward")
+    out.append(g._fact({"kind":"departure","op":"card","type":type},g.B.CARD_NAMES[type],{"kind":"departure.description","args":type_args,"fallback":description_detail(g,type_args)},0,0.0,reason(g,entry),"","reward"))
  else:
-  g._candidate(out,{"kind":"departure","op":"finish"},"出发  ›",{"kind":"departure.finish","args":{},"fallback":finish_detail(g,{})},0,0,"","","flow")
+  out.append(g._fact({"kind":"departure","op":"finish"},"出发  ›",{"kind":"departure.finish","args":{},"fallback":finish_detail(g,{})},0,0.0,"","","flow"))
  return out
 
 # R4（docs/ondemand-copy.md §11.5）：直呼点文案改走路由，正文留在本模块。
@@ -155,14 +157,14 @@ static func execute(g, p: Dictionary) -> String:
  g._emit("event",result)
  return ""
 
-static func panel(g, actions: Array) -> Dictionary:
+static func panel(g, facts: Array) -> Dictionary:
  var d=g.state.departure
  var rows=[]
- for c in actions:
+ for c in facts:
   if c.payload.kind!="departure": continue
-  rows.append({"action_id":c.id,"label":c.label,"detail":c.detail,"reason":c.reason,"valid":c.valid,"type":c.payload.get("type",""),"uid":c.payload.get("uid",""),"op":c.payload.op})
+  rows.append({"action_key":String(c.get("key","")),"label":c.label,"detail":c.detail,"reason":c.reason,"valid":c.valid,"type":c.payload.get("type",""),"uid":c.payload.get("uid",""),"op":c.payload.op})
  var invitation="三选一，也可以直接出发。\n初始遗物已替换为「诅咒平板锁」。" if d.get("cursed_plate_start",false) else ("五选一，也可以直接出发。" if d.options.size()==5 else "四选一，也可以直接出发。")
- return {"active":true,"layout":"departure","title":"选择一张牌" if d.stage=="card" else ("准备出发" if d.stage=="done" else "第0层 · 出发"),"destination":description(g,d.selected) if d.stage=="card" else (d.result if d.stage=="done" else invitation),"continue_id":"","continue_label":"","extra_ids":[],"rows":[],"entries":rows,"stage":d.stage}
+ return {"active":true,"layout":"departure","title":"选择一张牌" if d.stage=="card" else ("准备出发" if d.stage=="done" else "第0层 · 出发"),"destination":description(g,d.selected) if d.stage=="card" else (d.result if d.stage=="done" else invitation),"continue_key":"","continue_label":"","extra_keys":[],"rows":[],"entries":rows,"stage":d.stage}
 
 static func validate(g, s: Dictionary) -> String:
  var d=s.get("departure")

@@ -26,7 +26,7 @@ static func run(t) -> void:
  t.check("ditto" in g.Relics.shop_pool() and "ditto" not in g.Relics.REWARDS,"DITTO shop exclusive pool")
  t.check(g.state.relics==["ditto"] and g.state.ditto_form=="rolling_log" and g.RelicEffects.validate(g)=="","DITTO rolling log remains a form, not physical ownership")
  var before=g.export_snapshot()
- g.get_view();g.candidates()
+ g.get_view();g.command_facts()
  t.check(g.state==before,"DITTO read projections do not reroll")
  var twin=Game.new(99)
  t.check(twin.restore_snapshot(before).ok and twin.state.ditto_form=="rolling_log","DITTO save restores selected form")
@@ -72,7 +72,7 @@ static func run(t) -> void:
  t.check(g.state.relic_pending.is_empty(),"DITTO both trigger limits prevent double payout")
  g=fixture("great_wand");g.state.mana=30;g.state.relic_counters.ditto=4;g.state.relic_counters.great_wand=2
  var c=t.find_action(g,"relic_discharge",{"relic":"ditto"})
- t.check(c.valid and g.dispatch(c.id,g.state.version).ok and g.state.mana==34 and g.state.relic_counters.great_wand==2 and g.state.relic_counters.ditto==0,"DITTO formal manual discharge only consumes selected source")
+ t.check(c.valid and g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.mana==34 and g.state.relic_counters.great_wand==2 and g.state.relic_counters.ditto==0,"DITTO formal manual discharge only consumes selected source")
  var row=g.RelicEffects.view(g).filter(func(r):return r.id=="ditto")[0]
  t.check(row.icon=="great_wand" and row.name.contains("百变怪") and row.counter.value==0,"DITTO live projection exposes form and its own counter")
  for form in pool:

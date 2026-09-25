@@ -1,6 +1,7 @@
 extends RefCounted
 const Cases=preload("res://tests/universal_scanner_cases.gd")
 const Pointer=preload("res://tests/target_sidebar_ui_cases.gd")
+const Queries=preload("res://ui/target_queries.gd")
 
 static func run(t) -> void:
  var ui=t.ui
@@ -28,7 +29,7 @@ static func run(t) -> void:
  await t.mouse_button(point,MOUSE_BUTTON_RIGHT,true);await t.mouse_button(point,MOUSE_BUTTON_RIGHT,false)
  t.check(ui.game.export_snapshot()==before and button.free_face,"SCANNER UI filtering and flipping remain read only")
  search.text="";search.text_changed.emit(search.text);await t.frames()
- t.check(browser.grid.get_child_count()==browser.cards.size() and ui.actions.select("reward").filter(func(c):return c.payload.get("op","")=="copy").all(func(c):return ui.candidate_buttons.has(c.id) and is_instance_valid(ui.candidate_buttons[c.id])),"SCANNER UI clearing filter restores every card and candidate button")
+ t.check(browser.grid.get_child_count()==browser.cards.size() and Queries.select(ui.view,"reward").filter(func(c):return c.payload.get("op","")=="copy").all(func(c):return ui.candidate_buttons.has(c.key) and is_instance_valid(ui.candidate_buttons[c.key])),"SCANNER UI clearing filter restores every card and candidate button")
  button=browser.grid.get_child(browser.grid.get_child_count()-1)
  uid=button.get_meta("physical_uid")
  var selected_type=ui.game.state.deck.filter(func(card):return card.uid==uid)[0].type

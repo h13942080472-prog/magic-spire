@@ -37,8 +37,8 @@ static func run(t) -> void:
  var peer=piece(g,"thigh","thigh_root",99,100)
  card=Give.give(g,TYPE);var c=t.find_action(g,"card",{"uid":card.uid,"target":target.id})
  t.check(g.candidate_detail(c).contains("全身合法目标") and not g.candidate_detail(c).contains("不跨"),"FOLLOW super strain target detail agrees with full-body keyword and behavior")
- before=g.export_snapshot();g.get_view();g.candidates()
- t.check(g.state==before and not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"FOLLOW previews and stale submission preserve complete state and RNG")
+ before=g.export_snapshot();g.get_view();g.command_facts()
+ t.check(g.state==before and not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"FOLLOW previews and stale submission preserve complete state and RNG")
  g.state.energy=2;before=g.export_snapshot()
  t.check(not t.action(g,"card",{"uid":card.uid,"target":target.id}).ok and g.state==before,"FOLLOW insufficient three-energy payment refuses atomically")
  g.state.energy=3
@@ -104,7 +104,7 @@ static func revised_multihit(t) -> void:
   var card=Give.give(g,type);g.state.charge=4
   var preview=t.find_action(g,"card",{"uid":card.uid,"target":target.id}).payload.preview
   var before=g.export_snapshot()
-  t.check(not g.dispatch("missing",g.state.version).ok and g.state==before,type+" invalid submission preserves complete state")
+  t.check(not g.dispatch(g.command({"kind":"card","uid":"missing"},g.state.version),g.state.version).ok and g.state==before,type+" invalid submission preserves complete state")
   t.check(t.action(g,"card",{"uid":card.uid,"target":target.id}).ok and hits(g).size()==3 and hits(g).all(func(h):return h.target==target.id and h.before>h.after),type+" surviving target receives three actual hits")
   t.check(is_equal_approx(hits(g)[0].before-hits(g)[0].after,preview.damage) and preview.base==4 and preview.charge==g.B.CHARGE_BONUS and g.state.charge==1,type+" uses current damage formula and consumes one charge per segment")
   t.check(g.state.energy==1 and g.state.card_chain.is_empty() and g.state.discard.any(func(c):return c.uid==card.uid) and g.state.rng==before.rng,type+" pays and discards once without pending choice or unnecessary random rolls")
@@ -159,8 +159,8 @@ static func super_follow_through(t) -> void:
  g=fresh();g.state.charge=2
  var card=Give.give(g,TYPE);var before=g.export_snapshot()
  var c=t.find_action(g,"card",{"uid":card.uid,"free":true})
- t.check(not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"FOLLOW free super card stale submission grants no charge or payment")
- t.check(g.dispatch(c.id,g.state.version).ok and g.state.charge==8 and g.state.discard.any(func(v):return v.uid==card.uid),"FOLLOW free six charge adds to existing charge and discards once")
+ t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"FOLLOW free super card stale submission grants no charge or payment")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.charge==8 and g.state.discard.any(func(v):return v.uid==card.uid),"FOLLOW free six charge adds to existing charge and discards once")
 
 static func ignore_tightness(t) -> void:
  var g=fresh();var target=piece(g,"thigh","thigh_root",100,100)

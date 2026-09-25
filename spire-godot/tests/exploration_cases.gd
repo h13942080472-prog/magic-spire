@@ -44,7 +44,7 @@ static func run(t) -> void:
   var g=fresh(blind);var other=fresh(blind)
   t.check(g.state.prison.space==other.state.prison.space,"EXP layout seeded once")
   var frozen=g.export_snapshot();var v=Space.view(g)
-  for i in range(3): g.get_view();g.candidates()
+  for i in range(3): g.get_view();g.command_facts()
   t.check(g.export_snapshot()==frozen,"EXP preview does not move discover or roll")
   t.check(v.blind==blind and not v.has("position") and not v.has("blocked"),"EXP frontend never receives hidden geometry")
   for site in v.sites:
@@ -56,7 +56,7 @@ static func run(t) -> void:
   if not blind:
    t.check(v.sites.filter(func(site):return site.id=="place_1")[0].interaction=={"kind":"door"},"EXP visible door maps only to door secondary context")
    t.check(v.sites.filter(func(site):return site.id=="place_4")[0].interaction.is_empty(),"EXP undiscovered vent has no interaction metadata")
-  var actions=g.candidates().filter(func(c):return c.payload.kind=="prison" and c.payload.action=="explore")
+  var actions=g.command_facts().filter(func(c):return c.payload.kind=="prison" and c.payload.action=="explore")
   t.check(actions.all(func(c):return c.payload.has("direction")==blind and c.payload.has("site")!=blind),"EXP mode dictates actual candidate inputs")
   walk_to(t,g,"place_2");walk_to(t,g,"place_3");walk_to(t,g,"place_4")
   t.check(g.state.prison.found.size()==3 and g.state.items.size()==2,"EXP complete travel yields two tools and vent once")
@@ -79,7 +79,7 @@ static func run(t) -> void:
  Fixture.position(g,[3,2]);before=g.export_snapshot()
  t.check(not t.action(g,"prison",{"action":"explore","direction":"east","steps":1}).ok and g.export_snapshot()==before,"EXP furniture blocks without spending")
  Fixture.position(g,[3,1]);t.check(t.action(g,"prison",{"action":"explore","direction":"north","steps":2}).ok and g.state.prison.space.position==[3,0] and g.at_wall(),"EXP blind step clamps at real boundary")
- t.check(g.candidates().all(func(c):return c.payload.kind!="wall_move"),"EXP blind cannot bypass directions with homing wall control")
+ t.check(g.command_facts().all(func(c):return c.payload.kind!="wall_move"),"EXP blind cannot bypass directions with homing wall control")
 
  g=fresh();Fixture.position(g,[3,3]);g.state.posture="lie"
  var c=t.find_action(g,"wall_move",{"direction":"toward"});before=g.export_snapshot()
@@ -87,7 +87,7 @@ static func run(t) -> void:
  t.check(g.state.energy==before.energy-c.cost and g.state.prison.left==before.prison.left,"EXP movement fee does not advance patrol timer")
  for pose in ["stand","sit","lie"]:
   g=fresh();g.state.posture=pose
-  for a in g.candidates().filter(func(a):return a.payload.kind=="prison" and a.payload.action=="explore"):
+  for a in g.command_facts().filter(func(a):return a.payload.kind=="prison" and a.payload.action=="explore"):
    t.check(a.cost==g.wall_movement_profile().cost,"EXP same wall cost for every posture")
 
  for level in range(1,5):
@@ -175,9 +175,9 @@ static func run(t) -> void:
  for value in invalid:
   t.check(not g.restore_snapshot(value).ok and g.export_snapshot()==original,"EXP bad spatial snapshot rolls back")
  c=t.find_action(g,"prison",{"action":"explore","site":"place_1"})
- t.check(not g.dispatch(c.id,g.state.version-1).ok and g.export_snapshot()==original,"EXP stale destination fully atomic")
+ t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.export_snapshot()==original,"EXP stale destination fully atomic")
  g.state.mana=101;before=g.export_snapshot()
- t.check(not g.dispatch(c.id,g.state.version).ok and g.export_snapshot()==before,"EXP failed final validation rolls back position discovery rng and costs")
+ t.check(not g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.export_snapshot()==before,"EXP failed final validation rolls back position discovery rng and costs")
 
 static func distance_and_warning(t) -> void:
  var g=fresh();var original=Space.view(g)
@@ -196,7 +196,7 @@ static func distance_and_warning(t) -> void:
  Fixture.position(g,[2,1])
  t.check(Space.wall_warning(g,[[2,2],[2,3]])=="","EXP already away is not a new wall departure")
  g=fresh(true);Fixture.position(g,[0,3])
- var before=g.export_snapshot();var actions=g.candidates()
+ var before=g.export_snapshot();var actions=g.command_facts()
  t.check(actions.any(func(c):return c.payload.kind=="prison" and c.payload.get("direction","")=="east" and c.payload.get("wall_warning","")!=""),"EXP blind direction warns before leaving wall")
  t.check(Space.view(g).sites.all(func(site):return not site.has("initial_distance") and not site.has("distance") and not site.has("installed")),"EXP blind bars and installed metadata do not disclose remote geometry")
  t.check(g.export_snapshot()==before,"EXP distance and wall warnings never roll or mutate state")

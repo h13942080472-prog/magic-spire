@@ -122,9 +122,9 @@ static func capture(g, captor: Dictionary) -> void:
  var special_added=intake.special_added
  var links=[]
  for i in range(mini(3,g.state.security)):
-  var candidates=g.EquipmentOffers.links(g,spec.grade)
-  if candidates.is_empty(): break
-  var pair=candidates[g._random_index("equipment",candidates.size())]
+  var pool=g.EquipmentOffers.links(g,spec.grade)
+  if pool.is_empty(): break
+  var pair=pool[g._random_index("equipment",pool.size())]
   var rope=g._install_link(pair.ends[0],pair.ends[1],E.maximum(spec.grade)*[0.0,0.4,0.8,1.0][spec.tier],"prison",spec.grade,[],pair.slots,pair.contact_points)
   if not rope.is_empty(): links.append(rope.id)
  var installed_links=g.state.links.filter(func(link):return link.id in links)

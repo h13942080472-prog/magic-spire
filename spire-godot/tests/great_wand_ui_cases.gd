@@ -22,8 +22,8 @@ static func run(t) -> void:
  t.check(ui.game.state.relic_counters.great_wand==0 and ui.game.state.mana==41 and ui.find_child("RelicShortcut_great_wand",true,false).find_child("RelicCounter",true,false).text=="0","WAND UI native right click exchanges through formal action and refreshes counter")
  for n in range(14):
   var skill=Cards.give(ui.game,"strain")
-  var choice=ui.game.candidates().filter(func(x):return x.payload.get("uid","")==skill.uid and x.payload.get("free",false))[0]
-  t.check(ui.game.dispatch(choice.id,ui.game.state.version).ok,"WAND UI threshold setup uses formal skill actions")
+  var choice=ui.game.command_facts().filter(func(x):return x.payload.get("uid","")==skill.uid and x.payload.get("free",false))[0]
+  t.check(ui.game.dispatch(ui.game.command(choice.payload,ui.game.state.version),ui.game.state.version).ok,"WAND UI threshold setup uses formal skill actions")
  card=Cards.give(ui.game,"strain");ui.card_faces[card.uid]=true;ui.render();await t.frames()
  t.check(ui.find_child("RelicShortcut_great_wand",true,false).find_child("RelicCounter",true,false).text=="14","WAND UI shows charged meter before automatic threshold")
  await Click.click_card(t,card.uid)

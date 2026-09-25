@@ -13,8 +13,8 @@ static func run(t) -> void:
  var g=Game.new(42);var before=g.export_snapshot()
  t.check(g.state.deck.size()==10 and g.state.deck.filter(func(card):return card.type=="strain").size()==4 and g.state.deck.filter(func(card):return card.type=="slip").size()==4 and g.state.deck.filter(func(card):return card.type=="ease").size()==1 and g.state.deck.filter(func(card):return card.type=="magic_slip").size()==1 and g.state.deck.all(func(card):return g.Cards.Rules.SPECS[card.type].rarity=="basic"),"OPENING ten basic cards contain one magic slip instead of unlock")
  t.check(g.state.phase=="departure" and g.state.round==0 and not g.state.combat.active and g.state.departure.options.size()==5,"OPENING actual run starts at zero with five choices and no combat effects")
- t.check(g.get_view().reward_panel.entries.size()==6 and g.candidates().all(func(c):return c.payload.kind=="departure" or (c.payload.kind=="flask" and c.payload.op=="withdraw")) and not g.room_entry_reason(g.room_data(g.room_data(g.state.room).next[0])).is_empty(),"OPENING choices and resource recovery do not let route bypass opening")
- for i in range(3): g.get_view();g.route_view();g.candidates()
+ t.check(g.get_view().reward_panel.entries.size()==6 and g.command_facts().all(func(c):return c.payload.kind=="departure" or (c.payload.kind=="flask" and c.payload.op=="withdraw")) and not g.room_entry_reason(g.room_data(g.room_data(g.state.room).next[0])).is_empty(),"OPENING choices and resource recovery do not let route bypass opening")
+ for i in range(3): g.get_view();g.route_view();g.command_facts()
  t.check(g.export_snapshot()==before and Game.new(42).state.departure==g.state.departure,"OPENING previews and same seed preserve offers, hidden outcomes and resources")
  var restored=Game.new(99)
  t.check(restored.restore_snapshot(g.restart_snapshot()).ok and restored.state.departure==g.state.departure,"OPENING scene restart restores frozen opening")
@@ -29,10 +29,10 @@ static func run(t) -> void:
   var entry=g.state.departure.options.filter(func(e):return e.id==id)[0].duplicate(true)
   t.check(t.action(g,"departure",{"op":"choose","option":id}).ok,"OPENING commits category "+id)
   if id in Data.PICKERS:
-   t.check(g.state.departure.stage=="card" and g.state.mana_max==before.mana_max and g.state.deck==before.deck and not g.candidates().any(func(c):return c.payload.op in ["skip","finish"]),"OPENING bound selection has no skip and pays only with final card "+id)
-   var pending=g.export_snapshot();var first=g.candidates()[0]
-   t.check(g.dispatch(first.id,g.state.version).ok,"OPENING selected card commits "+id)
-   t.check(not g.dispatch(first.id,pending.version).ok,"OPENING duplicate old card click rejects "+id)
+   t.check(g.state.departure.stage=="card" and g.state.mana_max==before.mana_max and g.state.deck==before.deck and not g.command_facts().any(func(c):return c.payload.op in ["skip","finish"]),"OPENING bound selection has no skip and pays only with final card "+id)
+   var pending=g.export_snapshot();var first=g.command_facts()[0]
+   t.check(g.dispatch(g.command(first.payload,g.state.version),g.state.version).ok,"OPENING selected card commits "+id)
+   t.check(not g.dispatch(g.command(first.payload,pending.version),pending.version).ok,"OPENING duplicate old card click rejects "+id)
    if id=="remove": t.check(g.state.deck.size()==9 and not g.state.draw.any(func(c):return c.uid==first.payload.uid),"OPENING removes exact physical card from deck and draw")
    if id=="transform": t.check(g.state.deck.size()==10 and g.state.deck[0].type==entry.changes[first.payload.uid] and g.state.draw[0].type==g.state.deck[0].type,"OPENING transforms selected basic card consistently across deck and draw")
    if id=="uncommon": t.check(g.state.deck.size()==11 and g.state.deck.back().type in g.Cards.Rules.UNCOMMON,"OPENING uncommon selected reward is permanent")
@@ -63,7 +63,7 @@ static func run(t) -> void:
    "shining_lamp": t.check(g.state.mana_max==50 and g.state.mana==50,"OPENING boss lamp pays full max-mana cost")
    "tattoo_sticker": t.check(g.state.deck.filter(func(c):return c.type=="lewd_mark").size()==2,"OPENING tattoo applies both curse cards")
    "nesting_doll":
-    t.check(g.get_view().reward_panel.layout=="relic_bundle" and g.candidates().all(func(c):return c.payload.kind=="relic_bundle" or (c.payload.kind=="flask" and c.payload.op=="withdraw")),"OPENING nesting doll preserves its three-relic selection while allowing resource recovery")
+    t.check(g.get_view().reward_panel.layout=="relic_bundle" and g.command_facts().all(func(c):return c.payload.kind=="relic_bundle" or (c.payload.kind=="flask" and c.payload.op=="withdraw")),"OPENING nesting doll preserves its three-relic selection while allowing resource recovery")
     t.action(g,"relic_bundle",{"op":"finish"})
     t.check(g.get_view().reward_panel.layout=="departure" and g.state.departure.stage=="done","OPENING nesting doll returns to completed opening")
   t.check(g.validate()=="" and restored.restore_snapshot(g.export_snapshot()).ok,"OPENING boss pickup and costs have valid snapshot "+boss)

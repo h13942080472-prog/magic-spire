@@ -14,27 +14,27 @@ static func run(t) -> void:
  var g=game();g.state.enemies[0].hp=200;g.state.enemies[0].max_hp=200
  t.check(g.Cards.Rules.SPECS.echo_cast.rarity=="uncommon" and "echo_cast" in g.Cards.Rules.UNCOMMON and g.Cards.Rules.SPECS.fire_control.rarity=="uncommon" and not g.B.CARD_TRAITS.has("echo_cast"),"ECHO replay and control are uncommon with replay not exhausting")
  var card=Cards.give(g,"echo_cast");var c=t.find_action(g,"card",{"uid":card.uid,"free":true})
- var before=g.export_snapshot();g.get_view();g.candidates()
+ var before=g.export_snapshot();g.get_view();g.command_facts()
  t.check(c.valid and c.cost==1 and c.mana==0 and before==g.state,"ECHO one energy no casting preview is read only")
- t.check(not g.dispatch(c.id,g.state.version-1).ok and before==g.state,"ECHO stale activation is atomic")
- t.check(g.dispatch(c.id,g.state.version).ok and g.state.discard.any(func(v):return v.uid==card.uid) and "echo_cast_free" in g.state.card_buffs,"ECHO free face arms and discards normally")
+ t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and before==g.state,"ECHO stale activation is atomic")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.discard.any(func(v):return v.uid==card.uid) and "echo_cast_free" in g.state.card_buffs,"ECHO free face arms and discards normally")
  t.check(Cards.play(t,g,"echo_cast",true).ok and g.state.card_buff_uses.echo_cast_free==2,"ECHO same pending face accumulates")
  before=g.export_snapshot();c=fire(t,g)
- var result=g.dispatch(c.id,g.state.version)
+ var result=g.dispatch(g.command(c.payload,g.state.version),g.state.version)
  t.check(result.ok and g.state.energy==before.energy-c.cost and g.state.mana==before.mana-c.mana and g.state.combat.attack_uses.fireball==1,"ECHO fireball repetition pays once and uses once")
  t.check(is_equal_approx(g.state.enemies[0].hp,before.enemies[0].hp-3*c.payload.damage) and g.state.enemies[1].hp==before.enemies[1].hp and "echo_cast_free" not in g.state.card_buffs,"ECHO triple damage to only original target and consumes buff")
  # Lethal casts never retarget the survivor or a new split child.
  g=game();Cards.play(t,g,"echo_cast",true);g.state.enemies[0].hp=1
- before=g.export_snapshot();result=g.dispatch(fire(t,g).id,g.state.version)
+ before=g.export_snapshot();result=g.dispatch(g.command(fire(t,g).payload,g.state.version),g.state.version)
  t.check(result.ok and g.state.enemies[0].gone and g.state.enemies[1].hp==before.enemies[1].hp and g.state.logs.any(func(log):return log.data.get("replay",{}).get("skipped",false)),"ECHO lethal original skips repeat, survivor untouched")
  # On-use powers see both actual casts; the turn bonus also applies to the replay.
  g=game();Cards.play(t,g,"wildfire_descent",false);Cards.play(t,g,"echo_cast",true)
  g.state.enemies[0].hp=100;g.state.enemies[0].max_hp=100
  g.state.card_buffs.append("embers_free");before=g.export_snapshot();c=fire(t,g)
- result=g.dispatch(c.id,g.state.version)
+ result=g.dispatch(g.command(c.payload,g.state.version),g.state.version)
  t.check(result.ok and g.state.hand.size()==before.hand.size()+2 and is_equal_approx(g.state.enemies[0].hp,before.enemies[0].hp-2*c.payload.damage) and "embers_free" in g.state.card_buffs,"ECHO both actual casts draw and keep the turn-wide embers bonus")
  g=game();Cards.play(t,g,"fire_dynamics",true);Cards.play(t,g,"echo_cast",true)
- before=g.export_snapshot();c=fire(t,g);result=g.dispatch(c.id,g.state.version)
+ before=g.export_snapshot();c=fire(t,g);result=g.dispatch(g.command(c.payload,g.state.version),g.state.version)
  t.check(result.ok and range(g.state.enemies.size()).all(func(i):return is_equal_approx(g.state.enemies[i].hp,before.enemies[i].hp-2*c.payload.damage)),"ECHO area spell repeats once on each original enemy")
  # Excluded equal faces and free faces leave the next-bound-card effect intact.
  g=game();Cards.play(t,g,"echo_cast",false)
@@ -67,7 +67,7 @@ static func run(t) -> void:
  # Failed card keeps the effect and original card; retry is the consuming play.
  g=game();Cards.play(t,g,"echo_cast",false);g.state.pressure=99
  card=Cards.give(g,"mana_conversion");c=t.find_action(g,"card",{"uid":card.uid,"free":false});before=g.export_snapshot()
- result=g.dispatch(c.id,g.state.version)
+ result=g.dispatch(g.command(c.payload,g.state.version),g.state.version)
  t.check(result.ok and g._magic_failed and "echo_cast_bound" in g.state.card_buffs and g.state.hand==before.hand,"ECHO failed casting leaves card and replay pending")
  # Pending effects persist across turns, but never across battle boundaries.
  g=game();Cards.play(t,g,"echo_cast",true);Cards.play(t,g,"echo_cast",false)
@@ -80,10 +80,10 @@ static func boundaries(t) -> void:
  var g=game();Cards.play(t,g,"flame_flourish",false);Cards.play(t,g,"echo_cast",true)
  var target=g.add_fixture("ankle",100,100)
  var c=t.find_action(g,"attack",{"type":"fireball","target":target.id})
- var before=g.export_snapshot();var result=g.dispatch(c.id,g.state.version)
+ var before=g.export_snapshot();var result=g.dispatch(g.command(c.payload,g.state.version),g.state.version)
  t.check(result.ok and g._equipment(target.id).durability==100-2*c.payload.damage and g.state.combat.attack_uses.fireball==1 and g.state.mana==before.mana-c.mana,"ECHO equipment fireball repeats on same piece and pays once")
  g=game();Cards.play(t,g,"wildfire_descent",false);Cards.play(t,g,"echo_cast",true);g.state.pressure=99
- before=g.export_snapshot();c=fire(t,g);result=g.dispatch(c.id,g.state.version)
+ before=g.export_snapshot();c=fire(t,g);result=g.dispatch(g.command(c.payload,g.state.version),g.state.version)
  var casts=g.state.logs.slice(before.logs.size()).filter(func(log):return log.data.get("spell",{}).get("type","")=="fireball")
  var successful_casts=casts.filter(func(log):return log.data.spell.success).size()
  t.check(result.ok and casts.size()==2 and successful_casts<2 and casts[0].data.spell.roll!=casts[1].data.spell.roll and g.state.hand.size()==before.hand.size()+successful_casts and is_equal_approx(g.state.mana,before.mana-c.mana*0.5),"ECHO two independent cast rolls, draw only on successful attempts, one payment")

@@ -48,7 +48,7 @@ static func run(t) -> void:
  var c=t.find_action(g,"card",{"uid":card.uid,"free":false});var rng=g.state.rng.magic
  while g._random_index("magic",g.B.CAST_ROLL_STEPS)<g.cast_view(g.Cards.cast_profile(g,"rekindle")).winning_rolls: rng=g.state.rng.magic
  g.state.rng.magic=rng
- t.check(g.dispatch(c.id,g.state.version).ok and g._magic_failed and g.state.powers[0].power_mana_progress==c.mana,"CIRCUIT failed spell counts actual charged mana")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g._magic_failed and g.state.powers[0].power_mana_progress==c.mana,"CIRCUIT failed spell counts actual charged mana")
  g.state.energy=0;before=g.export_snapshot()
  t.check(not t.action(g,"card",{"uid":card.uid,"free":false}).ok and g.state==before,"CIRCUIT cannot use future refunds to pay an unaffordable spell")
  # Existing optional extra mana payment also reaches the same meter.
@@ -67,7 +67,7 @@ static func run(t) -> void:
  var target=g.add_fixture("ankle",30,60);card=Cards.give(g,"magic_slip")
  c=t.find_action(g,"card",{"uid":card.uid,"target":target.id,"free":false})
  var damage=c.payload.preview.damage
- t.check(g.dispatch(c.id,g.state.version).ok and g.state.charge==1 and is_equal_approx(g._equipment(target.id).durability,30-damage),"CIRCUIT triggering spell deals its preview damage and leaves new charge for the next action")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.charge==1 and is_equal_approx(g._equipment(target.id).durability,30-damage),"CIRCUIT triggering spell deals its preview damage and leaves new charge for the next action")
  # Existing powers keep working after the body condition changes.
  g=fresh();activate(t,g,true);g.add_fixture("wrist",10)
  energy=g.state.energy

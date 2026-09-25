@@ -19,8 +19,8 @@ static func run(t) -> void:
  var g=fresh();var card=Cards.give(g,TYPE)
  var c=t.find_action(g,"card",{"uid":card.uid,"free":true});var before=g.export_snapshot()
  t.check(c.valid and c.cost==3 and c.mana==0 and TYPE in g.Cards.Rules.RARE and g.Cards.Rules.classification(TYPE).rarity=="rare","SYMPATHETIC rare three-energy power has no spell or mana payment")
- g.get_view();g.candidates()
- t.check(g.state==before and not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"SYMPATHETIC previews and stale activation are read only")
+ g.get_view();g.command_facts()
+ t.check(g.state==before and not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"SYMPATHETIC previews and stale activation are read only")
  g.state.energy=2;before=g.export_snapshot()
  t.check(not t.action(g,"card",{"uid":card.uid,"free":true}).ok and g.state==before,"SYMPATHETIC insufficient energy rejects without power or resource gain")
  g.state.energy=3

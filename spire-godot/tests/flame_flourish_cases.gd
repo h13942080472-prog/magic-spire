@@ -9,13 +9,13 @@ static func run(t) -> void:
  g.state.energy=10
  var enemy=g.state.enemies[0]
  var target=g.add_fixture("thigh",60.0,60.0,true)
- t.check(g.BasicAttacks.usage(g,"fireball").limit==2 and not g.candidates().any(func(c):return c.payload.get("target","")==target.id and c.payload.kind=="attack"),"FLAME default two casts and no equipment spell before ability")
+ t.check(g.BasicAttacks.usage(g,"fireball").limit==2 and not g.command_facts().any(func(c):return c.payload.get("target","")==target.id and c.payload.kind=="attack"),"FLAME default two casts and no equipment spell before ability")
  t.check(Cards.cast(t,g,"flame_flourish",false).ok and g.state.energy==9 and g.state.mana==100,"FLAME uncommon one-energy ability activates without mana or casting")
  var c=t.find_action(g,"attack",{"target":target.id})
  var before=g.export_snapshot()
- g.get_view();g.candidates()
+ g.get_view();g.command_facts()
  t.check(c.valid and c.payload.damage==g.BasicAttacks.fireball_damage(g)/2 and c.payload.damage_type=="magic" and g.state==before,"FLAME locked equipment preview uses half current fireball without state changes")
- t.check(not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"FLAME stale cast preserves payment, durability and uses")
+ t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"FLAME stale cast preserves payment, durability and uses")
  g.state.charge=2
  var initial=target.durability
  t.check(t.action(g,"attack",{"target":target.id}).ok and is_equal_approx(g._equipment(target.id).durability,initial-c.payload.damage) and g.state.charge==2,"FLAME equipment takes direct magic damage without spending strain charge")
@@ -39,7 +39,7 @@ static func run(t) -> void:
  g.state.spell_base_bonuses.fireball=1
  target=g.add_fixture("thigh",60.0,60.0,true)
  c=t.find_action(g,"attack",{"target":target.id});initial=target.durability
- t.check(c.payload.damage==(g.B.FIREBALL_ASSISTED+1)*2 and g.dispatch(c.id,g.state.version).ok and is_equal_approx(g._equipment(target.id).durability,initial-c.payload.damage),"FLAME permanent bonus and both multipliers applied once before halving")
+ t.check(c.payload.damage==(g.B.FIREBALL_ASSISTED+1)*2 and g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and is_equal_approx(g._equipment(target.id).durability,initial-c.payload.damage),"FLAME permanent bonus and both multipliers applied once before halving")
  t.check(Cards.cast(t,g,"fire_mastery",false).ok and t.find_action(g,"attack",{"target":target.id}).payload.damage==(g.B.FIREBALL+1)*2,"FLAME gesture exemption updates both enemy and equipment damage through one formula")
  var outer=g._install_template(target.template,"thigh",10.0,10.0,false,"fixture",1,1,0,target.points[0])
  t.check(not t.find_action(g,"attack",{"target":target.id}).valid and t.find_action(g,"attack",{"target":outer.id}).valid,"FLAME magic keeps physical outer-layer obstruction")
@@ -52,7 +52,7 @@ static func run(t) -> void:
   target=g.add_fixture("thigh",24.0,24.0)
   g.state.pressure=75
   c=t.find_action(g,"attack",{"target":target.id});before=g.export_snapshot()
-  t.check(g.dispatch(c.id,g.state.version).ok,"FLAME uncertain spell still commits")
+  t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok,"FLAME uncertain spell still commits")
   var spell=g.state.logs.filter(func(log):return log.data.has("spell")).back().data.spell
   if not spell.success:
    failed=true

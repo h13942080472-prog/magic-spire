@@ -130,8 +130,8 @@ static func casting(t) -> void:
  g=fresh(["lewd_silk_gloves","hypnosis_hairpin","brainwash_earrings"]);g.state.pressure=40;g.state.sure_cast=true
  var card=t.grant_fixture_card(g,"forced_edging");var before=g.export_snapshot()
  var c=t.find_action(g,"card",{"uid":card.uid,"free":false})
- t.check(c.valid and not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"LEWD RELICS stale magical pressure payment rejects atomically")
- t.check(g.dispatch(c.id,g.state.version).ok and g.state.pressure==39 and g.state.discard.any(func(row):return row.uid==card.uid) and g.validate()=="","LEWD RELICS successful lewd cast and pressure payment both settle after card movement")
+ t.check(c.valid and not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"LEWD RELICS stale magical pressure payment rejects atomically")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.pressure==39 and g.state.discard.any(func(row):return row.uid==card.uid) and g.validate()=="","LEWD RELICS successful lewd cast and pressure payment both settle after card movement")
  g=fresh(["lewd_silk_gloves"]);g.state.pressure=99;g.state.sure_cast=true
  var enemy=g.state.enemies[0];var hp=enemy.hp
  t.check(t.action(g,"attack",{"type":"fireball","enemy":enemy.id,"form":0}).ok and g._enemy(enemy.id).hp<hp and g.state.overloaded,"LEWD RELICS success-triggered climax occurs after the spell effect")

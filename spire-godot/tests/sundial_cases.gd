@@ -46,8 +46,8 @@ static func run(t) -> void:
  g=fixture();g.state.hand.append_array(g.state.exhaust.slice(0,g.B.HAND_LIMIT-1));g.state.exhaust=g.state.exhaust.slice(g.B.HAND_LIMIT-1);g._draw(2)
  t.check(progress(g)==1 and g.state.hand.size()==g.B.HAND_LIMIT,"SUNDIAL hand filling after first draw suppresses the empty second shuffle")
  g=fixture();g.state.relic_counters.sundial=2
- var before=g.export_snapshot();g.get_view();g.candidates()
- t.check(g.state==before,"SUNDIAL view and candidates do not advance count or RNG")
+ var before=g.export_snapshot();g.get_view();g.command_facts()
+ t.check(g.state==before,"SUNDIAL view and facts do not advance count or RNG")
  var twin=Game.new(42)
  t.check(twin.restore_snapshot(before).ok and progress(twin)==2,"SUNDIAL save restores cross-battle progress")
  for bad_value in [-1,3,1.5]:
@@ -64,6 +64,6 @@ static func formal_draw(t) -> void:
  var card=preload("res://tests/curse_cases.gd").give(g,"pot_of_greed")
  var action=t.find_action(g,"card",{"uid":card.uid,"free":false})
  var energy=g.state.energy;var version=g.state.version
- t.check(action.valid and g.dispatch(action.id,version).ok and progress(g)==0 and g.state.energy==energy+2,"SUNDIAL real draw-two card triggers two shuffles and pays out immediately")
+ t.check(action.valid and g.dispatch(g.command(action.payload,version),version).ok and progress(g)==0 and g.state.energy==energy+2,"SUNDIAL real draw-two card triggers two shuffles and pays out immediately")
  var before=g.export_snapshot()
- t.check(not g.dispatch(action.id,version).ok and g.state==before,"SUNDIAL stale play cannot duplicate the energy reward")
+ t.check(not g.dispatch(g.command(action.payload,version),version).ok and g.state==before,"SUNDIAL stale play cannot duplicate the energy reward")

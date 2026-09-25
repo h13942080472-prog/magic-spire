@@ -131,7 +131,9 @@ static func view(g) -> Dictionary:
   sites.append(item)
  return {"blind":blind,"sites":sites,"fall":fall_profile(g),"stride":g.wall_movement_profile().distance,"cost":g.wall_movement_profile().cost}
 
-static func candidates(g, out: Array) -> void:
+# 牢房空间移动的显示事实（批 R5：行生产转发改显示事实构建，docs/spec/candidate-removal.md §2.1 T5／T8）。
+static func facts(g) -> Array:
+ var out=[]
  var v=view(g);var profile=g.wall_movement_profile()
  if v.blind:
   for direction in DIRECTIONS:
@@ -143,6 +145,7 @@ static func candidates(g, out: Array) -> void:
    var text="%s · %s · %d格 · %s" % [site.label,site.bearing,site.distance,"靠墙" if site.wall_distance==0 else "离墙%d格" % site.wall_distance]
    var site_args={"distance":profile.distance,"cost":profile.cost}
    g.Prison.add(out,g,"explore",text,{"kind":"prison_space.explore_site","args":site_args,"fallback":explore_site_detail(g,site_args)},profile.cost,"已经在这里。" if site.here else "",{"site":site.id,"wall_warning":site.wall_warning})
+ return out
 
 # R3（docs/ondemand-copy.md §11.5）：探索文案的 builder，正文留在本模块。
 static func explore_blind_detail(_g, _args: Dictionary) -> String:

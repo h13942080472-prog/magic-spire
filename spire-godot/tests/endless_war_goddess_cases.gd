@@ -15,8 +15,8 @@ static func activate(t,g,free: bool=true) -> Dictionary:
  g.state.energy=3;g.state.mana=35;g.state.temporary_mana=15;g.state.pressure=0
  var before=g.export_snapshot();var c=t.find_action(g,"card",{"uid":card.uid,"free":free})
  t.check(c.valid and c.cost==3 and c.mana==50 and c.mana_payment.mana==35 and c.mana_payment.temporary_mana==15,"WAR GODDESS pays all personal and temporary mana at exactly fifty")
- t.check(not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"WAR GODDESS stale payment rolls back both mana pools")
- t.check(g.dispatch(c.id,g.state.version).ok and g.state.mana==0 and g.state.temporary_mana==0 and g.state.energy==0 and g.state.powers.any(func(v):return v.uid==card.uid),"WAR GODDESS successful cast consumes all mana and enters power zone")
+ t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"WAR GODDESS stale payment rolls back both mana pools")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.mana==0 and g.state.temporary_mana==0 and g.state.energy==0 and g.state.powers.any(func(v):return v.uid==card.uid),"WAR GODDESS successful cast consumes all mana and enters power zone")
  t.check(g.get_view().speech.text=="无尽战神,出来!","WAR GODDESS successful play uses dedicated spoken cue")
  return card
 
@@ -43,7 +43,7 @@ static func run(t) -> void:
  var g=fresh();var card=Cards.give(g,TYPE)
  g.state.mana=50;g.state.temporary_mana=20;g.state.pressure=95
  var failed=t.find_action(g,"card",{"uid":card.uid,"free":true})
- t.check(failed.valid and g.cast_view(g.Cards.cast_profile(g,TYPE)).chance<1 and g.dispatch(failed.id,g.state.version).ok and not g.Cards.basic_attack_freedom(g) and g.state.mana==25 and g.state.temporary_mana==10 and g.state.hand.any(func(v):return v.uid==card.uid),"WAR GODDESS failed activation retains card and follows normal half refund")
+ t.check(failed.valid and g.cast_view(g.Cards.cast_profile(g,TYPE)).chance<1 and g.dispatch(g.command(failed.payload,g.state.version),g.state.version).ok and not g.Cards.basic_attack_freedom(g) and g.state.mana==25 and g.state.temporary_mana==10 and g.state.hand.any(func(v):return v.uid==card.uid),"WAR GODDESS failed activation retains card and follows normal half refund")
  t.check(g.get_view().speech.get("text","")!="无尽战神,出来!","WAR GODDESS failed activation does not announce successful transformation")
  var spec=g.Cards.Rules.SPECS[TYPE].duplicate(true);spec.all_mana_minimum=-1
  t.check(g.Cards.Rules.definition_reason(spec)!="","WAR GODDESS invalid all-mana threshold is rejected")
@@ -58,16 +58,16 @@ static func restrain(g) -> void:
 
 static func original_attacks(t,g) -> void:
  restrain(g)
- var before=g.export_snapshot();var choices=g.candidates().filter(func(c):return c.payload.kind=="attack" and c.payload.get("enemy","")==g.state.enemies[0].id)
+ var before=g.export_snapshot();var choices=g.command_facts().filter(func(c):return c.payload.kind=="attack" and c.payload.get("enemy","")==g.state.enemies[0].id)
  t.check(choices.size()==13 and choices.all(func(c):return c.valid) and g.state==before,"WAR GODDESS all original forms remain usable lying and heavily restrained; preview is read only")
  var kicks=choices.filter(func(c):return c.payload.type=="kick")
- t.check(kicks.map(func(c):return c.label)==["正义飞踢","横扫","站着踢","连续踢！","并拢飞踢","并腿蹬击","坐姿踢击","坐着踢"],"WAR GODDESS right-click candidates include every posture and bound kick form")
+ t.check(kicks.map(func(c):return c.label)==["正义飞踢","横扫","站着踢","连续踢！","并拢飞踢","并腿蹬击","坐姿踢击","坐着踢"],"WAR GODDESS right-click facts include every posture and bound kick form")
  var fire=t.find_action(g,"attack",{"type":"fireball","enemy":g.state.enemies[0].id})
  t.check(g.cast_view(g.Cards.cast_profile(g,"fireball")).chance==1 and fire.payload.damage==g.B.FIREBALL_ASSISTED,"WAR GODDESS fireball ignores mouth and hand restraints plus pressure")
  var normal=Cards.give(g,"mana_invocation")
  t.check(g.cast_view(g.Cards.cast_profile(g,normal.type)).chance<1,"WAR GODDESS does not guarantee ordinary spell cards")
  t.check(t.action(g,"attack",{"type":"kick","form":4}).ok and not t.find_action(g,"attack",{"type":"kick","form":5},false).valid,"WAR GODDESS bound forms retain shared kick cooldown")
- t.check(g.dispatch(fire.id,g.state.version).ok and t.action(g,"attack",{"type":"fireball"}).ok and not t.find_action(g,"attack",{"type":"fireball"},false).valid,"WAR GODDESS fireball retains its per-turn limit")
+ t.check(g.dispatch(g.command(fire.payload,g.state.version),g.state.version).ok and t.action(g,"attack",{"type":"fireball"}).ok and not t.find_action(g,"attack",{"type":"fireball"},false).valid,"WAR GODDESS fireball retains its per-turn limit")
  t.check(t.action(g,"attack",{"type":"heavy"}).ok and not t.find_action(g,"attack",{"type":"heavy","form":1},false).valid,"WAR GODDESS close-strike forms retain shared once-per-turn use")
  var restored=fresh()
  t.check(restored.restore_snapshot(g.export_snapshot()).ok and restored.Cards.basic_attack_freedom(restored),"WAR GODDESS active effect survives current-format snapshot")
@@ -78,7 +78,7 @@ static func original_attacks(t,g) -> void:
 
 static func witch_attacks(t,g) -> void:
  restrain(g);g.state.witch_charges.legs=4
- var choices=g.candidates().filter(func(c):return c.payload.kind=="attack" and c.payload.enemy==g.state.enemies[0].id)
+ var choices=g.command_facts().filter(func(c):return c.payload.kind=="attack" and c.payload.enemy==g.state.enemies[0].id)
  t.check(choices.size()==8 and choices.all(func(c):return c.valid and c.casting.chance==1),"WAR GODDESS all witch preparation and release actions ignore restraint and pressure")
  for part in ["hand","mouth","mind","legs"]:
   t.check(t.action(g,"attack",{"type":"witch_"+part,"form":1}).ok and not t.find_action(g,"attack",{"type":"witch_"+part,"form":1},false).valid,"WAR GODDESS witch release keeps once-per-part limit: "+part)

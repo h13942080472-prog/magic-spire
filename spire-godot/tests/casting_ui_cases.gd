@@ -1,10 +1,11 @@
 extends RefCounted
 const Pointer=preload("res://tests/target_sidebar_ui_cases.gd")
+const Queries=preload("res://ui/target_queries.gd")
 
 static func run(t) -> void:
  var ui=t.ui
- var fire=ui.actions.find("attack",{"type":"fireball","enemy":ui.selected_enemy})
- var fire_button=ui.candidate_buttons[fire.id]
+ var fire=Queries.find(ui.view,"attack",{"type":"fireball","enemy":ui.selected_enemy})
+ var fire_button=ui.candidate_buttons[ui.display_key(fire.payload)]
  var hover_before=ui.game.export_snapshot()
  await t.move_mouse(Vector2(1100,90));await t.frames()
  await t.move_mouse(fire_button.get_global_rect().get_center());await t.frames()
@@ -25,8 +26,8 @@ static func run(t) -> void:
  if not ui.game.state.hand.has(magic): ui.game.state.hand.append(magic)
  ui.game.state.pressure=75
  ui.render();await t.frames()
- fire=ui.actions.find("attack",{"type":"fireball","enemy":ui.selected_enemy})
- fire_button=ui.candidate_buttons[fire.id]
+ fire=Queries.find(ui.view,"attack",{"type":"fireball","enemy":ui.selected_enemy})
+ fire_button=ui.candidate_buttons[ui.display_key(fire.payload)]
  await t.move_mouse(Vector2(1100,90));await t.frames()
  await t.move_mouse(fire_button.get_global_rect().get_center());await t.frames()
  fire_tip=ui.find_child("TermExplanation",true,false)
@@ -145,7 +146,7 @@ static func mana_badges(t) -> void:
  var temporary=ui.card_buttons[cards.fire_control.uid]
  var gain=ui.card_buttons[cards.mana_invocation.uid]
  var surge=ui.card_buttons[cards.mana_surge.uid]
- t.check(t.visible_text(surge.get_node("CardMana/Mana_cost")).strip_edges()=="−5" and ui.actions.find("attack",{"type":"fireball","enemy":ui.selected_enemy}).mana==10,"MANA UI high-pressure spell card badge and fireball retain base costs")
+ t.check(t.visible_text(surge.get_node("CardMana/Mana_cost")).strip_edges()=="−5" and Queries.find(ui.view,"attack",{"type":"fireball","enemy":ui.selected_enemy}).mana==10,"MANA UI high-pressure spell card badge and fireball retain base costs")
  t.check(not ui.view.pressure.detail.contains("施法魔力消耗"),"MANA UI pressure description no longer advertises surcharge")
  t.check(t.visible_text(exchange.get_node("CardMana/Mana_cost")).strip_edges()=="−20" and not t.visible_text(exchange.get_node("CardText")).contains("耗魔"),"MANA UI fixed payment lives only in the top badge")
  t.check(t.visible_text(temporary.get_node("CardMana/Mana_temporary")).strip_edges()=="+10" and t.visible_text(gain.get_node("CardMana/Mana_gain")).strip_edges()=="+20","MANA UI temporary and regular restoration display point values")
@@ -185,7 +186,7 @@ static func failed_card_stays(t) -> void:
  while ui.game._random_index("magic",ui.game.B.CAST_ROLL_STEPS)<ui.game.cast_view(ui.game.Cards.cast_profile(ui.game,"mana_surge")).winning_rolls: rng=ui.game.state.rng.magic
  ui.game.state.rng.magic=rng
  ui.render();await t.frames()
- var failed_cost=ui.actions.find("card",{"uid":card.uid,"free":false}).mana
+ var failed_cost=Queries.find(ui.view,"card",{"uid":card.uid,"free":false}).mana
  await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
  t.check(ui.game._magic_failed and ui.card_buttons.has(card.uid) and ui.game.state.exhaust.is_empty() and ui.game.state.mana<100,"CAST UI failed exhaust card remains visible after paid attempt")
  t.check(is_equal_approx(ui.game.state.mana,100-failed_cost*0.5) and ui.game.state.logs.any(func(log):return log.data.has("spell") and log.text.contains("返还") and is_equal_approx(log.data.spell.mana_refund.mana,failed_cost*0.5)),"CAST UI failed attempt reports actual refund and remaining mana")
@@ -230,10 +231,10 @@ static func body_routes(t) -> void:
  ui.render();await t.frames()
  face=ui.card_buttons[card.uid]
  t.check(face.modulate.r<0.7 and t.visible_text(face).contains("需要双手"),"MANUAL UI default blocked card explains both-hand requirement")
- var fire=ui.actions.find("attack",{"type":"fireball","enemy":ui.selected_enemy})
+ var fire=Queries.find(ui.view,"attack",{"type":"fireball","enemy":ui.selected_enemy})
  t.check(fire.payload.damage==ui.game.B.FIREBALL,"MANUAL UI one hand initially has no fireball gesture bonus")
  ui.game.RelicEffects.gain(ui.game,"casting_manual");ui.render();await t.frames()
- fire=ui.actions.find("attack",{"type":"fireball","enemy":ui.selected_enemy})
+ fire=Queries.find(ui.view,"attack",{"type":"fireball","enemy":ui.selected_enemy})
  t.check(ui.card_buttons[card.uid].modulate.r==1 and fire.payload.damage==ui.game.B.FIREBALL_ASSISTED,"MANUAL UI pickup immediately updates card and fireball qualification")
  var manual=ui.find_child("RelicShortcut_casting_manual",true,false)
  await t.mouse_button(Vector2(650,60),MOUSE_BUTTON_LEFT,true);await t.mouse_button(Vector2(650,60),MOUSE_BUTTON_LEFT,false)

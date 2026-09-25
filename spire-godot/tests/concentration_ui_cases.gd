@@ -1,5 +1,6 @@
 extends RefCounted
 const Click=preload("res://tests/interface_ui_cases.gd")
+const Queries=preload("res://ui/target_queries.gd")
 
 static func run(t) -> void:
  var ui=t.ui
@@ -17,8 +18,8 @@ static func run(t) -> void:
  await t.drop_card_on_actor(card.uid,"hero")
  t.check(ui.player_pick and ui.game.state==before,"CONCENTRATION UI second face opens target selection instead of applying a free effect")
  await Click.press(t,"PlayerPart_ankle")
- var candidate=ui.actions.find("card",{"uid":card.uid,"target":target.id,"free":true})
- t.check(ui.selected_candidate==candidate.id and ui.drop_targets.is_empty(),"CONCENTRATION UI single equipment auto-selects the current face without another target step")
+ var candidate=Queries.find(ui.view,"card",{"uid":card.uid,"target":target.id,"free":true})
+ t.check(ui.selected_candidate==String(candidate.get("key","")) and ui.drop_targets.is_empty(),"CONCENTRATION UI single equipment auto-selects the current face without another target step")
  var summary=t.visible_text(ui.find_child("EquipmentDetails",true,false))
  t.check(summary.contains(candidate.release_preview.headline) and summary.contains(candidate.release_preview.change),"CONCENTRATION UI collapsed second-face summary shows the formal outcome")
  await Click.press(t,"ReleaseEffectDetails")

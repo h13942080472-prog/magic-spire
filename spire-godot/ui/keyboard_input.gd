@@ -1,4 +1,5 @@
 extends Node
+const Queries=preload("res://ui/target_queries.gd")
 
 var host
 var settings=preload("res://ui/key_bindings.gd").new()
@@ -101,17 +102,17 @@ func handle(event: InputEvent) -> bool:
  elif action=="confirm": confirm()
  elif action in ["next","previous"]: cycle(-1 if action=="previous" else 1)
  elif action=="end":
-  var c=host.actions.find("flow",{"kind":"end"})
+  var c=Queries.find(host.view,"flow",{"kind":"end"})
   if not c.is_empty() and c.valid and is_instance_valid(host.end_button) and host.end_button.is_visible_in_tree():
    if settings.hold_end: end_hold={"candidate":c,"version":host.view.version,"key":base,"elapsed":0.0}
-   else: clear();host._submit(c,host.view.version)
+   else: clear();host.command_router.emit(String(c.payload.get("kind","")),c,host.view.version)
  else: navigate(action)
  return true
 
 func select_card(uid: String) -> void:
  if host.show_route or not host.card_buttons.has(uid) or not host.card_buttons[uid].is_visible_in_tree(): return
  clear();host._clear_player_picker();host._clear_drop_targets()
- var self_card=host.actions.find("card",{"uid":uid,"self_target":true,"free":host.card_faces.get(uid,false)})
+ var self_card=Queries.find(host.view,"card",{"uid":uid,"self_target":true,"free":host.card_faces.get(uid,false)})
  if self_card.get("payload",{}).has("hand_uid"):
   host._activate_card(uid);return
  host.selected_card=uid;host.selected_candidate="";host.show_body=false
@@ -127,7 +128,7 @@ func select_attack(type: String) -> void:
 
 func refresh_choices() -> void:
  if selection.is_empty(): return
- var matches=host.actions.select("card",{"uid":selection.uid,"free":host.card_faces.get(selection.uid,false)}) if selection.kind=="card" else host.actions.select("attack",{"type":selection.type,"form":host.attack_forms.get(selection.type,0)})
+ var matches=Queries.select(host.view,"card",{"uid":selection.uid,"free":host.card_faces.get(selection.uid,false)}) if selection.kind=="card" else Queries.select(host.view,"attack",{"type":selection.type,"form":host.attack_forms.get(selection.type,0)})
  choices=host.DragTargets.choices(host,selection_data())
  choice_index=0
  host.selected_candidate=""
@@ -144,7 +145,7 @@ func selection_data() -> Dictionary:
 func cycle(direction: int) -> void:
  if choices.is_empty(): return
  choice_index=posmod(choice_index+direction,choices.size())
- if selection.kind=="card": host.selected_candidate=choices[choice_index].id
+ if selection.kind=="card": host.selected_candidate=Queries.fact_key(choices[choice_index])
  draw_targets()
 
 func target_name(c: Dictionary) -> String:
@@ -191,11 +192,11 @@ func mouse_target(id: String) -> void:
 func confirm() -> void:
  if selection.is_empty() or choices.is_empty() or blocked(): return
  if selection.kind=="card" and host.selected_candidate!="":
-  var index=choices.find(host.actions.by_id.get(host.selected_candidate,{}))
+  var index=_index_of_selected()
   if index<0: return
   choice_index=index
  var version=int(selection.version);var c=choices[choice_index]
- clear();host._submit(c,version)
+ clear();host.command_router.emit(String(c.payload.get("kind","")),c,version)
 
 func flip() -> void:
  var button: Control
@@ -260,6 +261,12 @@ func cancel() -> void:
   host.show_body=false;host.show_route=false;host.render(host.view);return
  if not host.show_home: host._open_drawer("show_menu")
 
+func _index_of_selected() -> int:
+ var key=String(host.selected_candidate)
+ for i in choices.size():
+  if Queries.fact_key(choices[i])==key: return i
+ return -1
+
 func clear(release_keys: bool=false) -> void:
  if release_keys: held_keys.clear()
  if not selection.is_empty() and host.active_drag.is_empty(): host.DragTargets.clear(host)
@@ -271,14 +278,14 @@ func _process(delta: float) -> void:
   var changed_card=host.selected_card!=selection.get("uid","")
   if selection.version!=host.view.version or blocked() or changed_card or get_viewport().gui_is_dragging(): clear()
   elif selection.kind=="card" and host.selected_candidate!="":
-   var index=choices.find(host.actions.by_id.get(host.selected_candidate,{}))
+   var index=_index_of_selected()
    if index>=0 and index!=choice_index: choice_index=index;draw_targets()
  if end_hold.is_empty(): return
  if blocked() or text_entry() or end_hold.version!=host.view.version:
   end_hold={};return
  end_hold.elapsed+=delta
  if end_hold.elapsed>=0.5:
-  var c=end_hold.candidate;var version=int(end_hold.version);clear();host._submit(c,version)
+  var c=end_hold.candidate;var version=int(end_hold.version);clear();host.command_router.emit(String(c.payload.get("kind","")),c,version)
 
 func _notification(what: int) -> void:
  if what in [NOTIFICATION_APPLICATION_FOCUS_OUT,NOTIFICATION_APPLICATION_PAUSED]:

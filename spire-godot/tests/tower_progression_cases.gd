@@ -60,7 +60,7 @@ static func run(t) -> void:
  t.action(g,"reward",{"type":g.state.reward_options[0]})
  t.action(g,"reward",{"type":"skip"})
  t.check(g.state.deck.size()==11 and g.state.phase=="prepare" and not g.state.completed_rooms.has("summit"),"PROGRESSION summit reward joins permanent deck before ordinary preparation")
- t.check(not g.dispatch("old_action",reward_version).ok,"PROGRESSION prior reward version cannot be reused")
+ t.check(not g.dispatch(g.command({"kind":"card","uid":"old_action"},reward_version),reward_version).ok,"PROGRESSION prior reward version cannot be reused")
  for i in range(4):g._gain_tool("shard")
  t.action(g,"finish_prepare")
  t.check(g.state.phase=="pack" and g.state.mana==52 and not g.state.combat.active and not g.state.completed_rooms.has("summit"),"PROGRESSION preparation pays ending mana once before the inventory capacity gate")
@@ -70,7 +70,7 @@ static func run(t) -> void:
  travel(t,g,"exit")
  t.check(g.state.phase=="cleared" and g.state.reward_count==rewards and g.state.mana==mana and g.state.pressure==17 and not g._equipment(marker.id).is_empty(),"PROGRESSION exit completes climb without extra reward/heal or clearing restraints")
  before=JSON.stringify(g.state)
- t.check(g.candidates().filter(func(c):return c.payload.kind!="item_discard").size()==2 and not t.action(g,"reward",{"type":g.state.reward_options[0]}).ok and JSON.stringify(g.state)==before,"PROGRESSION exit choices cannot replay rewards")
+ t.check(g.command_facts().filter(func(c):return c.payload.kind!="item_discard").size()==2 and not t.action(g,"reward",{"type":g.state.reward_options[0]}).ok and JSON.stringify(g.state)==before,"PROGRESSION exit choices cannot replay rewards")
 
  # A hand-edited/invalid travel state cannot bypass the prerequisite at arrival either.
  g=Game.new(42)
@@ -111,7 +111,7 @@ static func run(t) -> void:
   travel(t,g,"prison_rest");t.action(g,"rest_begin");t.action(g,"finish_rest");travel(t,g,"prison_gate")
   preload("res://tests/route_driver.gd").shorten_persistent_enemies(g)
   var attack=preload("res://tests/route_driver.gd").attack(g)
-  t.check(not attack.is_empty() and g.dispatch(attack.id,g.state.version).ok and g.state.phase=="reward","PROGRESSION exit challenge must be defeated before tower return")
+  t.check(not attack.is_empty() and g.dispatch(g.command(attack.payload,g.state.version),g.state.version).ok and g.state.phase=="reward","PROGRESSION exit challenge must be defeated before tower return")
   t.action(g,"reward",{"type":"skip"})
   t.finish_packing(g)
   t.check(g.state.security==1 and g.state.completed_rooms.is_empty() and old_route!=JSON.stringify(g.state.rooms) and not g.room_entry_reason(g.room_data("exit")).is_empty(),"PROGRESSION rebuilt tower includes fresh locked summit and preserves security")
