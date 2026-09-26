@@ -1,5 +1,6 @@
 extends RefCounted
 const Impact=preload("res://ui/impact_feedback.gd")
+const Queries=preload("res://ui/target_queries.gd")
 
 # Named checks for the committed-feedback layer (ui/impact_feedback.gd): the pleasure
 # filter, the three-family border (white deep breath / yellow charge-next energy / blue
@@ -96,7 +97,7 @@ static func committed_triggers(t) -> void:
  t.check(Rules.face_mode("strain",false)=="strain" and Rules.face_mode("slip",false)=="slip" and Rules.face_mode("magic_slip",false)=="magic_slip" and Rules.damage_type("magic_hand",false)=="","IMPACT SHAKE the modes under test come from the registered card specs")
  var g=preload("res://tests/game_fixture.gd").new(42)
  g.add_fixture("wrist",4,10)
- var real=g.candidates().filter(func(row):return String(row.payload.get("kind",""))=="card" and row.payload.has("preview") and float(row.payload.preview.get("damage",0.0))>0.0)
+ var real=g.command_facts().filter(func(row):return String(row.payload.get("kind",""))=="card" and row.payload.has("preview") and float(row.payload.preview.get("damage",0.0))>0.0)
  t.check(not real.is_empty(),"IMPACT SHAKE the fixture exposes a real damage-card candidate with preview damage")
  if not real.is_empty():
   t.check(real[0].payload.has("mode") and Impact.damage_of(real[0].payload)==float(real[0].payload.preview.damage) and int(Impact.shake_spec(real[0].payload).get("pulses",0))>0,"IMPACT SHAKE the committed candidate payload shape is what the layer reads")
@@ -190,7 +191,7 @@ static func home_teardown(t) -> void:
  ui.restart(42)
  await t.frames()
  var enemy=ui.view.enemies.filter(func(e):return not e.gone)[0]
- var strike=ui.actions.find("attack",{"type":"strike","form":0,"enemy":enemy.id})
+ var strike=Queries.find(ui.view,"attack",{"type":"strike","form":0,"enemy":enemy.id})
  t.check(not strike.is_empty() and strike.valid,"IMPACT HOME the fixture exposes a real attack before returning home")
  if strike.is_empty() or not strike.valid: return
  var origin=ui.layout.position
@@ -242,7 +243,7 @@ static func real_attack(t) -> void:
  var ui=t.ui
  ui.restart(42);await t.frames()
  var enemy=ui.view.enemies.filter(func(e):return not e.gone)[0]
- var strike=ui.actions.find("attack",{"type":"strike","form":0,"enemy":enemy.id})
+ var strike=Queries.find(ui.view,"attack",{"type":"strike","form":0,"enemy":enemy.id})
  t.check(not strike.is_empty() and strike.valid,"IMPACT SHAKE the battle fixture exposes a real strike candidate")
  if strike.is_empty() or not strike.valid: return
  var energy=ui.view.energy
@@ -270,8 +271,8 @@ static func real_pressure(t) -> void:
  for enemy in ui.game.state.enemies: enemy.intent.delayed=true
  ui.render();await t.frames()
  var before=ui.view.pressure.value
- var end=ui.actions.find("flow",{"kind":"end"})
- t.check(not end.is_empty() and end.valid and ui.candidate_buttons.has(end.id),"IMPACT FILTER the real end-turn button is available")
+ var end=Queries.find(ui.view,"flow",{"kind":"end"})
+ t.check(not end.is_empty() and end.valid and ui.candidate_buttons.has(end.key),"IMPACT FILTER the real end-turn button is available")
  if not end.valid: return
  await press_candidate(t,end)
  var layer=ui.impact_feedback
@@ -286,7 +287,7 @@ static func real_pressure(t) -> void:
  ui.game.state.pressure_sources=[]
  ui.render();await t.frames()
  var target=ui.view.enemies.filter(func(e):return not e.gone)[0].id
- var spell=ui.actions.find("attack",{"type":"fireball","form":0,"enemy":target})
+ var spell=Queries.find(ui.view,"attack",{"type":"fireball","form":0,"enemy":target})
  t.check(not spell.is_empty() and spell.valid,"IMPACT FILTER the battle fixture exposes a real mana-paying spell")
  if spell.is_empty() or not spell.valid: return
  var mana=ui.view.mana
@@ -303,11 +304,11 @@ static func real_border(t) -> void:
  await t.start_practice("Practice_pressure")
  var belt=ui.game.equipment_at("wrist")[0].id
  var uid=ui.view.hand.filter(func(c):return c.type=="strain")[0].uid
- var card=ui.actions.find("card",{"uid":uid,"slot":"wrist","target":belt})
+ var card=Queries.find(ui.view,"card",{"uid":uid,"slot":"wrist","target":belt})
  t.check(not card.is_empty() and card.valid,"IMPACT SHAKE the pressure practice exposes a real strain drag")
  if card.is_empty() or not card.valid: return
  await t.start_drag(uid,"wrist")
- await t.release_target(await t.reveal_drop_target(card.id))
+ await t.release_target(await t.reveal_drop_target(card.key))
  var layer=ui.impact_feedback
  t.check(is_instance_valid(layer) and int(layer.last_impact.get("shake_pulses",0))==2 and is_equal_approx(float(layer.last_impact.get("shake_step",0.0)),Impact.FEEDBACK_SHAKE_STRAIN_STEP),"IMPACT SHAKE a real strain drag double-pulses")
  t.check(is_instance_valid(layer) and float(layer.last_impact.get("filter_peak",0.0))>0.0,"IMPACT FILTER the same strain commit raises pressure and asks for the filter")
@@ -322,11 +323,11 @@ static func real_border(t) -> void:
  await t.frames(60)
  ui.game.state.charge=1
  ui.render();await t.frames()
- var toggle=ui.view.candidates.filter(func(c):return c.payload.kind=="status_toggle" and c.valid)
+ var toggle=ui.view.display_facts.filter(func(c):return c.payload.kind=="status_toggle" and c.valid)
  t.check(not toggle.is_empty(),"IMPACT BORDER the charge-all toggle is a real candidate")
  if toggle.is_empty(): return
  var charge_before=ui.game.state.charge
- ui._submit(toggle[0])
+ ui.command_router.emit(String(toggle[0].payload.get("kind","")),toggle[0])
  layer=ui.impact_feedback
  t.check(is_instance_valid(layer) and ui.game.state.charge==charge_before and layer.last_impact.get("border_kind","")=="charge","IMPACT BORDER the committed toggle changes no amount and still lights the border")
  if not is_instance_valid(layer): return
@@ -450,7 +451,7 @@ static func no_change(t) -> void:
  var ui=t.ui
  ui.restart(42)
  await t.frames(4)
- var sit=ui.actions.find("posture",{"dest":"sit","wall":false})
+ var sit=Queries.find(ui.view,"posture",{"dest":"sit","wall":false})
  t.check(not sit.is_empty() and sit.valid,"IMPACT NO-OP the battle fixture exposes a real posture action")
  if sit.is_empty() or not sit.valid: return
  t.check(Impact.border_kind_of([],sit.payload)=="" and not Impact.will_play([],sit.payload),"IMPACT NO-OP a committed action with no receipt change and no impact payload asks for no effect")
@@ -464,10 +465,10 @@ static func passthrough(t) -> void:
  # pointer press below provably happens inside a running effect.
  ui.game.state.pressure=40
  ui.render();await t.frames()
- var end=ui.actions.find("flow",{"kind":"end"})
- t.check(not end.is_empty() and end.valid and ui.candidate_buttons.has(end.id),"IMPACT INPUT the real end-turn button is available")
+ var end=Queries.find(ui.view,"flow",{"kind":"end"})
+ t.check(not end.is_empty() and end.valid and ui.candidate_buttons.has(end.key),"IMPACT INPUT the real end-turn button is available")
  if not end.valid: return
- var point=ui.candidate_buttons[end.id].get_global_rect().get_center()
+ var point=ui.candidate_buttons[end.key].get_global_rect().get_center()
  await t.move_mouse(point)
  await t.click("calm")
  var layer=ui.impact_feedback
@@ -552,9 +553,9 @@ static func shake_pixels(t) -> void:
  ui.restart(42);await t.frames()
  freeze_decoration(t)
  var enemy=ui.view.enemies.filter(func(e):return not e.gone)[0]
- var strike=ui.actions.find("attack",{"type":"strike","form":0,"enemy":enemy.id})
+ var strike=Queries.find(ui.view,"attack",{"type":"strike","form":0,"enemy":enemy.id})
  t.check(not strike.is_empty() and strike.valid,"IMPACT SHAKE PIXELS the battle fixture exposes a real strike candidate")
- var button=ui.candidate_buttons.get(strike.get("id","")) if not strike.is_empty() else null
+ var button=ui.candidate_buttons.get(Queries.fact_key(strike)) if not strike.is_empty() else null
  t.check(button!=null,"IMPACT SHAKE PIXELS the strike candidate has a real button")
  if button==null: return
  var origin=ui.layout.position
@@ -665,7 +666,7 @@ static func pointer_event(point: Vector2, pressed: bool) -> InputEventMouseButto
 ## Real pointer click that returns in the commit frame: press_candidate waits two
 ## frames and can return after a short pulse already settled.
 static func commit_click(t, candidate: Dictionary) -> void:
- var button=t.ui.candidate_buttons.get(candidate.id)
+ var button=t.ui.candidate_buttons.get(candidate.key)
  if button==null: return
  var point=button.get_global_rect().get_center()
  await t.move_mouse(point)
@@ -736,7 +737,7 @@ static func edge_band_stats(a: Image, b: Image, band: int) -> Dictionary:
 static func press_candidate(t, candidate: Dictionary) -> void:
  # Real pointer click on the committed candidate button: the effect layer must never
  # swallow it, so the checks below observe the commit, not only the visible node.
- var button=t.ui.candidate_buttons.get(candidate.id)
+ var button=t.ui.candidate_buttons.get(candidate.key)
  t.check(button!=null,"IMPACT INPUT candidate button exists for a real click: "+String(candidate.payload.get("kind","")))
  if button==null: return
  var point=button.get_global_rect().get_center()

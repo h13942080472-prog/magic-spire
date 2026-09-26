@@ -11,7 +11,7 @@ static func run(t) -> void:
  for seed_value in t.seed_values("enemy_cycle"):
   var g=Game.new(seed_value,true,"versatile_solo");var id=g.state.enemies[0].id
   t.check(g.Enemies.TYPES.versatile.humanoid and g.Enemies.TYPES.versatile.strength==2 and g._enemy(id).hp==60 and g._enemy(id).intent.kind=="idle","VERSATILE registered human strong enemy opens by idling")
-  var before=g.export_snapshot();g.get_view();g.candidates()
+  var before=g.export_snapshot();g.get_view();g.command_facts()
   t.check(g.state==before,"VERSATILE published idle is query-stable")
   t.check(t.action(g,"end").ok and g.state.special_equipment.is_empty() and g._enemy(id).intent.kind=="apply","VERSATILE idle advances to special installation")
   var declared=g._enemy(id).intent.duplicate(true)

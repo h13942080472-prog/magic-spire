@@ -34,8 +34,8 @@ static func run(t) -> void:
  var c=t.find_action(g,"card",{"uid":card.uid,"free":false})
  var before=g.export_snapshot()
  t.check(c.valid and c.cost==1 and c.mana==0 and c.payload.self_target,"POWER self-target one-energy candidate")
- g.get_view();g.candidates()
- t.check(g.state==before and not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"POWER preview and stale submission preserve state")
+ g.get_view();g.command_facts()
+ t.check(g.state==before and not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"POWER preview and stale submission preserve state")
  g.state.energy=0;before=g.export_snapshot()
  t.check(not t.action(g,"card",{"uid":card.uid,"free":false}).ok and g.state==before,"POWER insufficient energy refuses atomically")
  g.state.energy=3
@@ -98,9 +98,9 @@ static func stacking(t) -> void:
    for copy in range(2):
     var card=helper.give(g,type)
     var c=t.find_action(g,"card",{"uid":card.uid,"free":free})
-    var before=g.export_snapshot();g.get_view();g.candidates()
-    t.check(c.valid and g.state==before and not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"STACK read-only and stale copy "+type)
-    t.check(g.dispatch(c.id,g.state.version).ok,"STACK repeated paid activation "+type)
+    var before=g.export_snapshot();g.get_view();g.command_facts()
+    t.check(c.valid and g.state==before and not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"STACK read-only and stale copy "+type)
+    t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok,"STACK repeated paid activation "+type)
    var id=g.Cards.Rules.SPECS[type].self_faces["free" if free else "bound"].buff
    t.check(g.Cards.buff_stacks(g,id)==2 and g.state.powers.size()==2 and g.validate()=="","STACK two physical powers remain valid "+id)
    t.check(g.Cards.Rules.BUFFS[id].detail.contains("可叠加"),"STACK status explains repeatable effect "+id)
@@ -164,9 +164,9 @@ static func reuse_fail(t,g,type: String="fireball", free: bool=false) -> Diction
   c=t.find_action(g,"card",{"uid":card.uid,"free":free})
  preload("res://tests/practiced_cases.gd").force_failure(g,type)
  var before=g.export_snapshot()
- g.get_view();g.candidates();g.Cards.failure_outcome(g,c)
- t.check(g.state==before and not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"MASTERY previews and stale attempts do not consume quota")
- t.check(c.valid and g.dispatch(c.id,g.state.version).ok and g._magic_failed,"MASTERY real failed cast "+type)
+ g.get_view();g.command_facts();g.Cards.failure_outcome(g,c)
+ t.check(g.state==before and not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"MASTERY previews and stale attempts do not consume quota")
+ t.check(c.valid and g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g._magic_failed,"MASTERY real failed cast "+type)
  return {"before":before,"candidate":c,"spell":g.state.logs.filter(func(row):return row.data.has("spell")).back().data.spell}
 
 static func reuse(t) -> void:
@@ -180,7 +180,7 @@ static func reuse(t) -> void:
   for side in [true,false]:
    var card=Cards.give(g,"reuse");var before=g.export_snapshot()
    var c=t.find_action(g,"card",{"uid":card.uid,"free":side})
-   t.check(not c.valid and c.reason.contains("互斥") and not g.dispatch(c.id,g.state.version).ok and g.state==before,"MASTERY same and opposite faces reject atomically")
+   t.check(not c.valid and c.reason.contains("互斥") and not g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state==before,"MASTERY same and opposite faces reject atomically")
   var extra=Cards.give(g,"reuse");g.state.hand.erase(extra);extra.power_face="bound";g.state.powers.append(extra)
   var invalid=g.export_snapshot();var copy=Game.new(0);var before=copy.export_snapshot()
   t.check(not copy.restore_snapshot(invalid).ok and copy.state==before,"MASTERY snapshot rejects mutually exclusive faces")
@@ -217,7 +217,7 @@ static func reuse(t) -> void:
   item.durability=0;blocked._cleanup()
   var card=Cards.give(blocked,"reuse");var before=blocked.export_snapshot()
   var action=t.find_action(blocked,"card",{"uid":card.uid,"free":false})
-  t.check(not action.valid and not blocked.dispatch(action.id,blocked.state.version).ok and blocked.state==before,"MASTERY level two in either region rejects activation atomically")
+  t.check(not action.valid and not blocked.dispatch(blocked.command(action.payload,blocked.state.version),blocked.state.version).ok and blocked.state==before,"MASTERY level two in either region rejects activation atomically")
  var g=reuse_setup(t,false);g.state.powers[0].power_failure_count=2
  for slot in ["eyes","fingers","upper_arm","forearm","thigh"]: g.add_fixture(slot,8)
  g.state.mana=50;g.state.temporary_mana=30
@@ -254,7 +254,7 @@ static func reuse(t) -> void:
  # Success, replay, zero-mana and lifecycle boundaries.
  g=reuse_setup(t,true);g.state.pressure=0;g.state.temporary_mana=30
  var c=fire(t,g);var before=g.export_snapshot()
- t.check(g.dispatch(c.id,g.state.version).ok and not g._magic_failed and g.state.energy==before.energy-c.cost and g.state.temporary_mana==before.temporary_mana-c.mana and g.state.powers[0].power_failure_count==0,"MASTERY success never converts refunds or consumes quota")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and not g._magic_failed and g.state.energy==before.energy-c.cost and g.state.temporary_mana==before.temporary_mana-c.mana and g.state.powers[0].power_failure_count==0,"MASTERY success never converts refunds or consumes quota")
  var no_payment=c.duplicate(true);no_payment.mana_payment={"mana":0.0,"temporary_mana":0.0}
  t.check(g.Cards.failure_outcome(g,no_payment).energy==0,"MASTERY zero mana is not a fully temporary payment")
  c.payload.replay=true

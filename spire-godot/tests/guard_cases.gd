@@ -134,7 +134,7 @@ static func run(t) -> void:
  g.state.posture="lie"
  var up=t.find_action(g,"posture",{"dest":"sit","wall":false})
  var before=g.state.guard_bind.progress
- t.check(up.valid and g.dispatch(up.id,g.state.version).ok and g.state.posture=="sit" and g.state.guard_bind.progress==before+10.0,"GUARD bind permits lie to sit and adds ten progress")
+ t.check(up.valid and g.dispatch(g.command(up.payload,g.state.version),g.state.version).ok and g.state.posture=="sit" and g.state.guard_bind.progress==before+10.0,"GUARD bind permits lie to sit and adds ten progress")
 
  g=Game.new(12,true,"double_guard")
  var first=g.state.enemies[0]
@@ -167,8 +167,8 @@ static func lower_and_charge(t) -> void:
   t.check(choice.valid and choice.payload.preview.damage==8.0 and choice.payload.preview.charge==0.0 and choice.payload.preview.multiplier==1.0,"BIND LOWER fixed eight ignores charge, attributes and both damage multipliers")
   t.check(g.Cards.has_escape_target(g,"ease"),"BIND LOWER capture counts as a real bound-face target")
   var before=g.export_snapshot()
-  t.check(not g.dispatch(choice.id,g.state.version-1).ok and g.export_snapshot()==before,"BIND LOWER stale submission leaves all resources and capture unchanged")
-  t.check(g.dispatch(choice.id,g.state.version).ok and g.state.guard_bind.progress==72 and g.state.charge==3 and g.state.charge_all,"BIND LOWER committed single step deals eight without consuming any charge")
+  t.check(not g.dispatch(g.command(choice.payload,g.state.version-1),g.state.version-1).ok and g.export_snapshot()==before,"BIND LOWER stale submission leaves all resources and capture unchanged")
+  t.check(g.dispatch(g.command(choice.payload,g.state.version),g.state.version).ok and g.state.guard_bind.progress==72 and g.state.charge==3 and g.state.charge_all,"BIND LOWER committed single step deals eight without consuming any charge")
   t.check(g.state.energy==before.energy-choice.cost and g.state.mana==before.mana-choice.mana_payment.mana,"BIND LOWER formal energy and mana costs are paid once")
  for progress in [8.0,10.0,40.0]:
   var g=Game.new(43,true,"guard")
@@ -178,7 +178,7 @@ static func lower_and_charge(t) -> void:
   var choice=t.find_action(g,"card",{"uid":card.uid,"target":CaptureBind.BIND_TARGET,"free":false})
   t.check(choice.valid,"BIND LOWER body-restricted multi-step lowering can target capture")
   var before=g.export_snapshot()
-  var outcome=g.dispatch(choice.id,g.state.version)
+  var outcome=g.dispatch(g.command(choice.payload,g.state.version),g.state.version)
   t.check(outcome.ok and g.state.card_chain.is_empty() and g.state.play.is_empty(),"BIND LOWER multi-step resolves through the complete card pipeline: "+str(outcome))
   t.check((g.state.guard_bind.is_empty() if progress<=24 else g.state.guard_bind.progress==progress-24) and g.state.charge==2,"BIND LOWER each step deals eight and stops when capture reaches zero")
   var hits=g.state.logs.slice(before.logs.size()).filter(func(row):return row.data.get("guard_bind",{}).get("action","")=="damage")
@@ -193,7 +193,7 @@ static func lower_and_charge(t) -> void:
    var choice=t.find_action(g,"card",{"uid":card.uid,"target":CaptureBind.BIND_TARGET,"free":false})
    var charge=6.0 if all_charge else 3.0
    t.check(choice.valid and choice.payload.preview.charge==charge and choice.payload.preview.damage==(6.0+charge)*2,"BIND CHARGE ordinary escape keeps normal charge scaling: "+type)
-   t.check(g.dispatch(choice.id,g.state.version).ok and g.state.guard_bind.progress==80.0-choice.payload.preview.damage and g.state.charge==(0 if all_charge else 1),"BIND CHARGE ordinary escape consumes the normal number of charge layers: "+type)
+   t.check(g.dispatch(g.command(choice.payload,g.state.version),g.state.version).ok and g.state.guard_bind.progress==80.0-choice.payload.preview.damage and g.state.charge==(0 if all_charge else 1),"BIND CHARGE ordinary escape consumes the normal number of charge layers: "+type)
 
 static func opening_fallback(t) -> void:
  var R=preload("res://tests/replacement_cases.gd")
@@ -207,9 +207,9 @@ static func opening_fallback(t) -> void:
   var outside=R.install(g,R.request("upper_arm",1,1,"upper_arm_top"))
   var saved_outside=outside.duplicate(true)
   var before=g.export_snapshot()
-  g.get_view();g.candidates()
+  g.get_view();g.command_facts()
   var end=t.find_action(g,"end")
-  t.check(g.export_snapshot()==before and not g.dispatch(end.id,g.state.version-1).ok and g.export_snapshot()==before,"GUARD opening preview and stale submission leave all equipment and random state unchanged")
+  t.check(g.export_snapshot()==before and not g.dispatch(g.command(end.payload,g.state.version-1),g.state.version-1).ok and g.export_snapshot()==before,"GUARD opening preview and stale submission leave all equipment and random state unchanged")
   t.check(t.action(g,"end").ok,"GUARD full-slot opening uses the formal enemy turn")
   for slot in original:
    if grade==1:

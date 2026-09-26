@@ -1,11 +1,12 @@
 extends RefCounted
 const Pointer=preload("res://tests/target_sidebar_ui_cases.gd")
+const Queries=preload("res://ui/target_queries.gd")
 static func run(t) -> void:
  var ui=t.ui
  ui.game.state.wall="normal";ui.game.state.wall_distance=4
  var e=ui.game._install_template("belt","thigh",4,10,false,"fixture",1,0,0,"thigh_root")
  ui.render();await t.frames()
- var card=ui.game.candidates().filter(func(c):return c.payload.get("target","")==e.id and c.payload.get("mode","")=="slip")[0]
+ var card=ui.game.command_facts().filter(func(c):return c.payload.get("target","")==e.id and c.payload.get("mode","")=="slip")[0]
  t.check(card.payload.preview.position.factor==1.5,"MOTION UI active candidate carries factor")
  var before=ui.game.state.version
  await Pointer.press(t,ui.find_child("WallMove_toward",true,false))
@@ -21,13 +22,13 @@ static func run(t) -> void:
  var target=ui.game.equipment_at("calf")[0]
  var uid=ui.view.hand.filter(func(c):return c.type=="slip")[0].uid
  if ui.card_faces.get(uid,false): await t.flip(uid)
- card=ui.actions.find("card",{"uid":uid,"target":target.id})
+ card=Queries.find(ui.view,"card",{"uid":uid,"target":target.id})
  var durability=target.durability;var damage=card.payload.preview.damage
  t.check(card.valid and card.payload.preview.link_factor==1.25,"LOWER LINK UI reads shared preview")
  await t.start_drag(uid,"calf")
- await t.reveal_drop_target(card.id)
+ await t.reveal_drop_target(card.key)
  var shown=t.visible_text(ui.term_popup)
  t.check(shown.contains(ui.game.number(damage)+"点滑脱伤害") and not shown.contains("×1.25") and not shown.contains("能量"),"LOWER LINK UI shows final slip damage with the link bonus already included")
  await t.capture("ui-lower-link-slip.png")
- await t.release_target(await t.reveal_drop_target(card.id))
+ await t.release_target(await t.reveal_drop_target(card.key))
  t.check((ui.game._equipment(target.id).is_empty() if damage>=durability else is_equal_approx(ui.game._equipment(target.id).durability,durability-damage)),"LOWER LINK UI native drag matches preview")

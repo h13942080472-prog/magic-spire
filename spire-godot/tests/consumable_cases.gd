@@ -83,7 +83,7 @@ static func run(t) -> void:
  var draws=g.state.rng.item_drop
  g._finish_battle()
  t.check(g.state.item_drop_chance==10 and g.state.battle_item_drop=="" and g.state.rng.item_drop==draws+1,"DROP zero percent misses and increases by ten")
- before=g.export_snapshot();g.get_view();g.candidates();g._finish_battle()
+ before=g.export_snapshot();g.get_view();g.command_facts();g._finish_battle()
  t.check(g.state==before,"DROP views and duplicate finish cannot reroll")
  g=Game.new(42);g.state.item_drop_chance=100
  for i in range(4):g._gain_tool("shard")

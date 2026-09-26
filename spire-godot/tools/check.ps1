@@ -40,7 +40,9 @@ if ($PSBoundParameters.ContainsKey('UISuite') -and -not ($UI -or $UIOnly)) {
 if ($ListOnly -and ($Import -or $VerifyRunner)) { throw '-ListOnly cannot be combined with -Import or -VerifyRunner.' }
 if ($UIOnly -and $Impact) { throw '-Impact applies to rule suites; UI suites are selected explicitly.' }
 . (Join-Path $PSScriptRoot 'find-godot.ps1')
+. (Join-Path $PSScriptRoot 'doc-scan-scope.ps1')
 $gameDirectory = Split-Path -Parent $PSScriptRoot
+$repositoryRoot = Split-Path -Parent $gameDirectory
 $engine = Find-SpireGodot -Console
 $buildDirectory = Join-Path $gameDirectory 'build'
 [IO.Directory]::CreateDirectory($buildDirectory) | Out-Null
@@ -64,7 +66,20 @@ function Get-SourceFingerprint {
     Get-ChildItem -LiteralPath $gameDirectory -File | Where-Object { $_.Extension -in @('.godot','.gd','.tscn','.tres') } | ForEach-Object {
         $entries.Add($_.Name + ':' + (Get-FileHash -LiteralPath $_.FullName).Hash)
     }
-    $bytes = [Text.Encoding]::UTF8.GetBytes((($entries | Sort-Object) -join "`n"))
+    # Rule-class documents sit above the module (docs/, AGENTS.md, .zcode/skills) and are part of
+    # the guarded surface: a contract edit must move the fingerprint instead of passing silently.
+    # Records and the archive are excluded in doc-scan-scope.ps1 (append-only churn, not rules).
+    foreach ($document in (Get-RuleDocFiles -RepositoryRoot $repositoryRoot)) {
+        $entries.Add($document.Substring($repositoryRoot.Length + 1) + ':' + (Get-FileHash -LiteralPath $document -Algorithm SHA256).Hash)
+    }
+    # Ordinal sort, not Sort-Object: Sort-Object collates with the host's culture (ICU in pwsh 7,
+    # NLS in Windows PowerShell 5.1), which ordered case/accent/hyphen neighbours differently and
+    # gave one source tree two different values depending on the host that happened to run it.
+    # Ordinal comparison is culture-free, so the same file set yields the same value anywhere.
+    # The value stays a within-run guard, not an identity (see .zcode/skills/spire-docs/SKILL.md).
+    $ordered = $entries.ToArray()
+    [Array]::Sort($ordered, [StringComparer]::Ordinal)
+    $bytes = [Text.Encoding]::UTF8.GetBytes(($ordered -join "`n"))
     $sha = [Security.Cryptography.SHA256]::Create()
     try { return ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-','') } finally { $sha.Dispose() }
 }
@@ -88,6 +103,37 @@ function Get-PhaseSummary {
     $complete = $output -match '(?m)^(?:UI )?PASS: \d+ assertions\s*$'
     if ($Enabled -and -not $complete -and $retry.Count -eq 0 -and -not $ListOnly) { $retry = @($selected) }
     return [ordered]@{ selected=@($selected); passed=@($passed); failed=@($failed); unrun=@($unrun); retry=@($retry); scope_resolved=$scope.Success; complete=$complete; log=$logPath }
+}
+
+# Rule-class document gate (tools/check-docs.ps1): one barrier over the whole guarded document
+# set, so it has no per-suite selection -- the counts come straight from its own log. The allowlist
+# entry count is reported on every run to keep that debt visible; this phase never rebuilds the
+# document list (scope stays in tools/doc-scan-scope.ps1).
+function Get-DocumentPhaseSummary {
+    $logPath = Join-Path $checkDirectory 'check-docs.log'
+    $output = if (Test-Path -LiteralPath $logPath) { [IO.File]::ReadAllText($logPath) } else { '' }
+    $result = [regex]::Match($output, '(?m)^DOCS RESULT: (PASS|FAIL)\s*$')
+    $pass = [regex]::Match($output, '(?m)^DOCS PASS: (\d+) rule-class document\(s\), (\d+) reference\(s\) checked, allowlist (\d+) entrie\(s\)')
+    $fail = [regex]::Match($output, '(?m)^DOCS FAIL: (\d+) unresolved reference\(s\) in rule-class documents; allowlist (\d+) entrie\(s\)')
+    $status = 'unrun'
+    if ($result.Success) {
+        $status = 'failed'
+        if ($result.Groups[1].Value -eq 'PASS') { $status = 'passed' }
+    }
+    # Counts the gate only states on success stay null instead of reading as zero: a failed or
+    # never-run gate must not look like an empty document set.
+    $documentsChecked = $null; $referencesChecked = $null; $problems = $null; $allowlist = $null
+    if ($pass.Success) {
+        $documentsChecked = [int]$pass.Groups[1].Value
+        $referencesChecked = [int]$pass.Groups[2].Value
+        $allowlist = [int]$pass.Groups[3].Value
+        $problems = 0
+    }
+    if ($fail.Success) { $problems = [int]$fail.Groups[1].Value; $allowlist = [int]$fail.Groups[2].Value }
+    return [ordered]@{
+        status=$status; complete=$pass.Success; documents=$documentsChecked; references=$referencesChecked
+        problems=$problems; allowlist=$allowlist; log=$logPath
+    }
 }
 
 # Every engine process is owned by this invocation; never stop an interactive game.
@@ -134,7 +180,34 @@ function Invoke-SpireCheck {
 $beforeFingerprint = Get-SourceFingerprint
 $exitCode = 0
 $failureMessage = ''
+$documentFailure = ''
 try {
+    # Rule-class document reference gate: an independent phase in the same shape as the content-pack
+    # gate (tools/check-content.ps1), run through this shell with its own log, result line and
+    # summary field. It needs no engine, so it runs first and it runs on every round. A failure is
+    # recorded, not thrown: one typo in a contract must not cancel the engine phases and throw away
+    # a whole round of rule/UI evidence -- the round takes the non-zero exit at the end instead, so
+    # a document red and a rule red land in the same evidence. -ExecutionPolicy Bypass: the child is
+    # a fresh host whose policy is the machine default, and a blocked script would read as a red gate.
+    $documentLog = Join-Path $checkDirectory 'check-docs.log'
+    $documentOutput = ''
+    $documentExit = 1
+    try {
+        $documentOutput = (& (Get-Process -Id $PID).Path -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'check-docs.ps1') 2>&1 | Out-String)
+        $documentExit = $LASTEXITCODE
+    } catch {
+        $documentOutput = [string]$_.Exception.Message
+        $documentExit = 1
+    }
+    $documentResult = 'FAIL'
+    if ($documentExit -eq 0) { $documentResult = 'PASS' }
+    $documentOutput = $documentOutput.TrimEnd() + "`nDOCS RESULT: $documentResult`n"
+    [IO.File]::WriteAllText($documentLog, $documentOutput)
+    $documentOutput -split '\r?\n' | Where-Object { $_ -match '^DOCS? ' } | Write-Output
+    if ($documentResult -eq 'FAIL') {
+        $documentFailure = ('Rule-class document gate failed (exit=' + $documentExit + '). See ' + $documentLog)
+        Write-Output $documentFailure
+    }
     if ($Import -or -not (Test-Path -LiteralPath (Join-Path $gameDirectory '.godot'))) {
         Invoke-SpireCheck -Name 'import' -EngineArguments @('--headless', '--editor', '--quit')
     }
@@ -215,6 +288,13 @@ if ($VerifyRunner) {
     $afterFingerprint = Get-SourceFingerprint
     $rules = Get-PhaseSummary -Name rules -Requested $Suite -Enabled (-not $UIOnly)
     $window = Get-PhaseSummary -Name ui -Requested $UISuite -Enabled ([bool]($UI -or $UIOnly))
+    $documentGate = Get-DocumentPhaseSummary
+    # Deferred document failure: the phase collected its result, the round fails here. A rule/UI
+    # failure keeps the message it already recorded.
+    if ($documentFailure) {
+        $exitCode = 1
+        if (-not $failureMessage) { $failureMessage = $documentFailure }
+    }
     $changed = $beforeFingerprint -ne $afterFingerprint
     if ($changed -and -not $ListOnly) {
         $exitCode = 1
@@ -222,10 +302,13 @@ if ($VerifyRunner) {
         Write-Output 'SOURCE CHANGED: results belong to a moving workspace; rerun after edits settle.'
     }
     $status = if ($ListOnly -and $exitCode -eq 0) { 'plan' } elseif ($changed -and -not $ListOnly) { 'source_changed' } elseif ($exitCode -eq 0) { 'passed' } else { 'failed' }
-    $summary = [ordered]@{ schema=1; status=$status; error=$failureMessage; impact=[bool]$Impact; exhaustive=[bool]($Exhaustive -or 'all' -in $Suite); verify_runner=[bool]$VerifyRunner; before=$beforeFingerprint; after=$afterFingerprint; rules=$rules; ui=$window }
+    $summary = [ordered]@{ schema=1; status=$status; error=$failureMessage; impact=[bool]$Impact; exhaustive=[bool]($Exhaustive -or 'all' -in $Suite); verify_runner=[bool]$VerifyRunner; before=$beforeFingerprint; after=$afterFingerprint; rules=$rules; ui=$window; docs=$documentGate }
     $summaryPath = Join-Path $checkDirectory 'summary.json'
     [IO.File]::WriteAllText($summaryPath, ($summary | ConvertTo-Json -Depth 8), [Text.UTF8Encoding]::new($false))
     Write-Output ('SUMMARY: ' + $summaryPath)
-    if ($exitCode -ne 0) { Write-Output ('.\tools\check.ps1 -RerunFailed "' + $checkDirectory + '"') }
+    if ($exitCode -ne 0) {
+        # A document-only failure leaves no suite to rerun, and -RerunFailed refuses such a round.
+        if (($rules.retry.Count + $window.retry.Count) -gt 0) { Write-Output ('.\tools\check.ps1 -RerunFailed "' + $checkDirectory + '"') }
+    }
 }
 exit $exitCode

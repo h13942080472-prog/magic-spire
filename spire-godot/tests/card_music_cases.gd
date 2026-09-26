@@ -11,8 +11,8 @@ static func run(t) -> void:
    var card=Give.give(g,type)
    var choice=t.find_action(g,"card",{"uid":card.uid,"free":free})
    var before=g.export_snapshot()
-   t.check(not g.dispatch(choice.id,g.state.version-1).get("music_feedback",[]).size() and g.state==before,"MUSIC stale submission has no cue or mutation")
-   var result=g.dispatch(choice.id,g.state.version)
+   t.check(not g.dispatch(g.command(choice.payload,g.state.version-1),g.state.version-1).get("music_feedback",[]).size() and g.state==before,"MUSIC stale submission has no cue or mutation")
+   var result=g.dispatch(g.command(choice.payload,g.state.version),g.state.version)
    t.check(result.ok and result.music_feedback==[{"track":"rain_love","phase":"battle","loop":true}],"MUSIC both versions and faces emit one committed looping cue: "+type+str(free))
    for face in [1,2]: t.check(g.B.card_info(type)[face].contains("打出时播放dj版雨爱"),"MUSIC both printed faces explain playback")
  for phase in ["prison","rest","prepare"]:
@@ -41,7 +41,7 @@ static func practice(t) -> void:
    var card=t.hand_card(g,type);var before=g.export_snapshot()
    var choice=t.find_action(g,"card",{"uid":card.uid,"free":free})
    t.check(choice.valid and g.get_view().practice_options.any(func(row):return row.id=="henshin" and row.node=="Practice_henshin") and g.state==before,"HENSHIN PRACTICE real legal choices and readonly entry: %s %s %s" % [type,str(free),choice.reason])
-   var result=g.dispatch(choice.id,g.state.version)
+   var result=g.dispatch(g.command(choice.payload,g.state.version),g.state.version)
    t.check(result.ok and result.music_feedback.size()==1 and g.state.energy==before.energy-choice.cost and g.state.mana==before.mana-choice.mana,"HENSHIN PRACTICE normal costs and committed music")
    t.check((g.state.equipment.is_empty() if not free else "henshin_free" in g.state.card_buffs) and g.state.exhaust.any(func(c):return c.uid==card.uid),"HENSHIN PRACTICE real release/buff and exhaust")
  var normal=Game.new(42)
@@ -57,9 +57,9 @@ static func mandarin_duck(t) -> void:
    var card=Give.give(g,"hannya_2")
    var choice=t.find_action(g,"card",{"uid":card.uid,"free":free})
    var before=g.export_snapshot()
-   var stale=g.dispatch(choice.id,g.state.version-1)
+   var stale=g.dispatch(g.command(choice.payload,g.state.version-1),g.state.version-1)
    t.check(not stale.ok and stale.get("music_feedback",[]).is_empty() and g.state==before,"DUCK MUSIC stale play is silent and atomic")
-   var result=g.dispatch(choice.id,g.state.version)
+   var result=g.dispatch(g.command(choice.payload,g.state.version),g.state.version)
    var expected=[{"track":"mandarin_duck_play","phase":phase,"loop":phase=="battle"}] if phase in ["battle","prison"] else []
    if phase=="rest" and free:
     t.check(not result.ok and result.get("music_feedback",[]).is_empty(),"DUCK MUSIC forbidden rest free effect is silent")

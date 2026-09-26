@@ -1,4 +1,5 @@
 extends RefCounted
+const Queries=preload("res://ui/target_queries.gd")
 
 static func build(ui) -> void:
  var panel=ui.view.reward_panel
@@ -18,25 +19,25 @@ static func build(ui) -> void:
   var contents=Control.new();contents.custom_minimum_size=Vector2(1200,ceilf(panel.entries.size()/5.0)*352)
   scroll.add_child(contents)
   for i in range(panel.entries.size()):
-   var entry=panel.entries[i];var choice=ui.actions.by_id[entry.action_id]
+   var entry=panel.entries[i];var choice=Queries.fact_by_key(ui.view,entry.action_key)
    var card=preload("res://data/encyclopedia.gd").card(entry.type)
    card.uid=entry.uid if entry.uid!="" else "departure_"+entry.type
-   var button=ui._card(card,Rect2((i%5)*242,floori(i/5.0)*352,224,330),func():ui._submit(choice),0,contents,false,true)
+   var button=ui._card(card,Rect2((i%5)*242,floori(i/5.0)*352,224,330),func():ui.command_router.emit(String(choice.payload.get("kind","")),choice),0,contents,false,true)
    button.disabled=not entry.valid;button.name="DepartureCard_"+str(i)
-   ui.candidate_buttons[choice.id]=button
+   ui.candidate_buttons[choice.key]=button
   return
  var index=0
  var option_count=panel.entries.filter(func(entry):return entry.op=="choose").size()
  var start_x=(1600-(mini(option_count,4)*352-28))/2.0
  for entry in panel.entries:
-  var choice=ui.actions.by_id[entry.action_id]
+  var choice=Queries.fact_by_key(ui.view,entry.action_key)
   if entry.op in ["skip","finish"]:
-   var button=ui._button(entry.label,func():ui._submit(choice),ui.GOLD)
+   var button=ui._button(entry.label,func():ui.command_router.emit(String(choice.payload.get("kind","")),choice),ui.GOLD)
    button.name="DepartureContinue";ui._place(button,Rect2(650,750 if option_count==5 else 692,300,54),root)
-   ui.candidate_buttons[choice.id]=button
+   ui.candidate_buttons[choice.key]=button
    continue
   var color=ui.GOLD if index in [2,3] else ui.CYAN
-  var button=ui._button("",func():ui._submit(choice),color);button.disabled=not entry.valid
+  var button=ui._button("",func():ui.command_router.emit(String(choice.payload.get("kind","")),choice),color);button.disabled=not entry.valid
   button.name="DepartureOption_"+str(index)
   if index==4:
    ui._place(button,Rect2(start_x+3*352,636,324,98),root)
@@ -46,7 +47,7 @@ static func build(ui) -> void:
    extra_detail.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
    ui._place(extra_detail,Rect2(16,38,292,54),button)
    for child in button.get_children(): ui._ignore_mouse(child)
-   ui.candidate_buttons[choice.id]=button
+   ui.candidate_buttons[choice.key]=button
    index+=1
    continue
   ui._place(button,Rect2(start_x+index*352,286,324,338),root)
@@ -60,5 +61,5 @@ static func build(ui) -> void:
   var select=ui._label("选择  ›",17,color);select.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
   ui._place(select,Rect2(24,293,276,25),button)
   for child in button.get_children(): ui._ignore_mouse(child)
-  ui.candidate_buttons[choice.id]=button
+  ui.candidate_buttons[choice.key]=button
   index+=1

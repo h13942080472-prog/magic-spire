@@ -26,9 +26,9 @@ static func strain(t) -> void:
  var before=g.export_snapshot();var choices=Splash.select(g,c.payload)
  t.check(c.payload.preview.face_value==14 and choices.size()==2 and choices.all(func(x):return x.preview.base==7 and x.preview.bonus==0 and x.preview.charge==0 and x.preview.assist.bonus==0 and x.preview.environment_true==0),"SPLASH halves the grown face plus strength and charge exactly once, excluding hands and wall")
  t.check(choices.any(func(x):return x.target==locked.id and x.preview.lock_multiplier==0.5) and choices.all(func(x):return x.preview.divisor>1),"SPLASH each recipient keeps its own lock and stack multipliers")
- g.get_view();g.candidates()
- t.check(g.state==before and not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"SPLASH preview and stale commit preserve state and all random streams")
- t.check(g.dispatch(c.id,g.state.version).ok,"SPLASH strain commits through original candidate")
+ g.get_view();g.command_facts()
+ t.check(g.state==before and not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"SPLASH preview and stale commit preserve state and all random streams")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok,"SPLASH strain commits through original candidate")
  t.check(is_equal_approx(g._equipment(main.id).durability,80-c.payload.preview.damage),"SPLASH primary damage does not double count the displayed bonuses")
  for choice in choices:
   var old=before.equipment.filter(func(e):return e.id==choice.target)[0]
@@ -50,7 +50,7 @@ static func slip(t) -> void:
  t.check(c.payload.preview.base==6 and c.payload.preview.face_value==13 and choices.all(func(x):return x.preview.base==6.5),"SPLASH slip inherits displayed dexterity and charge once")
  t.check(choices.size()==2 and choices.any(func(x):return x.target==loose.id) and choices.any(func(x):return x.target==mid.id),"SPLASH slip picks one lowest-ratio eligible target at EACH other point in panel group")
  t.check(choices.filter(func(x):return x.target==loose.id)[0].preview.penalty==0.5,"SPLASH weakest same-layer recipient still receives original same-layer penalty")
- t.check(g.dispatch(c.id,g.state.version).ok and events(g).size()==2 and root.durability==40 and same.durability==30 and calf.durability==40,"SPLASH excludes tighter alternative, original point and other panel groups")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and events(g).size()==2 and root.durability==40 and same.durability==30 and calf.durability==40,"SPLASH excludes tighter alternative, original point and other panel groups")
  t.check(g.state.charge==0 and events(g).all(func(event):return event.base==13),"SPLASH frozen face value survives primary charge consumption without another charge cost")
  g=F.fresh();main=F.piece(g,"thigh","above_knee",40,100)
  root=F.piece(g,"thigh","thigh_root",100,100)
@@ -108,8 +108,8 @@ static func multi_hit_values(t) -> void:
   var values=g.live_card_text(card.type,card.uid).face_damage.bound
   var c=t.find_action(g,"card",{"uid":card.uid,"target":target.id,"free":false},true)
   var before=g.export_snapshot()
-  t.check(c.valid and not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"FACE VALUES stale multi-hit cast preserves charge and card")
-  t.check(g.dispatch(c.id,g.state.version).ok and g.state.card_chain.is_empty() and g.state.charge==0 and g.state.energy==before.energy-2,"FACE VALUES actual multi-hit cast consumes its charge and energy once")
+  t.check(c.valid and not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"FACE VALUES stale multi-hit cast preserves charge and card")
+  t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.card_chain.is_empty() and g.state.charge==0 and g.state.energy==before.energy-2,"FACE VALUES actual multi-hit cast consumes its charge and energy once")
   t.check(events(g).map(func(event):return event.base)==values,"FACE VALUES each actual splash reads the corresponding displayed hit value")
   var hits=g.state.logs.filter(func(row):return row.data.has("follow_through_hit")).map(func(row):return row.data.face_value)
   t.check(hits==values,"FACE VALUES primary hits and splash share the same refreshed per-hit values")
@@ -124,7 +124,7 @@ static func ties(t, seed_value: int) -> void:
  var before=g.export_snapshot()
  t.check(g.candidate_detail(c).contains("随机1件") and g.state==before,"SPLASH tied preview lists possibilities without advancing RNG")
  var twin=F.fresh();t.check(twin.restore_snapshot(before).ok,"SPLASH current snapshot restores before random recipient choice")
- t.check(g.dispatch(c.id,g.state.version).ok and twin.dispatch(c.id,twin.state.version).ok,"SPLASH tie resolves inside formal commit")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and twin.dispatch(twin.command(c.payload,twin.state.version),twin.state.version).ok,"SPLASH tie resolves inside formal commit")
  t.check(events(g).size()==1 and events(g)[0].target in [a.id,b.id] and events(g)==events(twin) and g.state.rng==twin.state.rng,"SPLASH tied choice is reproducible and never hits both alternatives")
  t.check(g.state.rng.card_target==before.rng.card_target+1 and before.rng.keys().filter(func(k):return k!="card_target").all(func(k):return g.state.rng[k]==before.rng[k]),"SPLASH tie consumes exactly one card_target roll and no other random domain")
 

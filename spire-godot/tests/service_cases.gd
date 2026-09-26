@@ -6,8 +6,8 @@ const ShopCopy=preload("res://data/shop_copy.gd")
 static func previous_tower_shop(t):
  var g=Game.new(37)
  g.state.room="floor_10_4";g.Services.start(g)
- var buy=g.candidates().filter(func(c):return c.valid and c.payload.kind=="service" and c.payload.op=="take" and c.payload.payment=="self")[0]
- t.check(g.dispatch(buy.id,g.state.version).ok and not g.get_view().shop.performance.is_empty(),"SHOP reentry fixture commits real payment in the old tower")
+ var buy=g.command_facts().filter(func(c):return c.valid and c.payload.kind=="service" and c.payload.op=="take" and c.payload.payment=="self")[0]
+ t.check(g.dispatch(g.command(buy.payload,g.state.version),g.state.version).ok and not g.get_view().shop.performance.is_empty(),"SHOP reentry fixture commits real payment in the old tower")
  return g
 
 static func shop_entry_scope(t) -> void:
@@ -22,7 +22,7 @@ static func shop_entry_scope(t) -> void:
  var restored=Game.new(1)
  t.check(restored.restore_snapshot(old).ok and restored.get_view().shop.performance.is_empty(),"SHOP legacy entry without a marker still stops at the previous phase")
  var buy=t.find_action(g,"service",{"op":"take","payment":"self"})
- t.check(g.dispatch(buy.id,g.state.version).ok and not g.get_view().shop.performance.is_empty(),"SHOP new visit actual payment still opens its own performance")
+ t.check(g.dispatch(g.command(buy.payload,g.state.version),g.state.version).ok and not g.get_view().shop.performance.is_empty(),"SHOP new visit actual payment still opens its own performance")
  g.Services.start(g)
  t.check(g.get_view().shop.performance.is_empty(),"SHOP explicit reentry does not replay the preceding visit even without an intervening phase log")
 
@@ -34,7 +34,7 @@ static func merchant_speech(t) -> void:
  var previous=""
  for i in range(2):
   var c=t.find_action(g,"service",{"op":"take","payment":"self"})
-  t.check(g.dispatch(c.id,g.state.version).ok,"SHOP self payment follows actual purchase")
+  t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok,"SHOP self payment follows actual purchase")
   var current=g.get_view().shop
   t.check(current.greeting=="" and current.performance.method=="self" and current.performance.text==ShopCopy.PERFORMANCES.self.text,"SHOP free upper body uses the approved self-payment performance")
   t.check(current.performance.id!=previous,"SHOP separate self payments give fresh frozen performance identities")
@@ -46,14 +46,14 @@ static func merchant_speech(t) -> void:
  var bound=Game.new(42,true,"shop")
  bound.add_fixture("wrist",4)
  var bound_action=t.find_action(bound,"service",{"op":"take","payment":"self"})
- t.check(bound.level("arms")>0 and bound.dispatch(bound_action.id,bound.state.version).ok,"SHOP restrained self payment commits normally")
+ t.check(bound.level("arms")>0 and bound.dispatch(bound.command(bound_action.payload,bound.state.version),bound.state.version).ok,"SHOP restrained self payment commits normally")
  var bound_view=bound.get_view().shop
  t.check(bound_view.performance.method in ["sleeve","hand","foot"] and bound_view.performance.text==ShopCopy.PERFORMANCES[bound_view.performance.method].text,"SHOP restrained upper body freezes one approved assisted payment scene")
  var bound_before=bound.export_snapshot();var bound_id=bound_view.performance.id
  t.check(bound.get_view().shop.performance.id==bound_id and bound.export_snapshot()==bound_before,"SHOP assisted scene never rerolls while viewing")
  var flask=Game.new(42,true,"shop");flask.state.flask_mana=500
  var flask_action=t.find_action(flask,"service",{"op":"take","payment":"flask"})
- t.check(flask.dispatch(flask_action.id,flask.state.version).ok,"SHOP flask payment commits normally")
+ t.check(flask.dispatch(flask.command(flask_action.payload,flask.state.version),flask.state.version).ok,"SHOP flask payment commits normally")
  var flask_view=flask.get_view().shop
  t.check(flask_view.performance.is_empty() and flask_view.greeting==ShopCopy.FLASK_PAYMENT and flask_view.greeting_id.ends_with(":flask"),"SHOP flask payment uses ordinary approved merchant dialogue only")
  t.check(ShopCopy.chatter_pool("self",0,true)==ShopCopy.INSUFFICIENT_SELF_FREE and ShopCopy.chatter_pool("self",1,true)==ShopCopy.INSUFFICIENT_SELF_BOUND and ShopCopy.chatter_pool("flask",0,true)==ShopCopy.INSUFFICIENT_FLASK,"SHOP insufficient chatter follows selected payment and upper-body state")
@@ -64,7 +64,7 @@ static func merchant_speech(t) -> void:
  t.check(not plate_self.valid and plate_self.reason==ShopCopy.PLATE_SELF_BLOCK_REASON and plate_self.get("copy_context","")=="plate_self_block","SHOP flat lock blocks own-mana product payment with its explicit chatter context")
  t.check(plate_flask.valid,"SHOP flat lock leaves flask payment available for the same product")
  var plate_release=t.find_action(plate,"service",{"op":"release","target":lock.id,"payment":"self"})
- t.check(plate_release.valid and plate.dispatch(plate_release.id,plate.state.version).ok,"SHOP own-mana release remains available because the shopkeeper removes the flat lock before collecting payment")
+ t.check(plate_release.valid and plate.dispatch(plate.command(plate_release.payload,plate.state.version),plate.state.version).ok,"SHOP own-mana release remains available because the shopkeeper removes the flat lock before collecting payment")
  var plate_scene=plate.get_view().shop.performance
  t.check(plate._equipment(lock.id).is_empty() and plate_scene.method=="self" and plate_scene.text==ShopCopy.PLATE_RELEASE_PERFORMANCES.self.text and plate_scene.button=="完成付款","SHOP flat-lock release freezes the dedicated copy while retaining the original payment method")
 
@@ -73,7 +73,7 @@ static func rest_choice(t) -> void:
  var room_before=room_game.export_snapshot()
  var description=room_game.room_description(room_game.room_data("rest"))
  t.check(description.contains("扣3回合随机获得1张稀有卡") and description.contains("扣3回合选择1张罕见卡") and description.contains("扣3回合补充50魔瓶魔力") and description.contains("跳过奖励"),"REST map description matches all current reward choices and their actual costs")
- t.check(room_game.state==room_before,"REST room description leaves resources, candidates and random state unchanged")
+ t.check(room_game.state==room_before,"REST room description leaves resources, facts and random state unchanged")
  var observed=[]
  for seed_value in range(8):
   var sample=Game.new(seed_value);sample.state.room="rest";sample._start_rest()
@@ -97,7 +97,7 @@ static func rest_choice(t) -> void:
   g._start_rest()
   t.check(g.state.phase=="rest_choice" and g.state.rest_left==6 and g.state.tick==tick and g.state.combat.serial==serial and g.state.charge==0,"REST choice precedes opening effects")
   t.check(g.state.rest_cards.size()==3 and g.state.rest_cards.all(func(id):return g.Cards.Rules.SPECS[id].rarity=="uncommon") and g.state.rest_cards.all(func(id):return g.state.rest_cards.count(id)==1) and g.state.rare_offset==offset,"REST freezes only three distinct uncommon cards without altering rarity progression")
-  var before=g.export_snapshot();g.get_view();g.candidates()
+  var before=g.export_snapshot();g.get_view();g.command_facts()
   t.check(before==g.state and not t.find_action(g,"end").valid and not t.find_action(g,"rest_tool").valid,"REST selection does not tick or offer old services")
   var absent=g.Cards.Rules.REWARDS.filter(func(id):return g.Cards.Rules.SPECS[id].rarity=="rare" and id not in g.state.rest_cards)[0]
   t.check(not t.action(g,"rest_card",{"type":absent}).ok and g.state==before,"REST cannot claim an unoffered rare card")
@@ -105,8 +105,8 @@ static func rest_choice(t) -> void:
   var reward_rng=g.state.rng.reward
   var payload={"type":g.state.rest_cards.filter(func(id):return g.Cards.Rules.SPECS[id].rarity==option)[0]} if option=="uncommon" else {}
   var chosen=t.find_action(g,kind,payload);var version=g.state.version;var deck=g.state.deck.size()
-  t.check(not g.dispatch(chosen.id,version-1).ok and g.state==before,"REST stale claim preserves rewards, time and random state")
-  t.check(g.dispatch(chosen.id,version).ok and g.state.phase=="rest" and g.state.rest_left==remaining_turns,"REST correct remaining time after "+option)
+  t.check(not g.dispatch(g.command(chosen.payload,version-1),version-1).ok and g.state==before,"REST stale claim preserves rewards, time and random state")
+  t.check(g.dispatch(g.command(chosen.payload,version),version).ok and g.state.phase=="rest" and g.state.rest_left==remaining_turns,"REST correct remaining time after "+option)
   t.check(g.state.tick==tick+1 and g.state.combat.turn==1 and g.state.combat.serial==serial+1 and g.state.charge==2 and g.state.energy==4 and g.state.pressure==0 and g.state.mana==40,"REST no skipped-turn effects, exactly one real opening")
   t.check(g.state.deck.size()==deck+(1 if is_card else 0) and g.state.flask_mana==1000+(50 if option=="rest_flask" else 0),"REST grants only selected benefit")
   t.check((g.state.rng.reward!=reward_rng if option=="rare" else g.state.rng.reward==reward_rng) and g.state.rare_offset==offset,"REST only random rare selection consumes reward RNG without changing rarity correction")
@@ -117,7 +117,7 @@ static func rest_choice(t) -> void:
   if twin!=null:
    t.check(t.action(twin,kind,payload).ok and Save.same(g.state,twin.state),"REST current snapshot preserves both offers and reproduces chosen card and opening effects")
   before=g.export_snapshot()
-  t.check(not g.dispatch(chosen.id,version).ok and g.state==before and ["rest_rare","rest_card","rest_flask"].all(func(action_kind):return not t.find_action(g,action_kind).valid),"REST cannot claim another benefit or replay the choice after entry")
+  t.check(not g.dispatch(g.command(chosen.payload,version),version).ok and g.state==before and ["rest_rare","rest_card","rest_flask"].all(func(action_kind):return not t.find_action(g,action_kind).valid),"REST cannot claim another benefit or replay the choice after entry")
   var remaining=g.state.rest_left
   for i in range(remaining): t.check(t.action(g,"end").ok,"REST remaining real turn")
   t.check(g.state.phase=="map" and not g.state.combat.active,"REST ends at selected duration")
@@ -136,12 +136,12 @@ static func flyer(t) -> void:
   var stale={}
   while g.state.phase=="travel":
    var c=t.find_action(g,"travel_step")
-   stale={"id":c.id,"version":g.state.version}
+   stale={"payload":c.payload,"version":g.state.version}
    t.check(t.action(g,"travel_step").ok,"FLYER real travel commits")
   var amount=1020 if kind=="shop" else 1000
   t.check(g.state.flask_mana==amount and g.state.mana==61 and g.state.energy==0,"FLYER only shop entry adds uncapped flask mana")
-  var before=g.export_snapshot();g.get_view();g.candidates()
-  t.check(g.state==before and not g.dispatch(stale.id,stale.version).ok and g.state==before,"FLYER view and stale arrival cannot duplicate grant")
+  var before=g.export_snapshot();g.get_view();g.command_facts()
+  t.check(g.state==before and not g.dispatch(g.command(stale.payload,stale.version),stale.version).ok and g.state==before,"FLYER view and stale arrival cannot duplicate grant")
   g.state.flask_deposits=2
   g.Services.start(g)
   t.check(g.state.flask_mana==amount and g.state.flask_deposits==2,"FLYER reopening service never grants or resets manual deposits")
@@ -170,13 +170,13 @@ static func removal_prices(t) -> void:
   var field="mana" if payment=="self" else "flask_mana"
   g.state.mana=100;g.state.flask_mana=100;g.state.temporary_mana=100;g.state[field]=price-0.5
   var payload={"op":"remove","uid":uid,"payment":payment}
-  var c=t.find_action(g,"service",payload);var before=g.export_snapshot();g.get_view();g.candidates()
-  t.check(c.mana==price and g.get_view().shop.remove_price==price and not c.valid and not g.dispatch(c.id,g.state.version).ok and g.state==before,"REMOVE progressive price is shared and insufficient selected balance cannot mix or increase count")
+  var c=t.find_action(g,"service",payload);var before=g.export_snapshot();g.get_view();g.command_facts()
+  t.check(c.mana==price and g.get_view().shop.remove_price==price and not c.valid and not g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state==before,"REMOVE progressive price is shared and insufficient selected balance cannot mix or increase count")
   g.state[field]=price;c=t.find_action(g,"service",payload);before=g.export_snapshot()
-  t.check(not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"REMOVE stale selection cannot pay or raise future price")
-  t.check(g.dispatch(c.id,g.state.version).ok and g.state[field]==0 and g.state.shop_removals==index+1 and not g.state.deck.any(func(card):return card.uid==uid),"REMOVE actual purchases cost 30,50,70,90 across fresh towers and both payment pools")
+  t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"REMOVE stale selection cannot pay or raise future price")
+  t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state[field]==0 and g.state.shop_removals==index+1 and not g.state.deck.any(func(card):return card.uid==uid),"REMOVE actual purchases cost 30,50,70,90 across fresh towers and both payment pools")
   var committed=g.export_snapshot()
-  t.check(not g.dispatch(c.id,before.version).ok and g.state==committed,"REMOVE same purchase cannot advance the price twice")
+  t.check(not g.dispatch(g.command(c.payload,before.version),before.version).ok and g.state==committed,"REMOVE same purchase cannot advance the price twice")
   if index==1:
    var restored=Save.roundtrip(t,g,"progressive shop removal count")
    if restored!=null: g=restored
@@ -190,17 +190,17 @@ static func refresh_stock(t) -> void:
  g.state.relics.append_array(["flyer","mana_earring"])
  g.state.mana=49.5;g.state.flask_mana=500.0;g.state.temporary_mana=1000.0
  var before=g.export_snapshot();var refresh=t.find_action(g,"service",{"op":"refresh","payment":"self"},false)
- g.get_view();g.candidates()
- t.check(refresh.mana==50 and not refresh.valid and not g.dispatch(refresh.id,g.state.version).ok and g.state==before,"REFRESH insufficient payment and previews preserve stock, count and RNG without mixing sources")
+ g.get_view();g.command_facts()
+ t.check(refresh.mana==50 and not refresh.valid and not g.dispatch(g.command(refresh.payload,g.state.version),g.state.version).ok and g.state==before,"REFRESH insufficient payment and previews preserve stock, count and RNG without mixing sources")
  g.state.mana=50.0;refresh=t.find_action(g,"service",{"op":"refresh","payment":"self"});before=g.export_snapshot()
- t.check(not g.dispatch(refresh.id,g.state.version-1).ok and g.state==before,"REFRESH stale request rejects before payment")
- t.check(g.dispatch(refresh.id,g.state.version).ok and g.state.mana==0 and g.state.shop_refreshes==1,"REFRESH first refresh costs fifty")
+ t.check(not g.dispatch(g.command(refresh.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"REFRESH stale request rejects before payment")
+ t.check(g.dispatch(g.command(refresh.payload,g.state.version),g.state.version).ok and g.state.mana==0 and g.state.shop_refreshes==1,"REFRESH first refresh costs fifty")
  var room=g.room_data(g.state.room)
  t.check(room.stock.size()==12 and room.stock.all(func(row):return not row.taken) and room.stock!=before.rooms.filter(func(r):return r.id==g.state.room)[0].stock,"REFRESH replaces stock and refills sold slots")
  t.check(room.remove_used and g.state.shop_removals==before.shop_removals and g.state.deck==before.deck,"REFRESH preserves purchases and removal service usage")
  t.check(g.state.tick==before.tick and g.state.rng==before.rng and g.state.charge==before.charge and g.state.flask_mana==before.flask_mana and g.state.temporary_mana==before.temporary_mana,"REFRESH avoids spell, entry and combat RNG hooks")
  var saved=g.export_snapshot()
- t.check(not g.dispatch(refresh.id,before.version).ok and g.state==saved,"REFRESH duplicate request cannot pay twice")
+ t.check(not g.dispatch(g.command(refresh.payload,before.version),before.version).ok and g.state==saved,"REFRESH duplicate request cannot pay twice")
  var twin=Save.roundtrip(t,g,"global shop refresh count and frozen stock")
  if twin==null: return
  var stock=room.stock.duplicate(true)
@@ -208,7 +208,7 @@ static func refresh_stock(t) -> void:
  t.check(g.room_data(g.state.room).stock==stock and t.find_action(g,"service",{"op":"refresh","payment":"flask"}).mana==100,"REFRESH reopening preserves stock and price")
  for sample in [g,twin]:
   var candidate=t.find_action(sample,"service",{"op":"refresh","payment":"flask"})
-  t.check(candidate.mana==100 and sample.dispatch(candidate.id,sample.state.version).ok and sample.state.flask_mana==400 and sample.state.shop_refreshes==2,"REFRESH second costs one hundred flask mana")
+  t.check(candidate.mana==100 and sample.dispatch(sample.command(candidate.payload,sample.state.version),sample.state.version).ok and sample.state.flask_mana==400 and sample.state.shop_refreshes==2,"REFRESH second costs one hundred flask mana")
  t.check(g.room_data(g.state.room).stock==twin.room_data(twin.state.room).stock,"REFRESH snapshot reproduces next stock")
  var old_shop=g.state.room
  g.state.room=g.state.rooms.filter(func(r):return r.kind=="shop" and r.id!=old_shop)[0].id;g.Services.start(g)
@@ -232,7 +232,7 @@ static func refresh_stock(t) -> void:
  t.check(not t.action(fresh,"service",{"op":"refresh","payment":"self"}).ok and fresh.state==before,"REFRESH flat lock blocks own payment")
  t.check(t.action(fresh,"service",{"op":"refresh","payment":"flask"}).ok and fresh.state.flask_mana==25,"REFRESH flat lock permits bottle payment")
  var chest=Game.new(42);chest.state.room=chest.state.rooms.filter(func(r):return r.kind=="treasure")[0].id;chest.Services.start(chest)
- t.check(not chest.candidates().any(func(c):return c.payload.kind=="service" and c.payload.op=="refresh"),"REFRESH absent from treasure")
+ t.check(not chest.command_facts().any(func(c):return c.payload.kind=="service" and c.payload.op=="refresh"),"REFRESH absent from treasure")
 
 static func treasure_with_plate(t) -> void:
  var g=Game.new(42)
@@ -244,8 +244,8 @@ static func treasure_with_plate(t) -> void:
  var before=g.export_snapshot();var claim=t.find_action(g,"service",{"op":"take","index":0})
  var reward=g.get_view().battle_rewards[0]
  t.check(claim.valid and claim.mana==0 and not claim.payload.has("payment") and reward.available and reward.reason=="","TREASURE flat lock and empty mana do not block free reward or show shop restrictions")
- t.check(not g.dispatch(claim.id,g.state.version-1).ok and g.state==before,"TREASURE stale free claim cannot change equipment, resources or reward")
- t.check(g.dispatch(claim.id,g.state.version).ok and "small_sigil" in g.state.relics and g.state.mana==0 and g.state.flask_mana==0 and g.state.special_equipment==before.special_equipment,"TREASURE free relic claim succeeds with the lock still equipped")
+ t.check(not g.dispatch(g.command(claim.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"TREASURE stale free claim cannot change equipment, resources or reward")
+ t.check(g.dispatch(g.command(claim.payload,g.state.version),g.state.version).ok and "small_sigil" in g.state.relics and g.state.mana==0 and g.state.flask_mana==0 and g.state.special_equipment==before.special_equipment,"TREASURE free relic claim succeeds with the lock still equipped")
  var after=g.export_snapshot()
  t.check(not t.action(g,"service",{"op":"take","index":0}).ok and g.state==after,"TREASURE collected reward cannot be claimed twice")
 
@@ -302,7 +302,7 @@ static func run(t) -> void:
   t.check(t.action(g,"depart",{"room":id}).ok,"SERVICE enters real adjacent "+kind)
   while g.state.phase=="travel":t.action(g,"travel_step")
   t.check(g.state.phase==kind and g.state.energy==0 and g.state.mana==100 and g.state.reward_count==0,"SERVICE arrival grants no turn or battle recovery")
-  var before=g.export_snapshot();g.get_view();g.candidates()
+  var before=g.export_snapshot();g.get_view();g.command_facts()
   t.check(g.export_snapshot()==before,"SERVICE views never reroll stock")
   var twin=Game.new(3)
   t.check(twin.restore_snapshot(before).ok,"SERVICE stock restores through real snapshot validation")
@@ -409,7 +409,7 @@ static func rarity_prices(t) -> void:
     var own=g.state.mana;var flask=g.state.flask_mana
     var pickup=g.Relics.TYPES[offer.type].modifiers.get("pickup_mana",0.0) if offer.kind=="relic" else 0.0
     t.check(offer.price==price and candidate.mana==price,"SHOP rarity price matches frozen stock and payment candidate "+key)
-    t.check(g.dispatch(candidate.id,g.state.version).ok and g.state.mana==own-(price if source=="self" else 0)+pickup and g.state.flask_mana==flask-(price if source=="flask" else 0),"SHOP both mana sources pay the exact rarity price "+key)
+    t.check(g.dispatch(g.command(candidate.payload,g.state.version),g.state.version).ok and g.state.mana==own-(price if source=="self" else 0)+pickup and g.state.flask_mana==flask-(price if source=="flask" else 0),"SHOP both mana sources pay the exact rarity price "+key)
  t.check(seen.size()==12,"SHOP verifies all three card and relic rarities with both payment sources")
 
 static func m_donalds_shop():
@@ -436,14 +436,14 @@ static func m_donalds(t) -> void:
  var before=g.export_snapshot()
  var own=t.find_action(g,"service",{"op":"take","index":index,"payment":"self"},false)
  var bottle=t.find_action(g,"service",{"op":"take","index":index,"payment":"flask"},false)
- t.check(not own.valid and own.reason=="仅可使用魔瓶购买。" and not g.dispatch(own.id,g.state.version).ok and g.state==before,"M SHOP self payment is rejected atomically despite sufficient personal mana")
- t.check(not bottle.valid and not g.dispatch(bottle.id,g.state.version).ok and g.state==before,"M SHOP cannot combine bottle balance with personal or temporary mana")
+ t.check(not own.valid and own.reason=="仅可使用魔瓶购买。" and not g.dispatch(g.command(own.payload,g.state.version),g.state.version).ok and g.state==before,"M SHOP self payment is rejected atomically despite sufficient personal mana")
+ t.check(not bottle.valid and not g.dispatch(g.command(bottle.payload,g.state.version),g.state.version).ok and g.state==before,"M SHOP cannot combine bottle balance with personal or temporary mana")
  g.state.mana_max=135;g.state.mana=7;g.state.flask_mana=70;g.state.pressure=99
  g._install_template("mouth_band","mouth",24,24,false,"fixture",3)
  bottle=t.find_action(g,"service",{"op":"take","index":index,"payment":"flask"},false)
  before=g.export_snapshot()
- t.check(bottle.valid and bottle.mana==70 and not g.dispatch(bottle.id,g.state.version-1).ok and g.state==before,"M SHOP current payment ignores spell multipliers; stale purchase does nothing")
- t.check(g.dispatch(bottle.id,g.state.version).ok and g.state.flask_mana==0 and g.state.mana_max==145 and g.state.mana==145 and g.state.temporary_mana==100 and g.state.energy==before.energy,"M SHOP purchase pays only bottle and restores full personal mana after increasing the actual cap")
+ t.check(bottle.valid and bottle.mana==70 and not g.dispatch(g.command(bottle.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"M SHOP current payment ignores spell multipliers; stale purchase does nothing")
+ t.check(g.dispatch(g.command(bottle.payload,g.state.version),g.state.version).ok and g.state.flask_mana==0 and g.state.mana_max==145 and g.state.mana==145 and g.state.temporary_mana==100 and g.state.energy==before.energy,"M SHOP purchase pays only bottle and restores full personal mana after increasing the actual cap")
  t.check(g.room_data(g.state.room).stock[index].taken and type in g.state.relics and type not in g.RelicRewards.available(g,"shop") and g.validate()=="","M SHOP purchase sells out, excludes owned relic and leaves valid state")
  before=g.export_snapshot();g.RelicEffects.gain(g,type)
  t.check(g.state==before and not t.action(g,"service",{"op":"take","index":index,"payment":"flask"}).ok,"M SHOP repeated pickup cannot repeat the permanent gain")

@@ -169,6 +169,10 @@ func advance() -> void:
  if _current(token,version): await _step(c,token,version)
  if token==generation: busy=false
 
+# 步骤按钮定位：全部显示点都按显示键（candidate_buttons 的唯一注册键面）取用。
+static func _candidate_button(host, c: Dictionary) -> Control:
+ return host.candidate_buttons.get(String(c.get("key","")))
+
 func _step(c: Dictionary, token: int, version: int) -> void:
  var p=c.payload
  # Choose the displayed face/form before locating the same formal command on screen.
@@ -183,14 +187,14 @@ func _step(c: Dictionary, token: int, version: int) -> void:
   empty_said=true;_say("empty");await _pause(_reading_time())
   if not _current(token,version): return
  _say(_cue(c),c.label)
- var source=host.card_buttons.get(p.get("uid","")) if p.kind in ["card","prison"] else host.candidate_buttons.get(c.id)
+ var source=host.card_buttons.get(p.get("uid","")) if p.kind in ["card","prison"] else _candidate_button(host,c)
  if is_instance_valid(source): await _point(source)
  if not _current(token,version): return
  var target: Control
  if p.get("enemy","")!="": target=host.actor_targets.get(p.enemy)
  elif p.get("hand_uid","")!="": target=host.card_buttons.get(p.hand_uid)
  elif p.get("target","")!="" and p.get("slot","")!="":
-  var data={"card_uid":p.uid,"free":p.get("free",false),"version":version} if p.has("uid") else {"candidate_ids":[c.id],"version":version}
+  var data={"card_uid":p.uid,"free":p.get("free",false),"version":version} if p.has("uid") else {"fact_keys":[String(c.get("key",""))],"version":version}
   var region=host._body_at(p.slot)
   var groups=host.view.body_regions.filter(func(body):return body.id==region.id or body.members.any(func(member):return member.id==region.id))
   if not groups.is_empty() and groups[0].id not in host.expanded_body_regions:
@@ -198,14 +202,14 @@ func _step(c: Dictionary, token: int, version: int) -> void:
    await get_tree().process_frame
   host._show_drop_targets(region.id,data,true)
   await get_tree().process_frame
-  target=host.drop_targets.get(c.id)
+  target=host.drop_targets.get(String(c.get("key","")))
  elif p.get("target","")=="guard_bind": target=host.actor_targets.get("guard_bind")
  elif p.kind in ["card","prison"]: target=host.actor_targets.get("hero")
  if is_instance_valid(target) and target!=source: await _point(target)
  await _pause(_reading_time())
  if not _current(token,version): return
  outcome_delay=0.7
- host._submit(c,version,true)
+ host.command_router.emit(String(c.payload.get("kind","")),c,version,true)
  if p.kind=="attack": attacks+=1
  if p.kind in ["card","prison"]: cards+=1
  if p.kind=="flask" and p.op=="deposit": deposited=true

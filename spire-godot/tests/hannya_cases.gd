@@ -61,8 +61,8 @@ static func progression(t) -> void:
  var mana=g.state.mana;var size=g.state.deck.size()
  t.check(Give.play(t,g,"hannya_1",false).ok and g.Cards.Hannya.level(g)==2 and g.state.mana==mana and g.state.deck.size()==size+2 and g.state.discard.back().type=="good_soup","HANNYA lower card converts only to soup without downgrade")
  var card=Give.give(g,"hannya_2");var c=t.find_action(g,"card",{"uid":card.uid,"free":false});var before=g.export_snapshot()
- t.check(not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"HANNYA stale candidate cannot spend, exhaust, advance or generate")
- g.get_view();g.candidates();t.check(g.state==before,"HANNYA projections do not claim rewards or consume RNG")
+ t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"HANNYA stale candidate cannot spend, exhaust, advance or generate")
+ g.get_view();g.command_facts();t.check(g.state==before,"HANNYA projections do not claim rewards or consume RNG")
  g.state.card_buffs.append("hannya_level_1")
  t.check(g.validate()!="","HANNYA snapshot rejects multiple simultaneous levels")
  g=setup();g.Cards.grant_buff(g,"echo_cast_bound")
@@ -116,7 +116,7 @@ static func attacks(t) -> void:
   t.check(kick.cost==(2 if free else 3) and kick.payload.interrupt==not free and kick.payload.cooldown_turns==(0 if free else 2),"HANNYA justice modifier changes cost interrupt and three-turn cooldown only on bound reward")
   t.check(t.find_action(g,"attack",{"type":"heavy","form":0}).payload.damage==heavy.payload.damage+(3 if free else 1) and t.find_action(g,"attack",{"type":"heavy","form":1}).payload.damage==combo.payload.damage+(2 if free else 1),"HANNYA heavy and combo add face-specific base plus actual strength per hit")
   if not free:
-   t.check(g.dispatch(kick.id,g.state.version).ok and not t.find_action(g,"attack",{"type":"kick","form":0}).valid,"HANNYA justice commits interrupt and blocks another kick during cooldown")
+   t.check(g.dispatch(g.command(kick.payload,g.state.version),g.state.version).ok and not t.find_action(g,"attack",{"type":"kick","form":0}).valid,"HANNYA justice commits interrupt and blocks another kick during cooldown")
    g.state.round+=3
    t.check(t.find_action(g,"attack",{"type":"kick","form":0}).valid,"HANNYA justice recovers three turns later")
    g.state.posture="sit"
@@ -127,10 +127,10 @@ static func gifts(t) -> void:
  for free in [false,true]:
   var played=setup();var gift=Give.give(played,"hannya_infusion");played.state.mana=9
   var offer=t.find_action(played,"card",{"uid":gift.uid,"free":free});var before=played.export_snapshot()
-  t.check(not offer.valid and not played.dispatch(offer.id,played.state.version).ok and played.state==before,"HANNYA infusion under ten mana rejects without mutation")
+  t.check(not offer.valid and not played.dispatch(played.command(offer.payload,played.state.version),played.state.version).ok and played.state==before,"HANNYA infusion under ten mana rejects without mutation")
   played.state.mana=10
   offer=t.find_action(played,"card",{"uid":gift.uid,"free":free})
-  t.check(offer.mana==10 and played.dispatch(offer.id,played.state.version).ok and played.state.mana==0 and ("infusion_free" if free else "infusion_bound") in played.state.card_buffs and played.state.exhaust.any(func(c):return c.uid==gift.uid),"HANNYA infusion either face really pays ten and grants its matching interrupt")
+  t.check(offer.mana==10 and played.dispatch(played.command(offer.payload,played.state.version),played.state.version).ok and played.state.mana==0 and ("infusion_free" if free else "infusion_bound") in played.state.card_buffs and played.state.exhaust.any(func(c):return c.uid==gift.uid),"HANNYA infusion either face really pays ten and grants its matching interrupt")
  t.check(g.Cards.face_mana(g,"infusion",true)==20,"HANNYA infusion discount does not change ordinary infusion")
  for type in ["hannya_swallow","hannya_infusion","hannya_henshin"]:
   var traits=g.B.CARD_TRAITS[type]

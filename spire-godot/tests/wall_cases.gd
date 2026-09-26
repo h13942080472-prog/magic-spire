@@ -13,7 +13,7 @@ static func run(t) -> void:
   distances[g.state.wall_distance]=true
   t.check(g.state.wall_distance in [1,2,3,4] and not g.at_wall() and g._wall_bonus()==0,"WALL battle starts away without environment bonus")
   var before=g.export_snapshot()
-  g.get_view();g.candidates()
+  g.get_view();g.command_facts()
   t.check(g.state==before and g.state.rng.position==1,"WALL preview never rerolls initial position")
   var twin=Game.new(seed_value,true,"guard")
   t.check(twin.state.wall_distance==g.state.wall_distance,"WALL seeded initial distance is reproducible")
@@ -22,12 +22,12 @@ static func run(t) -> void:
  g.state.wall_distance=3
  var equipment=g.add_fixture("thigh",4)
  var damage=g.escape_preview(equipment,"strain",5).damage
- # Fixture setups set inputs; all movement uses real candidates and payment.
+ # Fixture setups set inputs; all movement uses real facts and payment.
  g.state.equipment.clear()
  var before=g.export_snapshot()
  var c=t.find_action(g,"wall_move",{"direction":"toward"})
  t.check(c.cost==1 and c.payload.distance==2,"WALL free standing takes two steps for one energy")
- t.check(not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"WALL stale movement is atomic")
+ t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"WALL stale movement is atomic")
  t.check(t.action(g,"wall_move",{"direction":"toward"}).ok and g.state.wall_distance==1 and g.state.energy==2 and g.state.round==1,"WALL first movement preserves round and posture")
  t.check(t.action(g,"wall_move",{"direction":"toward"}).ok and g.at_wall() and g.state.energy==1,"WALL final partial stride stops exactly at wall")
  t.check(g.get_view().statuses.any(func(x):return x.id=="against_wall") and g._wall_bonus()==2,"WALL derived buff activates actual attributes")
@@ -36,7 +36,7 @@ static func run(t) -> void:
  g.state.equipment.clear()
  var stop=t.find_action(g,"wall_move",{"direction":"toward"})
  before=g.export_snapshot()
- t.check(not stop.valid and not g.dispatch(stop.id,g.state.version).ok and g.state==before,"WALL cannot pay for a zero-distance move")
+ t.check(not stop.valid and not g.dispatch(g.command(stop.payload,g.state.version),g.state.version).ok and g.state==before,"WALL cannot pay for a zero-distance move")
  t.check(t.action(g,"posture",{"dest":"sit","wall":false}).ok and t.action(g,"posture",{"dest":"stand","wall":true}).ok and g.state.round==1 and g.state.energy==1,"WALL discounted ascent does not end turn")
  t.check(t.action(g,"wall_move",{"direction":"away"}).ok and not g.at_wall() and g._wall_bonus()==0 and g.state.wall_distance==2,"WALL leaving removes contact and bonus immediately")
  t.check(not g.get_view().statuses.any(func(x):return x.id=="against_wall"),"WALL buff is not retained in a second mutable list")
@@ -59,7 +59,7 @@ static func run(t) -> void:
  g.state.wall_distance=0
  t.check(t.action(g,"item_install",{"item":item.id,"mount":"hand_wall"}).ok,"WALL actual tool can be mounted adjacent")
  g.state.wall_distance=1
- t.check(not t.find_action(g,"item_retrieve",{"item":item.id}).valid and g.candidates().filter(func(a):return a.payload.kind=="item_use" and a.payload.item==item.id).all(func(a):return not a.valid),"WALL mounted use and retrieval gated after leaving")
+ t.check(not t.find_action(g,"item_retrieve",{"item":item.id}).valid and g.command_facts().filter(func(a):return a.payload.kind=="item_use" and a.payload.item==item.id).all(func(a):return not a.valid),"WALL mounted use and retrieval gated after leaving")
  t.check(g.state.items.any(func(i):return i.id==item.id and i.mount=="hand_wall"),"WALL leaving does not delete installed tool")
  g.state.wall_distance=0
  t.check(t.find_action(g,"item_retrieve",{"item":item.id}).valid,"WALL return restores tool interaction")
@@ -100,7 +100,7 @@ static func little_pig(t) -> void:
  t.check(buff.source=="一只小猪" and buff.duration.contains("持有遗物") and shown.wall_position.distance==3 and g.state==before,"PIG read-only wall status explains persistent relic source and real distance")
  var normal=t.find_action(g,"posture",{"dest":"stand","wall":false})
  var supported=t.find_action(g,"posture",{"dest":"stand","wall":true})
- t.check(supported.valid and supported.cost==maxi(0,normal.cost-1) and g.dispatch(supported.id,g.state.version).ok and g.state.wall_distance==3,"PIG actual discounted ascent works away from wall")
+ t.check(supported.valid and supported.cost==maxi(0,normal.cost-1) and g.dispatch(g.command(supported.payload,g.state.version),g.state.version).ok and g.state.wall_distance==3,"PIG actual discounted ascent works away from wall")
  t.check(g._wall_bonus()==g.B.WALL_BONUS,"PIG existing rough-wall bonus activates at a distance")
  t.check(t.action(g,"wall_move",{"direction":"away"}).ok and g.state.wall_distance==4 and g.at_wall(),"PIG paid movement changes distance without losing support")
  t.check(g.state.logs.any(func(log):return log.data.has("wall_distance") and log.text.contains("距墙4格") and log.text.contains("仍提供贴墙")),"PIG movement log distinguishes position and effect")
@@ -134,8 +134,8 @@ static func mouth_installation(t) -> void:
    var before=g.export_snapshot()
    t.check(c.valid and c.payload.operator=="mouth" and c.detail.contains("嘴部"),"MOUTH each tool has the correct posture-specific mouth route")
    t.check(not t.find_action(g,"item_use",{"item":item.id,"target":target.id}).valid,"MOUTH installation permission does not allow mouth-held cutting")
-   t.check(not g.dispatch(c.id,g.state.version-1).ok and g.export_snapshot()==before,"MOUTH stale install is atomic")
-   t.check(g.dispatch(c.id,g.state.version).ok and g.state.energy==before.energy-1 and g._item(item.id).mount==mount and g._item(item.id).uses==before.items[0].uses,"MOUTH installation pays once and preserves tool charges")
+   t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.export_snapshot()==before,"MOUTH stale install is atomic")
+   t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.energy==before.energy-1 and g._item(item.id).mount==mount and g._item(item.id).uses==before.items[0].uses,"MOUTH installation pays once and preserves tool charges")
    t.check(g.state.logs.any(func(log):return log.data.get("installation",{}).get("operator","")=="mouth" and log.text.contains("用嘴部")),"MOUTH actual installation operator reaches the log")
    t.check(t.find_action(g,"item_retrieve",{"item":item.id}).valid,"MOUTH height route also allows retrieval")
    g.add_fixture("mouth",4)
@@ -208,8 +208,8 @@ static func capture_blocks_movement(t) -> void:
   for direction in ["toward","away"]:
    var c=t.find_action(g,"wall_move",{"direction":direction})
    t.check(not c.valid and c.reason=="被捕缚时无法移动，先解除捕缚。","BIND MOVE both directions show a precise restriction for "+type)
-   t.check(not g.dispatch(c.id,g.state.version).ok and g.export_snapshot()==before,"BIND MOVE rejection preserves position, energy, turn, RNG and bind")
-  t.check(not g.dispatch(previous.id,g.state.version).ok and g.export_snapshot()==before,"BIND MOVE formerly available movement is rechecked at submission")
+   t.check(not g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.export_snapshot()==before,"BIND MOVE rejection preserves position, energy, turn, RNG and bind")
+  t.check(not g.dispatch(g.command(previous.payload,g.state.version),g.state.version).ok and g.export_snapshot()==before,"BIND MOVE formerly available movement is rechecked at submission")
   t.check(g.CaptureBind.view(g).detail.contains("被捕缚时无法移动"),"BIND MOVE status explains the restriction")
   g.CaptureBind.damage_bind(g,100.0,"测试解除")
   var distance=g.state.wall_distance

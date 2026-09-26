@@ -26,13 +26,13 @@ static func run(t) -> void:
    break
  var c=t.find_action(g,"card",{"uid":card.uid,"target":target.id},true)
  var before=g.export_snapshot()
- t.check(c.valid and g.dispatch(c.id,g.state.version).ok and g._magic_failed,"LOG real failed spell commits its cost")
+ t.check(c.valid and g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g._magic_failed,"LOG real failed spell commits its cost")
  var text=g.get_view().action_log.map(func(row):return row.text).reduce(func(a,b):return a+"\n"+b,"")
  t.check(text.contains("魔力撑隙") and text.contains("施法失败") and text.contains("卡牌留在手中") and text.contains("成功率%s%%" % Copy.number(profile.chance*100)),"LOG failure names the spell, chance and actual card destination")
  t.check(text.contains("消耗1能量、%s魔力" % Copy.number(c.mana_payment.mana)) and text.find("施法失败")<text.find("消耗") and text.count("消耗")==1,"LOG outcome precedes one accurately rounded payment")
  t.check(not text.contains("未产生法术效果") and not text.contains("不退回") and g.state.hand==before.hand and is_equal_approx(g.state.mana,before.mana-c.mana_payment.mana*0.5) and g.state.equipment==before.equipment,"LOG concise failure preserves half refund, cards and equipment")
  before=g.export_snapshot();g.get_view();g.get_view()
- t.check(g.state==before and not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"LOG viewing and stale requests do not add text or change state")
+ t.check(g.state==before and not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"LOG viewing and stale requests do not add text or change state")
 
  var raw=[{"round":1,"text":"购买完成。","data":{"player_action":{"mana":10.03625,"temporary_mana":2.500001,"mana_source":"flask","cost":1}}}]
  var raw_before=raw.duplicate(true)
@@ -45,7 +45,7 @@ static func run(t) -> void:
  card=preload("res://tests/curse_cases.gd").give(g,"strain")
  c=t.find_action(g,"card",{"uid":card.uid,"target":target.id},true)
  var old=target.durability
- t.check(c.valid and g.dispatch(c.id,g.state.version).ok,"LOG real equipment strike produces calculation and summary")
+ t.check(c.valid and g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok,"LOG real equipment strike produces calculation and summary")
  var record=g.state.logs.filter(func(row):return row.data.has("action_result"))[0]
  text=g.get_view().action_log.filter(func(row):return row.id==g.state.logs.find(record))[0].text
  t.check(text.contains("点挣扎伤害") and text.contains("耐久%s → %s" % [Copy.number(old),Copy.number(g._equipment(target.id).durability)]) and not text.contains("×") and record.text.contains(g._formula(c.payload.preview)),"LOG sidebar shows actual typed damage while full record retains the exact formula")
@@ -79,7 +79,7 @@ static func shared_rounds(t) -> void:
  past=g.state.logs.duplicate(true)
  t.check(t.action(g,"end").ok and g.display_round()==5 and g.get_view().action_log.back().round==5 and g.state.logs.slice(0,past.size())==past,"ROUND next preparation turn advances header and new log only")
  var before=g.export_snapshot()
- t.check(not g.dispatch("missing",g.state.version).ok and g.state==before,"ROUND rejected action cannot rewrite historical round labels")
+ t.check(not g.dispatch(g.command({"kind":"card","uid":"missing"},g.state.version),g.state.version).ok and g.state==before,"ROUND rejected action cannot rewrite historical round labels")
  g=Game.new(42);g.state.round=9;g.state.room="rest";g._start_rest()
  t.check(t.action(g,"rest_begin").ok and g.display_round()==1 and g.get_view().action_log.back().round==1,"ROUND rest starts its own turn one instead of retaining battle round nine")
  t.check(t.action(g,"end").ok and g.display_round()==2 and g.get_view().action_log.back().round==2,"ROUND second rest turn advances new log consistently")

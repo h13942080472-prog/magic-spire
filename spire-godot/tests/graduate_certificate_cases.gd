@@ -9,7 +9,7 @@ static func run(t) -> void:
   var action=t.find_action(plain,"card",{"uid":card.uid,"target":equipment.id,"free":false})
   var durability=equipment.durability;var energy=plain.state.energy
   var expected=plain.escape_preview(equipment,type,6).damage
-  t.check(action.valid and action.payload.preview.base==6 and plain.dispatch(action.id,plain.state.version).ok,"BASIC six-point escape card submits its formal candidate: "+type)
+  t.check(action.valid and action.payload.preview.base==6 and plain.dispatch(plain.command(action.payload,plain.state.version),plain.state.version).ok,"BASIC six-point escape card submits its formal candidate: "+type)
   t.check(is_equal_approx(plain._equipment(equipment.id).durability,durability-expected) and plain.state.energy==energy-1 and plain._card(card.uid).is_empty(),"BASIC actual damage uses six while retaining one-energy cost and normal card movement: "+type)
  var g=Game.new(42)
  var original=g.Cards.Rules.SPECS.duplicate(true)
@@ -37,11 +37,11 @@ static func run(t) -> void:
   t.check(g.state==before and g.Cards.Rules.SPECS==original,"DIPLOMA viewing never mutates state or shared card templates")
   var action=t.find_action(g,"card",{"uid":card.uid,"target":target.id,"free":false})
   var version=g.state.version;var durability=target.durability
-  t.check(not action.is_empty() and action.payload.preview==enhanced and g.dispatch(action.id,version).ok,"DIPLOMA actual card dispatch consumes enhanced candidate: "+type)
+  t.check(not action.is_empty() and action.payload.preview==enhanced and g.dispatch(g.command(action.payload,version),version).ok,"DIPLOMA actual card dispatch consumes enhanced candidate: "+type)
   var remaining=g._equipment(target.id)
   t.check((remaining.is_empty() if enhanced.damage>=durability else is_equal_approx(remaining.durability,durability-enhanced.damage)),"DIPLOMA actual durability loss matches enhanced preview: "+type)
   before=g.export_snapshot()
-  t.check(not g.dispatch(action.id,version).ok and g.state==before,"DIPLOMA stale card command is atomically rejected")
+  t.check(not g.dispatch(g.command(action.payload,version),version).ok and g.state==before,"DIPLOMA stale card command is atomically rejected")
   g.RelicEffects.gain(g,"graduate_certificate")
   t.check(g.Cards.base_damage(g,type)==10,"DIPLOMA duplicate pickup does not stack itself")
   for other in ["brace","inch","chain","peel","magic_slip","strong_elbow"]:
@@ -57,7 +57,7 @@ static func run(t) -> void:
   if not action.payload.has("preview"): continue
   var before=g.CaptureBind.view(g).value
   var expected=maxf(0,before-action.payload.preview.damage)
-  t.check(g.dispatch(action.id,g.state.version).ok and is_equal_approx(g.CaptureBind.view(g).get("value",0),expected),"DIPLOMA actual capture damage uses enhanced base: "+type)
+  t.check(g.dispatch(g.command(action.payload,g.state.version),g.state.version).ok and is_equal_approx(g.CaptureBind.view(g).get("value",0),expected),"DIPLOMA actual capture damage uses enhanced base: "+type)
  var fresh=Game.new(42)
  t.check(g.Cards.Rules.SPECS==original and fresh.Cards.base_damage(fresh,"strain")==6,"DIPLOMA leaves new runs and shared definitions unchanged")
  g=Game.new(42);g.state.relics=["graduate_certificate"]

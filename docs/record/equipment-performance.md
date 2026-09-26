@@ -82,3 +82,25 @@ card_texts保留完整83个运行时注册牌型。每个牌型的双面正文�
 | 特殊装备 | 76.331／57.450 | 0.745 |
 
 该分段测量约改善11%—26%，不等同于完整刷新或帧率提升。benchmark.json明确标记projection_only，并再次核对固定候选前后的完整显示、只读状态与缓存生命周期；诊断没有引擎／脚本错误。生产代码不带计数器，全部诊断与基线副本只放忽略的build/projection-batch-20260914。
+
+## targets_at 查表 vs UncachedGame · 2026-09-26
+
+日期 2026-09-26。域：`core/game.gd::targets_at`。开工 HEAD `78ab96d`（`worker/equipment-index`）。毫秒只报告，不是完成判据，也不与本卷 2026-09-14 或 R5 绝对毫秒拼接。
+
+对照：旧 `tests/architecture_cases.gd::UncachedGame`（`_begin_equipment_read` 返回 `{}`，全程 live `_query_targets_at`）／新 `tests/game_fixture.gd`（作用域内 `targets_at` 查 `slot_targets`）。同进程、同夹具、两侧 `state` 深拷贝；顺序固定「旧→新」交替；2 次热身不计 + 15 有效配对。配对比值＝逐对（新/旧）中位，不是两个独立中位的商。种子 42，正式 `add_fixture`。Godot `C:\1\Tools\Godot\v4.7.2-stable\Godot_v4.7.2-stable_win64_console.exe`。命令（`spire-godot/`）：`--headless --path . --script res://build/equipment-index-targets-20260926/bench.gd`。
+
+夹具（每侧 `validate()==""`，`links==composites==special==0`）：空 0（`Game.new(42)` 后 `state.equipment.clear()`，`physical_pieces().size()==0`）；密 12（`for slot in B.SLOTS: add_fixture(slot,7,10)`，件数＝`B.SLOTS.size()==12`）；叠 29（密 12 后再用同一工厂往仍有容量的槽叠到 29，未用违法覆盖）。槽列表＝`architecture_cases.index_target_slots`（含 `"missing_slot"`），三档均为 22 槽。事实条数两侧相同：88／100／202。
+
+每对测量前后 `export_snapshot()`、`get_view()`、`command_facts()` 两侧相等；键宇宙每个槽 `targets_at` 的 id 序列两侧相等。三档 15 对全部成立。
+
+| 夹具 | 本刀 `targets_at` 中位 ms 旧→新 | 本刀配对比值 | `command_facts` 中位 ms 旧→新 | 事实配对比值 | `get_view` 中位 ms 旧→新 | View 配对比值 | 槽／条数 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 空 0 | 0.183→0.256 | 1.442 | 16.391→14.981 | 0.789 | 31.630→28.959 | 0.833 | 22／88 |
+| 密 12 | 0.359→0.250 | 0.754 | 39.262→17.343 | 0.458 | 48.417→29.549 | 0.615 | 22／100 |
+| 叠 29 | 1.226→0.360 | 0.526 | 115.813→46.706 | 0.410 | 145.393→67.359 | 0.458 | 22／202 |
+
+本刀计时包住一次 `_begin_equipment_read`、对槽列表各 `targets_at` 一遍、再释放；不含夹具构造。空装备本刀独立中位变慢（0.183→0.256，配对比值 1.442），照实记录；件数上去后本刀配对比值 0.754／0.526。调用方 `command_facts`／`get_view` 的配对比值随件数下降，这不是全局帧率承诺。生产源码无计时钩子。数字取自该 JSON 的 `old_median_us`／`new_median_us`／`pair_ratio_median`（同一次写入）。
+
+引擎错误：测量日志 0 行（`ErrorCollector` 计数 0，无 SCRIPT ERROR）。原始数据 `spire-godot/build/equipment-index-targets-20260926/paired.json`（gitignored）。
+
+未跑项：UI／窗口；`equipment_complete`；`-Suite all`；安卓真机；push。不把毫秒写成完成。

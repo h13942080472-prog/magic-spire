@@ -1,5 +1,7 @@
 extends RefCounted
 
+const Interface=preload("res://tests/interface_ui_cases.gd")
+
 static func finger(t, position: Vector2, down: bool, index: int=0, canceled: bool=false) -> void:
  var event=InputEventScreenTouch.new();event.position=position;event.pressed=down;event.index=index;event.canceled=canceled
  t.ui.get_viewport().push_input(event,true)
@@ -128,3 +130,18 @@ static func run(t) -> void:
  var size=t.root.size;settings.set_mode(0);settings.set_resolution(Vector2i(1280,720))
  t.check(t.root.size==size,"TOUCH mobile settings cannot resize native Android window")
  settings.mobile=false;ui._close_drawers();ui._refresh_drawers();await t.frames()
+ # The hold path reaches the same term boxes as the mouse hover on a battle-exterior face
+ # (docs/spec/card-terms.md「触发面」).
+ ui.restart(42);await t.frames()
+ ui._open_drawer("show_encyclopedia");await t.frames()
+ var book=ui.find_child("Encyclopedia",true,false)
+ book.show_entry(book.rows.filter(func(row):return row.category=="cards" and row.id=="mana_search")[0]);await t.frames()
+ var face=ui.find_child("DisplayCard_encyclopedia_mana_search",true,false)
+ before=ui.game.export_snapshot()
+ await t.move_mouse(Vector2(70,300));await t.frames()
+ await hold(t,face.get_global_rect().get_center())
+ var side="free" if face.free_face else "bound"
+ t.check(Interface.term_boxes(ui.term_popup)==Interface.pinned_terms("mana_search",side),"TOUCH hold shows the same term boxes as hover: "+str(Interface.term_boxes(ui.term_popup)))
+ await finger(t,face.get_global_rect().get_center(),false)
+ t.check(ui.game.export_snapshot()==before,"TOUCH hold term boxes change no state")
+ await t.close_information()

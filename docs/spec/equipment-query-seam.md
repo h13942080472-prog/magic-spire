@@ -20,40 +20,40 @@
 
 ## 接口（接口清单与语义）
 
-「来源集合」的拼装顺序 = 返回数组顺序；**顺序是接口的一部分**：`_equipment_name` 用
+「无作用域来源」的拼装顺序 = 返回数组顺序；**顺序是接口的一部分**：`_equipment_name` 用
 `equipment_at(target.slot).find(target)`／`_stack_items(target)` 生成「第 N 条／第 N 件」，
 候选与详情直接消费该名称，任何重排都会改玩家可见文本。
 
-| 接口 | 来源集合（顺序） | 过滤条件 | 返回容器 | 元素 |
-| --- | --- | --- | --- | --- |
-| `physical_pieces()` | `state.equipment` 原序 → `state.composites[*].components`（root 序、组件序）→ `Shoulders.pieces(self)`（`state.equipment` 原序 × `host.shoulders.pieces` 原序） | **无**（不看耐久、不看覆盖） | 新数组 | 权威实例 |
-| `equipment_at(slot)` | `physical_pieces()` | `slot in Equipment.coverage(e)` ∧ `e.durability>0` | 新数组（命中索引时 `.duplicate()`） | 权威实例 |
-| `targets_at("shoulder")` | `physical_pieces()` | `Equipment.is_shoulder(e)` ∧ `e.durability>0`；**不走 coverage**（含复合肩带 `glove_strap` 与 `shoulder_host` 件） | 新数组 | 权威实例 |
-| `targets_at(特殊槽)` | `state.special_equipment` → `links_at(slot)` | 特殊件：`SpecialEquipment.occupies(e,slot)`，**无耐久过滤**；绳：`durability>0` ∧ `slot in link.slots` | 新数组 | 权威实例 |
-| `targets_at(普通槽)` | `equipment_at(slot)` → 覆盖该槽且活跃的复合组件（`slot in Composites.definition(root).coverage` ∧ `Composites.active(root)`，排除 `is_shoulder`，按**引用**去重）→ `links_at(slot)` → `Binding.connections(self)` 中 `e.slot==slot` | 同左 | 新数组 | 权威实例 |
-| `links_at(slot)` | `state.links` | `durability>0` ∧ `slot in link.slots` | 新数组 | 权威实例 |
-| `link_anchors()` | `physical_pieces()` → `state.special_equipment` | 特殊件：`Links.is_crotch_anchor`，**无耐久过滤** | 新数组 | 权威实例 |
-| `equipment_targets()` | `physical_pieces()` → `state.links` | 无（**链接不看耐久**） | 新数组 | 权威实例 |
-| `action_targets()` | `equipment_targets()` → `state.special_equipment` → `Binding.connections(self)` | 连接：`Binding.present(e)` ∧ `kind=="linked"`（一体式不入列） | 新数组 | 权威实例 |
-| `_equipment(id)` | `action_targets()` | id 相等，**首个命中** | **同一实例引用，不复制**（唯一例外） | 权威实例 |
-| `_composite(id)` | `state.composites` | `root.id==id` | 同一实例引用 | 权威实例 |
-| `occupied(slot)` | `equipment_at(slot)` | `palm`／`fingers`：`hand_blocked(slot,"left") and hand_blocked(slot,"right")`；其余：非空 | bool | — |
-| `hand_blocked(slot,side)` | `equipment_at(slot)` | `e.get("side","") in ["",side]` | bool | — |
-| `capacity_used(slot)` | `physical_pieces()` | `point in Equipment.capacity_points(e)`，对 `Equipment.points(slot)` 逐点计数取 `max` | int | — |
-| `_point_count(point)` | `physical_pieces()` | `point in Equipment.capacity_points(e)` | int | — |
-| `_capacity_issue(pieces)` | **入参数组**（不保证是权威件集合） | 逐点计数 > `_capacity(slot)` | String（原因或空） | — |
-| `_stack_items(target)` | 见 `_query_stack_items` | `parent_id` 递归；特殊件按 `occupied_slots` 交集；`coverage` 空或 `link_rope` → `[target]`；否则 `Equipment.overlaps` ∧（非独立件或同 id 或不同 root） | 新数组／索引副本 | 权威实例 |
-| `Shoulders.pieces(g)` | `state.equipment` 中带 `shoulders` 的宿主 | 无（耐久过滤在 `attached`） | 新数组 | 权威实例 |
-| `Shoulders.attached(g,host)` | `host.shoulders.pieces`（`glove_body` 宿主改取 `root.components`） | `is_shoulder` ∧ `durability>0.000001` | 新数组 | 权威实例 |
-| `Binding.connections(g)` | `state.equipment` | `present(e)` ∧ `binding.kind=="linked"` | 新数组 | 权威实例 |
-| `cast_view(profile)` | 索引 `casts` | 键 = 规范化 profile（见「输入域」的键规则） | 深拷贝 | 结果字典 |
-| `equipment_entry(g,e,slot)` | 索引 `equipment_views` | 仅当 `is_same(e, _equipment(e.id))`（非权威实例绕开复用） | 深拷贝 + 覆盖 `slot` | 显示行 |
+| 接口 | 作用域内来源 | 无作用域来源（拼装顺序＝返回顺序） | 过滤条件 | 返回容器 | 元素 |
+| --- | --- | --- | --- | --- | --- |
+| `physical_pieces()` | 件集合 `pieces` | `state.equipment` 原序 → `state.composites[*].components`（root 序、组件序）→ `Shoulders.pieces(self)`（`state.equipment` 原序 × `host.shoulders.pieces` 原序） | **无**（不看耐久、不看覆盖） | 新数组 | 权威实例 |
+| `equipment_at(slot)` | 部位→件 `slots` | `physical_pieces()` | `slot in Equipment.coverage(e)` ∧ `e.durability>0` | 新数组（命中索引时 `.duplicate()`） | 权威实例 |
+| `targets_at("shoulder")` | 部位→目标边[`"shoulder"`] | `physical_pieces()` | `Equipment.is_shoulder(e)` ∧ `e.durability>0`；**不走 coverage**（含复合肩带 `glove_strap` 与 `shoulder_host` 件） | 新数组（命中索引时 `.duplicate()`） | 权威实例 |
+| `targets_at(特殊槽)` | 部位→目标边[slot] | `state.special_equipment` → `links_at(slot)` | 特殊件：`SpecialEquipment.occupies(e,slot)`，**无耐久过滤**；绳：`durability>0` ∧ `slot in link.slots` | 新数组（命中索引时 `.duplicate()`） | 权威实例 |
+| `targets_at(普通槽)` | 部位→目标边[slot] | `equipment_at(slot)` → 覆盖该槽且活跃的复合组件（`slot in Composites.definition(root).coverage` ∧ `Composites.active(root)`，排除 `is_shoulder`，按**引用**去重）→ `links_at(slot)` → `Binding.connections(self)` 中 `e.slot==slot` | 同左 | 新数组（命中索引时 `.duplicate()`） | 权威实例 |
+| `links_at(slot)` | 部位→绳 | `state.links` | `durability>0` ∧ `slot in link.slots` | 新数组 | 权威实例 |
+| `link_anchors()` | 锚清单 | `physical_pieces()` → `state.special_equipment` | 特殊件：`Links.is_crotch_anchor`，**无耐久过滤** | 新数组 | 权威实例 |
+| `equipment_targets()` | 目标清单 | `physical_pieces()` → `state.links` | 无（**链接不看耐久**） | 新数组 | 权威实例 |
+| `action_targets()` | `actions` 清单 | `equipment_targets()` → `state.special_equipment` → `Binding.connections(self)` | 连接：`Binding.present(e)` ∧ `kind=="linked"`（一体式不入列） | 新数组 | 权威实例 |
+| `_equipment(id)` | id→件 `ids` | `action_targets()` | id 相等，**首个命中** | **同一实例引用，不复制**（唯一例外） | 权威实例 |
+| `_composite(id)` | 根→组件 | `state.composites` | `root.id==id` | 同一实例引用 | 权威实例 |
+| `occupied(slot)` | 部位→件 `slots` | `equipment_at(slot)` | `palm`／`fingers`：`hand_blocked(slot,"left") and hand_blocked(slot,"right")`；其余：非空 | bool | — |
+| `hand_blocked(slot,side)` | 部位→件 `slots` | `equipment_at(slot)` | `e.get("side","") in ["",side]` | bool | — |
+| `capacity_used(slot)` | 点→件（容量） | `physical_pieces()` | `point in Equipment.capacity_points(e)`，对 `Equipment.points(slot)` 逐点计数取 `max` | int | — |
+| `_point_count(point)` | 点→件（容量） | `physical_pieces()` | `point in Equipment.capacity_points(e)` | int | — |
+| `_capacity_issue(pieces)` | **入参数组**（不保证是权威件集合） | **入参数组**（不保证是权威件集合） | 逐点计数 > `_capacity(slot)` | String（原因或空） | — |
+| `_stack_items(target)` | 索引 `stacks` | 见 `_query_stack_items` | `parent_id` 递归；特殊件按 `occupied_slots` 交集；`coverage` 空或 `link_rope` → `[target]`；否则 `Equipment.overlaps` ∧（非独立件或同 id 或不同 root） | 新数组／索引副本 | 权威实例 |
+| `Shoulders.pieces(g)` | `state.equipment` 中带 `shoulders` 的宿主 | `state.equipment` 中带 `shoulders` 的宿主 | 无（耐久过滤在 `attached`） | 新数组 | 权威实例 |
+| `Shoulders.attached(g,host)` | `host.shoulders.pieces`（`glove_body` 宿主改取 `root.components`） | `host.shoulders.pieces`（`glove_body` 宿主改取 `root.components`） | `is_shoulder` ∧ `durability>0.000001` | 新数组 | 权威实例 |
+| `Binding.connections(g)` | `state.equipment` | `state.equipment` | `present(e)` ∧ `binding.kind=="linked"` | 新数组 | 权威实例 |
+| `cast_view(profile)` | 索引 `casts` | 索引 `casts` | 键 = 规范化 profile（见「输入域」的键规则） | 深拷贝 | 结果字典 |
+| `equipment_entry(g,e,slot)` | 索引 `equipment_views` | 索引 `equipment_views` | 仅当 `is_same(e, _equipment(e.id))`（非权威实例绕开复用） | 深拷贝 + 覆盖 `slot` | 显示行 |
 
 - **「无耐久过滤」的四处必须原样保留**（`targets_at` 特殊件分支、`equipment_targets`／`action_targets` 的链接、
   `link_anchors` 的股绳锚、`equipment_targets` 整体）：它们决定徒手解除与监狱巡视基准清单的范围，收紧或放松都会改候选。
-- **返回值政策**：索引内部只读共享；只在真正需要的边界复制一次（`equipment_at`／`physical_pieces`／
+- **返回值政策**：索引内部只读共享；只在真正需要的边界复制一次（`equipment_at`／`targets_at`／`physical_pieces`／
   `_stack_items`／`escape_preview`／`cast_view`／`equipment_entry` 在返回处 `.duplicate()`／`.duplicate(true)`）。
-  新增的边（点→件、根→组件、宿主→肩、连接、绳、锚、`targets`／`actions` 清单）沿用同一政策：
+  新增的边（点→件、根→组件、宿主→肩、连接、绳、锚、部位→目标、`targets`／`actions` 清单）沿用同一政策：
   **索引里存一份，返回时复制一份**，同一作用域内只复制不重算。
 - **例外一（保留）：`_equipment(id)` 返回权威实例引用**。它是规则层拿实例的通道
   （耐久写入、替换、清理、投影）。「调用方不得写共享结果」对返回容器成立、**对装备实例不成立**；
@@ -70,7 +70,32 @@
 ### 非缓存路径
 
 没有作用域时，各查询走 live 实现（`filter`／`map` 新数组），返回值仍与上表一致；
+作用域内 `targets_at` 只读部位→目标边，无作用域走 live。
 任何路径都不得把索引容器直接返回，「返回容器隔离复制」的既有断言必须继续通过。
+
+### `targets_at` 路径（邻接表）
+
+本域声称一条查询路径、无第二套公开入口、作用域内查询不扫权威容器。边＝稳定符号。
+行为检查器＝具名 `INDEX targets edge parity` 与 `index_materializes_once_per_scope`（关掉查表分流须让其中一条变红）。
+
+| 边 | 来源 → 去向 | 类型 | 对应路径（唯一） |
+| --- | --- | --- | --- |
+| T1 | `core/game.gd::targets_at` → `_equipment_read.slot_targets` | 数据 | 作用域内：`slot_targets.get(slot,[]).duplicate()`；未登记＝已知空，不 live 补扫 |
+| T2 | `core/game.gd::targets_at` → `core/game.gd::_query_targets_at` | 调用 | 无作用域：唯一 live 拼装入口 |
+| T3 | `core/game.gd::_build_equipment_read_index` → `core/game.gd::_materialize_slot_target_edge` | 调用 | `slots`／`roots`／`links`／`connections` 已写入之后、`actions`／`ids` 之前写入 `slot_targets`；自检作废早退不建此边 |
+| T4 | `core/game.gd::_materialize_slot_target_edge` → `core/game.gd::_query_targets_at` | 调用 | 键宇宙每个槽一次；禁止调 `core/game.gd::targets_at`（表尚未开放） |
+| T5 | `core/game.gd::_query_targets_at` → `core/game.gd::physical_pieces` | 调用 | `"shoulder"` 分支；过滤见接口表 |
+| T6 | `core/game.gd::_query_targets_at` → `state.special_equipment`＋`core/game.gd::links_at` | 数据／调用 | 特殊槽分支；特殊件无耐久过滤，不拼连接 |
+| T7 | `core/game.gd::_query_targets_at` → `core/game.gd::equipment_at` → `core/game.gd::_composite_roots` → `core/game.gd::links_at` → 连接清单 | 调用 | 普通槽；连接：作用域内 `_equipment_read.connections`，否则 `core/torso_binding.gd::connections` |
+
+禁止边（出现即未洁）：
+
+- `core/game.gd::targets_at` 方法体 → `core/game.gd::physical_pieces`／`core/game.gd::equipment_at`／`core/game.gd::_composite_roots`／`core/game.gd::links_at`／`core/torso_binding.gd::connections`／`state.special_equipment.filter`（作用域内也不经 `_query_targets_at` 再拼）
+- `core/game.gd::_query_targets_at` → `core/game.gd::targets_at`（不回调、不读 `slot_targets`）
+- 第二套公开 `targets_at`（`_query_targets_at` 是私有拼装，不是第二入口）
+- 写路径跟随 `slot_targets`；把肩带写入 `slots["shoulder"]`
+
+非本刀、不升格：键空间「宿主→肩部件」与 B6 `INDEX host edge parity` 仍未落地。`core/shoulder_links.gd::attached` 与 `core/torso_binding.gd::connections` 的作用域内来源仍是 live（`host.shoulders.pieces`／`state.equipment`），不声称读未落地边。`equipment_at`／`occupied`／`hand_blocked` 仍走部位→件边，本刀零行为变化。
 
 ## 输入域
 
@@ -141,7 +166,8 @@
 | 部位→绳 | 槽 ID | 绳数组（`state.links` 原序） | 由 `state.links` 按 `slots` 正向投影 |
 | 宿主→肩部件 | 宿主 id | `host.shoulders.pieces`（原序）；`glove_body` 宿主取 `root.components` 中 `is_shoulder` 件；`durability>0.000001` 过滤只属于 `attached` | 由 `state.equipment` 正向投影 |
 | 连接 | — | 连接件数组（`state.equipment` 原序） | 由 `state.equipment` 的 `binding.kind=="linked"` 正向投影 |
-| 目标清单 | — | 有序数组 | 按上表拼装顺序组合上述边 |
+| 部位→目标 | 槽 ID（`B.SLOT_NAMES.keys()` ∪ `B.SLOTS` ∪ 已物化 `slots`／`links` 键 ∪ `"shoulder"` ∪ `SpecialEquipment.slots()` ∪ 连接件 `.slot` ∪ 各根 `definition.coverage`） | 目标数组（接口表三路拼装顺序） | 入口一次按接口表三路正向投影；未登记＝已知空，不 live 补扫 |
+| 目标清单 | — | 有序数组 | 按上表拼装顺序组合上述边；只对应 `equipment_targets()` |
 | `stacks`／`escapes`／`casts`／`equipment_views` | 见下 | 结果副本 | 维持既有填充点 |
 
 `casts` 改稳定键的规则：键 = 规范化序列化（键名排序、递归处理嵌套容器、数值 int/float 同值归一）后的字符串，
@@ -217,7 +243,7 @@ departure: core/game.gd.new(42)               # 出货开局，departure 相位
 
 | 批 | 边／改动 | 该批命令（`-TimeoutSeconds 600`） | 该批也要过的具名 check |
 | --- | --- | --- | --- |
-| B1 | 部位→件 + 件集合全量物化 | `-Suite equipment` | `INDEX slot edge parity`（`tests/equipment_cases.gd`） |
+| B1 | 部位→件 + 件集合全量物化 | `-Suite equipment` | `INDEX slot edge parity`、`INDEX targets edge parity`（`tests/equipment_cases.gd`） |
 | B2 | id→件 | `-Suite architecture` | `INDEX id edge parity`（`tests/architecture_cases.gd`） |
 | B3 | 点→件（容量、物理） | `-Suite equipment_complete` | `INDEX point edge parity`（`tests/equipment_complete_cases.gd`） |
 | B4 | 根→组件 | `-Suite composites` | `INDEX root edge parity`（`tests/composite_cases.gd`） |
@@ -226,6 +252,8 @@ departure: core/game.gd.new(42)               # 出货开局，departure 相位
 | B7 | 连接 | `-Suite torso_binding` | `INDEX connection edge parity`（`tests/torso_binding_cases.gd`） |
 | B8 | 谓词／计数（上表谓词全部） | `-Suite architecture,equipment` | `INDEX predicate parity`（architecture + equipment 各一条） |
 | B9 | 「必须新开作用域的入口」全部 | `-Suite architecture,prison,events` | `INDEX entry parity`（`tests/architecture_cases.gd`） |
+
+部位→目标边随入口物化，具名 check `INDEX targets edge parity`（`tests/equipment_cases.gd`）；`equipment_index_materializes_once_per_scope` 扩到该边。不新开 B 编号。
 
 - 每批只加一类边，跑完该批一次 oracle 比对，红了可归因；`contact` 不是独立套件名（只作 `-Impact` 的跨域标签），
   B9 触及 `EnemyPlans`／`Contact`／`EquipmentOffers`／`SelfBinding` 的检查落在既有实例与套件里。
@@ -236,7 +264,8 @@ departure: core/game.gd.new(42)               # 出货开局，departure 相位
      → 与参照逐字段相等、数组顺序相等；`candidates()`／`get_view()` 与基线相等；`state` 与随机游标不变；
      退出后 `_equipment_read.is_empty()`。
   2. `equipment_index_materializes_once_per_scope`（测试侧计数包装）：同一作用域内同一边的不同键各查一次
-     → 建表次数 ≤1、无重扫；无作用域时不建表；清空或排序任一返回值不影响后续查询。
+     → 建表次数 ≤1、无重扫（含部位→目标边）；无作用域时不建表；清空或排序任一返回值不影响后续查询。
+     具名 `INDEX targets edge parity`：作用域内／无作用域 `targets_at` 与 live 参照逐字段／顺序相等。
   3. `equipment_index_self_check_falls_back`：三种破坏夹具（组件 `root_id` 不一致、肩带 `shoulder_host`
      指向不存在的宿主、两条不同实例共用同一 id）→ 结果等于无索引参照；每次作用域恰好一条具名记录；
      `_equipment_read` 为空；状态、日志、存档无变化。
@@ -286,4 +315,4 @@ departure: core/game.gd.new(42)               # 出货开局，departure 相位
   （仅加作用域进出或改内部取数），并在既有 `tests/*_cases.gd` 追加具名 check；不新增文件、不新增第三方依赖、
   不新建看板或流程文件，不新增计时钩子／计数器到生产源码。
 - 不新增「每次调用都跑全图遍历」的路径：全图遍历只允许出现在作用域入口的建表里，每次作用域一次。
-- 不新增 UI 可见行为、文案、动画；不改 `present`／`render`／`commit`、`ui/action_index.gd`、`ui/target_queries.gd`。
+- 不新增 UI 可见行为、文案、动画；不改 `present`／`render`／`commit`、`ui/target_queries.gd`（行动行索引文件已在批 R5 删除）。

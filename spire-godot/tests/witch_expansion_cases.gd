@@ -21,7 +21,7 @@ static func run(t) -> void:
   for repeat in range(3): t.check(t.action(g,"attack",{"type":"witch_"+part,"form":0}).ok,"WITCH unlimited preparation "+part)
   t.check(t.action(g,"attack",{"type":"witch_"+part,"form":1}).ok,"WITCH first release succeeds "+part)
   var blocked=t.find_action(g,"attack",{"type":"witch_"+part,"form":1});var before=g.export_snapshot()
-  t.check(not blocked.valid and blocked.reason.contains("本回合已经释放") and not g.dispatch(blocked.id,g.state.version).ok and g.state==before,"WITCH repeat release rejected atomically "+part)
+  t.check(not blocked.valid and blocked.reason.contains("本回合已经释放") and not g.dispatch(g.command(blocked.payload,g.state.version),g.state.version).ok and g.state==before,"WITCH repeat release rejected atomically "+part)
   t.check(t.action(g,"attack",{"type":"witch_"+part,"form":0}).ok,"WITCH can prepare after releasing "+part)
   g._begin_player_turn();g.state.witch_charges[part]=4
   t.check(t.find_action(g,"attack",{"type":"witch_"+part,"form":1}).valid,"WITCH next turn restores release quota "+part)
@@ -69,7 +69,7 @@ static func run(t) -> void:
   if free: t.check(g.state.energy==33 and g.state.temporary_mana==40 and g.state.witch_focus==3,"WITCH authority grants energy reserve and focus")
   else: t.check(g.state.equipment.is_empty() and g.state.composites.is_empty() and g.state.guard_bind.is_empty(),"WITCH authority clears physical restraints")
   var blocked=t.find_action(g,"end");var before=g.export_snapshot()
-  t.check(not blocked.valid and not g.dispatch(blocked.id,g.state.version).ok and g.state==before and t.find_action(g,"surrender").valid,"WITCH authority locks end transaction while surrender remains")
+  t.check(not blocked.valid and not g.dispatch(g.command(blocked.payload,g.state.version),g.state.version).ok and g.state==before and t.find_action(g,"surrender").valid,"WITCH authority locks end transaction while surrender remains")
   g.Pressure.gain(g,20,"fixture");t.check(g.state.pressure==10,"WITCH authority halves current pressure")
   var saved=g.export_snapshot();t.check(Game.new(42).restore_snapshot(saved).ok,"WITCH authority lock survives snapshot")
   g._damage_enemy(g.state.enemies[0],10000,"magic","fixture");g._finish_battle()
@@ -139,8 +139,8 @@ static func _training(t) -> void:
     if permanent.uid==card.uid: permanent.practice_plays=count
    var c=t.find_action(g,"card",{"uid":card.uid,"free":free,"target":target.id})
    var before=g.export_snapshot()
-   t.check(c.valid and not g.dispatch(c.id,g.state.version-1).ok and g.state==before,"WITCH training stale use rolls back "+str([count,free]))
-   t.check(g.dispatch(c.id,g.state.version).ok,"WITCH training real multihit "+str([count,free]))
+   t.check(c.valid and not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"WITCH training stale use rolls back "+str([count,free]))
+   t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok,"WITCH training real multihit "+str([count,free]))
    var played=g.state.discard.filter(func(item):return item.uid==card.uid)
    t.check(not played.is_empty() and played[0].practice_plays==count+1 and played[0].type==g.Character.Expansion.TRAINING[mini(5,(count+1)/7)],"WITCH training counts one whole card and evolves after threshold "+str([count,free]))
    var expected=g.Cards.Rules.SPECS[type].hits

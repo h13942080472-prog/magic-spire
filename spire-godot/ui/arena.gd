@@ -34,7 +34,7 @@ func configure_hero(view: Dictionary, fixed: bool) -> void:
  appearance=next_appearance
  mode="hero";pose=next_pose;fixed_portrait=fixed;character_id=next_character
  has_restraint_level=view.has_restraint_level
- # Retain visual facts only, not the entire game view or its candidates.
+ # Retain visual facts only, not the entire game view or its display facts.
  hero_view=EquipmentPortrait.snapshot(view)
  if is_node_ready():_refresh_hero()
 

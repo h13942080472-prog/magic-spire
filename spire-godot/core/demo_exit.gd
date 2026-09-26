@@ -9,12 +9,15 @@ static func health_multiplier(state: Dictionary) -> float:
 static func at_exit(g) -> bool:
  return not g.state.practice and g.state.phase=="cleared" and g.room_data(g.state.room).get("kind","")=="exit"
 
-static func candidates(g, out: Array) -> void:
- if not at_exit(g) or g.state.demo_finished: return
- g._candidate(out,{"kind":"demo_end"},"结束并返回菜单",{"kind":"demo_exit.end","args":{},"fallback":end_detail(g,{})},0,0,"","","demo_exit")
+# 试玩出口的显示事实（批 R5：行生产转发改显示事实构建，docs/spec/candidate-removal.md §2.1 T5／T8）。
+static func facts(g) -> Array:
+ var out=[]
+ if not at_exit(g) or g.state.demo_finished: return out
+ out.append(g._fact({"kind":"demo_end"},"结束并返回菜单",{"kind":"demo_exit.end","args":{},"fallback":end_detail(g,{})},0,0.0,"","","demo_exit"))
  if g.state.demo_cycle<2:
   var continue_args={"next_cycle":g.state.demo_cycle+1}
-  g._candidate(out,{"kind":"demo_continue"},"继续游玩",{"kind":"demo_exit.continue","args":continue_args,"fallback":continue_detail(g,continue_args)},0,0,"","","demo_exit")
+  out.append(g._fact({"kind":"demo_continue"},"继续游玩",{"kind":"demo_exit.continue","args":continue_args,"fallback":continue_detail(g,continue_args)},0,0.0,"","","demo_exit"))
+ return out
 
 # R1（docs/ondemand-copy.md §11.5）：文案类别登记在路由，正文仍留本模块。
 static func end_detail(_g, _args: Dictionary) -> String:

@@ -43,8 +43,8 @@ static func copy_fixed_set_matches_full_entry(t) -> void:
  preload("res://tests/curse_cases.gd").give(g,"strain")
  var before=g.export_snapshot()
  var view=g.get_view()
- var candidates=g.candidates()
- var shown=battle_display_set(g,candidates)
+ var facts=g.command_facts()
+ var shown=battle_display_set(g,facts)
  var mismatch=[]
  for type in g.Cards.Rules.SPECS:
   var single=g.live_card_text(type)
@@ -55,12 +55,12 @@ static func copy_fixed_set_matches_full_entry(t) -> void:
  t.check(g.export_snapshot()==before and g.state.version==view.version,"COPY scenario 1 reads leave state, random domains and version unchanged")
 
 # S 按 契约声明的显示入口独立重算（与 game_view 的实现分开写）。
-static func battle_display_set(g, candidates: Array) -> Dictionary:
+static func battle_display_set(g, facts: Array) -> Dictionary:
  var shown={}
  for card in g.state.hand: shown[card.type]=true
  for type in g.state.reward_options: shown[type]=true
  for type in g.state.rest_cards: shown[type]=true
- for candidate in candidates:
+ for candidate in facts:
   var type=String(candidate.payload.get("type",""))
   if g.Cards.Rules.SPECS.has(type): shown[type]=true
  for row in g.Services.view(g).get("stock",[]):

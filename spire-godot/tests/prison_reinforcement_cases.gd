@@ -63,7 +63,7 @@ static func run(t) -> void:
  quiet(g)
  var before=g.export_snapshot()
  var candidate=t.find_action(g,"end")
- t.check(not g.dispatch(candidate.id,g.state.version-1).ok and g.state==before,"REINFORCEMENTS stale end cannot advance or summon")
+ t.check(not g.dispatch(g.command(candidate.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"REINFORCEMENTS stale end cannot advance or summon")
  var clone=Save.roundtrip(t,g,"one turn before reinforcements")
  Save.step_both(t,g,clone,"end")
  t.check(g.state.prison.reinforcements==1 and g.state.enemies.size()==2,"REINFORCEMENTS restored fourth turn spawns exactly once")

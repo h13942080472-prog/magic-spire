@@ -25,19 +25,19 @@ static func run(t) -> void:
   g.state.posture="stand";g.state.mana=40;g.state.flask_mana=20
   g._gain_tool("mana_potion");var item=g.state.items.back().id
   var before=g.export_snapshot()
-  var actions=g.candidates().filter(func(c):return c.payload.kind=="item_use" and c.payload.get("item","")==item)
+  var actions=g.command_facts().filter(func(c):return c.payload.kind=="item_use" and c.payload.get("item","")==item)
   t.check(actions.size()==1 and actions[0].valid==(phase!="battle"),"RECOVERY one potion candidate with correct phase restrictions: "+phase)
   var withdrawal=t.find_action(g,"flask",{"op":"withdraw"})
   t.check(withdrawal.valid==(phase!="battle"),"RECOVERY flask matches potion body exemption: "+phase)
   t.check(g.state==before,"RECOVERY projections do not mutate state: "+phase)
   if phase=="battle":
-   t.check(not g.dispatch(actions[0].id,g.state.version).ok and g.state==before,"RECOVERY combat rejection rolls back all state")
+   t.check(not g.dispatch(g.command(actions[0].payload,g.state.version),g.state.version).ok and g.state==before,"RECOVERY combat rejection rolls back all state")
    continue
   t.check(t.action(g,"item_use",{"item":item}).ok and g.state.mana==50 and g._item(item).is_empty(),"RECOVERY potion works while bound and retains mouth half effect: "+phase)
   t.check(t.action(g,"flask",{"op":"withdraw"}).ok and g.state.mana==55 and g.state.flask_mana==10,"RECOVERY flask retains mouth loss and real withdrawn amount: "+phase)
   t.check(["phase","tick","round","energy","rng","posture","combat","prison"].all(func(key):return g.state[key]==before[key]),"RECOVERY consumes no turn and preserves pending stage: "+phase)
   var after=g.export_snapshot()
-  t.check(not g.dispatch(actions[0].id,before.version).ok and g.state==after,"RECOVERY stale or consumed potion cannot be reused: "+phase)
+  t.check(not g.dispatch(g.command(actions[0].payload,before.version),before.version).ok and g.state==after,"RECOVERY stale or consumed potion cannot be reused: "+phase)
   g._gain_tool("mana_potion");item=g.state.items.back().id;g.state.mana=g.state.mana_max
   before=g.export_snapshot()
   t.check(not t.action(g,"item_use",{"item":item}).ok and g.state==before,"RECOVERY full mana still prevents wasting a potion: "+phase)

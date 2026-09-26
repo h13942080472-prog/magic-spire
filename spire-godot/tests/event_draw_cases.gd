@@ -23,7 +23,7 @@ static func run(t) -> void:
  g.state.event_seen=g.Events.Data.pool().filter(func(id):return id not in remaining)
  before_room(g,rooms[0].id)
  var before=g.export_snapshot()
- g.route_view();g.get_view();g.candidates();g.room_description(rooms[0])
+ g.route_view();g.get_view();g.command_facts();g.room_description(rooms[0])
  t.check(g.state==before and not rooms[0].has("event"),"EVENT DRAW map and previews do not select or consume events")
  t.check(t.action(g,"depart",{"room":rooms[0].id}).ok and not rooms[0].has("event") and g.state.event_seen==before.event_seen,"EVENT DRAW departure does not select an event")
  var twin=Save.roundtrip(t,g,"before event arrival")

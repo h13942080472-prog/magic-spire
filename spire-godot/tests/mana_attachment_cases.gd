@@ -25,8 +25,8 @@ static func run(t) -> void:
   g=setup();var card=Give.give(g,TYPE);var before=g.export_snapshot()
   var c=t.find_action(g,"card",{"uid":card.uid,"free":free})
   t.check(c.valid and c.cost==1 and c.mana==10 and g.Cards.cast_profile(g,TYPE).parts==["none"],"ATTACHMENT both faces cost one energy and ten mana without casting limb")
-  t.check(not g.dispatch(c.id,g.state.version-1).ok and g.export_snapshot()==before,"ATTACHMENT stale activation rolls back")
-  t.check(g.dispatch(c.id,g.state.version).ok and g.state.mana==190 and g.state.energy==29 and g.state.charge==1 and g.state.powers.size()==1,"ATTACHMENT successful activation pays once and grants one charge")
+  t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.export_snapshot()==before,"ATTACHMENT stale activation rolls back")
+  t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.mana==190 and g.state.energy==29 and g.state.charge==1 and g.state.powers.size()==1,"ATTACHMENT successful activation pays once and grants one charge")
   g=setup();card=Give.give(g,TYPE);g.state.mana=9;before=g.export_snapshot()
   t.check(not t.action(g,"card",{"uid":card.uid,"free":free}).ok and g.export_snapshot()==before,"ATTACHMENT unaffordable activation leaves all state unchanged")
   g=setup();card=Give.give(g,TYPE);g.state.pressure=99
@@ -46,18 +46,18 @@ static func run(t) -> void:
  var fire=t.find_action(g,"attack",{"type":"fireball"})
  t.check(not fire.payload.all and not fire.payload.has("mana_attachment"),"ATTACHMENT fireball is unaffected")
  var c=t.find_action(g,"attack",{"type":"strike","form":1});var hp=g.state.enemies.map(func(e):return e.hp)
- var before=g.export_snapshot();g.get_view();g.candidates()
+ var before=g.export_snapshot();g.get_view();g.command_facts()
  t.check(g.export_snapshot()==before,"ATTACHMENT attack preview never spends resources")
- t.check(g.dispatch(c.id,g.state.version).ok and g.state.mana==180 and g.state.charge==0,"ATTACHMENT multi-hit AOE consumes ten mana and one charge once")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.mana==180 and g.state.charge==0,"ATTACHMENT multi-hit AOE consumes ten mana and one charge once")
  for i in range(hp.size()): t.check(is_equal_approx(hp[i]-g.state.enemies[i].hp,c.payload.damage*2*g.Enemies.damage_multiplier(g,g.state.enemies[i].type,"physical")),"ATTACHMENT each living enemy receives every physical hit")
  for mana in [0.0,9.0,10.0]:
   g=setup();activate(t,g,true);g.state.mana=mana;g.state.temporary_mana=0
   c=t.find_action(g,"attack",{"type":"strike","form":0})
   t.check(c.valid and c.payload.all==(mana>=10) and c.mana==(10 if mana>=10 else 0) and c.payload.damage==(5.5 if mana>=10 else 11.0),"ATTACHMENT insufficient-mana boundary restores original target and damage")
-  t.check(g.dispatch(c.id,g.state.version).ok and g.state.mana==(0 if mana>=10 else mana),"ATTACHMENT insufficient mana still permits ordinary attack without partial charge")
+  t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.mana==(0 if mana>=10 else mana),"ATTACHMENT insufficient mana still permits ordinary attack without partial charge")
  g=setup();activate(t,g,true);g.state.mana=4;g.state.temporary_mana=6
  c=t.find_action(g,"attack",{"type":"strike","form":0})
- t.check(c.mana_payment.mana==4 and c.mana_payment.temporary_mana==6 and g.dispatch(c.id,g.state.version).ok and g.state.mana==0 and g.state.temporary_mana==0,"ATTACHMENT AOE draws temporary mana before personal mana")
+ t.check(c.mana_payment.mana==4 and c.mana_payment.temporary_mana==6 and g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.mana==0 and g.state.temporary_mana==0,"ATTACHMENT AOE draws temporary mana before personal mana")
  g=setup();activate(t,g,false)
  for mana in [4.0,5.0]:
   g.state.mana=mana;var charge=g.state.charge;var skill=Give.give(g,"pot_of_greed")
@@ -76,7 +76,7 @@ static func run(t) -> void:
  g=setup();activate(t,g,true);activate(t,g,false);charge=g.state.charge
  t.check(charge==2 and g.state.mana==180,"ATTACHMENT opposite faces coexist and powers do not trigger skill surcharge")
  before=g.export_snapshot();c=t.find_action(g,"status_toggle",{"status":"power_mana_attachment_free"})
- t.check(not g.dispatch(c.id,g.state.version-1).ok and g.export_snapshot()==before,"ATTACHMENT stale toggle cannot change active state")
+ t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.export_snapshot()==before,"ATTACHMENT stale toggle cannot change active state")
  t.check(toggle(t,g,true).ok and toggle(t,g,false).ok and g.state.charge==charge and g.state.mana==180 and g.state.energy==28,"ATTACHMENT independent toggles cost nothing and keep original charges")
  var statuses=g.get_view().statuses
  t.check(statuses.any(func(s):return s.id=="power_mana_attachment_free" and s.disabled) and statuses.any(func(s):return s.id=="power_mana_attachment_bound" and s.disabled),"ATTACHMENT disabled powers remain visible and toggleable")

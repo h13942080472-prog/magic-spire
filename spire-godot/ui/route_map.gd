@@ -8,6 +8,9 @@ var selected=""
 var hovered=""
 var buttons={}
 var compact=false
+# Read-only reuse (docs/spec/run-review.md): the same renderer without room hit targets and
+# without pan/pencil input; drawing, coordinates and colours stay identical.
+var read_only=false
 var region_name="塔路"
 var localize: Callable
 var press_origin=Vector2.ZERO
@@ -50,6 +53,7 @@ func _notification(what: int) -> void:
   drawing=false;active_stroke=-1;pointer_down=false;panning=false
 
 func _input(event: InputEvent) -> void:
+ if read_only: return
  var scroll=get_parent() as ScrollContainer
  if scroll==null or not is_visible_in_tree(): return
  if not event is InputEventMouse: return
@@ -122,6 +126,11 @@ func _ready() -> void:
  texture_filter=CanvasItem.TEXTURE_FILTER_LINEAR
  var scroll=get_parent() as ScrollContainer
  if scroll!=null: scroll.get_v_scroll_bar().value_changed.connect(func(_value): active_stroke=-1;queue_redraw())
+ if read_only:
+  # No room buttons, so _layout_nodes (which positions them) is skipped as well; the graph
+  # still redraws on resize.
+  resized.connect(queue_redraw);queue_redraw()
+  return
  for room in rooms:
   var button=Button.new()
   button.name="RouteNode_"+room.id

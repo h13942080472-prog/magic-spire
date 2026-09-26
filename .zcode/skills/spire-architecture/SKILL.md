@@ -1,7 +1,7 @@
 ---
 name: spire-architecture
 description: >-
-  《紧缚尖塔》模块的架构边界与数据流规范：提交入口与只读投影、候选与索引、
+  《紧缚尖塔》模块的架构边界与数据流规范：指令收口与只读投影、候选与索引、
   随机域、只读复用边界、装备事务与分层、注册表与实例分离。改动 spire-godot 的
   core/、data/、ui/ 之前读它；涉及具体机制时再按根 AGENTS 的文档入口表取专题文档。
 ---
@@ -11,7 +11,7 @@ description: >-
 - 状态变化统一进入正式行动管线。
   界面只消费只读投影并派发正式命令。
 
-- 提交必须复核候选身份与状态版本。
+- 提交必须复核指令形状（kind＋params）与状态版本。
   失败不得留下部分付款或部分装备变化。
 
 - 规则使用稳定 ID 和显式数据。
@@ -45,7 +45,7 @@ description: >-
   夹具注入后的行动仍走正式规则。
 
 - core/game.gd 是状态与事务唯一提交入口；core/game_view.gd 生成只读显示快照，UI 不读不写 game.state。
-- UI 提交已有候选 ID＋版本，action_index 只查找、不重算资格。
+- UI 提交经 `ui/command_router.gd` 的 `emit` 收口（分类转发表 `ROUTES`）；`action_index` 只查找、不重算资格。
 - ui/target_queries.gd 是身体目标／拖放载荷／解除候选的唯一查询入口：只吃 View 与 ActionIndex，不持有游戏、控件（见 docs/spec/release-interface.md）。（2026-09-17：缓存限制已改为"复用须附可证失效规则"，见 docs/spec/response-pipeline.md。）
 - core/pressure.gd 等助手沿正式初始化／行动／回合管线执行，不另立玩家命令；失败必须完整回滚。
 - balance、card_rules、relics、enemies 等注册表集中维护数值；敌人种类与实例 ID 分离，意图／生命／来源／打断按实例保存。

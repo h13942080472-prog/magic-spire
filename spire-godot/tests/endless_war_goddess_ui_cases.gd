@@ -1,5 +1,6 @@
 extends RefCounted
 const Cards=preload("res://tests/curse_cases.gd")
+const Queries=preload("res://ui/target_queries.gd")
 
 static func run(t) -> void:
  var ui=t.ui
@@ -14,8 +15,8 @@ static func run(t) -> void:
  preload("res://tests/endless_war_goddess_cases.gd").restrain(ui.game)
  ui.render();await t.frames()
  var before=ui.game.export_snapshot()
- var choices=ui.actions.select("attack",{"type":"kick","enemy":ui.selected_enemy})
- t.check(not choices.is_empty(),"WAR GODDESS UI has kick candidates to cycle")
+ var choices=Queries.select(ui.view,"attack",{"type":"kick","enemy":ui.selected_enemy})
+ t.check(not choices.is_empty(),"WAR GODDESS UI has kick facts to cycle")
  if choices.is_empty(): return
  for choice in choices:
   var form=choice.payload.form
@@ -24,7 +25,7 @@ static func run(t) -> void:
   var point=button.get_global_rect().get_center()
   await t.mouse_button(point,MOUSE_BUTTON_RIGHT,true);await t.mouse_button(point,MOUSE_BUTTON_RIGHT,false)
  t.check(ui.attack_forms.kick==choices[0].payload.form and ui.game.export_snapshot()==before,"WAR GODDESS UI complete candidate cycle is read only")
- t.check(not ui.find_child("BasicAttack_fireball",true,false).disabled and ui.actions.find("attack",{"type":"fireball","enemy":ui.selected_enemy}).casting.chance==1,"WAR GODDESS UI fireball stays usable with mouth restraint and high pressure")
+ t.check(not ui.find_child("BasicAttack_fireball",true,false).disabled and Queries.find(ui.view,"attack",{"type":"fireball","enemy":ui.selected_enemy}).casting.chance==1,"WAR GODDESS UI fireball stays usable with mouth restraint and high pressure")
  ui.attack_forms.kick=choices[-1].payload.form
  ui.game._finish_battle();ui.game.RelicEffects.end_combat(ui.game);ui.game._start_battle()
  ui.render();await t.frames()

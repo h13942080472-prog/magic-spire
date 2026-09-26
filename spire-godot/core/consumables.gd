@@ -20,14 +20,6 @@ static func description(g, type: String) -> String:
 static func outside_battle(g, type: String) -> bool:
  return Tools.TYPES.get(type,{}).get("unrestricted_outside_battle",false) and g.state.phase not in ["battle","cleared","prison_end"]
 
-# Resource recovery remains available on selection pages and during exploration.
-# Normal action phases already contribute these candidates; keep each item unique.
-static func noncombat_candidates(g, out: Array) -> void:
- for item in g.state.items:
-  if not outside_battle(g,item.type): continue
-  if out.any(func(candidate):return candidate.payload.kind=="item_use" and candidate.payload.get("item","")==item.id): continue
-  candidates(g,out,item)
-
 static func effect_description(type: String, value: int, assisted: bool=false, noncombat: bool=false) -> String:
  var spec=Tools.TYPES[type]
  var text=""
@@ -70,13 +62,26 @@ static func reason(g, type: String) -> String:
   if g.state.sure_cast: return "本场战斗已有一次必定成功的施法尚未使用。"
  return ""
 
-static func candidates(g, out: Array, item: Dictionary) -> void:
+# 道具使用事实（道具域，批 R4 起、R5 收口）：显示事实的唯一来源（docs/spec/candidate-removal.md §2.1 T5／T8）。
+static func use_facts(g, item: Dictionary) -> Array:
+ var facts=[]
  var spec=Tools.TYPES[item.type]
  var targets=g.Equipment.panel_groups() if spec.get("target_scope","")=="body_group" else [{"id":"hero","name":""}]
  for target in targets:
   var label="使用"+spec.name+(" · "+target.name if target.name!="" else "")
   var use_args={"item_type":item.type}
-  g._candidate(out,{"kind":"item_use","item":item.id,"target":target.id},label,{"kind":"consumables.description","args":use_args,"fallback":description_detail(g,use_args)},0,0,reason(g,item.type),"","item")
+  facts.append(g._fact({"kind":"item_use","item":item.id,"target":target.id},label,{"kind":"consumables.description","args":use_args,"fallback":description_detail(g,use_args)},0,0.0,reason(g,item.type),"","item"))
+ return facts
+
+# 非战斗可用道具的事实（道具域，批 R4 起、R5 收口）：existing＝已产出的显示事实，用于「同一道具只留
+# 一条使用点」的去重——与改动前的行扫描语义一致。
+static func noncombat_facts(g, existing: Array) -> Array:
+ var facts=[]
+ for item in g.state.items:
+  if not outside_battle(g,item.type): continue
+  if existing.any(func(entry):return entry.payload.kind=="item_use" and entry.payload.get("item","")==item.id): continue
+  facts.append_array(use_facts(g,item))
+ return facts
 
 # R4（docs/ondemand-copy.md §11.5）：直呼点文案改走路由，正文留在本模块。
 static func description_detail(g, args: Dictionary) -> String:

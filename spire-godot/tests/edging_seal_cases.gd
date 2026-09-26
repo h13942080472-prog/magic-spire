@@ -39,8 +39,8 @@ static func run(t) -> void:
  t.check(g.state.pressure==50 and g.state.charge==7 and g.state.overload_total==0,"SEAL exact limit halves before overload and adds three charge without halving prior charge")
  t.check(g.state.energy==energy and g.state.mana==mana and g.state.hand==hand and not g.state.overloaded,"SEAL prevented overload preserves energy mana hand and action")
  t.check(g.state.logs.back().data.gain==1 and g.RelicEffects.counter(g,"edging_seal").text=="0","SEAL reduction never masquerades as negative source gain and counter updates")
- var snapshot=g.export_snapshot();g.get_view();g.candidates()
- t.check(g.state==snapshot and not g.dispatch("invalid",g.state.version).ok and g.state==snapshot,"SEAL projections and refused commands preserve use")
+ var snapshot=g.export_snapshot();g.get_view();g.command_facts()
+ t.check(g.state==snapshot and not g.dispatch(g.command({"kind":"card","uid":"invalid"},g.state.version),g.state.version).ok and g.state==snapshot,"SEAL projections and refused commands preserve use")
  var restored=Save.roundtrip(t,g,"spent threshold seal")
  if restored!=null:
   restored.Pressure.gain(restored,50,"second",true)

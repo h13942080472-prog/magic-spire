@@ -2,6 +2,7 @@ extends RefCounted
 const Pointer=preload("res://tests/target_sidebar_ui_cases.gd")
 const Cases=preload("res://tests/service_cases.gd")
 const ShopCopy=preload("res://data/shop_copy.gd")
+const Queries=preload("res://ui/target_queries.gd")
 
 static func refresh_stock(t) -> void:
  var ui=t.ui
@@ -37,8 +38,8 @@ static func repeated_shop_entry(t) -> void:
  await Pointer.press(t,ui.find_child("ShopPayment_flask",true,false))
  await Pointer.press(t,ui.find_child("ShopPayment_self",true,false))
  t.check(ui.game.state==before and ui.find_child("ShopPaymentPerformance",true,false)==null,"SHOP UI browsing payment sources neither trades nor revives stale CG")
- var buy=ui.actions.select("service").filter(func(c):return c.valid and c.payload.op=="take" and c.payload.payment=="self")[0]
- await Pointer.press(t,ui.candidate_buttons[buy.id])
+ var buy=Queries.select(ui.view,"service").filter(func(c):return c.valid and c.payload.op=="take" and c.payload.payment=="self")[0]
+ await Pointer.press(t,ui.candidate_buttons[buy.key])
  t.check(ui.view.mana<mana and ui.find_child("ShopPaymentPerformance",true,false)!=null,"SHOP UI current purchase still opens the payment CG")
  ui.restart(42);await t.frames()
 
@@ -57,9 +58,9 @@ static func run(t) -> void:
  t.check(t.ui.find_child("BodyEquipmentPanel",true,false)==null and t.ui.find_child("MainMana",true,false)==null and t.ui.find_child("ManaFlask",true,false).position.y<150,"SHOP merchant is unobstructed and flask stays available in header")
  await t.capture("ui-shopkeeper-new.png")
  await shop_presentation(t)
- var practice_offer=t.ui.actions.select("service").filter(func(c):return c.payload.get("op","")=="take" and c.payload.get("payment","")=="self" and c.valid)[0]
+ var practice_offer=Queries.select(t.ui.view,"service").filter(func(c):return c.payload.get("op","")=="take" and c.payload.get("payment","")=="self" and c.valid)[0]
  var practice_mana=t.ui.game.state.mana
- await Pointer.press(t,t.ui.candidate_buttons[practice_offer.id])
+ await Pointer.press(t,t.ui.candidate_buttons[practice_offer.key])
  t.check(t.ui.game.state.mana<practice_mana and t.ui.view.shop.stock[practice_offer.payload.index].taken,"SHOP test entry purchases via formal stock and payment")
  var performance=t.ui.find_child("ShopPaymentPerformance",true,false)
  t.check(performance!=null and t.ui.view.shop.performance.method=="self" and t.ui.find_child("ShopPaymentPerformanceArt",true,false).texture.resource_path=="res://assets/art/shop-payment-self-v1.png","SHOP free upper body opens the supplied self-payment performance")
@@ -103,13 +104,13 @@ static func run(t) -> void:
    ui.game._install_special("negative_plate_lock_medium","special_2_a",2)
    ui.game.state.mana=0;ui.game.state.flask_mana=0;ui.render();await t.frames()
    t.check(ui.view.battle_rewards[0].available and not t.visible_text(ui.find_child("BattleRewards",true,false)).contains(ShopCopy.PLATE_SELF_BLOCK_REASON),"TREASURE UI locked player sees available free reward without shop payment warning")
-  var offer=ui.actions.select("service")[0]
+  var offer=Queries.select(ui.view,"service")[0]
   var mana_before=ui.view.mana
   var stock=ui.view.shop.stock[offer.payload.index]
   var pickup=ui.game.Relics.TYPES[stock.type].modifiers.get("pickup_mana",0.0) if stock.kind=="relic" else 0.0
-  var button=ui.candidate_buttons[offer.id]
+  var button=ui.candidate_buttons[offer.key]
   await Pointer.press(t,button)
-  t.check(ui.view.mana==mana_before-offer.mana+pickup and not ui.candidate_buttons.has(offer.id),"SERVICE UI native purchase spends exact mana and removes offer")
+  t.check(ui.view.mana==mana_before-offer.mana+pickup and not ui.candidate_buttons.has(offer.key),"SERVICE UI native purchase spends exact mana and removes offer")
   if kind=="shop": await dismiss_payment(t)
   await t.capture("ui-97-"+kind+".png")
   t.check(await t.click("service",{"op":"leave"}) and ui.view.phase=="map","SERVICE UI leaves without extra turns")
@@ -120,17 +121,17 @@ static func run(t) -> void:
  var text=t.visible_text(ui.find_child("EquipmentDetails",true,false))
  t.check(text.contains("耐久 4 / 10") and text.contains("紧度1档"),"BODY UI equipment keeps explicit basic labels")
  var single=ui.view.bodies.filter(func(body):return body.id=="wrist")[0].equipment[0].id
- var blocked=ui.actions.find("manual",{"target":single})
- t.check(not blocked.valid and text.contains(blocked.reason) and ui.candidate_buttons[blocked.id].disabled,"BODY UI single equipment opens its unavailable action and exact reason")
+ var blocked=Queries.find(ui.view,"manual",{"target":single})
+ t.check(not blocked.valid and text.contains(blocked.reason) and ui.candidate_buttons[blocked.key].disabled,"BODY UI single equipment opens its unavailable action and exact reason")
  # A free-handed legal target exposes the same formal command.
  ui.restart(42,true,"equipment")
  ui.game.state.equipment=[];ui.game.add_fixture("thigh",4)
  ui.render();await t.frames();await t.inspect_body("thigh")
  var target=ui.view.bodies.filter(func(b):return b.id=="thigh")[0].equipment[0].id
- var c=ui.actions.find("manual",{"target":target})
- t.check(c.valid and ui.candidate_buttons.has(c.id),"BODY UI eligible manual command stays visible")
+ var c=Queries.find(ui.view,"manual",{"target":target})
+ t.check(c.valid and ui.candidate_buttons.has(c.key),"BODY UI eligible manual command stays visible")
  await Pointer.press(t,ui.find_child("EquipmentCardDetailsToggle",true,false))
- await Pointer.press(t,ui.candidate_buttons[c.id])
+ await Pointer.press(t,ui.candidate_buttons[c.key])
  t.check(ui.game._equipment(target).is_empty() and ui.view.energy==2,"BODY UI visible quick release pays and removes actual target")
 
 static func dismiss_payment(t) -> void:
@@ -141,35 +142,35 @@ static func payment_dialogues(t) -> void:
  var ui=t.ui
  ui.restart(42,true,"shop");ui.game.state.flask_mana=500;ui.render();await t.frames()
  await Pointer.press(t,ui.find_child("ShopPayment_flask",true,false))
- var offer=ui.actions.select("service").filter(func(c):return c.payload.get("op","")=="take" and c.payload.get("payment","")=="flask" and c.valid)[0]
- await Pointer.press(t,ui.candidate_buttons[offer.id])
+ var offer=Queries.select(ui.view,"service").filter(func(c):return c.payload.get("op","")=="take" and c.payload.get("payment","")=="flask" and c.valid)[0]
+ await Pointer.press(t,ui.candidate_buttons[offer.key])
  var body=ui.find_child("ShopkeeperSpeechText",true,false)
  t.check(ui.find_child("ShopPaymentPerformance",true,false)==null and ui.speech_group.visible and body.text==ShopCopy.FLASK_PAYMENT,"SHOP flask payment stays in the ordinary merchant dialogue bubble")
  ui.restart(42,true,"shop");await t.frames()
- var browse=ui.actions.select("service").filter(func(c):return c.payload.get("op","")=="take" and c.payload.get("payment","")=="self" and c.valid)[0]
- var before=ui.game.export_snapshot();ui.candidate_buttons[browse.id].mouse_entered.emit()
+ var browse=Queries.select(ui.view,"service").filter(func(c):return c.payload.get("op","")=="take" and c.payload.get("payment","")=="self" and c.valid)[0]
+ var before=ui.game.export_snapshot();ui.candidate_buttons[browse.key].mouse_entered.emit()
  t.check(ShopCopy.BROWSE.has(ui.find_child("ShopkeeperSpeechText",true,false).text) and ui.game.export_snapshot()==before,"SHOP hovering an affordable product plays read-only random browsing dialogue")
  ui.game.state.mana=0;ui.render();await t.frames()
- var poor=ui.actions.select("service").filter(func(c):return c.payload.get("op","")=="take" and c.payload.get("payment","")=="self")[0]
- before=ui.game.export_snapshot();ui.candidate_buttons[poor.id].mouse_entered.emit()
+ var poor=Queries.select(ui.view,"service").filter(func(c):return c.payload.get("op","")=="take" and c.payload.get("payment","")=="self")[0]
+ before=ui.game.export_snapshot();ui.candidate_buttons[poor.key].mouse_entered.emit()
  t.check(ShopCopy.INSUFFICIENT_SELF_FREE.has(ui.find_child("ShopkeeperSpeechText",true,false).text) and ui.game.export_snapshot()==before,"SHOP insufficient self payment has free-upper-body dialogue without changing state")
  ui.game.add_fixture("wrist",4);ui.render();await t.frames()
- poor=ui.actions.select("service").filter(func(c):return c.payload.get("op","")=="take" and c.payload.get("payment","")=="self")[0]
- before=ui.game.export_snapshot();ui.candidate_buttons[poor.id].mouse_entered.emit()
+ poor=Queries.select(ui.view,"service").filter(func(c):return c.payload.get("op","")=="take" and c.payload.get("payment","")=="self")[0]
+ before=ui.game.export_snapshot();ui.candidate_buttons[poor.key].mouse_entered.emit()
  t.check(ShopCopy.INSUFFICIENT_SELF_BOUND.has(ui.find_child("ShopkeeperSpeechText",true,false).text) and ui.game.export_snapshot()==before,"SHOP insufficient self payment has restrained-upper-body dialogue without changing state")
  await Pointer.press(t,ui.find_child("ShopPayment_flask",true,false))
- var flask_poor=ui.actions.select("service").filter(func(c):return c.payload.get("op","")=="take" and c.payload.get("payment","")=="flask")[0]
- before=ui.game.export_snapshot();ui.candidate_buttons[flask_poor.id].mouse_entered.emit()
+ var flask_poor=Queries.select(ui.view,"service").filter(func(c):return c.payload.get("op","")=="take" and c.payload.get("payment","")=="flask")[0]
+ before=ui.game.export_snapshot();ui.candidate_buttons[flask_poor.key].mouse_entered.emit()
  t.check(ShopCopy.INSUFFICIENT_FLASK.has(ui.find_child("ShopkeeperSpeechText",true,false).text) and ui.game.export_snapshot()==before,"SHOP insufficient flask payment has its own ordinary merchant dialogue without changing state")
  ui.restart(42,true,"shop");await t.frames()
  var lock=ui.game._install_special("negative_plate_lock_medium","special_2_a",2);ui.render();await t.frames()
- var plate_offer=ui.actions.select("service").filter(func(c):return c.payload.get("op","")=="take" and c.payload.get("payment","")=="self")[0]
- before=ui.game.export_snapshot();ui.candidate_buttons[plate_offer.id].mouse_entered.emit()
+ var plate_offer=Queries.select(ui.view,"service").filter(func(c):return c.payload.get("op","")=="take" and c.payload.get("payment","")=="self")[0]
+ before=ui.game.export_snapshot();ui.candidate_buttons[plate_offer.key].mouse_entered.emit()
  body=ui.find_child("ShopkeeperSpeechText",true,false)
  var payment_notice=ui.find_child("ShopPaymentNotice",true,false)
- t.check(not plate_offer.valid and ui.candidate_buttons[plate_offer.id].disabled and body.text==ShopCopy.PLATE_SELF_BROWSE[0] and payment_notice!=null and payment_notice.text==ShopCopy.PLATE_SELF_BLOCK_REASON and ui.game.export_snapshot()==before,"SHOP flat-lock product stays disabled with one payment-area explanation")
- t.check(t.visible_text(ui.find_child("RoomServicePanel",true,false)).count(ShopCopy.PLATE_SELF_BLOCK_REASON)==1 and not t.visible_text(ui.candidate_buttons[plate_offer.id].get_parent()).contains(ShopCopy.PLATE_SELF_BLOCK_REASON),"SHOP shared payment restriction is not repeated under individual goods")
- t.check(payment_notice.get_global_rect().end.y<=ui.candidate_buttons[plate_offer.id].get_global_rect().position.y,"SHOP payment notice fits above the card row: %s / %s" % [payment_notice.get_global_rect(),ui.candidate_buttons[plate_offer.id].get_global_rect()])
+ t.check(not plate_offer.valid and ui.candidate_buttons[plate_offer.key].disabled and body.text==ShopCopy.PLATE_SELF_BROWSE[0] and payment_notice!=null and payment_notice.text==ShopCopy.PLATE_SELF_BLOCK_REASON and ui.game.export_snapshot()==before,"SHOP flat-lock product stays disabled with one payment-area explanation")
+ t.check(t.visible_text(ui.find_child("RoomServicePanel",true,false)).count(ShopCopy.PLATE_SELF_BLOCK_REASON)==1 and not t.visible_text(ui.candidate_buttons[plate_offer.key].get_parent()).contains(ShopCopy.PLATE_SELF_BLOCK_REASON),"SHOP shared payment restriction is not repeated under individual goods")
+ t.check(payment_notice.get_global_rect().end.y<=ui.candidate_buttons[plate_offer.key].get_global_rect().position.y,"SHOP payment notice fits above the card row: %s / %s" % [payment_notice.get_global_rect(),ui.candidate_buttons[plate_offer.key].get_global_rect()])
  await t.capture("ui-shop-shared-payment-note.png")
  await Pointer.press(t,ui.find_child("ShopPayment_flask",true,false));await t.frames()
  t.check(ui.find_child("ShopPaymentNotice",true,false)==null and ui.game.export_snapshot()==before,"SHOP switching payment removes obsolete notice without changing state")
@@ -179,8 +180,8 @@ static func payment_dialogues(t) -> void:
  t.check(service_notice!=null and t.visible_text(service_notice.get_parent()).count(ShopCopy.PLATE_SELF_BLOCK_REASON)==1 and ui.game.export_snapshot()==before,"SHOP card-removal drawer shares one explanation without repeating it per card")
  await t.close_information()
  await Pointer.press(t,ui.find_child("ShopRelease",true,false))
- var release=ui.actions.find("service_release",{"op":"release","target":lock.id,"payment":"self"})
- await Pointer.press(t,ui.candidate_buttons[release.id])
+ var release=Queries.find(ui.view,"service_release",{"op":"release","target":lock.id,"payment":"self"})
+ await Pointer.press(t,ui.candidate_buttons[release.key])
  var scene=ui.view.shop.performance
  t.check(scene.method=="self" and ui.find_child("ShopPaymentPerformanceArt",true,false).texture.resource_path=="res://assets/art/shop-payment-self-v1.png" and ui.find_child("ShopPaymentPerformanceText",true,false).text==ShopCopy.PLATE_RELEASE_PERFORMANCES.self.text and ui.find_child("ShopPaymentContinue",true,false).text=="完成付款","SHOP flat-lock release keeps the supplied image and shows its dedicated payment copy")
  await dismiss_payment(t);await t.close_information()
@@ -200,8 +201,8 @@ static func release_service(t) -> void:
  var text=t.visible_text(panel)
  t.check(text.contains("复合处理15") and text.contains("开锁10") and text.contains("45魔力"),"SHOP UI displays complete quote and additive surcharges")
  await t.capture("ui-shop-release.png")
- var c=ui.actions.find("service_release",{"op":"release","target":root.id})
- await Pointer.press(t,ui.candidate_buttons[c.id])
+ var c=Queries.find(ui.view,"service_release",{"op":"release","target":root.id})
+ await Pointer.press(t,ui.candidate_buttons[c.key])
  t.check(ui.view.mana==55 and ui.game.state.composites.is_empty() and ui.game._equipment(kept.id)==kept,"SHOP UI native click removes whole locked composite and preserves independent equipment")
  t.check(not ui.view.shop.release_jobs.any(func(job):return job.id==root.id),"SHOP UI purchased target disappears from updated jobs")
  var scene=ui.view.shop.performance
@@ -212,23 +213,23 @@ static func release_service(t) -> void:
  var remove=ui.find_child("ShopRemove",true,false)
  t.check(remove.text.contains("30魔力"),"REMOVE UI entry shows the current shared removal price")
  await Pointer.press(t,remove)
- var card=ui.actions.select("service_remove")[0]
+ var card=Queries.select(ui.view,"service_remove")[0]
  var deck=ui.view.deck_count
- t.check(ui.candidate_buttons[card.id].get_script()==preload("res://ui/card_face.gd"),"REMOVE service uses selectable hand card face")
- await Pointer.press(t,ui.candidate_buttons[card.id]);await dismiss_payment(t);await t.close_information()
+ t.check(ui.candidate_buttons[card.key].get_script()==preload("res://ui/card_face.gd"),"REMOVE service uses selectable hand card face")
+ await Pointer.press(t,ui.candidate_buttons[card.key]);await dismiss_payment(t);await t.close_information()
  t.check(ui.view.deck_count==deck-1 and ui.find_child("ShopRemove",true,false).disabled and ui.game.state.shop_removals==1 and ui.view.shop.remove_price==50,"SHOP UI actual removal advances future price while marking the local service used")
  ui.game.state.mana=19;ui.render();await t.frames()
  await Pointer.press(t,ui.find_child("ShopRelease",true,false))
- c=ui.actions.find("service_release",{"op":"release","target":kept.id})
- var low_before=ui.game.export_snapshot();ui.candidate_buttons[c.id].mouse_entered.emit()
+ c=Queries.find(ui.view,"service_release",{"op":"release","target":kept.id})
+ var low_before=ui.game.export_snapshot();ui.candidate_buttons[c.key].mouse_entered.emit()
  t.check(ShopCopy.INSUFFICIENT_SELF_FREE.has(ui.find_child("ShopkeeperSpeechText",true,false).text) and ui.game.export_snapshot()==low_before,"SHOP disabled release plays the matching insufficient-payment dialogue")
- t.check(not c.valid and ui.candidate_buttons[c.id].disabled and t.visible_text(ui.find_child("InformationDrawer",true,false)).contains(c.reason),"SHOP UI insufficient balance visibly explains disabled removal")
+ t.check(not c.valid and ui.candidate_buttons[c.key].disabled and t.visible_text(ui.find_child("InformationDrawer",true,false)).contains(c.reason),"SHOP UI insufficient balance visibly explains disabled removal")
  await t.close_information()
  await t.capture("ui-shop-low-mana.png")
  ui.game.state.mana=20;ui.render();await t.frames()
  await Pointer.press(t,ui.find_child("ShopRelease",true,false))
- c=ui.actions.find("service_release",{"op":"release","target":kept.id})
- await Pointer.press(t,ui.candidate_buttons[c.id])
+ c=Queries.find(ui.view,"service_release",{"op":"release","target":kept.id})
+ await Pointer.press(t,ui.candidate_buttons[c.key])
  await dismiss_payment(t)
  t.check(t.visible_text(ui.find_child("InformationDrawer",true,false)).contains("目前没有需要卸下"),"SHOP UI empty list after final removal")
  await t.close_information()

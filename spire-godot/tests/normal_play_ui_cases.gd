@@ -26,7 +26,7 @@ static func run(t) -> void:
     ui.card_buttons[p.uid].pressed.emit();await t.frames()
    else:
     await t.start_drag(p.uid,p.slot)
-    await t.release_target(await t.reveal_drop_target(c.id))
+    await t.release_target(await t.reveal_drop_target(c.key))
    if p.has("hand_uid"):
     t.check(ui._selecting_hand() and ui.view.version==v.version,"NORMAL UI opens hand selection before paying for the card")
     if not ui._selecting_hand(): return
@@ -43,7 +43,7 @@ static func run(t) -> void:
    ui.render();await t.frames(1)
    if p.kind=="attack":
     var before=ui.game.export_snapshot()
-    var forms=v.candidates.filter(func(option):return option.payload.kind=="attack" and option.payload.type==p.type and option.payload.enemy==p.enemy)
+    var forms=v.display_facts.filter(func(option):return option.payload.kind=="attack" and option.payload.type==p.type and option.payload.enemy==p.enemy)
     for attempt in range(forms.size()):
      if ui.attack_forms.get(p.type,0)==p.form: break
      var button=ui.find_child("BasicAttack_"+p.type,true,false)
@@ -51,7 +51,7 @@ static func run(t) -> void:
      var point=button.get_global_rect().get_center()
      await t.mouse_button(point,MOUSE_BUTTON_RIGHT,true);await t.mouse_button(point,MOUSE_BUTTON_RIGHT,false)
     t.check(ui.attack_forms.get(p.type,0)==p.form and ui.game.state==before,"NORMAL UI selects the actual attack form without committing a turn")
-   if p.kind=="depart" and not ui.candidate_buttons.has(c.id):
+   if p.kind=="depart" and not ui.candidate_buttons.has(c.key):
     await preload("res://tests/interface_ui_cases.gd").press(t,"OpenMap")
    if p.kind=="event":
     if p.action=="reward" and p.type!="skip":

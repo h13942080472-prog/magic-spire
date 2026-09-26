@@ -32,10 +32,7 @@ static func equipment_header(ui, parent: Node, e: Dictionary, location: String, 
  if not e.get("lock_only",false):
   var bar=ui._bar(e.durability,e.maximum,accent);bar.custom_minimum_size.y=5;text.add_child(bar)
  if not e.get("covers",[]).is_empty(): parent.add_child(ui._label("外层覆盖："+"、".join(e.covers),12,ui.MUTED))
- if e.card_status.contains("遗留外带"): parent.add_child(ui._label("遗留外带",12,ui.CYAN))
- # Detailed component mechanics stay in the optional equipment description.
- if e.get("lock_only",false): parent.add_child(ui._label(e.card_status,12,ui.CYAN))
- elif e.get("is_special",false) and e.card_status!="": parent.add_child(ui._label(e.card_status,12,ui.CYAN))
+ if e.card_status!="": parent.add_child(ui._label(e.card_status,12,ui.CYAN))
 
 static func preview(ui, parent: Node, candidate: Dictionary) -> void:
  var p=candidate.release_preview

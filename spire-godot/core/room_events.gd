@@ -951,12 +951,12 @@ static func availability_issue(g, option: Dictionary) -> String:
   if condition_probe(g,entry): return str(entry.get("reason",""))
  return ""
 
-static func append_choice_candidate(g, out: Array, option: Dictionary) -> void:
+static func append_choice_fact(g, out: Array, option: Dictionary) -> void:
  var result=evaluate_option(g,request_for(g,option,"candidate"))
  var reason=result.reason
  var choice_args={"option_id":option.id}
- g._candidate(out,{"kind":"event","action":"choose","choice":option.id},option.label,{"kind":"event.choice","args":choice_args,"fallback":choice_detail(g,choice_args)},0,0,reason,"","event")
- if result.decision=="disabled" and not result.gates.is_empty() and result.gates.all(func(hit):return CONDITIONS.has(hit.kind)): out[-1].reason_surface="secondary"
+ out.append(g._fact({"kind":"event","action":"choose","choice":option.id},option.label,{"kind":"event.choice","args":choice_args,"fallback":choice_detail(g,choice_args)},0,0.0,reason,"","event"))
+ if result.decision=="disabled" and not result.gates.is_empty() and result.gates.all(func(hit):return CONDITIONS.has(hit.kind)): out.back().reason_surface="secondary"
 
 # R4（docs/ondemand-copy.md §11.5）：直呼点文案改走路由，正文留在本模块。
 static func choice_detail(g, args: Dictionary) -> String:
@@ -974,24 +974,27 @@ static func prepare_detail(g, args: Dictionary) -> String:
 static func probe_cleanup(g) -> String:
  return probe(g,g.state.room_event.get("cleanup_effects",[]),{},true)
 
-static func candidates(g, out: Array) -> void:
+# 事件显示事实（批 R5：行生产转发改显示事实构建，docs/spec/candidate-removal.md §2.1 T5／T8）。
+static func facts(g) -> Array:
+ var out=[]
  var event=g.state.room_event
  match event.stage:
   "choice":
    for option in event.options:
-    append_choice_candidate(g,out,option)
+    append_choice_fact(g,out,option)
   "reward":
    for type in event.reward:
-    g._candidate(out,{"kind":"event","action":"reward","type":type},"领取「"+g.B.CARD_NAMES[type]+"」",g.CopyRouter.two_face(g,type),0,0,"","","event")
-   g._candidate(out,{"kind":"event","action":"reward","type":"skip"},"跳过选牌",{"kind":"event.reward_skip","args":{},"fallback":reward_skip_detail(g,{})},0,0,"","","event")
+    out.append(g._fact({"kind":"event","action":"reward","type":type},"领取「"+g.B.CARD_NAMES[type]+"」",g.CopyRouter.two_face(g,type),0,0.0,"","","event"))
+   out.append(g._fact({"kind":"event","action":"reward","type":"skip"},"跳过选牌",{"kind":"event.reward_skip","args":{},"fallback":reward_skip_detail(g,{})},0,0.0,"","","event"))
   "result":
    var prepare=event.get("prepare_pending",false)
    var prepare_args={"prepare":prepare}
-   g._candidate(out,{"kind":"event","action":"leave"},"开始整备" if prepare else "离开",{"kind":"event.prepare","args":prepare_args,"fallback":prepare_detail(g,prepare_args)},0,0,probe_cleanup(g),"","event")
+   out.append(g._fact({"kind":"event","action":"leave"},"开始整备" if prepare else "离开",{"kind":"event.prepare","args":prepare_args,"fallback":prepare_detail(g,prepare_args)},0,0.0,probe_cleanup(g),"","event"))
   _:
    if not node(definition(event.id),event.stage).is_empty():
     for option in event.options:
-     append_choice_candidate(g,out,option)
+     append_choice_fact(g,out,option)
+ return out
 
 static func execute(g, c: Dictionary) -> String:
  var event=g.state.room_event

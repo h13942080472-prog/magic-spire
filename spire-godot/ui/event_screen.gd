@@ -1,4 +1,5 @@
 extends RefCounted
+const Queries=preload("res://ui/target_queries.gd")
 
 const ARTWORK={
  "succubus_three_games":preload("res://assets/art/event-fortune-teller-v1.png"),
@@ -15,7 +16,7 @@ const ARTWORK={
  "succubus_magic_pawnshop":preload("res://assets/art/event-succubus-magic-pawnshop-v1.png")
 }
 
-# Presentation only: selector groups reference the original public candidates.
+# Presentation only: selector groups reference the public display facts.
 # Opening, closing and browsing never dispatch a command or refresh random data.
 static func build(ui) -> void:
  var event=ui.view.room_event
@@ -61,32 +62,32 @@ static func build(ui) -> void:
    ui.render(ui.view))
   next.name="EventContinue";next.custom_minimum_size.y=44;options.add_child(next)
   return
- var candidates=ui.actions.select("event")
+ var offers=Queries.select(ui.view,"event")
  var grouped=[]
  for group in event.selections:
-  var members=candidates.filter(func(c):return group.options.any(func(option):return option.choice==c.payload.get("choice","")))
+  var members=offers.filter(func(c):return group.options.any(func(option):return option.choice==c.payload.get("choice","")))
   if members.is_empty(): continue
-  for c in members: grouped.append(c.id)
+  for c in members: grouped.append(Queries.fact_key(c))
   selector_button(ui,options,group.id,group.label,group.kind,members,group.options,group.get("count",1))
- for c in candidates:
-  if c.id not in grouped: action(ui,options,c)
+ for c in offers:
+  if Queries.fact_key(c) not in grouped: action(ui,options,c)
 
-static func selector_button(ui, parent: Node, id: String, label: String, kind: String, candidates: Array, options: Array, count: int=1) -> void:
+static func selector_button(ui, parent: Node, id: String, label: String, kind: String, offers: Array, options: Array, count: int=1) -> void:
  var button=ui._button(label+"  ›",func():
-  ui.event_selection={"id":id,"title":label,"kind":kind,"count":count,"selected_ids":[],"candidates":candidates,"options":options,"version":ui.view.version}
+  ui.event_selection={"id":id,"title":label,"kind":kind,"count":count,"selected_ids":[],"offers":offers,"options":options,"version":ui.view.version}
   ui._open_drawer("show_event_selection"))
  button.name="EventOpen_"+id;button.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;button.custom_minimum_size.y=44
  parent.add_child(button)
  # One shared public preview, while target-specific details remain beside each
  # actual choice inside the modal. No secret winning result is projected.
- var preview=candidates[0].detail if id!="reward" else ""
- if preview!="" and candidates.all(func(c):return c.detail==preview): parent.add_child(ui._label(preview,14,ui.MUTED))
+ var preview=offers[0].detail if id!="reward" else ""
+ if preview!="" and offers.all(func(c):return c.detail==preview): parent.add_child(ui._label(preview,14,ui.MUTED))
 
 static func action(ui, parent: Node, c: Dictionary, version: int=-1, show_detail: bool=true) -> Button:
  var fee=(" · %s能量" % c.cost if c.cost>0 else "")+(" · %s魔力" % c.mana if c.mana>0 else "")
- var button=ui._button(c.label+fee,func():ui._submit(c,version),ui.RED if c.risk!="" else ui.GOLD)
+ var button=ui._button(c.label+fee,func():ui.command_router.emit(String(c.payload.get("kind","")),c,version),ui.RED if c.risk!="" else ui.GOLD)
  button.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;button.custom_minimum_size.y=42;button.disabled=not c.valid
- parent.add_child(button);ui.candidate_buttons[c.id]=button
+ parent.add_child(button);ui.candidate_buttons[c.key]=button
  var secondary_reason=not c.valid and c.get("reason_surface","")=="secondary"
  if secondary_reason:
   button.mouse_default_cursor_shape=Control.CURSOR_HELP
@@ -100,8 +101,8 @@ static func action(ui, parent: Node, c: Dictionary, version: int=-1, show_detail
 static func drawer(ui) -> void:
  var selection=ui.event_selection
  var content=ui._drawer_shell(selection.title,Rect2(60,78,1480,780),ui.GOLD)
- var shared_detail=selection.candidates[0].detail
- if not selection.candidates.all(func(c):return c.detail==shared_detail): shared_detail=""
+ var shared_detail=selection.offers[0].detail
+ if not selection.offers.all(func(c):return c.detail==shared_detail): shared_detail=""
  if shared_detail!="": content.add_child(ui._label(shared_detail,15,ui.GOLD))
  var scroll=ui._scroll(content);scroll.get_parent().name="EventSelectionScroll"
  var grid=GridContainer.new();grid.name="EventSelectionGrid";grid.columns=6 if selection.kind=="card" else 3
@@ -109,14 +110,14 @@ static func drawer(ui) -> void:
  if int(selection.get("count",1))>1:
   multi_restraint_selector(ui,content,grid,selection)
   return
- for c in selection.candidates:
+ for c in selection.offers:
   var tile=VBoxContainer.new();tile.custom_minimum_size.x=216 if selection.kind=="card" else 450;grid.add_child(tile)
   var matches=selection.options.filter(func(option):return option.choice==c.payload.get("choice",""))
   var selected={} if matches.is_empty() else matches[0].selected
   if selection.kind=="card":
    var type=selected.type if not selected.is_empty() else c.payload.type
-   var face=ui._display_card(type,tile,func():ui._submit(c,selection.version),"event_"+c.id,Vector2(216,286))
-   face.disabled=not c.valid;face.set_meta("physical_uid",selected.get("id",""));ui.candidate_buttons[c.id]=face
+   var face=ui._display_card(type,tile,func():ui.command_router.emit(String(c.payload.get("kind","")),c,selection.version),"event_"+Queries.fact_key(c),Vector2(216,286))
+   face.disabled=not c.valid;face.set_meta("physical_uid",selected.get("id",""));ui.candidate_buttons[c.key]=face
    tile.add_child(ui._label(c.label,16,ui.GOLD))
    if shared_detail=="" or not c.valid: tile.add_child(ui._label(c.detail if c.valid else c.reason,14,ui.MUTED if c.valid else ui.RED))
    if c.risk!="" and c.valid: tile.add_child(ui._label(c.risk,14,ui.RED))
@@ -178,11 +179,11 @@ static func multi_restraint_selector(ui, content: VBoxContainer, grid: GridConta
    if not option.selected is Array: continue
    var ids=option.selected.map(func(row):return row.id);ids.sort()
    if ids==sorted_chosen:
-    var candidates=selection.candidates.filter(func(candidate):return candidate.payload.get("choice","")==option.choice)
-    if not candidates.is_empty(): matched=candidates[0]
+    var offers=selection.offers.filter(func(candidate):return candidate.payload.get("choice","")==option.choice)
+    if not offers.is_empty(): matched=offers[0]
     break
  var confirm_action=func():
-  if not matched.is_empty(): ui._submit(matched,selection.version)
+  if not matched.is_empty(): ui.command_router.emit(String(matched.payload.get("kind","")),matched,selection.version)
  var confirm=ui._button("解除所选拘束具",confirm_action,ui.GOLD)
  confirm.name="EventConfirmSelection";confirm.disabled=matched.is_empty() or not matched.valid;content.add_child(confirm)
- if not matched.is_empty(): ui.candidate_buttons[matched.id]=confirm
+ if not matched.is_empty(): ui.candidate_buttons[matched.key]=confirm

@@ -1,4 +1,5 @@
 extends RefCounted
+const Queries=preload("res://ui/target_queries.gd")
 
 static func target(t, slot: String, part: String) -> Dictionary:
  var body=t.ui.view.bodies.filter(func(b):return b.id==slot)[0]
@@ -85,15 +86,15 @@ static func run(t) -> void:
  t.check(t.visible_text(ui.layout).contains("遗留外带"),"LEG remaining bands are described in visible equipment group")
  await t.capture("ui-27-leg-bands-retained.png")
  var uid=ui.view.hand.filter(func(c):return c.type=="strain")[0].uid
- var c=ui.actions.find("card",{"uid":uid,"slot":"thigh","target":band.id})
+ var c=Queries.find(ui.view,"card",{"uid":uid,"slot":"thigh","target":band.id})
  var expected=c.payload.preview.damage
  var before=ui.game._equipment(band.id).durability
  await t.start_drag(uid,"thigh")
- var drop_index=await t.reveal_drop_target(c.id)
+ var drop_index=await t.reveal_drop_target(c.key)
  await t.capture("ui-118-equipment-drag-card.png")
- t.check(ui.drop_targets[c.id].size.y<=90 and ui.drop_panel.size.y<=290 and ui.drop_panel.position.x>ui.body_buttons.thigh.get_global_rect().end.x,"Equipment targets remain compact beside their body button")
+ t.check(ui.drop_targets[c.key].size.y<=90 and ui.drop_panel.size.y<=290 and ui.drop_panel.position.x>ui.body_buttons.thigh.get_global_rect().end.x,"Equipment targets remain compact beside their body button")
  var preview_text=t.visible_text(ui.term_popup)
- t.check(preview_text.contains(ui.game.number(expected)+"点挣扎伤害") and not preview_text.contains("能量") and not preview_text.contains("耐久") and ui.drop_targets[c.id].get_parent().find_child("EquipmentTargetImage",true,false)!=null,"Equipment hover shows current typed damage without repeating costs or equipment details")
+ t.check(preview_text.contains(ui.game.number(expected)+"点挣扎伤害") and not preview_text.contains("能量") and not preview_text.contains("耐久") and ui.drop_targets[c.key].get_parent().find_child("EquipmentTargetImage",true,false)!=null,"Equipment hover shows current typed damage without repeating costs or equipment details")
  await t.release_target(drop_index)
  t.check(is_equal_approx(ui.game._equipment(band.id).durability,before-expected) and ui.view.energy==2,"LEG native drag targets surviving independent band exactly once")
 
@@ -108,9 +109,9 @@ static func run(t) -> void:
  var sleeves=target(t,"wrist","sleeves")
  body=target(t,"wrist","body")
  ui.find_child("OpenRestHook",true,false).pressed.emit(); await t.frames()
- c=ui.actions.find("hook",{"target":sleeves.id})
- t.check(not c.valid and ui.candidate_buttons[c.id].disabled and c.reason!="","JACKET structural no-slip target has disabled hook with reason")
- t.check(not ui.actions.find("hook",{"target":body.id}).valid,"JACKET body hook requires removal of its real attached components")
+ c=Queries.find(ui.view,"hook",{"target":sleeves.id})
+ t.check(not c.valid and ui.candidate_buttons[c.key].disabled and c.reason!="","JACKET structural no-slip target has disabled hook with reason")
+ t.check(not Queries.find(ui.view,"hook",{"target":body.id}).valid,"JACKET body hook requires removal of its real attached components")
  await t.capture("ui-28-jacket-structure.png")
  item=await tools_panel(t)
  t.check(await t.click("item_install",{"item":item,"mount":"foot_wall"}),"JACKET free toes can install tool despite closed hands")
@@ -127,8 +128,8 @@ static func run(t) -> void:
  var cloth=eyes.filter(func(e):return e.template=="eye_cloth")[0]
  var tape=eyes.filter(func(e):return e.template=="eye_tape")[0]
  ui.find_child("OpenRestHook",true,false).pressed.emit(); await t.frames()
- c=ui.actions.find("hook",{"target":cloth.id})
- t.check(not c.valid and c.reason.contains("更紧") and ui.candidate_buttons[c.id].disabled,"HEAD stricter harness blocks this specific mask visibly")
+ c=Queries.find(ui.view,"hook",{"target":cloth.id})
+ t.check(not c.valid and c.reason.contains("更紧") and ui.candidate_buttons[c.key].disabled,"HEAD stricter harness blocks this specific mask visibly")
  t.check(await t.click("hook",{"target":tape.id}) and is_equal_approx(ui.game._equipment(tape.id).durability,4.0),"HEAD equal tightness allows hook and preserves the other mask")
  t.check(ui.game.equipment_at("eyes").size()==2 and ui.game.state.composites.is_empty() and ui.game.Equipment.has_mouth_harness(ui.game.equipment_at("mouth")[0]),"HEAD processing one mask keeps the integrated mouth harness")
  ui.show_hook=false; ui.render(); await t.frames(); await t.inspect_body("eyes")

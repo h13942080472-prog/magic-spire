@@ -1,4 +1,5 @@
 extends RefCounted
+const Queries=preload("res://ui/target_queries.gd")
 
 static func build(ui) -> void:
  if not ui.view.mana_flask.available: return
@@ -21,10 +22,10 @@ static func build(ui) -> void:
    uses.name="FlaskDepositUses" if op=="deposit" else "FlaskWithdrawUses"
    uses.tooltip_text=("本回合可存入%d次" if op=="deposit" else "本回合可取出%d次") % left;uses.mouse_filter=Control.MOUSE_FILTER_STOP
    ui._place(uses,Rect2(123,50 if op=="deposit" else 66,91,18),panel)
-  var choice=ui.actions.find("flask",{"op":op})
+  var choice=Queries.find(ui.view,"flask",{"op":op})
   if choice.is_empty(): continue
   var label="存入" if op=="deposit" else "取出"
-  var button=ui._button(label,func():ui._submit(choice),ui.CYAN)
+  var button=ui._button(label,func():ui.command_router.emit(String(choice.payload.get("kind","")),choice),ui.CYAN)
   button.name="FlaskDeposit" if op=="deposit" else "FlaskWithdraw"
   button.disabled=not choice.valid;button.tooltip_text=ui.detail_of(choice) if choice.valid else choice.reason
   button.add_theme_font_size_override("font_size",13);button.custom_minimum_size.y=28
@@ -33,4 +34,4 @@ static func build(ui) -> void:
    style.shadow_size=0;style.set_border_width_all(1)
    button.add_theme_stylebox_override(state,style)
   ui._place(button,Rect2(225,9 if op=="deposit" else 49,72,28),panel)
-  ui.candidate_buttons[choice.id]=button
+  ui.candidate_buttons[choice.key]=button

@@ -390,15 +390,22 @@ static func discharge(g, id: String) -> void:
  g.state.mana+=recovered
  g._emit("event",definition(g,id).name+"：消耗%d点，恢复%s魔力。" % [points,g.number(recovered)],{"relic_trigger":{"id":id,"name":definition(g,id).name},"relic_discharge":{"points":points,"mana":recovered}})
 
-static func candidates(g, out: Array) -> void:
- if g.state.phase in ["cleared","prison_end","captured","inspection"] or g.state.overloaded or not g.state.card_chain.is_empty() or g.state.pending_retain: return
+# 接管结束的显示点事实（唯一来源：接管路径无法自行结束回合时合成；批 R5）。与其余显示点同一投影。
+static func control_done_fact(g) -> Dictionary:
+ return g.display_fact(g._fact({"kind":"relic_control_done"},"接管结束",{"kind":"relic.control_done","args":{}},0,0.0,"","","relic"))
+
+# 遗物显示事实（批 R5：行生产转发改显示事实构建，docs/spec/candidate-removal.md §2.1 T5／T8）。
+static func facts(g) -> Array:
+ var out=[]
+ if g.state.phase in ["cleared","prison_end","captured","inspection"] or g.state.overloaded or not g.state.card_chain.is_empty() or g.state.pending_retain: return out
  for id in g.state.relics:
   if id=="doubao":
    var toggle_reason="战斗、战后整备、休息及监狱中不能切换模式。" if g.state.phase in COMBAT_PHASES else ""
-   g._candidate(out,{"kind":"relic_toggle","relic":id},"切换为"+("DeepSeek" if g.state.relic_counters.get(id,0)==0 else "豆包"),{"kind":"relic.control_toggle","args":{}},0,0,toggle_reason,"","relic")
+   out.append(g._fact({"kind":"relic_toggle","relic":id},"切换为"+("DeepSeek" if g.state.relic_counters.get(id,0)==0 else "豆包"),{"kind":"relic.control_toggle","args":{}},0,0.0,toggle_reason,"","relic"))
   if definition(g,id).modifiers.get("skill_mana_cap",0)<=0: continue
   var reason="尚未积攒点数。" if g.state.relic_counters.get(id,0)<=0 else ""
-  g._candidate(out,{"kind":"relic_discharge","relic":id},definition(g,id).name+" · 兑换魔力",{"kind":"relic.discharge","args":{"id":id}},0,0,reason,"","relic")
+  out.append(g._fact({"kind":"relic_discharge","relic":id},definition(g,id).name+" · 兑换魔力",{"kind":"relic.discharge","args":{"id":id}},0,0.0,reason,"","relic"))
+ return out
 
 static func validate(g) -> String:
  var form_issue=g.Relics.form_issue(g.state)

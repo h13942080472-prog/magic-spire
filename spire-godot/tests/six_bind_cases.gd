@@ -162,14 +162,14 @@ static func idle_cycle(t) -> void:
  g=encounter(44);e=g.state.enemies[0];e.stage=10;e.constriction=2;e.intent=g._plan(e)
  var copy=Save.roundtrip(t,g,"six-bind idle turn")
  var before=g.export_snapshot();var end=t.find_action(g,"end")
- t.check(g.dispatch(end.id,g.state.version).ok,"SIX IDLE uses the formal enemy turn")
+ t.check(g.dispatch(g.command(end.payload,g.state.version),g.state.version).ok,"SIX IDLE uses the formal enemy turn")
  e=g.state.enemies[0]
  t.check(e.stage==11 and e.intent.kind=="six_tease" and e.constriction==2,"SIX IDLE advances once into the next cycle without gaining constriction")
  t.check(g.state.equipment==before.equipment and g.state.special_equipment==before.special_equipment and g.state.deck==before.deck and g.state.rng.equipment==before.rng.equipment and g.state.rng.enemy==before.rng.enemy,"SIX IDLE neither equips, reinforces, injects cards nor consumes enemy/equipment randomness")
  t.check(g.state.logs.any(func(row):return row.text=="六缚暂不行动。"),"SIX IDLE logs the actual idle outcome")
  t.check(t.action(copy,"end").ok and Save.same(g.state,copy.state),"SIX IDLE restoring the frozen idle turn gives identical results")
  before=g.export_snapshot()
- t.check(not g.dispatch(end.id,before.version-1).ok and g.export_snapshot()==before,"SIX IDLE stale end-turn cannot advance the cycle twice")
+ t.check(not g.dispatch(g.command(end.payload,before.version-1),before.version-1).ok and g.export_snapshot()==before,"SIX IDLE stale end-turn cannot advance the cycle twice")
  t.check(t.action(g,"end").ok and g.state.enemies[0].stage==12 and g.state.deck.any(func(card):return card.type=="tease"),"SIX IDLE following turn resumes real equipment and curse actions")
  g=encounter(45);e=g.state.enemies[0];e.stage=10;e.intent=g._plan(e);e.intent.delayed=true
  t.check(t.action(g,"end").ok and g.state.enemies[0].stage==10 and g.state.enemies[0].intent.kind=="idle" and not g.state.enemies[0].intent.delayed,"SIX IDLE shared interruption retains the unexecuted idle step")

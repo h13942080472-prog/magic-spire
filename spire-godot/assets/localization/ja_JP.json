@@ -250,6 +250,74 @@
       "source": "音乐音量 · {percent}%",
       "text": "音楽音量・{percent}%"
     },
+    "ui.map.seed": {
+      "source": "初始种子 {initial} · 第 {iteration} 次塔路",
+      "text": "初期シード {initial}・第{iteration}回目の塔路"
+    },
+    "ui.map.seed_copied": {
+      "source": "已复制",
+      "text": "コピーしました"
+    },
+    "ui.feedback.save.attached": {
+      "source": "将附带当前进度存档：{name}（{size} KB）",
+      "text": "現在の進行状況のセーブデータを添付します：{name}（{size} KB）"
+    },
+    "ui.feedback.save.declined": {
+      "source": "当前反馈服务暂不支持附带存档。",
+      "text": "現在のフィードバックサービスはセーブデータの添付に対応していません。"
+    },
+    "ui.feedback.save.unchecked": {
+      "source": "未附带存档：已取消勾选。",
+      "text": "セーブデータは添付しません：チェックを外しました。"
+    },
+    "ui.feedback.save.none": {
+      "source": "未附带存档：当前没有可附带的存档。",
+      "text": "セーブデータは添付しません：現在、添付できるセーブデータがありません。"
+    },
+    "ui.feedback.save.uncaptured": {
+      "source": "未附带存档：本次草稿没有捕获到存档。",
+      "text": "セーブデータは添付しません：今回の下書きではセーブデータを取得していません。"
+    },
+    "ui.feedback.save.invalid": {
+      "source": "未附带存档：当前进度存档校验未通过，未附带。",
+      "text": "セーブデータは添付しません：現在の進行状況のセーブデータが検証に失敗しました。"
+    },
+    "ui.feedback.save.oversized": {
+      "source": "未附带存档：存档过大（超过 2 MB），未附带。",
+      "text": "セーブデータは添付しません：セーブデータの容量が大きすぎます（2 MB 超）。"
+    },
+    "ui.run_review.title": {
+      "source": "本局回顾",
+      "text": "このプレイの振り返り"
+    },
+    "ui.run_review.identity": {
+      "source": "本局标识",
+      "text": "このプレイの識別情報"
+    },
+    "ui.run_review.route": {
+      "source": "节点概况",
+      "text": "ノードの概要"
+    },
+    "ui.run_review.deck": {
+      "source": "卡组",
+      "text": "デッキ"
+    },
+    "ui.run_review.progress": {
+      "source": "已到达第 {floor} 层 · 已走过 {nodes} 个节点",
+      "text": "第{floor}層に到達・{nodes}ノードを通過"
+    },
+    "ui.run_review.no_route": {
+      "source": "没有可回顾的路线数据。",
+      "text": "振り返れるルートデータがありません。"
+    },
+    "ui.run_review.deck_empty": {
+      "source": "卡组为空。",
+      "text": "デッキは空です。"
+    },
+    "ui.run_review.copy": {
+      "source": "复制本局标识",
+      "text": "このプレイの識別情報をコピー"
+    },
     "ui.settings.doubao_voice_enabled": {
       "source": "播放豆包语音",
       "text": "豆包ボイスを再生"

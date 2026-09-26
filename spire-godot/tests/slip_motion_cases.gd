@@ -43,11 +43,11 @@ static func run(t) -> void:
  var g=fresh();var e=piece(g,"thigh_root");var id=e.id
  g.state.dexterity=1;g.state.charge=2
  var state=JSON.stringify(g.state)
- g.get_view();g.candidates()
+ g.get_view();g.command_facts()
  t.check(JSON.stringify(g.state)==state,"MOTION readonly previews do not choose targets")
  var c=t.find_action(g,"wall_move",{"direction":"toward"})
- t.check(not g.dispatch(c.id,g.state.version-1).ok and JSON.stringify(g.state)==state,"MOTION stale input changes nothing")
- t.check(g.dispatch(c.id,g.state.version).ok,"MOTION paid movement commits")
+ t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and JSON.stringify(g.state)==state,"MOTION stale input changes nothing")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok,"MOTION paid movement commits")
  t.check(is_equal_approx(g._equipment(id).durability,1.5) and g.state.energy==1 and g.state.wall_distance==2,"MOTION base 1.5 plus dexterity once per move, no assist/focus additions")
  t.check(g.state.charge==2 and g.state.rng.magic==0,"MOTION passive preserves preparation and does not cast")
  t.check(batches(g).size()==1 and batches(g)[0].data.passive_slip.results.size()==1,"MOTION one structured batch")
@@ -93,7 +93,7 @@ static func run(t) -> void:
  t.check(t.action(g,"wall_move",{"direction":"toward"}).ok and batches(g).is_empty() and g._equipment(e.id).durability==4,"MOTION ankle excluded even on movement")
  g=fresh();e=piece(g,"thigh_root");g.state.mana=101;state=JSON.stringify(g.state)
  c=t.find_action(g,"wall_move",{"direction":"toward"})
- t.check(not g.dispatch(c.id,g.state.version).ok and JSON.stringify(g.state)==state,"MOTION late validation rolls back damage random ids and logs")
+ t.check(not g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and JSON.stringify(g.state)==state,"MOTION late validation rolls back damage random ids and logs")
  g=fresh();e=piece(g,"thigh_root")
  t.check(t.action(g,"posture",{"dest":"sit","wall":false}).ok and batches(g).is_empty() and g._equipment(e.id).durability==4,"MOTION posture alone is not movement")
  g=PrisonCases.intake(t);PrisonCases.clear_fixture(g)

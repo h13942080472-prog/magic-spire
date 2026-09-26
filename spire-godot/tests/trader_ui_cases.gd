@@ -1,5 +1,6 @@
 extends RefCounted
 const Navigation=preload("res://tests/interface_ui_cases.gd")
+const Queries=preload("res://ui/target_queries.gd")
 
 # Real practice navigation and controls; configuration is owned by trader_cases.
 static func run(t) -> void:
@@ -18,10 +19,10 @@ static func run(t) -> void:
  ui.game._cleanup();ui.render();await t.frames()
  t.check(await t.click("end") and ui.game.state.get("weakness_turns",0)==1,"TRADER second real action applies one player turn of weakness")
  for type in ["strike","heavy","kick"]:
-  var c=ui.actions.find("attack",{"type":type,"enemy":id})
+  var c=Queries.find(ui.view,"attack",{"type":type,"enemy":id})
   t.check(not c.is_empty(),"TRADER base attack candidate remains visible "+type)
   if c.is_empty(): continue
-  var button=ui.candidate_buttons[c.id]
+  var button=ui.candidate_buttons[c.key]
   t.check(not c.valid and c.reason.contains("无力化") and button.disabled,"TRADER weakness disables base attack with explicit reason "+type)
   t.check(button.get_theme_color("font_disabled_color").get_luminance()<button.get_theme_color("font_color").get_luminance(),"TRADER disabled attack uses low brightness "+type)
  t.check(t.visible_text(ui.find_child("AttackActions",true,false)).contains("无力化"),"TRADER attack reason is visible beside controls")
@@ -34,7 +35,7 @@ static func run(t) -> void:
   t.check(text.contains("1个玩家回合") and text.contains("火球") and text.contains("卡牌魔法"),"TRADER status states duration and unaffected magic")
  t.check(JSON.stringify(ui.game.state)==before,"TRADER reading status preserves state and random counters")
  await t.close_information()
- t.check(ui.actions.find("attack",{"type":"fireball","enemy":id}).valid and not t.action_button("fireball").disabled,"TRADER fireball remains available during weakness")
+ t.check(Queries.find(ui.view,"attack",{"type":"fireball","enemy":id}).valid and not t.action_button("fireball").disabled,"TRADER fireball remains available during weakness")
  # Put an existing magic card in hand to inspect and use its real bound face.
  var magic={}
  for zone in ["hand","draw","discard"]:
@@ -46,11 +47,11 @@ static func run(t) -> void:
   for zone in ["draw","discard"]: ui.game.state[zone].erase(magic)
   if not ui.game.state.hand.has(magic): ui.game.state.hand.append(magic)
   ui.card_faces[magic.uid]=false;ui.render();await t.frames()
-  var c=ui.actions.find("card",{"uid":magic.uid,"slot":"wrist","target":target.id,"free":false})
+  var c=Queries.find(ui.view,"card",{"uid":magic.uid,"slot":"wrist","target":target.id,"free":false})
   t.check(not c.is_empty() and c.valid and ui.card_buttons[magic.uid].modulate.r==1,"TRADER magic card remains usable and bright during weakness")
   if not c.is_empty() and c.valid:
    await t.start_drag(magic.uid,"wrist")
-   await t.release_target(await t.reveal_drop_target(c.id))
+   await t.release_target(await t.reveal_drop_target(c.key))
    t.check(ui.game._equipment(target.id).is_empty() or ui.game._equipment(target.id).durability<8,"TRADER real magic card resolves under weakness")
  t.check(await t.click("attack",{"type":"fireball","enemy":id}) and ui.game._enemy(id).hp<56,"TRADER real fireball damages enemy under weakness")
  t.check(await t.click("end") and ui.game.state.get("weakness_turns",0)==0 and ui.game._enemy(id).get("ready_layers",0)==1,"TRADER next real application expires weakness and gains readiness")
