@@ -297,7 +297,7 @@ flowchart LR
 - 结构：`data/equipment.gd`、`data/composites.gd`、`data/links.gd`、`data/special_equipment.gd`。
 - 事务：`core/equipment_application.gd`、`core/equipment_replacement.gd`、`core/equipment_offers.gd`、`Game._install_template/_install_assembly/_install_link/_install_special`。
 - 专题助手：`core/shoulder_links.gd`、`core/torso_binding.gd`、`core/installed_tools.gd`（已安装工具）、`core/hand_assist.gd`。
-- 检查命令与分类见 `.zcode/skills/repo-ops/SKILL.md`；验证结论见 `docs/record/verification.md`。
+- 检查命令与分类见 `skills/repo-ops/SKILL.md`；验证结论见 `docs/record/verification.md`。
 
 
 ### 嘴部叠加的共用通道

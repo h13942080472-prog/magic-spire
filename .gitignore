@@ -9,6 +9,7 @@
 !/docs/
 !/release/
 !/.zcode/
+!/skills/
 
 # 构建产物与本地缓存（任意层级；根 AGENTS.md「禁区」不提交缓存、存档与临时日志）
 build/

@@ -18,7 +18,7 @@
 - 从版本号来源、导出预设、打包脚本、导出模板、签名配置，到成品清单、资源探针与包内验证说明的整条流水线。
 - 覆盖 Windows x86_64 与 Android；不含游戏规则、源码内容与反馈服务（见 `docs/spec/feedback-deployment.md`）。
 - 操作细节与已知环境陷阱（打包脚本须用 PowerShell 7；`GODOT_BIN` 必须指向 `*_console.exe`；
-  导出模板须装在引擎版本目录下）见 `.zcode/skills/repo-ops/SKILL.md`，不在本文件重复。
+  导出模板须装在引擎版本目录下）见 `skills/repo-ops/SKILL.md`，不在本文件重复。
 - 程序与 PCK 必须一起分发；正式 `content/packs` 复制在 EXE 旁。内容包根只由
   `core/content_catalog.gd` 的常量 `PACKS_ROOT` 决定，其余代码经 `packs_root()` 读取：
   开发值 `"res://content/packs"`（编辑器、测试与 Android 包内资源），发布值 `"adjacent"`
@@ -45,7 +45,7 @@
 - **版本号来源**：脚本从 `project.godot` 读取版本并选择同名导出预设；当前版本、Windows 文件版本、
   Android 安装版本与随包版本说明文件名见本文「v0.18.2.fix 修复与维护版」段。不手改脚本内的版本常量。
 - **进包内容**：编译脚本、运行资源、动态装备 JSON；正式 `content/packs` 与授权文件随包。
-- **不进包**：测试、工具、文档、日志、内容模板、存档、密钥、构建工具与第三方授权清单以外的构建产物。
+- **不得进包**：测试、工具、文档、日志、内容模板、存档、密钥、构建工具，以及第三方授权清单以外的构建产物。
 - **Windows 导出**：目标 Windows x86_64 发布模板；只安装 Windows x86_64、版本标记与 ICU 数据；
   模板来自 [Godot 4.7.2 官方归档](https://godotengine.org/download/archive/4.7.2-stable/)，完整 TPZ 的 SHA256 为
   `f298490b8d44d934be425a5a65a51bf15f422428b229a06a6e11d9ffea248011`；导出配置参照
@@ -85,21 +85,14 @@
 - 触屏专项：`tools/check.ps1 -UIOnly -UISuite touch`（真实 `ScreenTouch`／`ScreenDrag` 输入进入正式 UI）。
 - 结果与失败集登记在验证记录（`docs/record/verification.md`）；未执行项不记作通过。
 
-## Windows 流水线
+## 流水线验收要点
 
-`tools/package.ps1 -BuildId <本次唯一编号>` 在上级 `outputs` 建立新目录，写入成品、版本／文件 SHA256 清单与
-第三方授权，并把导出日志与源码指纹存入 `build/package-<编号>`。
-`export_presets.cfg` 导出编译脚本、运行资源与动态装备 JSON，测试、工具、文档、日志和内容模板不进入 PCK。
-验收分开记录：发布 EXE 直接运行并检查主页渲染与启动错误；`tools/release_probe.gd` 用编辑器通过 `--main-pack`
-载入同一成品 PCK；`tools/check-package.ps1 -Directory <成品目录>` 复验清单、发布 EXE 启动及成品 PCK。
-压缩前应核对本批验证记录，生成最终 ZIP 与 SHA256，并从 ZIP 重新解压核对所有清单文件。
-
-## Android 流水线
-
-`tools/package-android.ps1 -BuildId <唯一编号>` 按上表输入域生成签名 APK；ETC2/ASTC 导入与兼容渲染器开启，
-横屏保持 16:9，原有桌面发布配置保留。Android 的 `content/packs` 打进 APK、按开发值经 `res://` 读取
-（取值与断言见上「域」）；运行资源、
-动态装备 JSON 及授权文件均进入包；包中不带存档、测试代码、密钥或构建工具。
-`tools/check-android-package.ps1 -Apk <APK路径>` 直接取 APK 的 assets，用主机 Godot ZIP 资源加载器启动包内游戏，
-验证主页、内容、动态资源、新游戏、练习和隔离存档；触屏行为通过真实 `ScreenTouch`／`ScreenDrag` 输入进入正式 UI，
-专项入口为 `tools/check.ps1 -UIOnly -UISuite touch`。
+- Windows：`tools/package.ps1` 建目录、写清单与授权，导出日志与源码指纹存 `build/package-<编号>`；
+  发布 EXE 直接运行查主页与启动错误，`tools/release_probe.gd` 经 `--main-pack` 载入同一 PCK，
+  `tools/check-package.ps1 -Directory <成品目录>` 复验清单、EXE 启动与成品 PCK；
+  压缩前核对本批验证记录，生成最终 ZIP 与 SHA256，并从 ZIP 重新解压核对所有清单文件。
+- Android：`tools/package-android.ps1` 生成签名 APK（ETC2/ASTC 与兼容渲染器开启，横屏 16:9）；
+  `content/packs` 打进 APK 按开发值经 `res://` 读取；`tools/check-android-package.ps1` 直接取 APK assets
+  启动包内游戏并验证主页、内容、动态资源、新游戏、练习和隔离存档；
+  触屏行为通过真实 `ScreenTouch`／`ScreenDrag` 输入进入正式 UI，专项入口
+  `tools/check.ps1 -UIOnly -UISuite touch`。

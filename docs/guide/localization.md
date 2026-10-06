@@ -41,5 +41,5 @@
 
 - 规则侧覆盖：英文资源完整性、源文变更、缺译／未知 ID 回退、动态模板、嵌套参数、非法包原子拒绝、偏好保存，以及语言切换前后快照与候选不变。
 - 窗口侧覆盖：主页、设置、商店、事件、战斗、卡面延迟刷新与切回中文；扫描代表性英文页面不得残留中文字符。
-- 一次实际范围示例（2026-09-13 批次）：资源导入 + `localization`／`architecture`／`runner` 规则分类 + `localization`／`home`／`display`／`services`／`events`／`card_power` 窗口分类。命令与分类语义见 `.zcode/skills/repo-ops/SKILL.md`。
+- 一次实际范围示例（2026-09-13 批次）：资源导入 + `localization`／`architecture`／`runner` 规则分类 + `localization`／`home`／`display`／`services`／`events`／`card_power` 窗口分类。命令与分类语义见 `skills/repo-ops/SKILL.md`。
 - 未运行的范围（全项目回归、安卓真机、打包）必须在结论里写明；结果只登记到 `docs/record/verification.md`。

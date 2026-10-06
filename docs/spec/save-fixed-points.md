@@ -9,21 +9,20 @@
 
 ## 域
 
-- 收束对象：**进度的写盘时机与写入内容**。"进度"＝玩家在本局内的推进；恢复粒度＝三个固定点。
+- 收束对象：**进度的写盘时机与写入内容**。「进度」＝玩家在本局内的推进；恢复粒度＝三个固定点。
 - 文件域：`core/game.gd`（声明表的 `checkpoint` 标记、`_checkpoint_kind`、`dispatch` 结果的
   `checkpoint` 键；另见「加性字段与只读入口」的 `state.initial_seed` 与 `restore_snapshot` 回填）、
-  `ui/main.gd`（写盘判据与三条非进度写盘）、`core/save_store.gd`（文件读写与校验；新增只读入口 `fixed_point_text`）。
+  `ui/main.gd`（写盘判据与三条非进度写盘）、`core/save_store.gd`（文件读写与校验；只读入口 `fixed_point_text`）。
 - 人可见后果（人已裁定接受）：
   1. 崩溃／退出后回到三个固定点中最近的一个（本层入口／上一场战斗结束／上次整备结束）；
      场景内（战斗中途、整备途中、房间之间）的进度不再保留。
-  2. `saved_at` 含义＝"上次固定点写入时间"（不再是"上次点击"）。
-  3. `.bak` 稳定持有**上一次固定点内容**；主菜单"继续"在损坏时回退到它。
+  2. `saved_at` 含义＝「上次固定点写入时间」（不再是「上次点击」）。
+  3. `.bak` 稳定持有**上一次固定点内容**；主菜单「继续」在损坏时回退到它。
   4. 主菜单摘要时间更新频率明显下降（只在三个固定点、手动保存与画线时变化）。
 - 非目标：不改存档格式与 `save_revision`、不改 `pack()`／`unpack()` 的格式与校验、
   不改 `restart_snapshot()` 的冻结时机、不改 `read_slot` 回退规则与 `summary()` 语义、
-  不改 `TRANSITIONS` 既有 kind 语义（只加 `checkpoint` 标记）、不新增生产文件与只读接口、
-  不新增模块依赖、不做启动期迁移脚本、不改启动链。（后续切片新增的加性字段与只读入口见下节；`pack()`／`unpack()`
-  与 `write_game` 的格式、校验、`.bak` 顺序仍不变。）
+  不改 `TRANSITIONS` 既有 kind 语义（只加 `checkpoint` 标记）、不新增模块依赖、不做启动期迁移脚本、
+  不改启动链。
 
 ## 接口
 
@@ -45,13 +44,13 @@ _checkpoint_kind(log_start: int) -> String
 - **固定点＝声明表上的 kind**：`core/game.gd` 的 `TRANSITIONS` 中带 `checkpoint` 列的非空项
   （kind 清单与其余列见 `docs/spec/transition-pipeline.md`）。**必须只有一处声明**。
   `checkpoint` 的取值集合恰为 `floor`／`battle_end`／`prepare_end`，且与 `CHECKPOINT_PRIORITY`
-  的取值集合相等。
+  的取值集合相等（`tests/architecture_cases.gd::save_checkpoint_kinds_are_pinned`）。
 - **推导按类别、与条目数无关**：`checkpoint` 只由本次提交出现过的 **kind 集合**按优先级取一
   （`battle_end` ＞ `prepare_end` ＞ `floor`）；**不得**依赖条目条数或相邻重复的次数；
   同一提交内重复出现同一 kind 时结果不变。
 - **写入内容**＝写入时刻的 `restart_snapshot()` ＋ 当时线稿；写盘发生在**提交之后**
   （`dispatch` 成功返回、UI 收到非空 `checkpoint` 之后）。
-- **删除恢复后立刻写盘**；**保留**三条非进度写盘（见"输入域"）。
+- **删除恢复后立刻写盘**；**保留**三条非进度写盘（见「输入域」）。
 - 明文约束：`read_slot` 的回退规则与 `summary()` 的语义、`.bak` 顺序（先 `copy 主→.bak`、
   后 `rename tmp→主`，故 `.bak` ＝写入前的主档＝上一次固定点内容）、存档格式与 `save_revision`
   均不变。
@@ -72,7 +71,11 @@ state.initial_seed: int    # = _init 的 run_seed；state.seed 仍由 _restart_t
 
 - 加性字段**不升** `Snapshot.REVISION`（升版会把既有玩家存档判为不兼容）；`Snapshot.check` 的
   通用逐字段循环已要求该字段存在且为 `int`，`core/snapshot.gd` 零改动。
-- 缺字段的旧档按当时的 `state.seed` 回填；缺 `save_revision` 或修订号**不是当前值**的档按迁移链口径处置：比当前早的三档修订号（`core/snapshot.gd::REINFORCEMENT_STATE_REVISION`／`core/snapshot.gd::CUP_STACK_REVISION`／`core/snapshot.gd::IRON_DRONE_REVISION`）由 `core/game.gd::restore_snapshot` 在 `Snapshot.check` 之前按迁移链升级（迁移判定旧档数据不完整时整档拒绝、保留当前游戏）；**更早、更新、缺 `save_revision` 或非整数的一律拒绝，不作迁移**。同口径与迁移函数见 `docs/design/game-design.md` 存档节。
+- 缺字段的旧档按当时的 `state.seed` 回填；缺 `save_revision` 或修订号**不是当前值**的档按迁移链口径处置：
+  比当前早的三档修订号（`core/snapshot.gd::REINFORCEMENT_STATE_REVISION`／`core/snapshot.gd::CUP_STACK_REVISION`／
+  `core/snapshot.gd::IRON_DRONE_REVISION`）由 `core/game.gd::restore_snapshot` 在 `Snapshot.check` 之前
+  按迁移链升级（迁移判定旧档数据不完整时整档拒绝、保留当前游戏）；**更早、更新、缺 `save_revision`
+  或非整数的一律拒绝，不作迁移**。同口径与迁移函数见 `docs/design/game-design.md` 存档节。
 - `_scene_key` 不变；固定点身份与写入时机不受影响。
 - 本节的字段与回填语义、`fixed_point_text` 的消费方（反馈附件）与玩家可见标识见
   `docs/spec/seed-identity.md` 与 `docs/spec/feedback-deployment.md`。
@@ -89,34 +92,30 @@ state.initial_seed: int    # = _init 的 run_seed；state.seed 仍由 _restart_t
 
 - **同类多条目按类别去重**：取值不由条目数决定。
 - **同层移动（`room_enter`）不是固定点；换塔（`tower_restart`）不是固定点**（人审裁定）。
-- `floor_enter` **只认上行**（"进入新的一层"＝目标层更深）。若将来希望"回到上层也算固定点"，
+- `floor_enter` **只认上行**（「进入新的一层」＝目标层更深）。若将来希望「回到上层也算固定点」，
   须先改 `docs/spec/transition-pipeline.md` 的 kind 语义，再改本片的标记（属行为口径变更，须立批）。
 - 非进度写盘（按显式意图／独立产物保留，不变）：
 
 | 触发 | 入口 | 写什么 | 说明 |
 | --- | --- | --- | --- |
-| 地图线稿变更 | `graph.drawings_changed` → `_save_progress` | 当前 `restart_snapshot()` ＋最新线稿 | 玩家批注是独立产物；**不改变恢复点**（文件内容始终是"起点＋最新线稿"，因此画线也会刷新主档；若要求画线不触碰主档，须把线稿拆成独立文件，属新切片） |
+| 地图线稿变更 | `graph.drawings_changed` → `_save_progress` | 当前 `restart_snapshot()` ＋最新线稿 | 玩家批注是独立产物；**不改变恢复点**（文件内容始终是「起点＋最新线稿」，因此画线也会刷新主档；若要求画线不触碰主档，须把线稿拆成独立文件，属新切片） |
 | 新局替换不兼容档 | `_save_progress(true)` | 开局起点＋线稿 | 版本不兼容时开始新局的必经路径 |
-| 手动"保存场景起点" | 主菜单按钮 | 当前 `restart_snapshot()`＋线稿 | 显式用户意图；**无去重机制**，点击即写 |
+| 手动「保存场景起点」 | 主菜单按钮 | 当前 `restart_snapshot()`＋线稿 | 显式用户意图；**无去重机制**，点击即写 |
 
 - 删除恢复后那次写盘后，读档时被 `restore_snapshot` 抬升过的 `version` 不再立即写回文件；
   该字段只是乐观并发计数，存档内容不受影响，最新内容在下一次固定点写入时落盘。
 
 ## 失败语义
 
-- 存档文件读写不设置字节数上限；超过原8 MiB的主档和备份均走相同格式、校验和、状态验证及回退流程。底层文件读写失败仍正常报告。
-- **保留不得弱化**：失败路径与全部文案（`"保存失败：…原存档保留。"`／
+- 存档文件读写不设置字节数上限；超过原8 MiB的主档和备份均走相同格式、校验和、状态验证及回退流程。
+  底层文件读写失败仍正常报告。
+- **须保留，不得弱化**：失败路径与全部文案（`"保存失败：…原存档保留。"`／
   `"保存已暂停：原存档版本不兼容…"`／slot 非法／回读校验失败）；`pack()`／`unpack()`
   的格式与校验；`restart_snapshot()` 的冻结时机；`read_slot` 的回退规则与 `summary()` 的语义；
   `.bak` 顺序；任一失败不得被放行、不得为绿灯改文案。
-- 语义归属：`checkpoint` 的推导只回答"这次提交是不是固定点、是哪一类"；
-  "恰一条 `battle_end_*`"这类**语义**由闭环 check 与具名场景承接，
+- 语义归属：`checkpoint` 的推导只回答「这次提交是不是固定点、是哪一类」；
+  「恰一条 `battle_end_*`」这类**语义**由闭环 check 与具名场景承接，
   **不得依赖 oracle 对迁移日志列的折叠边界**；`checkpoint` 推导不得读历史条目或跨提交累积。
-- 算未完成（任一）：任一必跑命令未执行／失败／未知或跳过；`summary.json` 为
-  `source_changed`／`failed`／`plan`；场景内仍有写盘；固定点漏写或 `checkpoint` 取值错；
-  `checkpoint` 推导依赖条目数；闭环 check 与声明表标记不一致；新增生产文件、改 `pack()`／`unpack()`
-  格式与校验、改 `restart_snapshot()` 冻结时机、改 `read_slot` 回退规则；未做敏感性证明；
-  宣称完整回归或打包。
 
 ## 证据入口
 
@@ -140,7 +139,6 @@ state.initial_seed: int    # = _init 的 run_seed；state.seed 仍由 _restart_t
   本片新增的只读入口另有具名 check：`fixed_point_text` 与 `write_game` 写出的主档字节逐字一致、
   只调用它不产生文件与 mtime 变化且不改 `state`／随机、`slot`／`filename` 与 `game.state.save_slot` 一致
   （落点：`persistence` → `tests/persistence_cases.gd`）。
-
 - 命令（在 `spire-godot/` 下执行）：
 
 ```powershell
@@ -148,27 +146,13 @@ state.initial_seed: int    # = _init 的 run_seed；state.seed 仍由 _restart_t
 & tools/check.ps1 -UIOnly -UISuite persistence,home -TimeoutSeconds 900
 ```
 
-  范围预检（不算通过）：两条命令加 `-ListOnly`。判据：退出码 0；`summary.json` 的 `status=passed`
-  且 `before==after` 指纹（`source_changed` 不算通过）；红集口径见
-  `docs/spec/transition-pipeline.md`（**不得新红**）；`content/packs` 未改动，不跑 `check-content.ps1`。
-- **敏感性证明（必须做，随后还原）**：临时让一个非固定点的 `dispatch` 也带 `checkpoint`
-  （或让某个固定点 kind 不写）→ 相关 check 必须变红；还原后全绿。证据（临时补丁＋红日志）入报告。
-- 人的路径证明（判据是套件的布尔 check）：战斗内点若干张牌与结束回合 → 主档与 `.bak` 的 mtime 不变；
-  打赢这一场 → 写盘，主页"继续"回到战斗结束后的起点；走完整备 → 写盘，整备中再做操作 → 不再写；
-  走到更深的层 → 写盘且恢复点＝该层入口，同层换房不写；塔路图画一笔 → 写盘（恢复点不变）；
-  手工破坏主档 → 主页"继续"回到上一次固定点且状态完整；不打包、不发布。
-- 性能判据：沿用 `docs/spec/response-pipeline.md` 与 `docs/record/equipment-performance.md` 的配对协议
-  （0／12／26 件 × battle／departure，2 热身＋15 配对，报逐对比值中位与两侧独立中位）。
-  口径：①**场景内提交的 `save` 段＝0**（由"未调用 `write_game`"＋mtime／字节断言立证），
-  同夹具总耗时下降量照报；②固定点单次写盘成本**照报**（不设下降目标）；③不得以"应该更快"、
-  单次采样或拼接历史数字宣称收益。计时脚本与 JSON 只放已忽略的 `build/`，摘要登记后删除原始目录，
-  生产源码不留计数器。
-- 登记位置：`build/checks/<id>/`（`check-rules.log`／`check-ui.log`／`summary.json`）；
-  结论与域写 `docs/record/verification.md`（validator 负责，不在本文件宣称通过）。
+  判据：退出码 0；`summary.json` 的 `status=passed` 且 `before==after` 指纹（`source_changed` 不算通过）；
+  `content/packs` 未改动，不跑 `check-content.ps1`。
 - 依赖约束（cleaner 可核对）：允许改动＝`core/game.gd`（声明表 `checkpoint` 标记、`dispatch` 结果的
   `checkpoint` 键与其推导）、`ui/main.gd`（删除恢复后写盘点；`_submit` 只在 `checkpoint` 非空时写盘）、
-  `tests/persistence_cases.gd`／`tests/persistence_ui_cases.gd`／`tests/architecture_cases.gd`、
-  计时脚本（不入库）。依赖方向＝`ui/main.gd → core/{Game,SaveStore}`（既有边）；
-  `core/game.gd` 内部改一处推导。
+  `tests/persistence_cases.gd`／`tests/persistence_ui_cases.gd`／`tests/architecture_cases.gd`。
+  依赖方向＝`ui/main.gd → core/{Game,SaveStore}`（既有边）；`core/game.gd` 内部改一处推导。
 - 本片之后的现行改动清单（`fixed_point_text`、`state.initial_seed` 与 `restore_snapshot` 回填、
-  只读投影与地图角标）见 `docs/spec/seed-feedback-dependencies.md`；本段其余约束继续有效。
+  只读投影与地图角标）见 `docs/spec/seed-feedback-dependencies.md`；登记位置
+  `build/checks/<id>/`（`check-rules.log`／`check-ui.log`／`summary.json`），结论与域写
+  `docs/record/verification.md`（validator 负责，不在本文件宣称通过）。

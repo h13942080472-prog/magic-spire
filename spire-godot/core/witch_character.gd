@@ -176,7 +176,7 @@ static func profile(g, part: String) -> Dictionary:
  if part=="hand" and g.state.card_buffs.has("witch_hand_freedom"): return {"parts":["hand"],"multiplier":1.0,"body_free":true}
  return {"parts":[part],"multiplier":LEG_CAST_MULTIPLIERS[g.level("legs")] if part=="legs" else 1.0}
 
-# R4（docs/ondemand-copy.md §11.5）：法术候选文案改走路由，正文留在本模块。
+# R4（docs/ondemand-copy.md「文案路由（收口阶段）」）：法术候选文案改走路由，正文留在本模块。
 static func attack_detail(g, args: Dictionary) -> String:
  var part=String(args.get("part",""))
  var charge=bool(args.get("charge",false))
@@ -193,7 +193,7 @@ static func attack_detail(g, args: Dictionary) -> String:
  if focus>0: detail+="本次各段魔法伤害＋%d，消耗全部精神集中。" % focus
  return detail
 
-# 角色2 的基础攻击事实（行动域，docs/spec/candidate-removal.md §2.1 T5／T8；批 R3）：行与显示事实的唯一来源。
+# 角色2 的基础攻击事实（行动域，docs/spec/candidate-removal.md「接口」T5／T8；批 R3）：行与显示事实的唯一来源。
 # brief 依赖本次判定的 mana_payment，故判定先算一次并随事实带走（同一实现、同一输入，不是第二份判定）。
 static func attack_facts(g) -> Array:
  var facts=[]

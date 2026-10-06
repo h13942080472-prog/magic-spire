@@ -18,6 +18,6 @@ Copyright (c) 2026 h13942080472-prog。
 - `docs/`：现行契约、玩法设计、操作指南、验证记录与历史归档。
 - `版本更新内容.txt`：版本更新记录。
 
-用 Godot 打开 `spire-godot/project.godot` 后运行项目。开发与检查命令见 [操作入口](.zcode/skills/repo-ops/SKILL.md)，打包见 [打包契约](docs/spec/packaging.md)，进度见 [变更记录](docs/record/changelog.md)，协作规则见 [AGENTS.md](AGENTS.md)。
+用 Godot 打开 `spire-godot/project.godot` 后运行项目。开发与检查命令见 [操作入口](skills/repo-ops/SKILL.md)，打包见 [打包契约](docs/spec/packaging.md)，进度见 [变更记录](docs/record/changelog.md)，协作规则见 [AGENTS.md](AGENTS.md)。
 
 仓库不包含 Godot 缓存、本地构建工具、测试日志、个人设置、签名私钥及安装包。发布时需在本机配置 Godot 导出模板；安卓另需 SDK、JDK 和个人签名配置。素材及第三方许可说明位于 `spire-godot/assets/vendor/CREDITS.md` 与 `spire-godot/packaging/licenses/`。

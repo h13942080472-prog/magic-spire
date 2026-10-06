@@ -5,7 +5,7 @@ const C=preload("res://data/composites.gd")
 
 # Offers and installation share the same read-only assembly preparation.
 static func ordinary(g, grade: int=2, free: bool=false, templates: Array=[], locked: bool=false, legal_only: bool=true) -> Array:
- # §3.1 item 4: each offer generator reads through one scope of its own.
+ # docs/spec/equipment-query-seam.md「作用域进出点（冻结名单）」: each offer generator reads through one scope of its own.
  var previous=g._begin_equipment_read()
  var offers=[]
  for template in (E.TEMPLATES.keys() if templates.is_empty() else templates):
@@ -20,7 +20,7 @@ static func ordinary(g, grade: int=2, free: bool=false, templates: Array=[], loc
  return offers
 
 static func preferred(g, options: Array) -> Array:
- # §3.1 item 3: a pure ordering pass; its ranking reads one scope of equipment.
+ # docs/spec/equipment-query-seam.md「作用域进出点（冻结名单）」: a pure ordering pass; its ranking reads one scope of equipment.
  var previous=g._begin_equipment_read()
  var rank=-1
  for option in options: rank=maxi(rank,option.get("rank",0))
@@ -53,7 +53,7 @@ static func _fills_empty(g, request: Dictionary, occupied: Dictionary) -> bool:
  return points.any(func(point):return not occupied.has(point))
 
 static func links(g, grade: int) -> Array:
- # §3.1 item 4: the rope generator reads through one scope as well.
+ # docs/spec/equipment-query-seam.md「作用域进出点（冻结名单）」: the rope generator reads through one scope as well.
  var previous=g._begin_equipment_read()
  var offers=[]
  var anchors=g.link_anchors()

@@ -1,6 +1,6 @@
 extends RefCounted
 
-# B1（docs/ondemand-copy.md §1.2）：S 只按显示入口逐条取源、正向投影，不为收集新增规则查询。
+# B1（docs/ondemand-copy.md「S（界面固有显示集合）的取源」）：S 只按显示入口逐条取源、正向投影，不为收集新增规则查询。
 static func _card_display_set(g, facts: Array, shop: Dictionary, room_event: Dictionary) -> Dictionary:
  var shown={}
  for card in g.state.hand: shown[card.type]=true
@@ -300,7 +300,7 @@ static func build(g) -> Dictionary:
    card_instances[card.uid]=g.Cards.face_texts(g,card.type,card.uid)
    card_instances[card.uid].merge(g.Cards.metadata(g,card.type,card.uid))
  for type in g.Cards.Rules.SPECS: costs[type]=g.Cards.Rules.energy_label(type)
- # B1（docs/ondemand-copy.md §1.2）：card_texts 只带界面固有显示集合 S，键序仍按注册表，条目内容不变。
+ # B1（docs/ondemand-copy.md「S（界面固有显示集合）的取源」）：card_texts 只带界面固有显示集合 S，键序仍按注册表，条目内容不变。
  var shop=g.Services.view(g)
  var room_event=g.Events.view(g)
  var shown=_card_display_set(g,facts,shop,room_event)

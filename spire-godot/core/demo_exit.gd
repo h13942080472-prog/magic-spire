@@ -9,7 +9,7 @@ static func health_multiplier(state: Dictionary) -> float:
 static func at_exit(g) -> bool:
  return not g.state.practice and g.state.phase=="cleared" and g.room_data(g.state.room).get("kind","")=="exit"
 
-# 试玩出口的显示事实（批 R5：行生产转发改显示事实构建，docs/spec/candidate-removal.md §2.1 T5／T8）。
+# 试玩出口的显示事实（批 R5：行生产转发改显示事实构建，docs/spec/candidate-removal.md「接口」T5／T8）。
 static func facts(g) -> Array:
  var out=[]
  if not at_exit(g) or g.state.demo_finished: return out
@@ -19,7 +19,7 @@ static func facts(g) -> Array:
   out.append(g._fact({"kind":"demo_continue"},"继续游玩",{"kind":"demo_exit.continue","args":continue_args,"fallback":continue_detail(g,continue_args)},0,0.0,"","","demo_exit"))
  return out
 
-# R1（docs/ondemand-copy.md §11.5）：文案类别登记在路由，正文仍留本模块。
+# R1（docs/ondemand-copy.md「文案路由（收口阶段）」）：文案类别登记在路由，正文仍留本模块。
 static func end_detail(_g, _args: Dictionary) -> String:
  return "结束本次游玩。"
 

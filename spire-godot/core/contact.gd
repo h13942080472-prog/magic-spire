@@ -46,7 +46,7 @@ static func limited_slots(g) -> Array:
  return ["thigh"] if g.state.posture=="stand" else ["thigh","ankle","foot","toes"]
 
 static func workspace(g, operation: String) -> Array:
- # §3.1 item 2: one read scope for the whole workspace table.
+ # docs/spec/equipment-query-seam.md「作用域进出点（冻结名单）」: one read scope for the whole workspace table.
  var previous=g._begin_equipment_read()
  var slots=[]
  var stand=g.state.posture=="stand"

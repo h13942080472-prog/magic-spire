@@ -69,7 +69,7 @@ static func reason(g, entry: Dictionary) -> String:
   if issue!="": return issue
  return ""
 
-# 出发面板的显示事实（批 R5：行生产转发改显示事实构建，docs/spec/candidate-removal.md §2.1 T5／T8）。
+# 出发面板的显示事实（批 R5：行生产转发改显示事实构建，docs/spec/candidate-removal.md「接口」T5／T8）。
 # 标签按本函数自建的顺序取 Data.CATEGORIES（与改动前的行序一致）。
 static func facts(g) -> Array:
  var out=[];var d=g.state.departure
@@ -93,7 +93,7 @@ static func facts(g) -> Array:
   out.append(g._fact({"kind":"departure","op":"finish"},"出发  ›",{"kind":"departure.finish","args":{},"fallback":finish_detail(g,{})},0,0.0,"","","flow"))
  return out
 
-# R4（docs/ondemand-copy.md §11.5）：直呼点文案改走路由，正文留在本模块。
+# R4（docs/ondemand-copy.md「文案路由（收口阶段）」）：直呼点文案改走路由，正文留在本模块。
 static func description_detail(g, args: Dictionary) -> String:
  return description(g,String(args.get("entry_id","")))
 

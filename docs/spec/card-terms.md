@@ -6,6 +6,8 @@
 
 ## 取源（唯一）
 
+- 源文本判据＝`tests/architecture_cases.gd::card_terms_single_source`（`TERMS` 不被 core／ui 读取；
+  `keywords()` 只有 `data/card_text.gd` 一份实现）；本条的语义条目仍为本文件真源。
 - 词条真源唯一：`data/card_text.gd::TERMS`。每面集合由 `data/card_text.gd::keywords(type, free, traits)` 计算，
   经 `data/card_text.gd::metadata()` 写入 `face_keywords[side]`；公开入口 `data/balance.gd::card_metadata(type)`。
   `data/encyclopedia.gd::card(type)` 已合并元数据，**图鉴卡（无实例）同样带 `face_keywords`**。
@@ -30,7 +32,7 @@
 | 保留选牌 | `ui/main.gd::_action_row`（`c.payload.kind=="retain"` 分支） |
 | 回顾面板卡组 | `ui/deck_browser.gd::setup` → `ui/deck_browser.gd::refresh` |
 
-战斗内手牌走同一 `ui/main.gd::_card_tooltip`；本片**不新增战斗判定分支**：改动按共用入口一并生效（见未决问题）。
+战斗内手牌走同一 `ui/main.gd::_card_tooltip`；本片**不新增战斗判定分支**：改动按共用入口一并生效。
 
 ## 接口
 

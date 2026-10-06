@@ -6,7 +6,7 @@ $repositoryRoot = Split-Path -Parent $gameDirectory
 
 # Document reference gate for rule-class documents (scope declared in tools/doc-scan-scope.ps1).
 # Three reference classes are enforced:
-#  1. named repository paths must exist: root-relative (spire-godot/, docs/, .zcode/, release/)
+#  1. named repository paths must exist: root-relative (spire-godot/, docs/, skills/, .zcode/, release/)
 #     or module-relative (tools/, tests/, core/, data/, ui/, assets/, content/, packaging/,
 #     build/), per the "路径约定" stated at the top of docs/spec/*.md.
 #  2. file::symbol anchors must be declared in the named file (GDScript func/var/const/signal/
@@ -33,15 +33,12 @@ $declaredMissing = [ordered]@{
     'core/candidate_deps.gd'             = 'docs/spec/candidate-delta.md declares this slice not landed (header, 2026-09-18); removal condition: that slice lands.'
     'ui/candidate_delta.gd'              = 'same not-landed slice as core/candidate_deps.gd; removal condition: that slice lands.'
     'tools/candidate-deps.ps1'           = 'same not-landed slice as core/candidate_deps.gd; removal condition: that slice lands.'
-    'tools/check-index.ps1'              = 'belongs to the unlanded check-routing slice (docs/record/proposals/check-routing-and-per-click-checks.md); removal condition: that slice lands.'
-    'tests/check_index.json'             = 'unlanded check-routing slice freeze file; removal condition: that slice lands.'
-    'tests/check_index*.gd'              = 'unlanded check-routing slice test files; removal condition: that slice lands.'
 }
 
-$repositoryPrefixes = @('spire-godot', 'docs', '.zcode', 'release', 'outputs')
+$repositoryPrefixes = @('spire-godot', 'docs', 'skills', '.zcode', 'release', 'outputs')
 $modulePrefixes = @('tools', 'tests', 'core', 'data', 'ui', 'assets', 'content', 'packaging', 'build')
-$rootDirectoryNames = @('spire-godot', 'docs', '.zcode', 'release', 'outputs') + $modulePrefixes
-$rootAlternation = '(?:spire-godot|docs|\.zcode|release|outputs|tools|tests|core|data|ui|assets|content|packaging|build)'
+$rootDirectoryNames = @('spire-godot', 'docs', 'skills', '.zcode', 'release', 'outputs') + $modulePrefixes
+$rootAlternation = '(?:spire-godot|docs|skills|\.zcode|release|outputs|tools|tests|core|data|ui|assets|content|packaging|build)'
 $evidenceDirectories = @(
     (Join-Path $gameDirectory 'build'),
     (Join-Path $repositoryRoot 'build'),
@@ -99,7 +96,7 @@ function Test-EvidencePath {
 function Test-NamedPathExists {
     # Wildcards mean "this file family exists": the directory part is walked to its longest
     # wildcard-free prefix, then the leaf is matched by name (recursively, so `**` and a wildcard
-    # directory segment such as `.zcode/skills/*/SKILL.md` both work).
+    # directory segment such as `skills/*/SKILL.md` both work).
     param([string]$Path)
     if (-not ($Path.Contains('*') -or $Path.Contains('?'))) { return (Test-Path -LiteralPath $Path) }
     $directoryForm = $Path.EndsWith('/') -or $Path.EndsWith('\')

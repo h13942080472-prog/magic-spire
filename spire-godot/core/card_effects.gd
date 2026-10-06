@@ -13,7 +13,7 @@ static func active_buffs(g, include_disabled: bool=false) -> Array:
   if id not in result: result.append(id)
  return result
 
-# 状态开关的显示事实（批 R5：行生产转发改显示事实构建，docs/spec/candidate-removal.md §2.1 T5／T8）。
+# 状态开关的显示事实（批 R5：行生产转发改显示事实构建，docs/spec/candidate-removal.md「接口」T5／T8）。
 static func toggle_facts(g) -> Array:
  var out=[]
  if g.state.overloaded or g.state.phase in ["cleared","prison_end"]: return out
@@ -564,7 +564,7 @@ static func metadata(g, type: String, uid: String="") -> Dictionary:
    for side in ["bound","free"]: result.face_mana[side]=result.face_mana[side].filter(func(entry):return entry.kind!="gain")
  return result
 
-# 界面固有卡面文案的唯一生成函数（docs/ondemand-copy.md §1.1）：实时路径的四个步骤在此一处。
+# 界面固有卡面文案的唯一生成函数（docs/ondemand-copy.md「唯一生成函数（三路共用）」）：实时路径的四个步骤在此一处。
 # 输入按牌型与实例 uid，输出全新 Dictionary，只读且不影响判定、随机与存档。
 static func text_entry(g, type: String, uid: String="") -> Dictionary:
  var entry=face_texts(g,type,uid)
@@ -862,7 +862,7 @@ static func detail(g, p: Dictionary) -> String:
  if Rules.SPECS[p.type].get("follow_through",false): lower_text+="总计降紧%d档，目标解除后%s。" % [Rules.SPECS[p.type].hits,"超级顺延" if Rules.SPECS[p.type].get("follow_through_scope","region")=="body" else "顺延"]
  return lower_text
 
-# 卡牌事实（手牌域，docs/spec/candidate-removal.md §2.1 T5／T8；批 R3）：行与显示事实的唯一来源。
+# 卡牌事实（手牌域，docs/spec/candidate-removal.md「接口」T5／T8；批 R3）：行与显示事实的唯一来源。
 # 返回事实列表（payload／label／copy／cost／mana／reason／risk／group），判定与 detail 由 Game 的事实入口给出。
 static func target_facts(g, p: Dictionary, label: String, cost: int, mana: float, risk: String="") -> Array:
  var facts=[]
@@ -875,12 +875,12 @@ static func target_facts(g, p: Dictionary, label: String, cost: int, mana: float
   if choices.is_empty():
    p.hand_uid="";choices.append(p)
  for choice in choices:
-  # B3（docs/ondemand-copy.md §1.5）：descriptor 只留类别与参数，detail 由 Game.candidate_detail 现算。
+  # B3（docs/ondemand-copy.md「按需的候选详情」）：descriptor 只留类别与参数，detail 由 Game.candidate_detail 现算。
   facts.append(g._fact(choice,label,{"kind":"card.target","args":{"payload":choice}},cost,mana,reason(g,choice),risk,"card"))
  return facts
 
-# R3（docs/ondemand-copy.md §11.5）：转发包装的文案参数改走路由，签名与产出保持不变。
-# R6（docs/ondemand-copy.md §11.5）：单面卡面正文的 builder，正文留在本模块。
+# R3（docs/ondemand-copy.md「文案路由（收口阶段）」）：转发包装的文案参数改走路由，签名与产出保持不变。
+# R6（docs/ondemand-copy.md「文案路由（收口阶段）」）：单面卡面正文的 builder，正文留在本模块。
 static func face_text_detail(g, args: Dictionary) -> String:
  return face_text(g,String(args.get("type","")),bool(args.get("free",false)),String(args.get("uid","")))
 
@@ -1307,7 +1307,7 @@ static func select_exhaust(g, p: Dictionary) -> void:
  g.Pressure.gain(g,30,"强制高潮")
  g.Pressure.forced_climax(g,"强制高潮")
 
-# 连锁继续（批 R4：行与显示事实的唯一来源，docs/spec/candidate-removal.md §2.1 T5／T8）。
+# 连锁继续（批 R4：行与显示事实的唯一来源，docs/spec/candidate-removal.md「接口」T5／T8）。
 static func chain_facts(g) -> Array:
  var out=[]
  var chain=g.state.card_chain

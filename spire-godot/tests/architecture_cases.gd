@@ -39,8 +39,9 @@ const TRANSITION_PATTERNS={
  "tower_restart":"_restart_tower\\(",
 }
 
-# Every .gd file below a res:// directory, sorted; the single enumerator for source scans.
-static func script_files(root: String) -> Array:
+# Every source file below a res:// directory matching one of the declared extensions (default
+# .gd), sorted; the single enumerator for source scans.
+static func script_files(root: String, extensions: Array=[".gd"]) -> Array:
  var result=[]
  var pending=[root]
  while not pending.is_empty():
@@ -48,7 +49,10 @@ static func script_files(root: String) -> Array:
   var handle=DirAccess.open(directory)
   if handle==null: continue
   for name in handle.get_files():
-   if String(name).ends_with(".gd"): result.append(directory+"/"+name)
+   for extension in extensions:
+    if String(name).ends_with(extension):
+     result.append(directory+"/"+name)
+     break
   for name in handle.get_directories(): pending.append(directory+"/"+name)
  result.sort()
  return result
@@ -612,6 +616,22 @@ static func run(t) -> void:
  card_facts_declared_slots(t)
  card_facts_consumes_has_targets_at(t)
  card_facts_keyword_min_query(t)
+ slice_dependency_directions(t)
+ run_identity_single_writer(t)
+ feedback_save_single_serializer(t)
+ feedback_save_cap_pinned(t)
+ card_terms_single_source(t)
+ equipment_scope_sites(t)
+ equipment_targets_walk_is_one_path(t)
+ transition_kind_set_pinned(t)
+ command_params_keys_pinned(t)
+ get_view_call_sites_are_pinned(t)
+ production_source_never_preloads_tests(t)
+ ondemand_copy_consumer_boundary(t)
+ run_review_is_read_only_source(t)
+ target_queries_stay_stateless(t)
+ ui_never_reads_game_state(t)
+ mutation_evidence_is_total(t)
  behavior_baseline_equivalence(t)
  removal_end_state(t)
  copy_single_entry_matches_projection(t)
@@ -1622,7 +1642,7 @@ static func copy_candidate_detail_on_demand(t) -> void:
   break
  t.check(played==1 and g.state!=before,"COPY scenario 5 write path unaffected by on-demand detail")
 
-# docs/spec/candidate-removal.md §5 G6（批 R1）：行为基线等价。切片开始时用未改源码复算 26 个夹具单元
+# docs/spec/candidate-removal.md「接口」判据真源（behavior_baseline_equivalence；批 R1）：行为基线等价。切片开始时用未改源码复算 26 个夹具单元
 # （0／12／26／44 件 × 战斗／整备／休息／商店／事件／监狱＋豆包接管，同种子 42）并逐路径比对通过
 # （1508 条路径，首个差异＝无；全量值与逐字段比对器在批 R1 的 build 目录 oracle 内，用完删除）。
 # 这里保留冻结的单元级记录：键集合必须与冻结路径逐一相符（R1 的 mask 为空），命名路径逐字段相等；
@@ -1662,7 +1682,7 @@ const R1_MASK=[]
 # 但 view 的键不因此减少（候选行载体与 view.display_facts 键到 R5 才删），故 mask 只声明新增键、不声明删除键。
 # view 摘要按 mask 删键后必须与 R1 冻结值逐字节相等；键集合另按 R3_VIEW_KEYS_BASE 逐条核对（防静默增删）。
 const R3_VIEW_MASK=["display_facts"]
-# 批 R5 的显式 mask（docs/spec/candidate-removal.md §5 G6／§2.2 终态断言）：本批删除的载体逐条声明，多一条少一条即红。
+# 批 R5 的显式 mask（docs/spec/candidate-removal.md「接口」判据真源：behavior_baseline_equivalence／removal_end_state）：本批删除的载体逐条声明，多一条少一条即红。
 #  R5_VIEW_MASK＝视图键：候选行表（view.candidates）。
 #  R5_RECORD_MASK＝记录路径：候选行的提交身份 id（rows_verdicts）与 view.candidates（view_candidates）。
 #  R5_RECORD_ADDED＝随删除重算的记录路径：判定投影改显示键（facts_verdicts）、显示点全量文本基线（facts_text）、
@@ -1833,7 +1853,7 @@ static func r1_record(g, phase: String, count: int) -> Dictionary:
  out["validate_after"]=str(g.validate())
  return out
 
-# view 摘要按批 R3 的显式 mask 删键（docs/spec/candidate-removal.md §5 G6 的 mask 语义：显式声明、不得静默）。
+# view 摘要按批 R3 的显式 mask 删键（docs/spec/candidate-removal.md「接口」判据真源 behavior_baseline_equivalence 的 mask 语义：显式声明、不得静默）。
 static func r1_view_without_mask(view: Dictionary) -> Dictionary:
  var masked={}
  for key in view:
@@ -1849,7 +1869,7 @@ static func r1_record_digest(record: Dictionary) -> String:
  for path in paths: lines.append(str(path)+"="+str(record[path]))
  return r1_digest("\n".join(lines))
 
-# docs/spec/candidate-removal.md §5 G7（批 R5）：终态断言。扫描面＝core/、ui/、tests/ 的源码文本
+# docs/spec/candidate-removal.md「接口」判据真源（removal_end_state；批 R5）：终态断言。扫描面＝core/、ui/、tests/ 的源码文本
 # （tools/ 与 data/ 不进面：tools 的允许清单条目按契约只点名不动手，data 的规则池不属候选层）。
 # 模式串按片段拼接，避免扫描器命中本检查自身的声明文本。
 static func r5_removed_patterns() -> Array:
@@ -1957,7 +1977,7 @@ static func behavior_baseline_equivalence(t) -> void:
  t.check(mask_problems.is_empty(),"G6 behavior_baseline_equivalence: the added view keys are exactly the declared mask: "+str(mask_problems.slice(0,3)))
  t.check(removed_problems.is_empty() and not FileAccess.file_exists("res://ui/action_index.gd"),"G6 behavior_baseline_equivalence: the declared deletion set is gone from the projection and the row index file is deleted: "+str(removed_problems.slice(0,3)))
 
-# docs/spec/candidate-removal.md §5 G4（批 R1；R2 前置补正：写点扫描面加宽，销 R1 复核缺口①）。
+# docs/spec/candidate-removal.md「接口」判据真源（single_eligibility_implementation；批 R1；R2 前置补正：写点扫描面加宽，销 R1 复核缺口①）。
 # 扫描面＝core/ 与 ui/ 的源码文本（tests／data 不进面）；写点四种形态——字段赋值（.valid=／.reason=）、
 # 字典键（"valid":／"reason":）、括号赋值（["valid"]=／["reason"]=）、括号字典键（["valid"]:／["reason"]:）；
 # 读取式（x.valid／x.reason 作为值）不计。判定落点＝core/game.gd 的 eligibility／eligibility_takeover。
@@ -2067,8 +2087,8 @@ static func single_eligibility_implementation(t) -> void:
  var takeover_writes=scan.hits.filter(func(hit):return String(hit.file)=="core/first_turn_control.gd")
  t.check(ui_writes.is_empty() and takeover_writes.is_empty(),"G4 single_eligibility_implementation: ui/ and the takeover path only consume the determination: ui="+str(ui_writes.map(func(hit):return verdict_site(hit)))+" takeover="+str(takeover_writes.map(func(hit):return verdict_site(hit))))
 
-# docs/spec/candidate-removal.md §5 G1／G2（批 R2）：指令路由单入口＋分类表全量。
-# kind 全集与逐域＝契约 §3.3.1（39 条）；本表是核对面，不是第二真源（真源是 ui/command_router.gd 的 ROUTES）。
+# docs/spec/candidate-removal.md「接口」判据真源（instruction_router_single_entry／instruction_route_table_is_total；批 R2）：指令路由单入口＋分类表全量。
+# kind 全集与逐域＝契约（docs/spec/candidate-removal.md「输入域」）（39 条）；本表是核对面，不是第二真源（真源是 ui/command_router.gd 的 ROUTES）。
 # 域列与 ROUTES 逐条相等（R2 复核低项：end／calm／surrender 曾与 ROUTES 不一致且未被断言使用）。
 const COMMAND_KINDS={
  "card":"battle","chain":"battle","attack":"battle","status_toggle":"battle","posture":"battle",
@@ -2081,7 +2101,7 @@ const COMMAND_KINDS={
  "flask":"relic","relic_toggle":"relic","relic_discharge":"relic","relic_control_done":"relic",
  "demo_end":"demo","demo_continue":"demo"}
 
-# 契约 §5 G2 的逐域覆盖面（战斗／整备／休息／商店／事件／监狱／路线／奖励／出发／demo）。
+# docs/spec/candidate-removal.md「接口」判据真源 instruction_route_table_is_total 的逐域覆盖面（战斗／整备／休息／商店／事件／监狱／路线／奖励／出发／demo）。
 const COMMAND_DOMAINS=["battle","flow","rest","shop","event","prison","route","reward","departure","demo"]
 
 # 子路由的实现面：command_routes.gd::assemble 的 match 分支名（唯一分类点的落地检查）。
@@ -2144,7 +2164,7 @@ static func instruction_router_single_entry(t) -> void:
 static func instruction_route_table_is_total(t) -> void:
  var router=preload("res://ui/command_router.gd")
  var routes=router.ROUTES
- # 1) kind 全集＝契约 §3.3.1 的 39 条（多一条少一条即红）。
+ # 1) kind 全集＝契约（docs/spec/candidate-removal.md「输入域」）的 39 条（多一条少一条即红）。
  var missing=[];var extra=[]
  for kind in COMMAND_KINDS:
   if not routes.has(kind): missing.append(kind)
@@ -2683,3 +2703,348 @@ static func copy_candidate(g, kind: String, op: String) -> Dictionary:
   if op!="" and candidate.payload.get("action",candidate.payload.get("op",""))!=op: continue
   return candidate
  return {}
+
+# docs/spec/*-dependencies.md（已落地三片：种子标识／反馈存档、本局回顾、卡面词条）。
+# 依赖表散文退化为索引后，可机检的判据落在这里：跨层方向、唯一复制实现、唯一条存档序列化、
+# 词条单一来源。改写这三片的散文前先读本节的断言消息，它们就是"必须保持"的真源。
+static func source_text(relative: String) -> String:
+ var handle=FileAccess.open("res://"+relative,FileAccess.READ)
+ return "" if handle==null else handle.get_as_text()
+
+# 指向 ui 模块的引用：`res://ui/…` 或 `…ui/<name>.gd`。资源路径（`assets/ui/…`）与文档路径不算跨层引用。
+static func names_ui_module(text: String) -> bool:
+ var regex=RegEx.new()
+ if regex.compile("(res://ui/|(?<![A-Za-z0-9_/])ui/[A-Za-z0-9_]+\\.gd)")!=OK: return true
+ return regex.search(text)!=null
+
+# 写点扫描（函数归属跟踪同 verdict_write_scan）：roots 下的 .gd 文本里匹配 pattern 的行。
+static func source_write_sites(roots: Array, pattern: String) -> Array:
+ var regex=RegEx.new()
+ if regex.compile(pattern)!=OK: return []
+ var declaration=RegEx.new()
+ declaration.compile("^\\s*(?:static\\s+)?func\\s+([A-Za-z_][A-Za-z0-9_]*)")
+ var hits=[]
+ for root in roots:
+  for path in script_files(root):
+   var lines=source_text(path.trim_prefix("res://")).split("\n")
+   var current="<file>"
+   for index in range(lines.size()):
+    var code=String(lines[index]).split("#")[0]
+    var declared=declaration.search(code)
+    if declared!=null: current=declared.get_string(1)
+    if regex.search(code)==null: continue
+    hits.append({"file":path.trim_prefix("res://"),"function":current,"line":index+1,"text":code.strip_edges()})
+ return hits
+
+static func write_site_names(hits: Array) -> Array:
+ var names=[]
+ for hit in hits:
+  var name=String(hit.file)+"::"+String(hit.function)
+  if name not in names: names.append(name)
+ names.sort()
+ return names
+
+static func declaration_text(hits: Array, token: String) -> Array:
+ return hits.filter(func(hit):return not String(hit.text).contains(token))
+
+static func slice_dependency_directions(t) -> void:
+ var inherited=[]
+ for root in ["res://core","res://data"]:
+  for path in script_files(root):
+   if names_ui_module(source_text(path.trim_prefix("res://"))): inherited.append(path.trim_prefix("res://"))
+ t.check(inherited.is_empty(),"DEP slice_dependency_directions: core/data never reference the ui module: "+str(inherited))
+ var core_preloaders=[]
+ for path in script_files("res://ui"):
+  if source_text(path.trim_prefix("res://")).contains("preload(\"res://core"): core_preloaders.append(path.trim_prefix("res://"))
+ t.check(core_preloaders==["ui/main.gd"],"DEP slice_dependency_directions: ui/main.gd is the only ui file that preloads core: "+str(core_preloaders))
+ # The feedback service runs outside the game: it never references game source paths.
+ var service_references=[]
+ for path in script_files("res://tools/feedback-service",[".gs",".cjs",".js"]):
+  for token in ["res://core","res://ui","res://data"]:
+   if source_text(path.trim_prefix("res://")).contains(token): service_references.append(path.trim_prefix("res://")+" references "+token)
+ t.check(service_references.is_empty(),"DEP slice_dependency_directions: tools/feedback-service never references game source paths (res://core, res://ui, res://data): "+str(service_references))
+
+static func run_identity_single_writer(t) -> void:
+ var clipboard=write_site_names(source_write_sites(["res://core","res://data","res://ui"],"DisplayServer\\.clipboard_set\\s*\\("))
+ t.check(clipboard==["ui/main.gd::copy_seed"],"DEP run_identity_single_writer: the only clipboard write is ui/main.gd::copy_seed: "+str(clipboard))
+ var deadline=write_site_names(declaration_text(source_write_sites(["res://ui"],"seed_copied_until\\s*=[^=]"),"var seed_copied_until"))
+ t.check(deadline==["ui/main.gd::_refresh_seed_chip","ui/main.gd::copy_seed"],"DEP run_identity_single_writer: the 1.2s window is owned by copy_seed/_refresh_seed_chip only: "+str(deadline))
+ var views=write_site_names(source_write_sites(["res://ui"],"(seed_chip|run_review_copy)\\.text\\s*="))
+ t.check(views==["ui/main.gd::_refresh_seed_chip"],"DEP run_identity_single_writer: both run-identity views are rewritten only by _refresh_seed_chip: "+str(views))
+
+static func feedback_save_single_serializer(t) -> void:
+ var serializers=write_site_names(source_write_sites(["res://ui"],"fixed_point_text\\s*\\("))
+ t.check(serializers==["ui/feedback_report.gd::_capture_save"],"DEP feedback_save_single_serializer: the attachment is read only through SaveStore.fixed_point_text in ui/feedback_report.gd::_capture_save: "+str(serializers))
+ var carriers=[]
+ for path in script_files("res://ui"):
+  if source_text(path.trim_prefix("res://")).contains("save_attachment"): carriers.append(path.trim_prefix("res://"))
+ t.check(carriers==["ui/feedback_report.gd"],"DEP feedback_save_single_serializer: ui/feedback_report.gd is the only ui file that carries the attachment: "+str(carriers))
+
+# docs/spec/feedback-deployment.md「存档附件」: the attachment cap is one constant declared in
+# ui/feedback_report.gd (not core/save_store.gd); declaration and value are pinned as source text.
+static func feedback_save_cap_pinned(t) -> void:
+ var source=source_text("ui/feedback_report.gd")
+ t.check(source.contains("const MAX_SAVE_BYTES=2*1024*1024"),"DEP feedback_save_cap_pinned: ui/feedback_report.gd declares the 2 MiB attachment cap as const MAX_SAVE_BYTES=2*1024*1024")
+
+static func card_terms_single_source(t) -> void:
+ var readers=[]
+ var term_pattern=RegEx.new()
+ term_pattern.compile("(?<![A-Za-z0-9_])TERMS(?![A-Za-z0-9_])")
+ for root in ["res://core","res://ui"]:
+  for path in script_files(root):
+   if term_pattern.search(source_text(path.trim_prefix("res://")))!=null: readers.append(path.trim_prefix("res://"))
+ t.check(readers.is_empty(),"DEP card_terms_single_source: the term table is never read from core/ui: "+str(readers))
+ var definition=RegEx.new()
+ definition.compile("(?m)^\\s*(?:static\\s+)?func\\s+keywords\\s*\\(")
+ var defined=[]
+ for root in ["res://core","res://data","res://ui"]:
+  for path in script_files(root):
+   if definition.search(source_text(path.trim_prefix("res://")))!=null: defined.append(path.trim_prefix("res://"))
+ t.check(defined==["data/card_text.gd"],"DEP card_terms_single_source: exactly one keywords() implementation exists, in data/card_text.gd: "+str(defined))
+
+# docs/spec/equipment-query-seam.md：作用域进出点是冻结名单。下面两个常量是「必须新开作用域的入口」与
+# 「明确豁免」的唯一机读副本；散文表只保留索引。
+const SCOPE_ENTRY_SITES=["core/contact.gd::workspace","core/enemy_plans.gd::targets","core/equipment_offers.gd::ordinary","core/equipment_offers.gd::for_pool","core/equipment_offers.gd::preferred","core/equipment_offers.gd::links","core/self_binding.gd::tighten_targets","core/self_binding.gd::capacity","core/room_events.gd::selector_values","core/room_events.gd::compile","core/card_effects.gd::occupied_body_count","core/game.gd::command_fact","core/game.gd::command_facts","core/game.gd::_prepare_assembly","core/game.gd::get_view"]
+const SCOPE_EXEMPTIONS=["core/prison.gd::intake_equipment","core/slip_motion.gd::apply","core/room_events.gd::freeze_effects","core/shoulder_links.gd::cleanup","core/game.gd::validate","data/first_floor_enemy_pools.gd::eligible"]
+
+static func scope_open_sites() -> Array:
+ var hits=source_write_sites(["res://core","res://data"],"_begin_equipment_read\\s*\\(\\s*\\)")
+ return write_site_names(hits.filter(func(hit):return not String(hit.text).begins_with("func ")))
+
+static func equipment_scope_sites(t) -> void:
+ var names=scope_open_sites()
+ var missing=SCOPE_ENTRY_SITES.filter(func(site):return site not in names)
+ var extra=names.filter(func(site):return site not in SCOPE_ENTRY_SITES)
+ t.check(missing.is_empty() and extra.is_empty(),"EQ equipment_scope_sites: scope open points are the pinned entry list: missing="+str(missing)+" extra="+str(extra))
+ var opened=[]
+ var all_hits=source_write_sites(["res://core","res://data"],"_begin_equipment_read\\s*\\(\\s*\\)")
+ for site in SCOPE_EXEMPTIONS:
+  var parts=String(site).split("::")
+  var hit=all_hits.filter(func(row):return String(row.file)==String(parts[0]) and String(row.function)==String(parts[1]) and not String(row.text).begins_with("func "))
+  if not hit.is_empty(): opened.append(site)
+ t.check(opened.is_empty(),"EQ equipment_scope_sites: exemptions never open a read scope: "+str(opened))
+
+static func game_function_body(name: String) -> String:
+ # Signature line excluded so a call cannot be confused with the function's own name.
+ var source=source_text("core/game.gd")
+ var start=source.find("func "+name+"(")
+ if start<0: return ""
+ var rest=source.substr(start)
+ var signature_end=rest.find("\n")
+ if signature_end<0: return ""
+ var body=rest.substr(signature_end+1)
+ var nxt=body.find("\nfunc ")
+ return body if nxt<0 else body.substr(0,nxt)
+
+static func equipment_targets_walk_is_one_path(t) -> void:
+ var targets_body=game_function_body("targets_at")
+ var forbidden=["physical_pieces(","equipment_at(","_composite_roots(","links_at(","connections(","special_equipment.filter"]
+ var direct=[]
+ for token in forbidden:
+  if targets_body.contains(token): direct.append(token)
+ t.check(not targets_body.is_empty() and direct.is_empty(),"EQ equipment_targets_walk_is_one_path: targets_at never reaches a source container directly: "+str(direct))
+ var visit_body=game_function_body("_visit_targets_at")
+ var backwards=[]
+ for token in ["targets_at(","slot_targets"]:
+  if visit_body.contains(token): backwards.append(token)
+ t.check(not visit_body.is_empty() and backwards.is_empty(),"EQ equipment_targets_walk_is_one_path: _visit_targets_at never calls back into targets_at or reads slot_targets: "+str(backwards))
+
+# docs/spec/transition-pipeline.md：TRANSITIONS 的 kind 全集与 checkpoint 列（缺省＝不是固定点）。
+const TRANSITION_KINDS=["setup_init","tower_restart","practice_init","prison_cell_init","prison_gate_init","battle_start","battle_end_victory","battle_end_saturated","battle_end_captured","prepare_start","prepare_end","rest_start","room_enter","floor_enter","travel_start","prison_cell_enter","inspection_start","prison_exit_battle_start","prison_escape","event_enter","event_leave_empty","event_item_rewards","shop_enter","departure_start","departure_end","demo_end"]
+const TRANSITION_CHECKPOINTS={"battle_end_victory":"battle_end","battle_end_saturated":"battle_end","battle_end_captured":"battle_end","prepare_end":"prepare_end","floor_enter":"floor"}
+
+static func transition_kind_set_pinned(t) -> void:
+ var table=GameCore.TRANSITIONS
+ var missing=TRANSITION_KINDS.filter(func(kind):return not table.has(kind))
+ var extra=[]
+ for kind in table:
+  if kind not in TRANSITION_KINDS: extra.append(kind)
+ t.check(missing.is_empty() and extra.is_empty() and table.size()==TRANSITION_KINDS.size(),"TRANS transition_kind_set_pinned: the declared kind set is closed: missing="+str(missing)+" extra="+str(extra))
+ var bad=[]
+ for kind in table:
+  var entry=table[kind]
+  if typeof(entry)!=TYPE_DICTIONARY or not entry.has("phases") or not entry.has("room") or not entry.has("tx") or not entry.has("owners"):
+   bad.append(kind+":shape"); continue
+  if not entry.phases is Array or not entry.owners is Array or entry.owners.is_empty(): bad.append(kind+":arrays")
+  var point=String(entry.get("checkpoint",""))
+  if point!="" and point not in ["floor","battle_end","prepare_end"]: bad.append(kind+":checkpoint="+point)
+  if point!=String(TRANSITION_CHECKPOINTS.get(kind,"")): bad.append(kind+":checkpoint-mismatch")
+ t.check(bad.is_empty(),"TRANS transition_kind_set_pinned: every kind declares shape, owners and the pinned checkpoint column: "+str(bad))
+
+# docs/spec/candidate-removal.md「输入域」：kind 的 params 键面（COMMAND_KEYS）是闭集；散文表只保留索引。
+const COMMAND_KEY_SETS={
+ "card":["uid","type","slot","target","free","mode","self_target","x","hand_uid"],
+ "chain":["action","type","target","slot","free","mode","selected_uid"],
+ "attack":["type","form","enemy","all","target","x","part","charge_action"],
+ "status_toggle":["status","enabled","uid"],
+ "posture":["dest","wall"],
+ "wall_move":["direction"],
+ "manual":["target"],
+ "hook":["target"],
+ "end":[],
+ "calm":[],
+ "surrender":[],
+ "item_use":["item","target"],
+ "item_install":["item","mount","operator"],
+ "item_retrieve":["item","mount","operator"],
+ "item_discard":["item"],
+ "finish_prepare":[],
+ "finish_rest":[],
+ "finish_pack":[],
+ "retain":["uid"],
+ "retain_skip":[],
+ "rest_rare":[],
+ "rest_card":["type"],
+ "rest_flask":[],
+ "rest_begin":[],
+ "service":["op","index","target","uid","payment"],
+ "event":["action","choice","type"],
+ "prison":["action","site","direction","steps","uid","type","target","slot","mode","free"],
+ "depart":["room"],
+ "travel_step":[],
+ "reward":["category","type","reward_id"],
+ "reward_skip":["category"],
+ "relic_bundle":["op","index","uid","type"],
+ "departure":["op","option","uid","type"],
+ "flask":["op"],
+ "relic_toggle":["relic"],
+ "relic_discharge":["relic"],
+ "relic_control_done":[],
+ "demo_end":[],
+ "demo_continue":[],
+}
+
+static func command_params_keys_pinned(t) -> void:
+ var declared=GameCore.COMMAND_KEYS
+ var probe=Game.new(42)
+ var bad=[]
+ for kind in COMMAND_KEY_SETS:
+  if not declared.has(kind): bad.append(kind+":missing"); continue
+  var actual=declared[kind].keys().map(func(key):return String(key)); actual.sort()
+  var expected=COMMAND_KEY_SETS[kind].duplicate(); expected.sort()
+  if actual!=expected: bad.append(kind+":declared "+str(actual)+" != "+str(expected))
+  var projected=probe.command_params(kind,{}).keys().map(func(key):return String(key)); projected.sort()
+  if projected!=expected: bad.append(kind+":params "+str(projected))
+ t.check(bad.is_empty() and declared.size()==COMMAND_KEY_SETS.size(),"CR command_params_keys_pinned: the command key face is closed per kind: "+str(bad))
+
+# docs/spec/response-pipeline.md 接缝 A：get_view 的调用点白名单（_resume_snapshot／render／_submit／restart）。
+static func get_view_call_sites_are_pinned(t) -> void:
+ var hits=source_write_sites(["res://ui"],"(?<![A-Za-z0-9_])game\\.get_view\\s*\\(")
+ var sites=write_site_names(hits)
+ t.check(sites==["ui/main.gd::_resume_snapshot","ui/main.gd::_submit","ui/main.gd::render","ui/main.gd::restart"],"RP get_view_call_sites_are_pinned: only the four whitelisted UI functions call get_view: "+str(sites))
+
+# docs/spec/event-pipeline.md 依赖规范 6：生产代码（core／data／ui）不得引用 res://tests/**。
+static func production_source_never_preloads_tests(t) -> void:
+ var hits=source_write_sites(["res://core","res://data","res://ui"],"res://tests/")
+ t.check(hits.is_empty(),"DEP production_source_never_preloads_tests: production source never references res://tests/: "+str(write_site_names(hits)))
+
+# docs/spec/ondemand-copy.md：UI 只经 Game 只读入口与两个 helper 取用文案；UI 不直连 core/copy_router。
+static func ondemand_copy_consumer_boundary(t) -> void:
+ var router=source_write_sites(["res://ui"],"copy_router")
+ t.check(router.is_empty(),"CP ondemand_copy_consumer_boundary: ui/ never references core/copy_router: "+str(write_site_names(router)))
+ # 卡面投影的直读点白名单（docs/spec/ondemand-copy.md「显示侧取用 helper」）：改两处之外的读取即红。
+ # 手牌节键不再直读（2026-09-28 手牌卡增量刷新：每卡窄键只读该卡自身的透传字段与本地显示态）。
+ var projection_sites=["ui/main.gd::_card","ui/main.gd::card_entry"]
+ var texts=write_site_names(source_write_sites(["res://ui"],"(?<![A-Za-z0-9_])card_texts\\b"))
+ var instances=write_site_names(source_write_sites(["res://ui"],"(?<![A-Za-z0-9_])card_instances\\b"))
+ t.check(texts==projection_sites and instances==projection_sites,"CP ondemand_copy_consumer_boundary: card_texts and card_instances are read only by ui/main.gd::card_entry/_card: "+str(texts)+" "+str(instances))
+ var candidates=write_site_names(source_write_sites(["res://ui"],"(?<![A-Za-z0-9_])candidate_detail\\s*\\("))
+ t.check(candidates==["ui/main.gd::detail_of"],"CP ondemand_copy_consumer_boundary: candidate_detail is consumed only by ui/main.gd::detail_of: "+str(candidates))
+ var sets=write_site_names(source_write_sites(["res://ui"],"(?<![A-Za-z0-9_])live_card_text_set\\s*\\("))
+ t.check(sets==["ui/deck_browser.gd::setup","ui/shop_screen.gd::services"],"CP ondemand_copy_consumer_boundary: live_card_text_set is consumed only by the deck browser and shop removal: "+str(sets))
+ var live=write_site_names(source_write_sites(["res://ui"],"(?<![A-Za-z0-9_])live_card_text\\s*\\("))
+ t.check(live==["ui/main.gd::card_entry"],"CP ondemand_copy_consumer_boundary: live_card_text is consumed only by ui/main.gd::card_entry: "+str(live))
+
+# docs/spec/run-review.md 只读保证：ui/run_review.gd 唯一写动作是复制按钮 → ui.copy_seed()。
+static func run_review_is_read_only_source(t) -> void:
+ var text=source_text("ui/run_review.gd")
+ var code=""
+ for line in text.split("\n"): code+=String(line).split("#")[0]+"\n"
+ var forbidden=["ui.game.","DisplayServer.clipboard_set","_save_progress",".dispatch(","seed_copied_until="]
+ var bad=[]
+ for token in forbidden:
+  if code.contains(token): bad.append(token)
+ t.check(not text.is_empty() and code.contains("ui.copy_seed") and bad.is_empty(),"RR run_review_is_read_only_source: ui/run_review.gd copies through ui.copy_seed only: "+str(bad))
+
+# docs/spec/release-interface.md 输入域：共享查询只吃 View／ActionIndex／载荷，不接收 Game、不写状态。
+static func target_queries_stay_stateless(t) -> void:
+ var text=source_text("ui/target_queries.gd")
+ var code=""
+ for line in text.split("\n"): code+=String(line).split("#")[0]+"\n"
+ var forbidden=["game.","Game.","ui.game",".state","dispatch(","_submit("]
+ var bad=[]
+ for token in forbidden:
+  if code.contains(token): bad.append(token)
+ t.check(not text.is_empty() and bad.is_empty(),"RL target_queries_stay_stateless: ui/target_queries.gd consumes only View/ActionIndex/payload: "+str(bad))
+
+# docs/spec/release-interface.md 失败语义：界面不读不写 game.state（core 是唯一状态与事务入口）。
+static func ui_never_reads_game_state(t) -> void:
+ var hits=source_write_sites(["res://ui"],"(?<![A-Za-z0-9_])game\\.state\\b")
+ t.check(hits.is_empty(),"RL ui_never_reads_game_state: ui/ never reads or writes game.state: "+str(write_site_names(hits)))
+
+# 检查力度的证据面（根 AGENTS.md「检查力度与报告四态」）：tests/mutations.json 是「判据名 → 临时突变」的
+# 唯一声明表，执行器 tools/check-mutation.ps1（改源代码→跑声明的套件→要求该判据变红→逐字节还原）。
+# 本判据双向核对：① 表里不得有幽灵条目（声明的套件里没有这个判据）；② 本轮规范重写线新增的判据
+# 必须逐条有证据（不得靠 known_gaps 逃逸）；③ 本文件的判据全集必须等于 表 ∪ known_gaps，两边都不许默默缺席。
+# 判据全集＝本文件里函数体自带断言的顶层函数：断言调用自成一行（`t.check(` 起行），
+# 于是取源／扫描类助手不计入，run 是入口、下划线助手随父判据。断言形态变化时本条随之失效。
+const MUTATION_TABLE="tests/mutations.json"
+const NORM_REWRITE_CHECKS=["slice_dependency_directions","run_identity_single_writer","feedback_save_single_serializer","card_terms_single_source","feedback_save_cap_pinned","equipment_scope_sites","equipment_targets_walk_is_one_path","transition_kind_set_pinned","command_params_keys_pinned","get_view_call_sites_are_pinned","production_source_never_preloads_tests","ondemand_copy_consumer_boundary","run_review_is_read_only_source","target_queries_stay_stateless","ui_never_reads_game_state"]
+
+static func mutation_judgment_universe() -> Array:
+ var names=[]
+ var current=""
+ var body=""
+ var declaration=RegEx.new()
+ var assertion=RegEx.new()
+ if declaration.compile("^(?:static\\s+)?func\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\(")!=OK: return names
+ if assertion.compile("(?m)^ +t\\.check\\(")!=OK: return names
+ for line in source_text("tests/architecture_cases.gd").split("\n"):
+  var found=declaration.search(line)
+  if found!=null:
+   if current!="" and current!="run" and not current.begins_with("_") and assertion.search(body)!=null: names.append(current)
+   current=found.get_string(1)
+   body=""
+  elif current!="":
+   body+=line+"\n"
+ if current!="" and current!="run" and not current.begins_with("_") and assertion.search(body)!=null: names.append(current)
+ names.sort()
+ return names
+
+# 套件名 → 它的 case 文件；SUITES 的唯一声明在 tests/test_game.gd（core 直接跑 test_game.gd）。
+static func suite_script(test_game: String, suite: String) -> String:
+ if suite=="core": return "tests/test_game.gd"
+ var pattern=RegEx.new()
+ if pattern.compile("\""+suite+"\":\"res://([^\"]+)\"")!=OK: return ""
+ var found=pattern.search(test_game)
+ return "" if found==null else found.get_string(1)
+
+static func mutation_evidence_is_total(t) -> void:
+ var parsed=JSON.parse_string(source_text(MUTATION_TABLE))
+ t.check(parsed is Dictionary,"MT mutation_evidence_is_total: "+MUTATION_TABLE+" parses as a JSON object")
+ if not parsed is Dictionary: return
+ var entries=parsed.get("mutations",null)
+ var gaps=parsed.get("known_gaps",null)
+ t.check(entries is Dictionary and not (entries as Dictionary).is_empty(),"MT mutation_evidence_is_total: mutations is a non-empty declaration table")
+ t.check(gaps is Array,"MT mutation_evidence_is_total: known_gaps is an explicit list (no silent absence)")
+ if not entries is Dictionary or not gaps is Array: return
+ var universe=mutation_judgment_universe()
+ t.check(not universe.is_empty(),"MT mutation_evidence_is_total: the judgment universe is non-empty")
+ var test_game=source_text("tests/test_game.gd")
+ var ghosts=[]
+ for name in entries:
+  var row=entries[name]
+  if not row is Dictionary: ghosts.append(String(name)+":shape"); continue
+  var suite=String((row as Dictionary).get("suite",""))
+  var script=suite_script(test_game,suite)
+  if script=="" or not source_text(script).contains("func "+String(name)+"("): ghosts.append(String(name)+"@"+suite)
+ t.check(ghosts.is_empty(),"MT mutation_evidence_is_total: every table entry names a real check of its declared suite: "+str(ghosts))
+ var uncovered=NORM_REWRITE_CHECKS.filter(func(name):return not (entries as Dictionary).has(name))
+ t.check(uncovered.is_empty(),"MT mutation_evidence_is_total: the checks added by this rewrite line all carry mutation evidence: "+str(uncovered))
+ var covered=entries.keys().map(func(key):return String(key))
+ var declared_gaps=gaps.map(func(key):return String(key))
+ var silent=universe.filter(func(name):return name not in covered and name not in declared_gaps)
+ var both=covered.filter(func(name):return name in declared_gaps)
+ var unknown=declared_gaps.filter(func(name):return name not in universe)
+ t.check(silent.is_empty() and both.is_empty() and unknown.is_empty(),"MT mutation_evidence_is_total: each judgment is either evidenced or named in known_gaps: silent="+str(silent)+" both="+str(both)+" unknown="+str(unknown))
+

@@ -267,7 +267,7 @@ static func tick_install(g, timing: String) -> void:
   g._enemy_operation(e,application(spec.install_pool,1,2,e.turn_install_layers))
 
 static func targets(g, e: Dictionary, kind: String, required_slots: Array=[]) -> Array:
- # §3.1 item 1: one read scope per call; the enemy plan only reads equipment.
+ # docs/spec/equipment-query-seam.md「作用域进出点（冻结名单）」: one read scope per call; the enemy plan only reads equipment.
  var previous=g._begin_equipment_read()
  var choices=g.physical_pieces().filter(func(x):return g._can_tighten(x) if kind=="tighten" else Equipment.allows(x,"lock") and not x.locked)
  if kind=="tighten" and e.type=="iron_man": choices=choices.filter(func(x):return g.state.equipment.has(x))

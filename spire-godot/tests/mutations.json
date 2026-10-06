@@ -1,0 +1,145 @@
+{
+  "schema": 1,
+  "note": "检查的证据面声明表：每条＝既有的具名判据 → 一处临时突变（file／find／replace）＋跑哪个最窄规则套件。执行器是 tools/check-mutation.ps1；tests/architecture_cases.gd::mutation_evidence_is_total 核对本表与判据全集。find 必须在 file 内唯一出现一次，replace 必须让该判据变红；运行期逐字节还原。",
+  "known_gaps_reason": "既有判据里尚未逐条补突变证据的部分（多为本批之前的架构判据）：本清单只能缩短——新增判据不得登记为缺口，必须随批附带证据。",
+  "known_gaps": [
+    "transition_write_sites_are_pinned",
+    "save_checkpoint_kinds_are_pinned",
+    "event_dependency_edges_pinned",
+    "content_pack_root_has_no_build_feature_branch",
+    "event_definition_accessors_only",
+    "event_condition_kinds_share_one_declaration",
+    "event_probe_and_projection_readonly",
+    "event_single_evaluation_entry",
+    "tool_registry_boundary",
+    "card_identity",
+    "projection_contract",
+    "equipment_read_batches",
+    "index_materializes_once_per_scope",
+    "index_self_check_falls_back",
+    "index_id_edge_parity",
+    "index_predicate_parity",
+    "has_targets_at_parity",
+    "index_entry_parity",
+    "equipment_projection_batches",
+    "preview_read_batches",
+    "current_effect_boundaries",
+    "instance_effect_boundaries",
+    "copy_projection_masked_baseline",
+    "copy_single_entry_matches_projection",
+    "copy_route_bytes_unchanged",
+    "copy_migrated_kinds",
+    "copy_r4_sites",
+    "copy_r6_sites",
+    "copy_candidate_detail_on_demand",
+    "removal_end_state",
+    "behavior_baseline_equivalence",
+    "single_eligibility_implementation",
+    "instruction_router_single_entry",
+    "instruction_route_table_is_total",
+    "pipeline_lookup_inspect",
+    "command_fact_kind_lookup",
+    "card_facts_declared_slots",
+    "card_facts_consumes_has_targets_at",
+    "card_facts_keyword_min_query",
+    "present_adjacency_graph_is_pinned"
+  ],
+  "mutations": {
+    "slice_dependency_directions": {
+      "file": "core/game.gd",
+      "find": "const CHECKPOINT_PRIORITY=[\"battle_end\",\"prepare_end\",\"floor\"]",
+      "replace": "const CHECKPOINT_PRIORITY=[\"battle_end\",\"prepare_end\",\"floor\"]\n\n# mutation probe: a core-side reference to the ui module\nfunc _mutation_probe_slice() -> String:\n return \"res://ui/main.gd\"",
+      "suite": "architecture"
+    },
+    "run_identity_single_writer": {
+      "file": "ui/main.gd",
+      "find": "var seed_copied_until=0",
+      "replace": "var seed_copied_until=0\n\n# mutation probe: a second clipboard writer\nfunc _mutation_probe_clipboard() -> void:\n DisplayServer.clipboard_set(\"\")",
+      "suite": "architecture"
+    },
+    "feedback_save_single_serializer": {
+      "file": "ui/deck_browser.gd",
+      "find": "const NameOrder=preload(\"res://ui/chinese_collation.gd\")",
+      "replace": "const NameOrder=preload(\"res://ui/chinese_collation.gd\")\n\n# mutation probe: a second save-attachment serializer in ui/\nfunc _mutation_probe_save(host) -> String:\n return host.saves.fixed_point_text(host.game,{})",
+      "suite": "architecture"
+    },
+    "card_terms_single_source": {
+      "file": "ui/deck_browser.gd",
+      "find": "const NameOrder=preload(\"res://ui/chinese_collation.gd\")",
+      "replace": "const NameOrder=preload(\"res://ui/chinese_collation.gd\")\n\n# mutation probe: a second keywords() implementation\nfunc keywords() -> Dictionary:\n return {}",
+      "suite": "architecture"
+    },
+    "feedback_save_cap_pinned": {
+      "file": "ui/feedback_report.gd",
+      "find": "const MAX_SAVE_BYTES=2*1024*1024",
+      "replace": "const MAX_SAVE_BYTES=3*1024*1024",
+      "suite": "architecture"
+    },
+    "equipment_scope_sites": {
+      "file": "core/game.gd",
+      "find": "const CHECKPOINT_PRIORITY=[\"battle_end\",\"prepare_end\",\"floor\"]",
+      "replace": "const CHECKPOINT_PRIORITY=[\"battle_end\",\"prepare_end\",\"floor\"]\n\n# mutation probe: an unpinned read-scope open point\nfunc _mutation_probe_scope() -> void:\n _begin_equipment_read()",
+      "suite": "architecture"
+    },
+    "equipment_targets_walk_is_one_path": {
+      "file": "core/game.gd",
+      "find": "func targets_at(slot: String) -> Array:\n if _equipment_read_active(): return _equipment_read.slot_targets.get(slot,[]).duplicate()\n var targets=[]",
+      "replace": "func targets_at(slot: String) -> Array:\n if _equipment_read_active(): return _equipment_read.slot_targets.get(slot,[]).duplicate()\n var probe=physical_pieces()\n if probe.is_empty(): pass\n var targets=[]",
+      "suite": "architecture"
+    },
+    "transition_kind_set_pinned": {
+      "file": "core/game.gd",
+      "find": " \"demo_end\":{\"phases\":[],\"room\":false,\"tx\":true,\"owners\":[\"_execute\"]},",
+      "replace": " \"demo_end\":{\"phases\":[],\"room\":false,\"tx\":true,\"owners\":[\"_execute\"]},\n \"mutation_probe_kind\":{\"phases\":[],\"room\":false,\"tx\":false,\"owners\":[\"_execute\"]},",
+      "suite": "architecture"
+    },
+    "command_params_keys_pinned": {
+      "file": "core/game.gd",
+      "find": " \"manual\":{\"target\":\"\"},",
+      "replace": " \"manual\":{\"target\":\"\",\"mutation_probe\":\"\"},",
+      "suite": "architecture"
+    },
+    "get_view_call_sites_are_pinned": {
+      "file": "ui/deck_browser.gd",
+      "find": "const NameOrder=preload(\"res://ui/chinese_collation.gd\")",
+      "replace": "const NameOrder=preload(\"res://ui/chinese_collation.gd\")\n\n# mutation probe: a fifth get_view call site\nfunc _mutation_probe_view(host) -> Dictionary:\n return host.game.get_view()",
+      "suite": "architecture"
+    },
+    "ondemand_copy_consumer_boundary": {
+      "file": "ui/deck_browser.gd",
+      "find": "const NameOrder=preload(\"res://ui/chinese_collation.gd\")",
+      "replace": "const NameOrder=preload(\"res://ui/chinese_collation.gd\")\n\n# mutation probe: a card_texts read outside the whitelist\nfunc _mutation_probe_copy(host) -> Array:\n return host.game.card_texts",
+      "suite": "architecture"
+    },
+    "production_source_never_preloads_tests": {
+      "file": "ui/deck_browser.gd",
+      "find": "const NameOrder=preload(\"res://ui/chinese_collation.gd\")",
+      "replace": "const NameOrder=preload(\"res://ui/chinese_collation.gd\")\n\n# mutation probe: production source referencing the test tree\nconst MUTATION_PROBE_TEST=\"res://tests/architecture_cases.gd\"",
+      "suite": "architecture"
+    },
+    "run_review_is_read_only_source": {
+      "file": "ui/run_review.gd",
+      "find": "const TITLE_FALLBACK=\"本局回顾\"",
+      "replace": "const TITLE_FALLBACK=\"本局回顾\"\n\n# mutation probe: a write path in the read-only panel\nstatic func _mutation_probe_write(ui) -> void:\n ui._save_progress()",
+      "suite": "architecture"
+    },
+    "target_queries_stay_stateless": {
+      "file": "ui/target_queries.gd",
+      "find": "const RELEASE_MODES=[\"strain\",\"slip\",\"magic_slip\",\"lower\",\"unlock\"]",
+      "replace": "const RELEASE_MODES=[\"strain\",\"slip\",\"magic_slip\",\"lower\",\"unlock\"]\n\n# mutation probe: a query that takes the game\nstatic func _mutation_probe_stateless(game) -> String:\n return game.state.phase",
+      "suite": "architecture"
+    },
+    "ui_never_reads_game_state": {
+      "file": "ui/deck_browser.gd",
+      "find": "const NameOrder=preload(\"res://ui/chinese_collation.gd\")",
+      "replace": "const NameOrder=preload(\"res://ui/chinese_collation.gd\")\n\n# mutation probe: a game.state read in ui/\nfunc _mutation_probe_state(host) -> Dictionary:\n return host.game.state",
+      "suite": "architecture"
+    },
+    "mutation_evidence_is_total": {
+      "file": "tests/mutations.json",
+      "find": "\"run_identity_single_writer\": {",
+      "replace": "\"mutation_probe_ghost_check\": {",
+      "suite": "architecture"
+    }
+  }
+}

@@ -18,6 +18,9 @@ if ($RerunFailed) {
     if ($previous.status -eq 'passed') { throw 'The previous check already passed; select a new scope explicitly.' }
     $Suite = @($previous.rules.retry)
     $UISuite = @($previous.ui.retry)
+    # The recipe phase keeps its retry token in its own summary field; carry it into the suite
+    # scope like a rule suite and let the extraction below take it back out.
+    if ($previous.PSObject.Properties.Name -contains 'recipe') { $Suite += @($previous.recipe.retry) }
     if (-not $ListOnly) { $VerifyRunner = $VerifyRunner -or $previous.verify_runner }
     if ($Suite.Count + $UISuite.Count -eq 0) {
         if ($VerifyRunner) { $Suite = @('runner') } else { throw 'No failed or unfinished suites to rerun.' }
@@ -28,6 +31,12 @@ if ($RerunFailed) {
     $Impact = $previous.impact -and -not $previous.rules.scope_resolved -and -not $UIOnly
     Write-Output 'RERUN: failed/unfinished suites only; this is not a full-project pass.'
 }
+# The long-horizon real-input recipe is its own check.ps1 phase, not a test_game.gd rule suite: it
+# drives a real window through the shipped UI helpers and owns its exit-code evidence. Pull the
+# token out of the rule scope here; `all` deliberately does not expand to it (see the operations
+# card in skills/repo-ops/SKILL.md).
+$Recipe = 'recipe' -in $Suite
+$Suite = @($Suite | Where-Object { $_ -ne 'recipe' })
 if ($UI -and -not $UIOnly -and $PSBoundParameters.ContainsKey('Suite') -and -not $PSBoundParameters.ContainsKey('UISuite')) {
     throw 'Use -UISuite with targeted -UI; use -UIOnly for window checks alone.'
 }
@@ -66,8 +75,9 @@ function Get-SourceFingerprint {
     Get-ChildItem -LiteralPath $gameDirectory -File | Where-Object { $_.Extension -in @('.godot','.gd','.tscn','.tres') } | ForEach-Object {
         $entries.Add($_.Name + ':' + (Get-FileHash -LiteralPath $_.FullName).Hash)
     }
-    # Rule-class documents sit above the module (docs/, AGENTS.md, .zcode/skills) and are part of
-    # the guarded surface: a contract edit must move the fingerprint instead of passing silently.
+    # Rule-class documents sit above the module (docs/, AGENTS.md, skills/ and its .zcode/skills
+    # discovery stubs) and are part of the guarded surface: a contract edit must move the
+    # fingerprint instead of passing silently.
     # Records and the archive are excluded in doc-scan-scope.ps1 (append-only churn, not rules).
     foreach ($document in (Get-RuleDocFiles -RepositoryRoot $repositoryRoot)) {
         $entries.Add($document.Substring($repositoryRoot.Length + 1) + ':' + (Get-FileHash -LiteralPath $document -Algorithm SHA256).Hash)
@@ -76,7 +86,7 @@ function Get-SourceFingerprint {
     # NLS in Windows PowerShell 5.1), which ordered case/accent/hyphen neighbours differently and
     # gave one source tree two different values depending on the host that happened to run it.
     # Ordinal comparison is culture-free, so the same file set yields the same value anywhere.
-    # The value stays a within-run guard, not an identity (see .zcode/skills/spire-docs/SKILL.md).
+    # The value stays a within-run guard, not an identity (see skills/spire-docs/SKILL.md).
     $ordered = $entries.ToArray()
     [Array]::Sort($ordered, [StringComparer]::Ordinal)
     $bytes = [Text.Encoding]::UTF8.GetBytes(($ordered -join "`n"))
@@ -177,6 +187,89 @@ function Invoke-SpireCheck {
     Write-Output ('CHECK {0}: {1:N2}s' -f $Name, $timer.Elapsed.TotalSeconds)
 }
 
+# Long-horizon real-input recipe (-Suite recipe). Unlike the rule/UI phases this is not a suite
+# inside test_game.gd / ui_smoke.gd: the engine runs tests/recipe_driver.gd on its own, the recipe
+# needs a real window, and a product crash takes the whole process down with it. Its evidence file
+# is therefore assembled here -- RUN IDENTITY header, engine output, then exit=<code> -- so a crash
+# keeps its signal/exit code in-band instead of surviving only as a thrown message. Acceptance is
+# exit=0 plus the driver's closing line `RECIPE seed=<n> commits=<cap> steps=<n> stop=cap`.
+function Invoke-RecipeCheck {
+    param([int]$Seed, [int]$Cap, [string]$Style)
+    $checkLog = Join-Path $checkDirectory 'check-recipe.log'
+    $bodyLog = Join-Path $checkDirectory 'check-recipe.body.log'
+    $errorLog = Join-Path $checkDirectory 'check-recipe.stderr.log'
+    $head = 'unavailable'; $dirty = 'unavailable'
+    try {
+        $head = ((git -C $repositoryRoot rev-parse HEAD) | Select-Object -First 1).Trim()
+        $dirty = @(git -C $repositoryRoot status --porcelain).Count
+    } catch {
+        Write-Output ('RECIPE identity unavailable: ' + $_.Exception.Message)
+    }
+    $identity = [Collections.Generic.List[string]]::new()
+    $identity.Add('RUN IDENTITY')
+    $identity.Add('head=' + $head)
+    $identity.Add('started=' + [DateTime]::Now.ToString('yyyy-MM-ddTHH:mm:sszzz'))
+    $identity.Add('dirty=' + $dirty)
+    foreach ($relative in @('spire-godot/ui/card_face.gd', 'spire-godot/tests/recipe_driver.gd', 'spire-godot/tests/ui_smoke.gd', 'spire-godot/tests/normal_play_cases.gd', 'spire-godot/tests/game_fixture.gd')) {
+        $path = Join-Path $repositoryRoot $relative
+        $hash = if (Test-Path -LiteralPath $path) { (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash } else { 'missing' }
+        $identity.Add($relative + ' sha256=' + $hash)
+    }
+    $arguments = (@('--path', $gameDirectory, '--script', 'res://tests/recipe_driver.gd', '--', ('--seed=' + $Seed), ('--cap=' + $Cap), ('--style=' + $Style)) | ForEach-Object {
+        '"' + $_.Replace('"', '\"') + '"'
+    }) -join ' '
+    $timer = [Diagnostics.Stopwatch]::StartNew()
+    $process = Start-Process -FilePath $engine -ArgumentList $arguments -WorkingDirectory $gameDirectory -NoNewWindow -PassThru -RedirectStandardOutput $bodyLog -RedirectStandardError $errorLog
+    if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+        $process.Kill()
+        $process.WaitForExit()
+        throw [TimeoutException]::new("Godot recipe check exceeded ${TimeoutSeconds}s. See $checkLog")
+    }
+    $checkExit = $process.ExitCode
+    $body = if (Test-Path -LiteralPath $bodyLog) { [IO.File]::ReadAllText($bodyLog) } else { '' }
+    [IO.File]::WriteAllText($checkLog, ($identity -join "`r`n") + "`r`n", [Text.UTF8Encoding]::new($false))
+    [IO.File]::AppendAllText($checkLog, $body, [Text.UTF8Encoding]::new($false))
+    [IO.File]::AppendAllText($checkLog, "exit=$checkExit`r`n", [Text.UTF8Encoding]::new($false))
+    if (Test-Path -LiteralPath $errorLog) {
+        $stderrText = [IO.File]::ReadAllText($errorLog)
+        if ($stderrText) { [IO.File]::AppendAllText($checkLog, 'stderr: ' + $stderrText + "`r`n", [Text.UTF8Encoding]::new($false)) }
+    }
+    $identity | Write-Output
+    $body -split '\r?\n' | Where-Object { $_ -match '^(RECIPE |FK SESSION|UI TIME:|UI INPUT:|UI (?:PASS|FAIL):)' } | Write-Output
+    $closing = [regex]::Match($body, '(?m)^RECIPE seed=(\d+) commits=(\d+) steps=(\d+) stop=(\S+)\s*$')
+    if ($checkExit -ne 0) { throw "Godot recipe check failed (exit=$checkExit). See $checkLog" }
+    if (-not $closing.Success) { throw "Godot recipe check did not finish: no RECIPE closing line. See $checkLog" }
+    if ($closing.Groups[4].Value -ne 'cap' -or [int]$closing.Groups[2].Value -lt $Cap) {
+        throw ('Godot recipe check stopped before the commit cap (' + $closing.Value + '). See ' + $checkLog)
+    }
+    Write-Output ('CHECK recipe: {0:N2}s, exit={1}, {2}' -f $timer.Elapsed.TotalSeconds, $checkExit, $closing.Value)
+}
+
+# Summary field of the recipe phase, shaped like the rule/UI phases so -RerunFailed can carry its
+# token and the round record states the closing line instead of a bare assertion count.
+function Get-RecipePhaseSummary {
+    param([bool]$Enabled)
+    $logPath = Join-Path $checkDirectory 'check-recipe.log'
+    $output = if (Test-Path -LiteralPath $logPath) { [IO.File]::ReadAllText($logPath) } else { '' }
+    $closing = [regex]::Match($output, '(?m)^RECIPE seed=(\d+) commits=(\d+) steps=(\d+) stop=(\S+)\s*$')
+    $exitLine = [regex]::Match($output, '(?m)^exit=(-?\d+)\s*$')
+    $ran = $Enabled -and -not $ListOnly
+    $passed = $ran -and $exitLine.Success -and [int]$exitLine.Groups[1].Value -eq 0 -and $closing.Success -and $closing.Groups[4].Value -eq 'cap'
+    $selected = @(); if ($Enabled) { $selected = @('recipe') }
+    return [ordered]@{
+        selected=$selected
+        passed=@(if ($passed) { 'recipe' })
+        failed=@(if ($ran -and -not $passed) { 'recipe' })
+        retry=@(if ($ran -and -not $passed) { 'recipe' })
+        exit=$(if ($exitLine.Success) { [int]$exitLine.Groups[1].Value } else { $null })
+        seed=$(if ($closing.Success) { [int]$closing.Groups[1].Value } else { $null })
+        commits=$(if ($closing.Success) { [int]$closing.Groups[2].Value } else { $null })
+        steps=$(if ($closing.Success) { [int]$closing.Groups[3].Value } else { $null })
+        stop=$(if ($closing.Success) { $closing.Groups[4].Value } else { $null })
+        log=$logPath
+    }
+}
+
 $beforeFingerprint = Get-SourceFingerprint
 $exitCode = 0
 $failureMessage = ''
@@ -211,7 +304,7 @@ try {
     if ($Import -or -not (Test-Path -LiteralPath (Join-Path $gameDirectory '.godot'))) {
         Invoke-SpireCheck -Name 'import' -EngineArguments @('--headless', '--editor', '--quit')
     }
-    if (-not $UIOnly) {
+    if (-not $UIOnly -and $Suite.Count -gt 0) {
         $arguments = @('--headless', '--script', 'res://tests/test_game.gd', '--', ('--suite=' + ($Suite -join ',')))
         if ($Impact) { $arguments += '--impact' }
         if ($Exhaustive) { $arguments += '--exhaustive' }
@@ -227,6 +320,14 @@ try {
         if ($ListOnly) { $arguments = @('--headless') + $arguments + @('--list-only') }
         $expected = if ($ListOnly) { '(?m)^PLAN ONLY: no UI tests executed$' } else { '(?m)^UI PASS: \d+ assertions\s*$' }
         Invoke-SpireCheck -Name 'ui' -EngineArguments $arguments -Expected $expected
+    }
+    if ($Recipe) {
+        if ($ListOnly) {
+            Write-Output 'PLAN ONLY: recipe phase not executed'
+        } else {
+            # Canonical recipe identity: seed 7 / cap 60 / trade is the run that caught the crash.
+            Invoke-RecipeCheck -Seed 7 -Cap 60 -Style 'trade'
+        }
     }
 if ($VerifyRunner) {
     $checkShell = (Get-Process -Id $PID).Path
@@ -286,8 +387,9 @@ if ($VerifyRunner) {
     Write-Output $failureMessage
 } finally {
     $afterFingerprint = Get-SourceFingerprint
-    $rules = Get-PhaseSummary -Name rules -Requested $Suite -Enabled (-not $UIOnly)
+    $rules = Get-PhaseSummary -Name rules -Requested $Suite -Enabled ($Suite.Count -gt 0 -and -not $UIOnly)
     $window = Get-PhaseSummary -Name ui -Requested $UISuite -Enabled ([bool]($UI -or $UIOnly))
+    $recipe = Get-RecipePhaseSummary -Enabled $Recipe
     $documentGate = Get-DocumentPhaseSummary
     # Deferred document failure: the phase collected its result, the round fails here. A rule/UI
     # failure keeps the message it already recorded.
@@ -299,16 +401,17 @@ if ($VerifyRunner) {
     if ($changed -and -not $ListOnly) {
         $exitCode = 1
         $rules.retry = @($rules.selected); $window.retry = @($window.selected)
+        $recipe.retry = @($recipe.selected)
         Write-Output 'SOURCE CHANGED: results belong to a moving workspace; rerun after edits settle.'
     }
     $status = if ($ListOnly -and $exitCode -eq 0) { 'plan' } elseif ($changed -and -not $ListOnly) { 'source_changed' } elseif ($exitCode -eq 0) { 'passed' } else { 'failed' }
-    $summary = [ordered]@{ schema=1; status=$status; error=$failureMessage; impact=[bool]$Impact; exhaustive=[bool]($Exhaustive -or 'all' -in $Suite); verify_runner=[bool]$VerifyRunner; before=$beforeFingerprint; after=$afterFingerprint; rules=$rules; ui=$window; docs=$documentGate }
+    $summary = [ordered]@{ schema=1; status=$status; error=$failureMessage; impact=[bool]$Impact; exhaustive=[bool]($Exhaustive -or 'all' -in $Suite); verify_runner=[bool]$VerifyRunner; before=$beforeFingerprint; after=$afterFingerprint; rules=$rules; ui=$window; recipe=$recipe; docs=$documentGate }
     $summaryPath = Join-Path $checkDirectory 'summary.json'
     [IO.File]::WriteAllText($summaryPath, ($summary | ConvertTo-Json -Depth 8), [Text.UTF8Encoding]::new($false))
     Write-Output ('SUMMARY: ' + $summaryPath)
     if ($exitCode -ne 0) {
         # A document-only failure leaves no suite to rerun, and -RerunFailed refuses such a round.
-        if (($rules.retry.Count + $window.retry.Count) -gt 0) { Write-Output ('.\tools\check.ps1 -RerunFailed "' + $checkDirectory + '"') }
+        if (($rules.retry.Count + $window.retry.Count + $recipe.retry.Count) -gt 0) { Write-Output ('.\tools\check.ps1 -RerunFailed "' + $checkDirectory + '"') }
     }
 }
 exit $exitCode

@@ -16,7 +16,7 @@
 
 | 路径 | 职责 | 消费方 |
 | --- | --- | --- |
-| `AGENTS.md`（根） | 项目定位、规则、禁区、验证方式、模块文档入口表 | 所有任务的第一入口 |
+| `AGENTS.md`（根） | 红线、本仓特有约束、Godot 技术栈与代码规范、最小索引 | 所有任务的第一入口 |
 | `docs/spec/` | 现行契约：域、接口、输入域、失败语义与证据入口；**被取代即删，不留「更正」段** | 实现者、清洗者、加固者、验收者 |
 | `docs/design/` | 玩法与内容真源（数值、流程、内容定义） | 规则与内容任务 |
 | `docs/guide/` | 怎么干活：操作、文案与本地化的改法 | 动手前 |
@@ -28,10 +28,10 @@
 | `spire-godot/project.godot` | 版本号与导出预设的读取源（打包脚本据此选择预设） | 打包与发布 |
 | `spire-godot/build/`、`outputs/` | 已忽略目录：构建证据与交付产物，不入库 | 按验证记录中的路径取证 |
 | `release/` | 玩家面副本与启动器（`基础操作教学.txt`、`开始游戏.cmd`／`.vbs`） | 随包分发与启动 |
-| `.zcode/skills/` | 操作与领域技能：`repo-ops`（命令与操作流程）、`spire-architecture`、`spire-ui-content`、`spire-validation-release` | 动手前 |
+| `skills/` | 操作与领域技能正文：`repo-ops`（命令与操作流程）、`spire-architecture`、`spire-ui-content`、`spire-validation-release`；`.zcode/skills/` 下同名文件仅为 ZCode 发现用薄桩 | 动手前 |
 | `LICENSE`、`ASSET_RIGHTS.md`、`版本更新内容.txt` | 许可、素材权利范围与版本更新记录 | 发布与素材处理 |
 
-命令与操作流程不在本文件，也不在 `AGENTS.md`：见 `.zcode/skills/repo-ops/SKILL.md`
+命令与操作流程不在本文件，也不在 `AGENTS.md`：见 `skills/repo-ops/SKILL.md`
 （根级 git 检查、分类门禁、内容包校验、引擎定位、打包发布）。
 
 ## 输入域（本文件收录什么）
@@ -42,11 +42,10 @@
 ## 失败语义
 
 - 本文件与根 `AGENTS.md` 冲突时，以根 `AGENTS.md` 为准；与技术事实冲突时，以实际仓库位置为准。
-- 不使用历史文档中的旧绝对路径定位源码；历史归档中的旧约束不因被引用而恢复为现行要求。
-- 目录职责变化时同步更新本表；不得只改代码位置而留下失效入口。
+- 目录职责或代码位置变化时同步更新本表；不得留下失效入口。
 
 ## 证据入口
 
 - 文档改动：核对链接指向的文件在仓库内存在、编码与体积符合约定（纯文档修改不重跑游戏回归）。
-- 仓库级检查命令与判读见 `.zcode/skills/repo-ops/SKILL.md`；`spire-godot/` 的分类门禁与打包见该技能与
+- 仓库级检查命令与判读见 `skills/repo-ops/SKILL.md`；`spire-godot/` 的分类门禁与打包见该技能与
   `docs/spec/packaging.md`；验证结果登记在 `docs/record/verification.md`。

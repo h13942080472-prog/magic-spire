@@ -3,17 +3,17 @@ const FirstTurnControl=preload("res://core/first_turn_control.gd")
 var _resource_feedback
 var _card_feedback: Array=[]
 var _equipment_read: Dictionary={}
-# Build-time self check records (§6): one entry per voided read batch, on this instance only.
+# Build-time self check records (docs/spec/equipment-query-seam.md「失败语义」): one entry per voided read batch, on this instance only.
 var _equipment_index_issues: Array=[]
-# 文案路由失败记录（docs/ondemand-copy.md §11.2）：未知 kind／无效 builder／结果类型不符时追加一条。
+# 文案路由失败记录（docs/ondemand-copy.md「失败语义」）：未知 kind／无效 builder／结果类型不符时追加一条。
 # 只读诊断：不进 state、不进 View、不进存档、不渲染、不做成计数器。
 var copy_router_failures: Array=[]
 
-# 指令形状的键面真源（docs/spec/candidate-removal.md §3.3；N3 指令形状＝{kind, params, expected_version}）。
+# 指令形状的键面真源（docs/spec/candidate-removal.md「接口」类型化指令＝{kind, params, expected_version}）。
 # 显示事实（core/game.gd::display_fact 的输出）与该形状一一对应：同一 (kind, params) 只有一条事实。
 # 值＝该 kind 的 params 键与默认值：键面只用稳定 ID（template／type／id／uid／slot／target…），
 # 显示与派生字段（label／detail／brief／reason／risk／cost／mana／preview／after／hits／damage…）不进键面。
-# 本表是闭集：新增 kind 必须先回填契约 §3.3 再实现；dispatch 的形状与参数合法性复核按本表判定。
+# 本表是闭集：新增 kind 必须先回填契约（docs/spec/candidate-removal.md「输入域」）再实现；dispatch 的形状与参数合法性复核按本表判定。
 const COMMAND_KEYS={
  "card":{"uid":"","type":"","slot":"","target":"","free":false,"mode":"","self_target":false,"x":0,"hand_uid":""},
  "chain":{"action":"","type":"","target":"","slot":"","free":false,"mode":"","selected_uid":""},
@@ -64,14 +64,14 @@ func command_params(kind: String, source: Dictionary) -> Dictionary:
  for key in declared: params[key]=source.get(key,declared[key])
  return params
 
-# 显示点的形状键（docs/spec/candidate-removal.md §2.1 T8 的显示点同一性）：kind＋声明 params 的稳定键。
+# 显示点的形状键（docs/spec/candidate-removal.md「接口」T8 的显示点同一性）：kind＋声明 params 的稳定键。
 # 提交身份 id 不参与；G2 已断言每个 (kind, params) 恰有一条候选行，故形状键与显示点一一对应。
 # 行、显示事实与 UI 按钮注册键共用本函数（唯一实现）。
 func shape_key(payload: Dictionary) -> String:
  var kind=String(payload.get("kind",""))
  return kind+"|"+JSON.stringify(command_params(kind,payload))
 
-# 指令装箱（N3 的唯一构造点）：kind＋params＋expected_version。版本默认取提交时的当前版本（§3.3.4）。
+# 指令装箱（N3 的唯一构造点）：kind＋params＋expected_version。版本默认取提交时的当前版本（docs/spec/candidate-removal.md「输入域」）。
 func command(source: Dictionary, expected_version: int=-1) -> Dictionary:
  var kind=String(source.get("kind",""))
  return {"kind":kind,"params":command_params(kind,source),"expected_version":state.version if expected_version<0 else expected_version}
@@ -178,7 +178,7 @@ func _equipment_read_active() -> bool:
  return not _equipment_read.is_empty() and not _equipment_read.get("invalid",false) and is_same(_equipment_read.state,state)
 
 # Edges follow the verified build direction only: authoritative containers project forward into
-# piece order. An inconsistent graph is neither repaired nor partly trusted (§6).
+# piece order. An inconsistent graph is neither repaired nor partly trusted (docs/spec/equipment-query-seam.md「失败语义」).
 func _build_equipment_read_index() -> void:
  var pieces=_materialize_physical_pieces()
  var issue=_equipment_index_issue(pieces)
@@ -199,8 +199,8 @@ func _build_equipment_read_index() -> void:
  _equipment_read.capacity_points=_materialize_capacity_points(pieces)
  _equipment_read.physical_points=_materialize_physical_points(pieces)
 
-# Slot to rope with the §1 durability filter. The list edges below keep the §1 concatenation
-# order; the connection edge is the projection the action list and targets_at share.
+# Slot to rope with the interface durability filter (docs/spec/equipment-query-seam.md「接口（接口清单与语义）」).
+# The list edges below keep that interface's concatenation order; the connection edge is the projection the action list and targets_at share.
 func _materialize_link_edge() -> Dictionary:
  var links={}
  for link in state.links:
@@ -369,7 +369,7 @@ const Prison = preload("res://core/prison.gd")
 const Snapshot=preload("res://core/snapshot.gd")
 const ActionCopy=preload("res://core/action_copy.gd")
 var _copy_context: Dictionary={}
-# docs/transition-pipeline.md §2.2：迁移日志（进程内、只读诊断）。元素＝已声明的 Transition kind。
+# docs/transition-pipeline.md「接口」：迁移日志（进程内、只读诊断）。元素＝已声明的 Transition kind。
 # 不进 state、不进存档、不进 View；只为后续（固定点存档）留出挂点，本片不消费。
 var _transition_log: Array[String]=[]
 var _transition_written: Dictionary={}
@@ -903,9 +903,9 @@ func _rest_round() -> void:
  _begin_player_turn()
  _emit("event","休息还有%d回合；悬挂挂钩剩余%d次。" % [state.rest_left,state.hook_uses])
 
-# docs/transition-pipeline.md §3：迁移声明表。每个 kind 声明它允许进入的阶段（空＝不写阶段）、
+# docs/transition-pipeline.md「接口」迁移声明表。每个 kind 声明它允许进入的阶段（空＝不写阶段）、
 # 是否允许改当前房间（写值由调用点的 args.room 提供）、是否在已提交事务内（tx 列本片只登记事实，
-# 供存档切片消费）、是否是一个进度固定点（checkpoint 列，缺省＝不是；见 docs/save-fixed-points.md §2），
+# 供存档切片消费）、是否是一个进度固定点（checkpoint 列，缺省＝不是；见 docs/save-fixed-points.md「接口」），
 # 以及谁负责触发它。
 const TRANSITIONS={
  "setup_init":{"phases":["map"],"room":false,"tx":false,"owners":["_init"]},
@@ -936,7 +936,7 @@ const TRANSITIONS={
  "demo_end":{"phases":[],"room":false,"tx":true,"owners":["_execute"]},
 }
 
-# 全仓唯一写 state.phase／state.room 的地方（docs/transition-pipeline.md §2.2）。
+# 全仓唯一写 state.phase／state.room 的地方（docs/transition-pipeline.md「接口」）。
 # 立即写入、单一写入者、不做事务末统一执行：位置与顺序由各调用点保持原样。
 # 返回 ""＝成功，否则 issue（与既有失败字符串风格一致）。
 func _apply_transition(kind: String, args: Dictionary = {}) -> String:
@@ -964,12 +964,12 @@ func _apply_transition(kind: String, args: Dictionary = {}) -> String:
  _transition_written={"kind":kind,"fields":wrote}
  return ""
 
-# 进入某房间时使用的 kind（docs/transition-pipeline.md §3）：目标层高于当前层＝floor_enter，
+# 进入某房间时使用的 kind（docs/transition-pipeline.md「接口」迁移声明表）：目标层高于当前层＝floor_enter，
 # 否则＝room_enter。只用于真实移动与换塔的落点；构造期写入由各自的构造 kind 承担。
 func _room_transition_kind(target: String) -> String:
  return "floor_enter" if int(room_data(target).get("floor",0))>int(room_data(state.room).get("floor",0)) else "room_enter"
 
-# docs/save-fixed-points.md §2／§5.1：进度固定点只由本次提交实际产生的迁移条目命名——不看上下文差异。
+# docs/save-fixed-points.md「接口」：进度固定点只由本次提交实际产生的迁移条目命名——不看上下文差异。
 # 同一次提交同时命中多类时按 battle_end ＞ prepare_end ＞ floor 取一个；没有命中返回 ""（UI 只在非空时写盘）。
 const CHECKPOINT_PRIORITY=["battle_end","prepare_end","floor"]
 
@@ -983,7 +983,7 @@ func _finish_battle(end_kind: String="victory") -> void:
  if state.phase != "battle":
   return
  var saturated=end_kind=="saturated"
- # 事件战与普通战共用同一个已声明 kind，只是目标阶段不同（§3 表：事件战＝event）。
+ # 事件战与普通战共用同一个已声明 kind，只是目标阶段不同（docs/transition-pipeline.md「接口」迁移声明表：事件战＝event）。
  var end_transition="battle_end_saturated" if saturated else "battle_end_victory"
  var event_battle=Events.active_battle(self)
  CaptureBind.clear_bind(self)
@@ -1008,7 +1008,7 @@ func _finish_battle(end_kind: String="victory") -> void:
  var ending="监狱出口的警卫已全部被击败。收取战利品后，选择新塔路第10—11层的非休息、非宝箱区域开始。" if Prison.is_exit_battle(self) else (("敌人已无法继续添加或加固装备，遭遇结束。" if saturated else ("塔顶首领已被击败，整备后可以前往出口。" if room_data(state.room).get("boss",false) else "遭遇结束。"))+"收取战利品后，点击继续进行整备。")
  _emit("event",ending,{"battle_end":"saturated" if saturated else "cleared"})
 
-# docs/transition-pipeline.md §2.2: the single battle-end judgement every call site shares
+# docs/transition-pipeline.md「接口」: the single battle-end judgement every call site shares
 # (the 13 reference points keep their own position in the control flow and only ask this).
 # "" = the battle continues, "victory" = every enemy is gone, "captured" = a living enemy
 # announces arrest through its next normal intent, "saturated" = no living enemy can add or
@@ -1220,7 +1220,7 @@ func capacity_used(slot: String) -> int:
   amount=maxi(amount,_capacity_point_count(point))
  return amount
 
-# §3.1 item 10: the planning half reads through one scope; the write side stays in
+# docs/spec/equipment-query-seam.md「作用域进出点（冻结名单）」: the planning half reads through one scope; the write side stays in
 # _install_assembly, which runs after the scope is released.
 func _prepare_assembly(kind: String, variant: String, source: String, grade: int=2, tightness: int=2, overrides: Dictionary={}, straps: String="straight", attached_to: String="") -> Dictionary:
  var previous=_begin_equipment_read()
@@ -1436,7 +1436,7 @@ func _slip_block_reason(target: Dictionary) -> String:
    return link.name+"牵住了这件装备，须先解除链接或它连接的另一件装备。"
  return ""
 
-# §5: presence and side questions read the slot edge directly; the hand special case stays
+# docs/spec/equipment-query-seam.md「接口（接口清单与语义）」: presence and side questions read the slot edge directly; the hand special case stays
 # side-based and never degrades into a plain non-empty test.
 func occupied(slot: String) -> bool:
  if slot in ["palm","fingers"]: return hand_blocked(slot,"left") and hand_blocked(slot,"right")
@@ -2113,7 +2113,7 @@ func _pay_mana(payment: Dictionary) -> void:
  for field in payment: state[field]-=payment[field]
  RelicEffects.mana_lost(self,payment.mana,payment.temporary_mana)
 
-# 唯一合法性判定（docs/spec/candidate-removal.md §2.1 N4；批 R1 落地，工作名 eligibility）。
+# 唯一合法性判定（docs/spec/candidate-removal.md「接口」唯一合法性判定；批 R1 落地，工作名 eligibility）。
 # 全仓唯一产出 valid／reason 的位置：行工厂 _candidate 与接管路径都只消费本函数结果，不再自写判定字段。
 # 输入＝指令形状 payload＋行参数（cost／mana／reason／risk）＋当前状态；分支顺序与文案与抽出前逐字相同。
 # extra_traction 不是行字段，供 detail 组装复用同一次计算。
@@ -2145,7 +2145,7 @@ func eligibility(payload: Dictionary, cost: int, mana: float, reason: String, ri
  if reason == "" and balance < required: reason = "需要%s%s，当前只有%s。" % [number(required),"魔瓶魔力" if flask else "魔力",number(balance)]
  return {"cost":cost,"mana":mana,"mana_payment":payment,"valid":reason=="","reason":reason,"risk":risk,"extra_traction":extra_traction}
 
-# 接管锁定的资格结论（销 DUP2，docs/spec/candidate-removal.md §2.3）：判定内读接管状态，返回与旧实现
+# 接管锁定的资格结论（销 DUP2，docs/spec/candidate-removal.md「接口」唯一合法性判定）：判定内读接管状态，返回与旧实现
 # 逐字相同的文案；未锁定时返回空字典（调用方 merge 后行不变）。接管路径只决定哪一条是本次步骤。
 func eligibility_takeover() -> Dictionary:
  if not FirstTurnControl.active(self): return {}
@@ -2160,7 +2160,7 @@ func _fact_verdict(f: Dictionary) -> Dictionary:
 # 事实 → 判定＋detail 的唯一组装（行与投影显示事实共用；两处都不写 valid／reason，只 merge 判定结论）。
 func _fact_core(f: Dictionary) -> Dictionary:
  var payload: Dictionary=f.payload
- # B3（docs/ondemand-copy.md §1.5）：card 目标显示点不再预生成 detail，显示时经 candidate_detail 现算。
+ # B3（docs/ondemand-copy.md「按需的候选详情」）：card 目标显示点不再预生成 detail，显示时经 candidate_detail 现算。
  var on_demand=String(payload.get("kind",""))=="card"
  var verdict=_fact_verdict(f)
  var core={}
@@ -2185,7 +2185,7 @@ func _fact(payload: Dictionary, label: String, copy, cost, mana, reason: String,
 # 照抄：显示文本与显示侧元数据只有一份来源，投影不另算。
 const FACT_DISPLAY_FIELDS=["brief","brief_tags","casting","body_part","reason_scope","reason_surface","copy_context"]
 
-# 事实 → 投影显示事实（docs/spec/candidate-removal.md §2.1 T5／T8；显示侧的唯一取值入口）：
+# 事实 → 投影显示事实（docs/spec/candidate-removal.md「接口」T5／T8；显示侧的唯一取值入口）：
 # 事实＋唯一判定＋detail 组装；不含提交身份 id；带该显示点的显示字段与显示点身份 key（形状键）。
 func display_fact(f: Dictionary) -> Dictionary:
  var fact=_fact_core(f)
@@ -2198,7 +2198,7 @@ func display_fact(f: Dictionary) -> Dictionary:
  fact.key=shape_key(fact.payload)
  return fact
 
-# 候选 detail 的唯一组装点（docs/ondemand-copy.md §1.5／§11.2）：eager 路径与候选只读入口共用，
+# 候选 detail 的唯一组装点（docs/ondemand-copy.md「按需的候选详情」／「文案路由（收口阶段）」）：eager 路径与候选只读入口共用，
 # 追加顺序与原实现一致（锁定项圈改写 → 熟练牵扯 → 临时魔力抵扣）。
 func _candidate_detail(base: String, payload: Dictionary, extra_traction: int, payment: Dictionary) -> String:
  var detail=base
@@ -2215,7 +2215,7 @@ func _candidate_detail(base: String, payload: Dictionary, extra_traction: int, p
 func _candidate_base_detail(payload: Dictionary) -> String:
  return Cards.target_detail(self,{"payload":payload})
 
-# R5（docs/ondemand-copy.md §11.5）：本模块直呼点的文案 builder，正文留在本模块，路由只做分派。
+# R5（docs/ondemand-copy.md「文案路由（收口阶段）」）：本模块直呼点的文案 builder，正文留在本模块，路由只做分派。
 static func copy_surrender(_g, _args: Dictionary) -> String:
  return "放弃战斗，被逮捕并进入收押处理。"
 
@@ -2365,15 +2365,15 @@ static func copy_depart(g, args: Dictionary) -> String:
  if bool(args.get("tower_start",false)): detail="选择此区域作为出狱起点，不消耗回合。\n"+g.room_description(room)
  return detail
 
-# 候选 detail 的只读入口（docs/ondemand-copy.md §1.5／§2）：当前 View 的候选逐字节等于投影值。
-# 陈旧候选允许按当前 state 重算（§2）；不写 state、不推进随机、不改 version、不产生日志与事件。
+# 候选 detail 的只读入口（docs/ondemand-copy.md「按需的候选详情」／「只读入口」）：当前 View 的候选逐字节等于投影值。
+# 陈旧候选允许按当前 state 重算（docs/ondemand-copy.md「只读入口」）；不写 state、不推进随机、不改 version、不产生日志与事件。
 func candidate_detail(candidate: Dictionary) -> String:
  if candidate.has("detail"): return String(candidate.detail)
  var payload=candidate.get("payload",{})
  if payload.get("kind","")!="card": return ""
  return _candidate_detail(_candidate_base_detail(payload),payload,Cards.magic_card_traction(self,payload),_mana_payment(payload,float(candidate.get("mana",0.0))))
 
-# 全部指令显示事实的唯一来源（docs/spec/candidate-removal.md §2.1 T5／T8；批 R5）：按阶段／域产出显示点事实。
+# 全部指令显示事实的唯一来源（docs/spec/candidate-removal.md「接口」T5／T8；批 R5）：按阶段／域产出显示点事实。
 # 投影与接管选择经 command_facts 取本列表；command_fact 已接线 kind 经 _kind_facts 调该生产者，未接线 kind 仍走本函数。行载体已删除，无第二份物化。
 func _fact_source() -> Array:
  var facts: Array=[]
@@ -2418,7 +2418,7 @@ func command_facts() -> Array:
  _equipment_read=previous
  return result
 
-# 全量卡面文案的只读入口（docs/ondemand-copy.md §1.3）：输入 [{type,uid}]，逐项按 §1.1 现算，容器全部新建。
+# 全量卡面文案的只读入口（docs/ondemand-copy.md「只读入口」Game.live_card_text_set）：输入 [{type,uid}]，逐项按「唯一生成函数（三路共用）」现算，容器全部新建。
 func live_card_text_set(cards: Array) -> Dictionary:
  var texts={}
  var instances={}
@@ -2430,8 +2430,8 @@ func live_card_text_set(cards: Array) -> Dictionary:
   if uid!="" and not instances.has(uid): instances[uid]=Cards.text_entry(self,type,uid)
  return {"texts":texts,"instances":instances}
 
-# 单条卡面文案的只读入口（docs/ondemand-copy.md §1.4）：任意注册牌型现算一条，返回全新容器。
-# 不写 state、不推进随机、不改 version、不产生日志与事件（§2 共同语义）。
+# 单条卡面文案的只读入口（docs/ondemand-copy.md「只读入口」Game.live_card_text）：任意注册牌型现算一条，返回全新容器。
+# 不写 state、不推进随机、不改 version、不产生日志与事件（docs/ondemand-copy.md「只读入口」共同语义）。
 func live_card_text(type: String, uid: String = "") -> Dictionary:
  return Cards.text_entry(self,type,uid)
 
@@ -2548,7 +2548,7 @@ func wall_view() -> Dictionary:
  var environment_class=Tools.Environments.WALLS.get(state.wall,"")
  return {"environment_class":environment_class,"environment_name":Tools.Environments.NAMES.get(environment_class,""),"at_wall":at_wall(),"distance":state.wall_distance,"stride":profile.distance,"cost":profile.cost,"status":status,"name":name,"detail":detail,"source":source,"duration":duration}
 
-# ==== 显示事实的唯一来源（docs/spec/candidate-removal.md §2.1 T5／T8；批 R3）====
+# ==== 显示事实的唯一来源（docs/spec/candidate-removal.md「接口」T5／T8；批 R3）====
 # 事实＝显示点的指令形状＋行参数（cost／mana／reason／risk）＋显示字段（brief／brief_tags／casting／body_part）。
 # 投影显示事实（display_fact）是事实的唯一出口：同一份事实与同一判定，同一形状只有一条路径。
 # 键面：payload／label／copy／cost／mana／reason／risk／group／brief／brief_tags／casting／body_part／verdict（可选）。
@@ -2794,7 +2794,7 @@ func chain_rows_active() -> bool:
  if state.phase in ["rest_choice","shop","treasure","event","captured","inspection","prison_end"]: return false
  return not (state.overloaded and state.phase in RelicEffects.COMBAT_PHASES)
 
-# 装备操作（装备域，批 R4 起、R5 收口）：显示事实的唯一来源（docs/spec/candidate-removal.md §2.1 T5／T8）。
+# 装备操作（装备域，批 R4 起、R5 收口）：显示事实的唯一来源（docs/spec/candidate-removal.md「接口」T5／T8）。
 func manual_facts() -> Array:
  var facts=[]
  if not command_tail(): return facts
@@ -2962,7 +2962,7 @@ func dispatch(cmd: Dictionary, expected_version: int) -> Dictionary:
  var extra_traction=Cards.magic_card_traction(self,chosen.payload)
  var traction_mark=Cards.hand_modifier(self,"energy_pressure")
  var traction_guard=CaptureBind.has_bind(self,"guard")
- # docs/save-fixed-points.md §5.1：本批提交新增的迁移日志条目决定 checkpoint 取值。
+ # docs/save-fixed-points.md「接口」：本批提交新增的迁移日志条目决定 checkpoint 取值。
  var log_start=_transition_log.size()
  var original=state
  var hero_copy_context={

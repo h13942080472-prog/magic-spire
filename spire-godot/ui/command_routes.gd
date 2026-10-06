@@ -1,8 +1,8 @@
 extends RefCounted
 
-# M-I 分类子路由（docs/spec/candidate-removal.md §3.1；N2）：每类指令一条装配路径。
+# M-I 分类子路由（docs/spec/candidate-removal.md「接口」分类子路由）：每类指令一条装配路径。
 # 装配＝把 UI 意图（点击／键盘／触屏／拖放／自动接管）落成类型化指令：取本地选中态、解析改道、
-# 按 §3.3 键面装箱；不判定资格（资格只由 core 的唯一判定给出），不提交（提交执行段在 ui/main.gd::_submit）。
+# 按 docs/spec/candidate-removal.md「输入域」的键面装箱；不判定资格（资格只由 core 的唯一判定给出），不提交（提交执行段在 ui/main.gd::_submit）。
 # 本文件与 command_router.gd 都不 preload core；形状装箱经 host.game.command（指令构造的唯一入口）。
 #
 # 意图来源两种形态（同一投影只认稳定 ID；其余键不进 params、不参与提交复核）：

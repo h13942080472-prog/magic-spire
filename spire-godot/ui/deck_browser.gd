@@ -19,7 +19,7 @@ func setup(ui, physical_cards: Array, powers_only: bool=false, empty_message: St
  host=ui;name="DeckBrowser";selection_choices=choices
  size_flags_vertical=Control.SIZE_EXPAND_FILL
  add_theme_constant_override("separation",16)
- # 牌堆浏览属全量入口（docs/ondemand-copy.md §1.3）：条目按需现算，字段与旧投影逐项相同。
+ # 牌堆浏览属全量入口（docs/ondemand-copy.md「只读入口」Game.live_card_text_set）：条目按需现算，字段与旧投影逐项相同。
  var live=ui.game.live_card_text_set(physical_cards)
  for physical in physical_cards:
   var card=Catalog.card(physical.type)

@@ -1,12 +1,12 @@
 extends RefCounted
 
-# M-I 指令路由（docs/spec/candidate-removal.md §3.1；N1）：前端唯一指令入口。
+# M-I 指令路由（docs/spec/candidate-removal.md「接口」指令路由）：前端唯一指令入口。
 # 职责＝唯一分类点（ROUTES：kind → 子路由）＋交提交执行段（ui/main.gd::_submit）；装配在 command_routes.gd。
 # 表外 kind fail-closed：拒绝并留一条只读记录，不静默放行、不崩（G2）。
 # 本文件与 command_routes.gd 都不 preload core（依赖方向：ui 内只有 ui/main.gd 允许 preload core）。
 const Routes=preload("res://ui/command_routes.gd")
 
-# 唯一分类点：39 条 kind 各恰一条子路由（docs/spec/candidate-removal.md §3.3 的 kind 全集；本表是闭集，
+# 唯一分类点：39 条 kind 各恰一条子路由（docs/spec/candidate-removal.md「输入域」的 kind 全集；本表是闭集，
 # 新增 kind 必须先回填契约再实现）。子路由名＝command_routes.gd::assemble 的 route 分支。
 const ROUTES={
  "card":"battle","chain":"battle","attack":"battle","status_toggle":"battle","posture":"battle",

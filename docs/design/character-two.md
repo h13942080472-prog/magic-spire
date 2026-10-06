@@ -162,4 +162,4 @@ flowchart LR
 
 ## 7. 实现与验证入口
 
-规则通过原候选、支付、施法随机、事务提交与固定点执行，没有新命令旁路。规则用例归 `witch_character`、`card_expansion`、`card_splash`、`pressure`、`persistence`、`rewards`、`encyclopedia`、`architecture` 与 `localization`；窗口归 `encyclopedia`、`home`、`localization`。检查命令见 `.zcode/skills/repo-ops/SKILL.md`。
+规则通过原候选、支付、施法随机、事务提交与固定点执行，没有新命令旁路。规则用例归 `witch_character`、`card_expansion`、`card_splash`、`pressure`、`persistence`、`rewards`、`encyclopedia`、`architecture` 与 `localization`；窗口归 `encyclopedia`、`home`、`localization`。检查命令见 `skills/repo-ops/SKILL.md`。

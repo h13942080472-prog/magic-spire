@@ -136,10 +136,10 @@ var art_bottom=174.0
 # 容器尺寸要等引擎的排序趟，直接读节点会拿到尚未按当前值重算的高度。
 var text_overflow=false
 var _fit_pending=false
-# Content 的固定槽序：分类／正文／警告／可用性。按槽序写、按槽序复用，tooltip 行序才稳定。
+# Content 的固定槽序：分类／正文／警告／可用性。按槽序写、同名标签就地改写，tooltip 行序才稳定。
 const CONTENT_SLOTS=["CardClassification","CardEffect","CardWarning","CardAvailability"]
-# 出树但未销毁的备用节点（按槽名／kind 分区）：多余内容先入池再复用，
-# 避免"翻面 free 掉另一面的标签、翻回再新建"破坏同一面的实例集合。
+# 出树但未销毁的备用节点（按 kind 分区，仅词条／条件／魔力三类组）：多余节点先入池再复用，
+# 翻回已应用过的面时用回同一实例；内容槽（`_content_slot`）不池化，理由见该函数。
 var _spare: Dictionary={}
 
 const MANA_COLORS={"cost":Color("8dd6ef"),"gain":Color("80e0c5"),"temporary":Color("c4a0ef")}
@@ -186,8 +186,12 @@ func _request_fit() -> void:
  _fit_pending=true
  fit_text.call_deferred()
 
-# Content 槽：同名标签保持在固定槽序上；缺件先取自池、再新建。
-# 条件槽（警告／可用性）文本为空即出树入池；常驻槽（`always`，分类／正文）保持挂载只切可见性。
+# Content 槽：同名标签保持在固定槽序上；缺件即新建。
+# 条件槽（警告／可用性）文本为空即销毁；常驻槽（`always`，分类／正文）保持挂载只切可见性。
+# 内容标签出 Content 后不得再插回：配方里把已移除的标签重新挂进 ScrollContainer 的 `Content` 必崩、
+# 停用该池化即消失（E1 表明该形态单独不足以复现；机理未确证——证据见 docs/record/verification.md 2026-10-05 条），
+# 故这个槽位不做池化复用。池（`_spare`）只保留给词条／条件／魔力三类组：它们的回插目标不是 `Content`，
+# 但这不证明安全——卡面会被放进 ScrollContainer 子树（图鉴／牌库／离狱），该复用仍属未证（待 E2）。
 func _content_slot(label_name: String, text: String, font_size: int, color: Color, always: bool=false) -> bool:
  var area=get_node_or_null("CardText")
  var content=area.get_node_or_null("Content") if area!=null else null
@@ -197,14 +201,13 @@ func _content_slot(label_name: String, text: String, font_size: int, color: Colo
   if String(child.name)==label_name: node=child;break
  if text=="" and not always:
   if node==null: return false
-  _park("content_"+label_name,node)
+  content.remove_child(node)
+  node.queue_free()
   return true
  var changed=false
  if node==null:
-  node=_take("content_"+label_name) as Label
-  if node==null:
-   node=_new_label("",font_size,color)
-   node.name=label_name
+  node=_new_label("",font_size,color)
+  node.name=label_name
   content.add_child(node)
   changed=true
  if String(node.text)!=text: node.text=text;changed=true

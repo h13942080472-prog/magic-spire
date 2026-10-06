@@ -24,9 +24,10 @@
 - `core/card_effects.gd` 的 `static func text_entry(g, type: String, uid: String = "") -> Dictionary`：
   条目正文 = 四步 `face_texts` → `face_costs` → `merge(metadata)` → 可能的 `casting`。
 - 实时条目的 `face_damage` 为 `bound/free` 两面的逐段伤害数值数组，无伤害面为空；与卡面正文共用 `Cards.face_damage_values`，具体加成与波及读取规则见 [卡牌设计](../design/cards.md#9-图鉴与卡面投影)。该字段只读，不写入牌实例或存档。
-- 判据：全仓只有这一处构造这四步；下面三条路径都必须经由它。
+- 判据（结果面）＝`tests/architecture_cases.gd::copy_single_entry_matches_projection` 与
+  `tests/card_text_cases.gd::copy_fixed_set_matches_full_entry`：下面三条路径的返回逐字段相等。
 
-### 三个只读入口
+### 只读入口
 
 | 接口 | 输入 | 返回 | 谁能调 |
 | --- | --- | --- | --- |
@@ -34,37 +35,36 @@
 | `get_view().card_instances` | — | `state.hand` 中命中既有判据（`damage_growth`／`hannya_stage`）的 uid 条目 | 同上 |
 | `Game.live_card_text(type, uid="")` | 任意注册牌型（含 `encyclopedia_hidden`） | 全新 Dictionary，与 S 同键条目逐字段相等 | UI 显示边界、测试 |
 | `Game.live_card_text_set(cards)` | `cards=[{"type":String,"uid":String}]`（uid 可缺省） | 全新 `{"texts":{type:entry},"instances":{uid:entry}}` | 牌堆浏览、商店去卡、测试 |
-| `Game.candidate_detail(candidate)` | 当前 View 的候选 | String，与旧 `candidate.detail` 逐字节相等 | UI 显示边界、测试 |
+| `Game.candidate_detail(candidate)` | 当前 View 的候选 | String；card 组现算，非 card 组逐字节等于 `candidate.detail` | UI 显示边界、测试 |
 
 - 共同语义：只读（不写 `state`、不推进随机、不改 `state.version`、不产日志与事件、不进存档与快照）；
   每次调用返回**新容器**，调用方可以改写返回值且不影响 View 与后续调用；判定按字段比对，不按 JSON 字符串顺序。
-- 陈旧输入：`candidate_detail` 只对「当前 View 的候选」承诺与投影一致；对陈旧候选（旧 `ActionIndex` 的
-  `old_action`）允许按当前 state 重算，显示点按其记录，不承诺与旧投影相同。
+- 陈旧输入：`candidate_detail` 只对「当前 View 的候选」承诺与投影一致；对陈旧候选（此前一次渲染留下的
+  显示事实）允许按当前 state 重算，显示点按其记录，不承诺与旧投影相同。
 - `deck_list` 已移出 View（全仓无 UI 读取点）；同值数据由 `live_card_text_set` 提供。
   `card_texts`／`card_instances` 除键集合收窄外，条目内容与键序不变。
 
 ### 按需的候选详情
 
-- 组范围**只做 card 目标候选组**（`payload.kind=="card"`：自由面／冲开捕缚／多段目标，由 `target_candidate` 产出）：
-  该组候选字典**不再带 `detail` 键**，显示时经 `Game.candidate_detail` 现算；
-  其余组（attack／calm／flow／posture／wall／retain／route／reward／rest_service／service／prison／item／
-  event／departure）保持预生成 `detail`。
+- 组范围**只做 card 目标候选组**（`payload.kind=="card"`：自由面／冲开捕缚／多段目标，由
+  `core/card_effects.gd` 的 card 目标事实构造产出）：该组候选字典**不再带 `detail` 键**，显示时经
+  `Game.candidate_detail` 现算；其余组（组名＝`view.display_facts` 的 `group` 字段）保持预生成 `detail`。
 - 写路径不读 detail（`dispatch` 只用 `payload`／`cost`／`mana_payment`／`valid`／`reason`）；
-  候选 ID = `JSON.stringify(payload)` 不变；`_candidate` 内 detail 的组装抽成共用函数，eager 路径与新入口共用。
+  显示点身份＝`core/game.gd::shape_key(payload)`（kind＋params）；detail 的组装抽成
+  `core/game.gd::_candidate_detail`，eager 路径（`core/game.gd::_fact_core`）与新入口
+  （`core/game.gd::candidate_detail`）共用。
 - 不得改 detail 的文案与可见性规则（含短原因映射与行动行的显示条件）。
 
 ### 文案路由（收口阶段）
 
-- 生产者侧：`_candidate(out, payload, label, copy, cost, mana, reason, risk, group)` 的第 4 参 `copy`
+- 生产者侧：事实构造 `core/game.gd::_fact(payload, label, copy, cost, mana, reason, risk, group)` 的 `copy`
   既可以是今天的 `String`（**直传通道**，行为与今天逐字节相同），也可以是 descriptor
-  `{"kind":String,"args":Dictionary,"fallback":String}`；三个转发包装 `Prison.add`、`target_candidate`、
-  `paid_candidate` **签名原样不动**，其文案参数同样接受 String 或 descriptor。
+  `{"kind":String,"args":Dictionary,"fallback":String}`；转发包装 `core/prison.gd::add`、
+  `core/room_services.gd::paid_fact` 与 `core/card_effects.gd` 内的 card 目标事实构造同样接受 String 或 descriptor。
 - 路由侧（`core/copy_router.gd`，全 static）：
   - `text(g, copy) -> String`：`copy` 是 String → 原样返回；是 descriptor → 按 `kind` 分派到注册的 builder；
   - `categories() -> Array[String]`：可枚举的类别清单（测试与接手方据此核对覆盖）；
-  - builder 由模块自带并在路由注册（**不要求把中文搬到路由文件**）：已存在的 8 个 detail 构建函数
-    （`Cards.detail`／`Services.detail`／`SelfBinding.detail`／`Hannya.detail`／`Splash.detail`／
-    `BasicAttacks.cost_description`／`relic_effects.posture_detail`／`card_splash.detail`）原地保留；
+  - builder 由模块自带并在路由注册（**不要求把中文搬到路由文件**）；
   - 共享片段只放实测确认的横切流程，当前只有 `two_face(type)`（两面拼接）。
 - 消费者侧：UI 不直连路由、不 preload `core/copy_router.gd`；只经上面的 `Game` 只读入口，再由显示侧 helper 取用。
 
@@ -72,10 +72,21 @@
 
 - 取用点唯一 helper（都在 `ui/main.gd`）：
   - `card_entry(type, uid="") -> Dictionary`：命中 `view.card_texts`／`view.card_instances` 即用；
-    未命中 → `game.live_card_text(type,uid)` 并追加 `ui.projection_misses` 记录；
+    未命中 → `game.live_card_text(type,uid)` 并追加 `ui.projection_misses` 记录；`ui/main.gd::card_face_name`
+    是它的具名薄包装；
   - `detail_of(candidate) -> String`：`candidate.detail` 存在即用；缺失 → `game.candidate_detail(candidate)` 并记录。
-- 除这两个 helper 外，UI 全仓不得直接读 `view.card_texts[…]`、`view.card_instances[…]`、`c.detail`；
-  含 `c.get("brief", c.detail…)` 这种**预求值**写法（GDScript 会先算默认参数，缺键即崩）。
+- 卡面投影的直读点（与当前代码一致；改实现须同步本条）：`view.card_texts`／`view.card_instances` 在 UI 内
+  只由 `ui/main.gd::card_entry` 与 `ui/main.gd::_card`（`live_state` 卡面的唯一合并点）直读；其余界面取卡面
+  文案经 helper 或 `ui/main.gd::_display_card`。
+- 候选详情的直读点：card 组候选（`payload.kind=="card"`）字典不带 `detail`，只能经 `ui/main.gd::detail_of`
+  → `Game.candidate_detail`；其余组（event／item 等）保持预生成 `detail`，允许的直读点＝
+  `ui/event_screen.gd`（`selector_button`／`action`／`drawer`）与 `ui/main.gd::_drawer_presentation_key`
+  （item 组节键）。不得对缺 `detail` 的候选写 `c.get("brief", c.detail…)` 这种**预求值**写法
+  （GDScript 会先算默认参数，缺键即崩）。
+- 消费面判据＝`tests/architecture_cases.gd::ondemand_copy_consumer_boundary`：UI 不引用 `core/copy_router`；
+  `candidate_detail` 只由 `ui/main.gd::detail_of` 消费，`live_card_text_set` 只由牌堆浏览与商店去卡消费，
+  `live_card_text` 只由 `ui/main.gd::card_entry` 消费；`card_texts`／`card_instances` 的直读点白名单为上面两处。
+  语义条目（S 取源、或然失败、复用准入线）仍为本文件真源。
 
 ## 输入域
 
@@ -99,14 +110,13 @@ S 按下列显示入口**逐条取源再取并集**；只允许用本次 View �
   **没有 `type`**；只扫候选 payload 会漏掉这个牌型，表现为商店卡面缺失（缺失而非降级）。
 - 不计入 S、走全量入口：抽／弃／牌堆整摞、能力区、牌堆浏览、商店去卡；图鉴不进 S（保持 `live_state=false`）。
 - 幽灵卡（打出）不在 S（投影期不可知），现场补算并留记录。
-- 新增显示入口时必须同步补 S 的推导；判据是 `ui.projection_misses` 为空（幽灵卡除外）。
+- 新增显示入口时必须同步补 S 的推导；判据是 `ui.projection_misses` 为空。例外只有打出的幽灵卡（投影期不可知，现场补算并记录）。
 
 ### descriptor 与类别
 
 - descriptor 用「类别（kind）+ 参数（args）」，由路由按 kind 分派渲染；**不选「模板 id + 参数」**：
-  实测 43 个内联字面量彼此不同、全 core 片段级重复仅约 3%，做模板库等于把作者写好的整句重写成模板，
-  改动面最大、结构收益最小，且最容易破坏逐字节判据。
-- 明令禁止：不得为了「统一」把整段中文搬进中央模板库，不得顺手改措辞。
+  做模板库等于把作者写好的整句重写成模板，且最容易破坏逐字节判据。
+- 明令禁止：不得为了「统一」把整段中文搬进中央模板库，也不得借机改动既有措辞。
 - 两份卡面组装与费用双源**不合并**：静态 `Catalog.card`（`Rules.energy_label` + `B.card_metadata`）与
   实时 `Cards.text_entry`（`Cards.energy_label` + `Cards.metadata`）继续并存；允许且仅允许的收口是
   实时路径集中到 `text_entry` 并登记为路由类别（`kind="card.face"` 实时、`kind="card.catalog"` 静态）——
@@ -141,13 +151,8 @@ S 按下列显示入口**逐条取源再取并集**；只允许用本次 View �
   (point,key,view_version) 至多一条；**清空时机是「`ui.view` 被替换」**，不是「version 数字变化」；
   `view_version` 只是诊断标签，不得当缓存键或失效键，也不得据它判定渲染内容的新旧；
   不渲染、不进日志／存档／快照、不做成计数器。允许的「没省到」：打出的幽灵卡（该 type 投影时不保证在 S 内）。
-- 收口阶段（结构调整、行为不变）的交接约束：**不重命名、不重排、不做风格统一**；
-  原入口作为薄别名保留（走直传通道，行为与今天一致）；迁移必须可中断——任意批次做完后代码都要能跑、能测；
-  不顺手改文案措辞、不改判定、不合并「看起来重复但行为不同」的入口
-  （牌堆浏览的三重合并去掉会改筛选排序行为，不得动）。
 - 算未完成（任一）：出现未附可证失效规则的复用（含 UI 侧第二份文案副本、惰性对象）、
   给 `get_view` 加显示需求参数；显示点绕过 helper 直读投影字段；缺失时静默空白或静默回落目录基础文本；
-  收口阶段的重命名／重排／风格统一／措辞改动；新增生产源码文件（`core/copy_router.gd` 除外）或第三方依赖；
   改判定／随机／存档／快照／候选资格／候选 ID／可见文案；实现 `escape_preview` 按需化或改 UI 响应路径与节键；
   以耗时数字或「应该更快」作完成判据；把既有断言删掉或弱化换取绿灯。
 
@@ -162,41 +167,35 @@ S 按下列显示入口**逐条取源再取并集**；只允许用本次 View �
    **实例字段是包含关系，不是相等关系**：`view.card_instances[uid]` 的每个字段与 `live_card_text(type,uid)`
    的同名字段逐项相等，键集合之差只允许 `face_costs`（恒有）与 `casting`（仅施法牌）两个新增键；
    不得要求整字典相等，也不为补齐这两键去做无收益的改动。
-   候选：对基线 View 的每个候选，`candidate_detail(c)` 与基线 `c.detail` 逐字节相等。
-2. **端到端不缺失**：对每个可见显示点，在真实夹具下渲染文本 == 由基线 View 推出的期望文本，且
-   `ui.projection_misses` 为空（幽灵卡允许一条具名记录，文本必须是实时值）。
+   候选：非 card 组 `candidate_detail(c)` 逐字节等于 `candidate.detail`；card 组现算且非空
+   （判据＝`tests/architecture_cases.gd::copy_candidate_detail_on_demand`）。
+2. **端到端不缺失**：对每个可见显示点，在真实夹具下渲染文本正确，且 `ui.projection_misses` 为空；
+   人为删除投影键（`card_texts` 键或 card 组候选的 `detail`）时仍不崩、不空白并留具名记录
+   （判据＝`copy_missing_key_never_crashes`，`display`／`targeting` 两处）。
    覆盖路径至少：手牌卡面、保留行、奖励三选一、休息选牌、事件卡选项、出发选牌、拖放落点提示（含右键切换提示）、
-   身体详情里的选中卡详情与行动行、牌堆浏览、商店去卡、打出幽灵卡。
-3. **被显示子集与旧基线一致（mask 定义）**：mask 只按**显式键集合**删除，不按「新视图有什么就比什么」：
-   `card_texts` 删键 ∉ S；`card_instances` 删 key ∉ 手牌 uid；`candidates[*].detail` 删 card 组候选的 `detail`；
-   `deck_list` 整键删除。保留键必须与基线逐字段相等，删除键集合必须**恰好等于**声明的期望集合
-   （多一个或少一个即失败）。判定 = mask 后哈希相等且逐字段无差异，两个 mask 用同一份声明集合，
-   声明集合必须打印在 oracle 日志里。
-
-- 基线：开工第一步用未改源码与装备片同一夹具复算并记录（含完整 JSON，mask 判定需要原始值，哈希不够）；
-  不一致以复算值为准并记录差异，不得改基线迁就实现。摘要必须记录开工 HEAD 的 commit id、
-  基线捕获脚本在该 commit 下的路径、声明集合与哈希；文件删除后若需重取，用该 commit 的临时 worktree 重跑。
-- B0 前置（接入点先行，S 与候选 detail 此时不收窄）：新 View 与基线 View 逐字段全等，
-  另加「缺键不崩」构造夹具（测试侧复制 View、删除指定 `card_texts` 键或 card 组候选的 `detail`，
-  渲染各取用点，断言无引擎错误、文本 == 基线期望、`ui.projection_misses` 有具名记录）。
+   身体详情里的选中卡详情与行动行、牌堆浏览、商店去卡。
+3. **被显示子集（mask 定义）**：只按**显式声明集合**判定，不按「新视图有什么就比什么」：
+   `card_texts` 恰为 S（∈ S 的一个不少、∉ S 的一个不多），键序按注册表序，条目与单条入口
+   （`live_card_text`）逐字段相等；`card_instances` 只含手牌 uid；card 组候选不带 `detail`；`deck_list` 整键不在 View。
+   判据＝`tests/architecture_cases.gd::copy_projection_masked_baseline`：S 由 `copy_display_set` 按显示入口
+   独立重算（不读 `View.build`），声明集合打印在日志里。
 
 ### 具名 check 与命令
 
 不新建流程文件、不新建看板；用具名函数加入既有 case 文件，复用现有夹具与真实输入助手：
 
-0. `copy_missing_key_never_crashes`（`display`、`targeting`）：缺键夹具渲染不崩、有记录。
+0. `copy_missing_key_never_crashes`（`display`、`targeting`）：缺键夹具渲染不崩、文本不变、有具名记录；
+   完整投影下 `ui.projection_misses` 为空。
 1. `copy_fixed_set_matches_full_entry`（`card_power`，经 `tests/card_text_cases.gd`）：三路逐字段相等；
    ∈ S 的 type 在场、∉ S 的不在；状态、随机、version 不变。
-2. `copy_projection_masked_baseline`（`architecture`）：mask 后与基线相等，删除键集合恰好等于声明集合。
-3. `copy_display_points_have_no_misses`（`display`／`targeting`／`keyboard`）：真实输入下文本与基线一致、
-   `ui.projection_misses` 为空（幽灵卡按上文）。
-4. `copy_full_entry_equals_baseline`（`interface`）：牌堆浏览与商店去卡的每张卡文本与基线一致。
-5. `copy_candidate_detail_on_demand`（`architecture` + `targeting`）：逐候选逐字节相等；card 组候选字典无
-   `detail` 键；写路径未受影响（真实提交一次，候选 ID 与基线一致）。
-6. `copy_ghost_fallback_recorded`（`display`）：文本为实时值、恰有一条具名记录、不进存档／快照／View。
-7. `copy_route_bytes_unchanged`（`architecture`，收口批判据）：每个候选的三条路（迁移前直传字符串、
-   descriptor 经 `core/copy_router.gd` 渲染、基线 View 的冻结 `detail`）逐字节相等；
-   `copy_router.categories()` 覆盖该批已迁移类别且无未知 kind；未迁移生产者走直传通道行为不变；
+2. `copy_projection_masked_baseline`（`architecture`）：见「oracle 三条」判据 3。
+3. `copy_single_entry_matches_projection`（`architecture`）：`live_card_text`／`live_card_text_set` 与投影
+   三路逐字段相等；实例字段是包含关系（只允许新增 `face_costs`／`casting`）；返回全新容器；不写 state 与 version。
+4. `copy_candidate_detail_on_demand`（`architecture` + `targeting`）：逐候选逐字节相等；card 组候选字典无
+   `detail` 键且现算非空；其余组等于预生成 `detail`；写路径未受影响（真实提交一次）。
+5. `copy_route_bytes_unchanged`（`architecture`，收口批判据）＋ `copy_migrated_kinds`／`copy_r4_sites`／`copy_r6_sites`：
+   每个候选的三条路（生产者字符串、descriptor 经 `core/copy_router.gd` 渲染、`candidate_detail`）逐字节相等；
+   `copy_router.categories()` 覆盖已注册类别且无未知 kind；未迁移生产者走直传通道行为不变；
    `copy_router_failures` 为空。红时按四类归因：文本内容／候选数量顺序／缺 detail／未知 kind。
    新增类别时同步注册类别断言，并在 `copy_migrated_kinds` 验证真实候选站点；用不同于正常文案的哨兵回退值，避免漏注册时返回原文而掩盖失败。商店购买、刷新、解除与删牌均走这条证据路径。
 
@@ -215,31 +214,4 @@ S 按下列显示入口**逐条取源再取并集**；只允许用本次 View �
 - 人的路径证明（判据是套件布尔 check）：战斗中打出／翻面手牌、卡组一览、商店去卡、拖牌到身体与键盘悬浮、
   奖励三选一／休息选牌／事件卡选项／出发选牌、商店买卡（S 的已知回归点）、图鉴不产生 `projection_misses`、
   人为缺键不报错不空白。
-- 证据：`build/checks/<id>/check-rules.log`、`check-ui.log`、`summary.json`；
-  基线脚本、baseline JSON 与 oracle 日志只放已忽略的 `build/ondemand-copy-<date>/`，用完删除，入库的只有摘要。
-
-## 分批（每批一个 oracle 判据，可独立完工）
-
-执行顺序 **B0 前置 → 收口批 R0…R6 → 按需批 B1…B3**；每批单独跑该批套件与该批 UI 套件，
-不得把前一阶段或前一批的绿色拼进下一批的结论。
-
-| 批 | 改动 | 该批判据 |
-| --- | --- | --- |
-| B0 前置 | 生成函数 + 单条入口 + helper／记录上线；只改三处「缺键即崩」的取用点（硬索引、预求值的 `get(detail)`、把 metadata 合并当第二份卡面文案用）；S 与候选 detail 不收窄 | B0 判据（全等 + 缺键不崩） |
-| B1 固有集合 | S 收窄 + `card_instances` 收窄 | 判据①（卡面部分）+ 判据③ |
-| B2 全量入口 | `live_card_text_set` + `deck_list` 移出 + 三个消费方迁移 | 判据③（全量入口部分） |
-| B3 detail 按需 | card 组 detail 按需 + `candidate_detail` + `detail_of` 铺到全部取用点 | 判据①（候选部分）+ 判据③ |
-| R0 路由骨架 | 路由模块 + `_candidate` 第 4 参接受 descriptor；不迁任何生产者 | 全 View 与基线逐字段全等 |
-| R1–R6 收口 | 依次：小模块 pilot → 两面拼接片段 → 三个转发包装（一次一个）→ 其余模块 → `core/game.gd` 直呼（最后做，与其它片重碰）→ View 外直产 | `copy_route_bytes_unchanged` + 未迁移模块行为不变 + 该批模块套件 |
-
-红了先归因再改代码：先看差异是文本内容、候选数量／顺序、缺 detail，还是 `copy_router_failures` 出现未知 kind
-（后者是批次漏注册类别，不是产品缺陷）。
-
-## 成本位置（收益在哪）
-
-- 一次完整 View 的文案与投影成本约占其 47%：`card_texts` 全量注册牌型循环 25.0 ms（26.8%，
-  含 `face_texts` 9.3 ms／103 次）与候选 `detail` 18.9 ms（130 条）；`worn_count(g)` 每次 View 约 166 次调用
-  （手牌通常只有 5 张）；`escape_preview` 13.9 ms 属装备片（未排期）。
-- 收益路径是按需批；**收口批不承诺省时**，其判据只有逐字节相等与类别可枚举；
-  不得以耗时或「调用次数减少」宣称收益。`worn_count` 不做单独去重（要改 `face_texts`／`metadata`／
-  `base_damage` 签名且收益未单独测量）。
+- 证据：`build/checks/<id>/check-rules.log`、`check-ui.log`、`summary.json`；入库的只有验证摘要。

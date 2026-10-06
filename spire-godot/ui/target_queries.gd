@@ -1,6 +1,6 @@
 extends RefCounted
 
-# 显示查询（docs/spec/candidate-removal.md §2.1 T9；批 R4 落地、批 R5 收口）：只读一个 View 的显示事实。
+# 显示查询（docs/spec/candidate-removal.md「接口」T9；批 R4 落地、批 R5 收口）：只读一个 View 的显示事实。
 # 无节点、无游戏、无跨刷新缓存——每次调用都从传入的 View 取事实。行动行索引（历史名 action_index.gd）已在 R5 删除。
 # 事实表是扁平数组（core/game_view.gd::build 的 view.display_facts）：组取用按事实自带的 group 字段过滤，
 # 显示点身份按事实自带的 key（形状键）取用——组名与显示键都只有一套命名，不再有行组→View 键的映射表。
@@ -59,7 +59,7 @@ static func find(view: Dictionary, group: String, fields: Dictionary={}) -> Dict
  var matches=select(view,group,fields)
  return matches[0] if not matches.is_empty() else {}
 
-# 首个可用项的唯一通道（销 DUP4，docs/spec/candidate-removal.md §2.3）：回退策略显式声明，不静默统一——
+# 首个可用项的唯一通道（销 DUP4，docs/spec/candidate-removal.md「接口」显示消费）：回退策略显式声明，不静默统一——
 #  "first"＝快捷解除／身体详情／自由面：无可用时保留**首条**拒绝（改动前 target_queries.first_usable 的行为）；
 #  "last"＝行动栏取项（改动前行动行索引 first_usable 的末条拒绝行为，R5 随行索引删除后由本参数承载）。
 static func first_usable(offers: Array, fallback: String="first") -> Dictionary:

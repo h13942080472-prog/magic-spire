@@ -38,7 +38,7 @@ static func unchanged(t, before: Dictionary, after: Dictionary, label: String) -
  t.check(after.backup==before.backup and after.backup_time==before.backup_time,"SAVE "+label+" leaves the backup file bytes and mtime untouched")
 
 # 正例：真实公开命令（先取候选再 dispatch）；命中 checkpoint 时按 UI 的规则写盘。
-# docs/spec/candidate-removal.md §5 G3（批 R2，写盘时机部分）：拒绝的指令不命名 checkpoint，也不触发写盘。
+# docs/spec/candidate-removal.md「失败语义」（批 R2，写盘时机部分）：拒绝的指令不命名 checkpoint，也不触发写盘。
 static func g3_reject_never_writes(t) -> void:
  var g=Game.new(42)
  var store=store_for("g3-reject")
@@ -693,7 +693,7 @@ static func transition_log_never_reaches_state_or_view(t) -> void:
  var restart_log=arch.transition_log(resumed)
  t.check(resumed.restore_snapshot(saved).ok,"SAVE a fresh run accepts the captured save")
  t.check(arch.transition_delta(resumed,restart_log).is_empty() and not JSON.stringify(resumed.export_snapshot()).contains("battle_end_"),"SAVE restoring a save logs no transition and carries no log")
-# docs/spec/candidate-removal.md §5 G9（批 R5）：纯显示读取不触存档与随机域。显示事实读取路径
+# docs/spec/candidate-removal.md「接口」显示消费（批 R5）：纯显示读取不触存档与随机域。显示事实读取路径
 # （get_view／command_facts／display_facts／route_view）与一次成功／一次失败提交之后：全量读取前后
 # export_snapshot() 相等、随机域计数不变、core/snapshot.gd::REVISION 不变、快照仍通过共享字段校验；
 # 固定点写盘时机不变（仍只由提交结果的 checkpoint 非空触发）。

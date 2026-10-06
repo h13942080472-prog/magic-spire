@@ -30,9 +30,9 @@
 | `ui/main.gd::_card_tooltip` | 正文溢出判据改读 `ui/card_face.gd` 的 `text_overflow`（`fit_text` 的结果），不再读 `Content.size`（就地更新后节点尺寸要等引擎排序趟） | 其余行集合、词条框、锚点与显示条件逐字不变 |
 | `ui/main.gd::_sync_card_faces`／`card_faces`／`card_draw_serials` | 离行 uid 的键改由 `_hand_release_card` 删除（`ui/main.gd::_receive_player_drop` 的写面路径不变） | 面状态仍是 `card_faces` 单一份；`_sync_card_faces` 仍是「新抽牌面→`card_faces`」的唯一例程；`ui/card_motion.gd` 的临时 display 键（`display_motion_*`）不在清理范围 |
 | `ui/main.gd::PRESENT_ADJACENCY` 与表头注释 | `_hand` 行补本片新例程；保留 `_hand → _sync_card_faces`／`_hand_presentation_key` | 只按实现体声明真实直接调用，不加假边；共享手牌辅助函数入表后，其余已登记父函数对这些符号的直接调用同步补边，并补齐每个子符号的独立行 |
-| `ui/card_face.gd` | 新增原地更新 setter（每字段一个，值相同即早退）：标题／费用／分类／正文／警告／可用性／词条／条件／art；改写 `ui/card_face.gd::set_mana` 为**按位置／kind 复用**徽章节点与 `StyleBoxFlat`（只改文本、tooltip、字号、`bg_color`／`border_color`；条目数或 kind 变才增删；入参为该面的扁平条目 `[kind, text, detail]`，同 kind 撞名以位置为主、kind 作匹配提示、首个该 kind 保持原名）；多余内容节点出树入池（`_spare`，按槽名／kind 分区）而不是销毁，翻回已应用过的面复用同一实例；词条与条件共用一条标签组写入路径（`ui/card_face.gd::_write_tags`，样式差异作参数）；`text_overflow` 记录 `fit_text` 的正文溢出结果 | `CardIllustration`／`CardHeader`／`CardTitle`／`CardCost`／`CardMana`（含 `Mana_<kind>`）／`CardText`（含 `Content`、`CardClassification`／`CardEffect`／`CardWarning`／`CardAvailability`）／`CardKeywords`／`CardRequirements` 必须仍是按钮的**直接子节点**且名字不变；`ui/card_face.gd::separate_keywords`／`ui/card_face.gd::dimensions`／`ui/card_face.gd::text_scale`／`ui/card_face.gd::flip_requested`／`ui/card_face.gd::_get_drag_data` 语义不变；不新增 `_process`／tween／第二套节点树 |
+| `ui/card_face.gd` | 新增原地更新 setter（每字段一个，值相同即早退）：标题／费用／分类／正文／警告／可用性／词条／条件／art；改写 `ui/card_face.gd::set_mana` 为**按位置／kind 复用**徽章节点与 `StyleBoxFlat`（只改文本、tooltip、字号、`bg_color`／`border_color`；条目数或 kind 变才增删；入参为该面的扁平条目 `[kind, text, detail]`，同 kind 撞名以位置为主、kind 作匹配提示、首个该 kind 保持原名）；词条／条件／魔力三类组的备用节点出树入池（`_spare`，按 kind 分区）而不是销毁，翻回已应用过的面复用同一实例；**内容标签不池化、出 `Content` 后不回插**——条件槽（`CardWarning`／`CardAvailability`）文本清空即由 `ui/card_face.gd::_content_slot` `remove_child`＋`queue_free`、需要时新建，常驻槽（`CardClassification`／`CardEffect`，`always=true`）保持挂载只切 `visible`；由此**内容差额（某条件槽由空变非空或反之）允许销毁／新建该内容标签**，其余值变与重排不得增删实例（**本游戏卡面路径上的经验事实**：把已移除的内容标签再插回 ScrollContainer 的 `Content`，配方里必在后续提交的延迟阶段 SIGSEGV；停用该池化即消失、恢复即复现——配方与消融证据见 `docs/record/verification.md` 2026-10-05 条；E1 表明该形态单独不足以复现（只否定充分性，不是安全性结论），引擎侧机理未确证）；词条与条件共用一条标签组写入路径（`ui/card_face.gd::_write_tags`，样式差异作参数）；`text_overflow` 记录 `fit_text` 的正文溢出结果 | `CardIllustration`／`CardHeader`／`CardTitle`／`CardCost`／`CardMana`（含 `Mana_<kind>`）／`CardText`（含 `Content`、`CardClassification`／`CardEffect`／`CardWarning`／`CardAvailability`）／`CardKeywords`／`CardRequirements` 必须仍是按钮的**直接子节点**且名字不变；`ui/card_face.gd::separate_keywords`／`ui/card_face.gd::dimensions`／`ui/card_face.gd::text_scale`／`ui/card_face.gd::flip_requested`／`ui/card_face.gd::_get_drag_data` 语义不变；不新增 `_process`／tween／第二套节点树 |
 | `ui/card_motion.gd` | **零改动** | `ui/card_motion.gd::positions`／`ui/card_motion.gd::enqueue`／`ui/card_motion.gd::clear` 与 `pending_draws` 的隐藏/显示语义不变（本片把 pending 只当 `visible` 值字段） |
-| `tests/display_ui_cases.gd` | 新增 `static func present_hand_incremental(t)`（P1–P3／N1–N5／E1–E10 的具名 check，含实例 id 集合差与几何助手 `present_hand_row`／`present_hand_rows`／`present_hand_nodes`／`present_hand_styles`／`present_hand_children`／`present_hand_lost`／`present_hand_seat`／`present_hand_slot`／`present_hand_given`／`present_hand_source_text` 与源文本判据）；改写 `DISPLAY present hand rebuilds the card when the presentation key changes` 一条；**本轮复核（bunny 2.3／2.4）裁定的夹具与判据调整由本次审查裁定授权**：E7 夹具前提改由投影 `view.hand[i].draw_serial` 驱动（不再强改 `ui.card_draw_serials`，`ui.card_draw_serials` 只在 E8 里作为前提归零）、断言消息措辞、E8 断言体（恒真式 → 实例 id ＋ 八个直接子级）、N2／E9 夹具（起始面预置与幽灵条目 `card_ghost`／`candidate_buttons` 悬空项）——判据面不变、不弱化既有断言 | 其余既有断言不删不改；`present_routes_hand_or_full` 的 `get_view` 计数断言不放宽；不新增分类文件、不改 `tests/ui_smoke.gd` 的 `UI_MODULES` |
+| `tests/display_ui_cases.gd` | 新增 `static func present_hand_incremental(t)`（P1–P4／N1–N5／E1–E10 的具名 check，含实例 id 集合差与几何助手 `present_hand_row`／`present_hand_rows`／`present_hand_nodes`／`present_hand_styles`／`present_hand_children`／`present_hand_lost`／`present_hand_delta`／`present_hand_seat`／`present_hand_slot`／`present_hand_given`／`present_hand_source_text` 与源文本判据）；改写 `DISPLAY present hand rebuilds the card when the presentation key changes` 一条；**本轮复核（bunny 2.3／2.4）裁定的夹具与判据调整由本次审查裁定授权**：E7 夹具前提改由投影 `view.hand[i].draw_serial` 驱动（不再强改 `ui.card_draw_serials`，`ui.card_draw_serials` 只在 E8 里作为前提归零）、断言消息措辞、E8 断言体（恒真式 → 实例 id ＋ 八个直接子级）、N2／E9 夹具（起始面预置与幽灵条目 `card_ghost`／`candidate_buttons` 悬空项）——判据面不变、不弱化既有断言；**本轮（手牌崩溃修复审计裁定）新增** P4 段（条件内容标签跨空边界的可达夹具：真→假→真只许该标签销毁／新建，其余实例不变）并把翻面夹具显式限定为"起点面没有一面独有的条件内容标签"的往返 | 其余既有断言不删不改；`present_routes_hand_or_full` 的 `get_view` 计数断言不放宽；不新增分类文件、不改 `tests/ui_smoke.gd` 的 `UI_MODULES` |
 | `tests/interface_ui_cases.gd` | 新增卡面 setter 逐字段幂等与布局重算断言（含 N3 的真尺寸分支） | 既有卡面布局／卡图扫描（`get_node` 路径、`CardMana` 子节点数＝该面条目数、`art_bottom` 比例、滚动可达性）不删不改 |
 | `tests/card_power_ui_cases.gd`、`tests/binding_search_ui_cases.gd`、`tests/body_layout_ui_cases.gd` | 默认**零改动**（仅当就地更新暴露真实错值时才新增断言） | 翻面后 `visible_text` 只含当前面；`BIND SEARCH UI flipping shows full free effect`；`FOCUS face flip retains the hand control` |
 | `docs/spec/response-pipeline.md` | `hand` 节键行改写为「先 `ui/main.gd::_sync_card_faces`，再按固定顺序：每卡窄键＋成员增删＋幂等重排」；缓存清单补面缓存与失效规则；节键成本句补每卡键；证据入口场景 3 给 hand 加限定（每卡键变 ⇒ 该卡按重建边界表处理，不整节替换） | 其余节与场景编号不变；不写执行结果；被取代的措辞删改而不加「更正」段 |
@@ -56,7 +56,7 @@
 
 - 用「退回整行重建／整节全量」处理任何值变化或顺序变化（含失灵修复：只修失灵的那一张或切行态）。
 - 把 `_hand_key_hit` 的一致性守卫当变更判据；在 `ui/card_face.gd` 里嗅探差异（读节点自身文本）或读 `game.state`。
-- 步骤「逐卡」里 free／新建卡面节点或 `StyleBox`；`set_mana` 保留每次重建；把卡面内容收进每面子容器（双面节点树）。
+- 步骤「逐卡」里 free／新建卡面节点或 `StyleBox`（**内容差额触发的该条件内容标签销毁／新建不在此列**，见允许改动表 `ui/card_face.gd` 行；该例外之外仍不得 free／新建）；`set_mana` 保留每次重建；把卡面内容收进每面子容器（双面节点树）。
 - 每卡窄键里放 View 级切片（候选／身体／装备／`view.card_costs`）、`version`、纹理或译文文本本体；
   面缓存里放节点引用或纹理；面缓存无 `button_id` 守卫地跨按钮实例存活。
 - 在 `ui/` 别处再写一份卡面文案拼装或第二份行键／每卡键；改 `_submit`／`present`／`render` 的先后语义与失败分支；
@@ -73,13 +73,19 @@
 
 ## 自检清单（实现者交付前逐条对照）
 
-- 一次只改值的提交（`availability[面].text` 变）后：同 uid 按钮实例 id 不变、子树实例 id 集合不变、
-  `position`／`home`／`rotation` 不变、内容等于新值、`get_view` 计数不变。
+- 一次只改值且内容占用不变的提交（如 `availability[面].text` 在同可用状态内变）后：同 uid 按钮实例 id 不变、子树实例 id 集合不变、
+  `position`／`home`／`rotation` 不变、内容等于新值、`get_view` 计数不变。内容占用跨空边界（该面由可用变不可用或反之）时，
+  只允许该条件内容标签（`CardWarning`／`CardAvailability`）销毁或新建，其余实例不变。
 - 一次纯顺序变（`view.hand` 顺序变）后：全部实例 id 不变、零增删、位置成对换到新槽位；再 `present` 一次零写入。
 - 一次出牌／抽牌后：只有涉及 uid 的按钮被释放／新建，存活 uid 实例 id 不变，位置按新张数几何；
   `card_buttons`／`candidate_buttons`／`card_faces`／`card_draw_serials`／`_hand_cards` 只含当前手牌 uid。
 - 翻面两次（翻出再翻回）：按钮与八个直接子节点实例 id 不变；未变魔力条目的徽章节点与
-  `get_theme_stylebox_override("panel")` 样式资源实例 id 不变；翻回零增删；每个 (card, side) 切片构造 ≤ 1 次。
+  `get_theme_stylebox_override("panel")` 样式资源实例 id 不变；**实例集合的增删只允许来自条件内容标签
+  （`CardWarning`／`CardAvailability`）的跨空边界重建**：起点面没有**一面独有的**条件内容标签
+  （两面都没有，或两面都有且存活）的往返零增删（`tests/display_ui_cases.gd::present_hand_incremental`
+  的翻面夹具按此前提挑选并断言前提）；
+  起点面独有该标签的往返（如一面可用、另一面不可用）只许该标签销毁后新建，其余实例不变
+  （同函数 P4 段的跨面夹具钉住这条）。每个 (card, side) 切片构造 ≤ 1 次。
 - 只看值字段变化时：`_hand_place_row`（本片新增的重排入口）未被调用（几何键未变）；`fit_text`／头栏布局只在相关字段变时才跑。
 - `symbol`／`type` 变与卡增删只重建该 uid；`render` 全量路径仍经 `ui/main.gd::_hand`。
 - 手牌路径的卡数据只经 `ui/main.gd::card_entry`（缺键夹具下不崩、`ui.projection_misses` 有具名记录）。

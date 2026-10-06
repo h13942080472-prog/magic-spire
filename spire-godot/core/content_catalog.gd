@@ -366,7 +366,7 @@ static func _event_references(g, e: Dictionary, data: Dictionary) -> String:
   if cleanup.key not in held_keys: return "cleanup_effects 引用了从未建立的暂存 key。"
  for key in held_keys:
   if not event.get("cleanup_effects",[]).any(func(effect):return effect.key==key): return "暂存装备必须在 cleanup_effects 中原样归还。"
- # §3.3 (A33): a jump keeps the source holds, so a hold key has to stay unique along the whole
+ # docs/spec/event-pipeline.md「事件链」(A33): a jump keeps the source holds, so a hold key has to stay unique along the whole
  # chain, not only inside one definition. The path walk below covers every jump path of this
  # definition; cleanup_effects staying inside its own key set is already enforced above.
  return _chain_hold_key_issue(g,data,e.id)
@@ -421,7 +421,7 @@ static func _jump_targets(g, event: Dictionary) -> Array:
 static func _next_ends_event(next) -> bool:
  return not next is String or next=="result"
 
-# §3.2: next is "result", a later node of this definition, or {"event","node"} — a jump to
+# docs/spec/event-pipeline.md「事件链」: next is "result", a later node of this definition, or {"event","node"} — a jump to
 # another registered event's node. The in-definition form keeps the forward-only rule; the
 # cross-event form resolves against the compiled batch and refuses a self-reference.
 static func _flow_next(next, current: int, stage_ids: Array, event_id: String, data: Dictionary) -> String:

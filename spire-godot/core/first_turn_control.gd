@@ -45,7 +45,7 @@ static func _tag(c: Dictionary, d: Dictionary) -> Dictionary:
  result.control_next=d.duplicate(true)
  return result
 
-# 接管步骤的唯一选择（docs/spec/candidate-removal.md §2.1 T5／T9；批 R5 行载体删除后）：输入＝投影显示事实
+# 接管步骤的唯一选择（docs/spec/candidate-removal.md「接口」T5／T9；批 R5 行载体删除后）：输入＝投影显示事实
 # （已带判定结论），输出＝标注 automated／control_next 的那一步＋其余各条 merge 接管锁结论。本文件不写
 # valid／reason：阻断结论来自唯一判定的 core/game.gd::eligibility_takeover。
 static func select(g, facts: Array) -> Array:

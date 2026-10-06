@@ -41,12 +41,12 @@ func copy_seed() -> String          # = DisplayServer.clipboard_set(seed_report_
 ui.seed_copied_until: int           # 复制反馈的显示截止（msec）
 ```
 
-- **校验沿用通用字段校验**：`Snapshot.check` 的 `for key in g.state` 循环已要求 `initial_seed` 存在且为
-  `int`（string／float 一律拒绝，文案沿用「基础数值记录不正确。」）。`core/snapshot.gd` **零改动**；
-  `Snapshot.REVISION` **不升**（升版会把既有玩家存档判为不兼容）；**不得**把 `initial_seed` 加入
-  `character_id` 一类的豁免名单。
+- **校验沿用通用字段校验**：`Snapshot.check` 的逐字段循环要求 `initial_seed` 存在且为 `int`。
+  `core/snapshot.gd` 零改动；`Snapshot.REVISION` 不升（升版会把既有玩家存档判为不兼容）；
+  不得把 `initial_seed` 加入 `character_id` 一类的豁免名单。
 - **旧档且只旧档回填**：缺 `initial_seed` 的档按当时的 `state.seed` 回填；缺 `save_revision` 或
-  修订号不符的档仍按既有规则拒绝，不因回填规则放宽。
+  修订号不符的档仍按既有规则拒绝（判据：`SAVE legacy save without initial_seed loads and backfills from seed`
+  与 `SAVE initial_seed uses the shared field check`，落点见「证据入口」）。
 - `_scene_key` **不变**（仍只用既有键）：`initial_seed` 在单局内恒定，加入不改变固定点身份语义。
 - 次数口径：出狱返塔与出口「继续游玩」都会重建塔路并使 `tower_generation + 1`；新局与练习局从 0 起。
   「第 N 次塔路」＝`tower_generation + 1`，由显示层计算，core 不新增派生字段。

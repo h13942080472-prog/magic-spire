@@ -72,4 +72,4 @@
 
 ## 6. 实现与验证入口
 
-`Prison.execute` 与事件助手一样返回错误字符串，经原 `dispatch` 检查与原子回滚；空间探索权威状态在 `prison.space`，蒙眼投影不泄露坐标与目标距离。测试归 `prison`、`tower_progression`（含 demo 出口）、`exploration`（含牢房空间），关联 `guard`／`enemies`／`status`／`persistence`／`content`／`application`／`replacement`／`installed_tools`／`services`／`events`；窗口归 `prison`。检查命令见 `.zcode/skills/repo-ops/SKILL.md`。
+`Prison.execute` 与事件助手一样返回错误字符串，经原 `dispatch` 检查与原子回滚；空间探索权威状态在 `prison.space`，蒙眼投影不泄露坐标与目标距离。测试归 `prison`、`tower_progression`（含 demo 出口）、`exploration`（含牢房空间），关联 `guard`／`enemies`／`status`／`persistence`／`content`／`application`／`replacement`／`installed_tools`／`services`／`events`；窗口归 `prison`。检查命令见 `skills/repo-ops/SKILL.md`。

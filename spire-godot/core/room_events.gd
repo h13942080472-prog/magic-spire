@@ -2,7 +2,7 @@ extends RefCounted
 const Data=preload("res://data/room_events.gd")
 const Relics=preload("res://data/relics.gd")
 const RESULT_STATUSES=["neutral","success","failure"]
-# §3.3: the player-visible reason of the chain-loop gate, declared once.
+# docs/spec/event-pipeline.md「事件链」: the player-visible reason of the chain-loop gate, declared once.
 const CHAIN_LOOP_REASON="这段事件已经走过，不能再回头。"
 
 # Internal phase helper, called only through Game.dispatch. Choices contain frozen
@@ -42,7 +42,7 @@ static func start(g, id: String="") -> void:
   event.result_status="failure"
  g._emit("event","进入"+Data.TYPES[id].name+"。")
 
-# §3.3 (A32): the relic an instance may grant belongs to the definition that owns the instance,
+# docs/spec/event-pipeline.md「事件链」(A32): the relic an instance may grant belongs to the definition that owns the instance,
 # so an arrival and a chain jump compute it the same way: a definition whose options offer a
 # relic reward with a non-empty pool spends exactly one draw, every other definition stays
 # empty. Recomputing after a jump is what keeps the target from naming the source's relic.
@@ -71,7 +71,7 @@ static func node_ids(spec: Dictionary) -> Array:
  for entry in spec.get("nodes",[]): ids.append(entry.get("id",""))
  return ids
 
-# §3.2: the single interpreter of a declared next target: the "result" sentinel that ends the
+# docs/spec/event-pipeline.md「事件链」: the single interpreter of a declared next target: the "result" sentinel that ends the
 # event (also the missing value), another node of this definition, or {"event","node"} — a
 # jump to another registered event. Callers never read the authored shape themselves.
 static func next_target(next) -> Dictionary:
@@ -79,7 +79,7 @@ static func next_target(next) -> Dictionary:
  if next is String and next!="result": return {"kind":"node","node":next,"event":""}
  return {"kind":"result","node":"","event":""}
 
-# §3.3: the chain cleanup is the union of every cleanup step of the chain, one entry per key,
+# docs/spec/event-pipeline.md「事件链」: the chain cleanup is the union of every cleanup step of the chain, one entry per key,
 # source definition first. Leaving runs each step once, so a key must never repeat.
 static func chain_cleanup(current: Array, target: Array) -> Array:
  var result=current.duplicate(true)
@@ -88,7 +88,7 @@ static func chain_cleanup(current: Array, target: Array) -> Array:
   result.append(entry.duplicate(true))
  return result
 
-# §3.2／§3.3: the single advance entry for a resolved target; a node target reuses the node
+# docs/spec/event-pipeline.md「事件链」／「接口」: the single advance entry for a resolved target; a node target reuses the node
 # pipeline, an event target rewrites this instance into the chain first. "arrival" is the
 # real advance, "next_probe" is the caller-owned look-ahead of probe_result (A31).
 static func enter_target(g, target: Dictionary, purpose: String="arrival") -> Dictionary:
@@ -97,7 +97,7 @@ static func enter_target(g, target: Dictionary, purpose: String="arrival") -> Di
  if target.get("kind","")=="result": return {"issue":"","gate":"","detail":""}
  return enter_node_result(g,str(target.get("node","")),purpose)
 
-# A real cross-event jump keeps one instance (§3.3): the target becomes the current
+# A real cross-event jump keeps one instance (docs/spec/event-pipeline.md「事件链」): the target becomes the current
 # definition, counters and holds continue, cleanup becomes the chain union, the relic is
 # recomputed from the target definition (A32), event_seen gains the target, the flow mirror
 # follows the new definition, and chain records the events already left behind — the key
@@ -147,7 +147,7 @@ static func condition_saved_fields(kind: String) -> Array:
 
 # Author spelling plus node policy become canonical entries in declaration order.
 # Only state conditions live here; instance conditions (when), the relic gate and the
-# feasibility probe stay at their fixed evaluation steps (§4.3).
+# feasibility probe stay at their fixed evaluation steps (docs/spec/event-pipeline.md「求值顺序（顺序是判据的一部分）」).
 static func condition_entries(node: Dictionary, choice: Dictionary) -> Array:
  var entries=[]
  var declared=choice.get("conditions",[])
@@ -173,7 +173,7 @@ static func condition_entries(node: Dictionary, choice: Dictionary) -> Array:
   entries.append(canonical)
  return entries
 
-# Mode resolution for a compatibility state condition (§5.3 priority 2 and 3).
+# Mode resolution for a compatibility state condition (docs/spec/event-pipeline.md「输入域」选项级字段 mode 解析, priorities 2 and 3).
 static func _state_mode(node: Dictionary, choice: Dictionary) -> String:
  if choice.get("unavailable","")=="hide": return "hidden"
  if choice.get("unavailable","")=="disable": return "optional"
@@ -256,7 +256,7 @@ static func evaluate_option(g, request: Dictionary) -> Dictionary:
    if condition_probe(g,entry) and (purpose!="execute" or mode=="optional"):
     gates.append({"gate":"availability_unmet","kind":entry.get("kind",""),"mode":mode,"index":index,"detail":"","reason":str(entry.get("reason",""))})
    index+=1
-  # §3.3: the chain may not return to an event it already left. The option stays visible but
+  # docs/spec/event-pipeline.md「事件链」: the chain may not return to an event it already left. The option stays visible but
   # disabled, so the loop is refused at the candidate stage instead of silently disappearing.
   var chain_target=next_target(options[0].get("next","result"))
   if purpose!="execute" and chain_target.kind=="event" and chain_target.event in Array(g.state.room_event.get("chain",[])):
@@ -287,7 +287,7 @@ static func _decision(gates: Array) -> String:
  return "generated"
 
 # One hit keeps its authored wording; several optional hits are joined in declaration
-# order with newlines (§5.3). A feasibility hit keeps its probe wording as before.
+# order with newlines (docs/spec/event-pipeline.md「叠加求值」). A feasibility hit keeps its probe wording as before.
 static func _joined_reason(gates: Array) -> String:
  var reasons=gates.map(func(hit):return str(hit.get("reason",""))).filter(func(text):return text!="")
  return "\n".join(reasons)
@@ -331,13 +331,13 @@ static func request_for(g, option: Dictionary, purpose: String) -> Dictionary:
 
 # Freeze one authored choice (or one selection of it) into a concrete option.
 static func freeze_one(g, node_entry: Dictionary, choice: Dictionary, selected={}, outcome: Dictionary={}) -> Dictionary:
- # A selector option has always been frozen through the shared staged builder (§1.1 P2),
+ # A selector option has always been frozen through the shared staged builder (docs/spec/event-pipeline.md「节点级字段」布局判据),
  # so the layout follows the selector as well as the declared form.
  if node_entry.get("frozen_form","in_place")=="in_place" and not choice.has("selector"): return _freeze_in_place(g,node_entry,choice,selected,outcome)
  return _freeze_staged(g,node_entry,choice,selected,outcome)
 
 # The in-place layout: the author object is the frozen option, updated in place, so its key
-# set and key order stay exactly what the author wrote (§0.2 digest constraint).
+# set and key order stay exactly what the author wrote (docs/spec/event-pipeline.md「存档表示」digest constraint).
 static func _freeze_in_place(g, node_entry: Dictionary, choice: Dictionary, selected={}, outcome: Dictionary={}) -> Dictionary:
  var drawn=outcome
  if drawn.is_empty() and choice.has("outcomes"): drawn=weighted(g,choice.outcomes)
@@ -403,7 +403,7 @@ static func _freeze_staged(g, node_entry: Dictionary, choice: Dictionary, select
  if not selected_rows.is_empty(): option.selected=selected.duplicate(true)
  return {"ok":true,"option":option}
 
-# Kept entry point for callers that freeze an authored choice without a node (§7.1).
+# Kept entry point for callers that freeze an authored choice without a node.
 static func freeze_choice(g, definition: Dictionary, selected={}, fixed_outcome: Dictionary={}) -> Dictionary:
  var frozen=_freeze_staged(g,{"outcome_draw":"option","frozen_form":"staged"},definition,selected,fixed_outcome)
  return {} if not frozen.ok else frozen.option
@@ -416,7 +416,7 @@ static func enter_node(g, id: String) -> String:
 
 # One implementation of the node pipeline; the string form above is its issue projection.
 # The purpose is the caller's declaration: a real advance uses "arrival", the next-node
-# look-ahead of probe_result passes "next_probe" (§4.5 A31).
+# look-ahead of probe_result passes "next_probe" (docs/spec/event-pipeline.md「接口」probe 检查清单, A31).
 static func enter_node_result(g, id: String, purpose: String="arrival") -> Dictionary:
  var spec=definition(g.state.room_event.get("id",""))
  var node_entry=node(spec,id)
@@ -429,7 +429,7 @@ static func enter_node_result(g, id: String, purpose: String="arrival") -> Dicti
   var selections=selections_for(g,choice)
   if selections.is_empty():
    # A selector that expands to nothing still goes through the entry, so the
-   # selector_empty gate and its trace row exist (§4.2／§10 scenario 03).
+   # selector_empty gate and its trace row exist (docs/spec/event-pipeline.md「结果词汇与具名 gate」；check＝tests/event_cases.gd::event_gate_names_are_total).
    evaluate_option(g,{"definition":spec,"node":node_entry,"choice":choice,"selected":{},"purpose":"arrival","outcome":{}})
    continue
   # outcome_draw=="option" spends exactly one draw for the whole choice, then copies it.
@@ -448,7 +448,7 @@ static func enter_node_result(g, id: String, purpose: String="arrival") -> Dicti
  return {"issue":"","gate":"","detail":""}
 
 
-# Debug-only trace (§4.5): a switch plus an array on the game instance, never in state,
+# Debug-only trace (docs/spec/event-pipeline.md「trace（debug 开关）」): a switch plus an array on the game instance, never in state,
 # never in a View, never saved, never rendered. They live in object metadata because
 # core/game.gd is outside this batch; the names are the contract's.
 static func trace_enabled(g) -> bool:
@@ -616,7 +616,7 @@ static func selector_values(g, selector: Dictionary) -> Array:
     if selector.get("exclude_curses",false) and g.B.CARD_TRAITS.get(card.type,{}).get("curse",false): continue
     result.append({"id":card.uid,"name":g.B.CARD_NAMES[card.type],"type":card.type,"kind":"card","slot":"卡组"})
   "restraint":
-   # §3.1 item 6: only this display branch reads equipment; the card branch reads the deck.
+   # docs/spec/equipment-query-seam.md「作用域进出点（冻结名单）」: only this display branch reads equipment; the card branch reads the deck.
    var previous=g._begin_equipment_read()
    for item in g.physical_pieces():
     if item.durability<=0: continue
@@ -688,7 +688,7 @@ static func compile(g, recipe: String) -> Array:
    var effect=pick(g,ordinary(g,1,true,["rope","belt"]))
    return [] if effect.is_empty() else [effect]
   "tighten_or_medium":
-   # §3.1 item 7: only this filter expression is a read scope; the locked_assembly branch
+   # docs/spec/equipment-query-seam.md「作用域进出点（冻结名单）」: only this filter expression is a read scope; the locked_assembly branch
    # below swaps state, so the function itself must not be wrapped.
    var previous=g._begin_equipment_read()
    var targets=g.physical_pieces().filter(func(e):return g._can_tighten(e))
@@ -958,7 +958,7 @@ static func append_choice_fact(g, out: Array, option: Dictionary) -> void:
  out.append(g._fact({"kind":"event","action":"choose","choice":option.id},option.label,{"kind":"event.choice","args":choice_args,"fallback":choice_detail(g,choice_args)},0,0.0,reason,"","event"))
  if result.decision=="disabled" and not result.gates.is_empty() and result.gates.all(func(hit):return CONDITIONS.has(hit.kind)): out.back().reason_surface="secondary"
 
-# R4（docs/ondemand-copy.md §11.5）：直呼点文案改走路由，正文留在本模块。
+# R4（docs/ondemand-copy.md「文案路由（收口阶段）」）：直呼点文案改走路由，正文留在本模块。
 static func choice_detail(g, args: Dictionary) -> String:
  var option_id=String(args.get("option_id",""))
  for option in g.state.room_event.get("options",[]):
@@ -974,7 +974,7 @@ static func prepare_detail(g, args: Dictionary) -> String:
 static func probe_cleanup(g) -> String:
  return probe(g,g.state.room_event.get("cleanup_effects",[]),{},true)
 
-# 事件显示事实（批 R5：行生产转发改显示事实构建，docs/spec/candidate-removal.md §2.1 T5／T8）。
+# 事件显示事实（批 R5：行生产转发改显示事实构建，docs/spec/candidate-removal.md「接口」T5／T8）。
 static func facts(g) -> Array:
  var out=[]
  var event=g.state.room_event

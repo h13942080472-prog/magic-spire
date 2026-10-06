@@ -394,7 +394,7 @@ static func discharge(g, id: String) -> void:
 static func control_done_fact(g) -> Dictionary:
  return g.display_fact(g._fact({"kind":"relic_control_done"},"接管结束",{"kind":"relic.control_done","args":{}},0,0.0,"","","relic"))
 
-# 遗物显示事实（批 R5：行生产转发改显示事实构建，docs/spec/candidate-removal.md §2.1 T5／T8）。
+# 遗物显示事实（批 R5：行生产转发改显示事实构建，docs/spec/candidate-removal.md「接口」T5／T8）。
 static func facts(g) -> Array:
  var out=[]
  if g.state.phase in ["cleared","prison_end","captured","inspection"] or g.state.overloaded or not g.state.card_chain.is_empty() or g.state.pending_retain: return out

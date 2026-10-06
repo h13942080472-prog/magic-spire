@@ -2,1045 +2,632 @@
 
 > 路径说明：本卷正文保留撰写当时的文件路径（旧 `docs/<名>.md` 现按类归入 `docs/spec|design|guide|record|history/`）；需要定位时按文件名搜索。
 
-
-归档：仅追溯用，不是现行指令。现行口径见 `verification.md`；2026-09-11～09-13 见 `verification-2026-09-13.md`。
-
-- 计数：09-10 130 条、09-09 23 条、09-08 16 条、09-07 34 条。
-- 文件名沿用批次命名；2026-09-06 的「覆盖范围」正文属现行口径，留在现行卷，未计入本卷。
-- 正文逐字保留，仅把标题内的日期统一到标题前并补「域」行（无路径者按主题词归类）。
-- 文内链接为迁移前相对路径（原 `docs/` 同目录），未按新目录改写。
+归档：仅追溯用，不是现行指令；现行口径见 `docs/record/verification.md`。
+**证据索引**（2026-10-05 重写）：格式同现行卷（日期＋标题＋「域」行＋证据句＋未跑项＋失败与不作证据轮）；
+叙述性展开已删，保留句逐字未改；文内链接为迁移前相对路径。
 
 ## 2026-09-10 顶部警戒等级
-
 域：界面、检查与测试。
-
-- HeaderSecurity位于距墙右侧，显示只读view.security；无新增状态或结算。沿interface现有run_header案例检查初值、变化后3级及与相邻文字／状态按钮不重叠，相关检查通过。
-- 完整interface窗口分类执行461项，日志build/checks/20260910T135530037-63064/check-ui.log。整组未通过：并行新增shopkeeper.png当时未导入，以及原posture_controls要求按钮始终含“少耗1能量”，与当前紧凑布局仅stride>=48显示的实现不一致。本批已完成资源导入，未修改无关姿势布局／断言；不得将整组记为通过。
+- 完整interface窗口分类执行461项，日志build/checks/20260910T135530037-63064/check-ui.log。本批已完成资源导入，未修改无关姿势布局／断言；不得将整组记为通过。
 
 ## 2026-09-10 魅魔的魔力典当铺插图接入与配图核对
-
 域：压力与快感、角色与美术。
 
 ## 2026-09-10 翘腿无视正式卡图
-
 域：`ui/event_screen.gd`、`data/room_events.gd`。
-
-- 本地OpenCV／Pillow抠图，保留源像素和完整坐姿、饮料、吸管；精修座面阴影和手臂下真实背景空隙，白色丝袜与杯子反光保留。正式透明PNG登记到已有FORMAL_ART，原CardFace背景、比例、两面文字与测试版SVG保持。未调用imagegen，未修改源文件。
-- 已查看暗色合成预览与实际卡面截图。home既有逐项画风检查追加正式图默认选中、RGBA透明、两面同图、测试版来回切换及游戏状态不变；未为纯素材新增规则测试。
 - ListOnly后执行Import及完整home窗口检查，108项通过，退出0且无引擎错误：build/checks/20260910T134747394-49700/check-ui.log。唯一窗口截图build/ui-crossed-legs-formal.png，人物完整落在原插图区，无白底、座面块或拉伸。
-
 - 用户提供的 `00093-2888790767.png` 原样复制到 `assets/art/event-succubus-magic-pawnshop-v1.png`，源图与项目副本SHA256一致；通过现有 `ARTWORK` 映射接入正式事件和练习，完整等比显示，不改变事件效果和文案。
-- 先ListOnly确认events窗口范围，再执行 `tools/check.ps1 -Import -UIOnly -UISuite events -TimeoutSeconds 240`。纹理导入成功，完整events窗口分类163项通过、退出0且无引擎错误；日志 `build/checks/20260910T132922635-42664/`。复用现有检查，无新增截图。
-- 核对当前 `content/packs` 中12个event定义与 `ui/event_screen.gd::ARTWORK`，全部已有对应插图；`data/room_events.gd` 基础表为空，事件来自内容包，无遗漏的内置事件。
+- 先ListOnly确认events窗口范围，再执行 `tools/check.ps1 -Import -UIOnly -UISuite events -TimeoutSeconds 240`。纹理导入成功，完整events窗口分类163项通过、退出0且无引擎错误；日志 `build/checks/20260910T132922635-42664/`。
 
 ## 2026-09-10 神秘女人的雕像插图接入
-
 域：角色与美术、界面。
-
 - 用户提供的 `00091-1968829285.png` 原样复制到 `assets/art/event-mysterious-woman-statue-v1.png`，源图与项目副本SHA256一致；通过现有 `ARTWORK` 映射接入正式事件和练习，完整等比显示，不改变事件效果和文案。
-- 先ListOnly确认events窗口范围，再执行 `tools/check.ps1 -Import -UIOnly -UISuite events -TimeoutSeconds 240`。纹理导入成功，完整events窗口分类163项通过、退出0且无引擎错误；日志 `build/checks/20260910T132535194-42248/`。复用现有检查，无新增截图。
+- 先ListOnly确认events窗口范围，再执行 `tools/check.ps1 -Import -UIOnly -UISuite events -TimeoutSeconds 240`。纹理导入成功，完整events窗口分类163项通过、退出0且无引擎错误；日志 `build/checks/20260910T132535194-42248/`。
 
 ## 2026-09-10 缚梦客房插图接入
-
 域：角色与美术、界面。
-
 - 用户提供的 `00090-3863653336.png` 原样复制到 `assets/art/event-bound-dream-guest-room-v1.png`，源图与项目副本SHA256一致；通过现有 `ARTWORK` 映射接入正式事件和练习，完整等比显示，不改变事件效果和文案。
-- 先ListOnly确认events窗口范围，再执行 `tools/check.ps1 -Import -UIOnly -UISuite events -TimeoutSeconds 240`。纹理导入成功，完整events窗口分类163项通过、退出0且无引擎错误；日志 `build/checks/20260910T132229627-41320/`。复用现有检查，无新增截图。
+- 先ListOnly确认events窗口范围，再执行 `tools/check.ps1 -Import -UIOnly -UISuite events -TimeoutSeconds 240`。纹理导入成功，完整events窗口分类163项通过、退出0且无引擎错误；日志 `build/checks/20260910T132229627-41320/`。
 
 ## 2026-09-10 玩偶师与召唤人偶正式立绘
-
 域：角色与美术、界面。
-
-- 用户00097-4167223127.png经本地白底遮罩生成1536×2304的enemy-puppeteer-formal-v1.png；31231231.png逐边描出人偶，去掉旁侧披风，生成331×430的enemy-puppet-formal-v1.png。未调用imagegen、未重绘源图；暗底检查白发、手指、面部、牵线及闭合白底空隙，保护原画高光。
-- 两个正式图片登记已有FORMAL_ART，沿现有独立偏好与Arena／图鉴入口；玩偶师使用竖幅显示位置，召唤人偶沿原尺寸。原SVG保留。沿原召唤案例更新默认图断言，追加人偶独立切换且不改变召唤者图片的检查，不增加规则接口或玩法字段。
-- tools/check.ps1 -Import -UIOnly -UISuite home,enemies -Screenshots ui-puppet-formation.png -TimeoutSeconds 300：完整home 103项、enemies 201项，共304项通过，退出0且无引擎错误。日志build/checks/20260910T134431772-58408/check-ui.log。只生成一张同场截图，复核人物和独立人偶均正常显示；无规则变更，不扩跑规则全量。
+- 沿原召唤案例更新默认图断言，追加人偶独立切换且不改变召唤者图片的检查，不增加规则接口或玩法字段。
+- tools/check.ps1 -Import -UIOnly -UISuite home,enemies -Screenshots ui-puppet-formation.png -TimeoutSeconds 300：完整home 103项、enemies 201项，共304项通过，退出0且无引擎错误。日志build/checks/20260910T134431772-58408/check-ui.log。
 
 ## 2026-09-10 六缚正式立绘与逐项画风
-
 域：角色与美术、界面。
-
-- 仅修改图片、显示偏好与共用绘图入口。用户提供的00095-2191451330.png经本地Pillow/NumPy遮罩及白底去色生成1536×2304透明PNG（约1.92MiB）；未调用imagegen，源图未改。首次遮罩误伤浅色皮肤，已修正并重新检查暗底预览及战斗画面，保留人物、六个法阵与半透明边缘。
-- 图鉴按cards/enemies＋类型ID独立保存；正式图缺失时明确禁用，已有图默认正式版。沿现有display-settings.cfg保存偏好，CardFace/Arena按信号即时刷新，未增加游戏状态、行动接口或旧档迁移。规则数值、回合、资源、敌人身份、随机与游戏存档不变。
 - 窗口分类display完整21项、home完整103项通过，包含独立保存恢复、图鉴来回切换、缺图提示及状态不变；日志build/checks/20260910T133048055-13712/check-ui.log。该批随后因新增敌人显示案例误用不存在的练习按钮失败，已改为复用现有six_bind_cases遭遇夹具；不增加生产入口。
-- 完整enemies窗口分类复验199项通过、退出0且无引擎错误：build/checks/20260910T133248948-18720/check-ui.log。只输出并人工检查ui-six-bind-formal.png一张战斗截图；图片已导入。无规则变更，不扩大运行规则全量。
+- 完整enemies窗口分类复验199项通过、退出0且无引擎错误：build/checks/20260910T133248948-18720/check-ui.log。
 
 ## 2026-09-10 拘束具堆里的微光插图接入
-
 域：装备与解除、角色与美术。
-
 - 用户提供的 `00089-3699988499.png` 原样复制到 `assets/art/event-bound-adventurer-relic-v1.png`，源图与项目副本SHA256一致；通过现有 `ARTWORK` 映射接入正式事件和练习，完整等比显示，不改变事件效果和文案。
-- 先ListOnly确认events窗口范围，再执行 `tools/check.ps1 -Import -UIOnly -UISuite events -TimeoutSeconds 240`。纹理导入成功，完整events窗口分类163项通过、退出0且无引擎错误；日志 `build/checks/20260910T131930895-43148/`。复用现有检查，无新增截图。
+- 先ListOnly确认events窗口范围，再执行 `tools/check.ps1 -Import -UIOnly -UISuite events -TimeoutSeconds 240`。纹理导入成功，完整events窗口分类163项通过、退出0且无引擎错误；日志 `build/checks/20260910T131930895-43148/`。
 
 ## 2026-09-10 缚疗修女插图接入
-
 域：角色与美术、界面。
-
 - 用户提供的 `00088-549235516.png` 原样复制到 `assets/art/event-binding-cleric-v1.png`，源图与项目副本SHA256一致；通过现有 `ARTWORK` 映射接入正式事件和练习，完整等比显示，不改变事件效果和文案。
-- 先ListOnly确认events窗口范围。纹理导入成功；初验发现原窗口案例将修女固定为无图占位，已将该断言更新为实际贴图路径及等比显示检查，不新增用例或截图。初验日志 `build/checks/20260910T131441267-51972/`。
+- 纹理导入成功；初验发现原窗口案例将修女固定为无图占位，已将该断言更新为实际贴图路径及等比显示检查，不新增用例或截图。初验日志 `build/checks/20260910T131441267-51972/`。
 - 复验 `tools/check.ps1 -UIOnly -UISuite events -TimeoutSeconds 240` 完整events窗口分类163项通过、退出0且无引擎错误；日志 `build/checks/20260910T131647136-62828/`。
 
 ## 2026-09-10 女药师的试饮摊插图接入
-
 域：角色与美术、界面。
-
 - 用户提供的 `00087-1686288904.png` 原样复制到 `assets/art/event-alchemist-tasting-stall-v1.png`，源图与项目副本SHA256一致；通过现有 `ARTWORK` 映射接入正式事件和练习，完整等比显示，不改变事件效果和文案。
 - 先ListOnly确认events窗口范围，再执行 `tools/check.ps1 -Import -UIOnly -UISuite events -TimeoutSeconds 240`。纹理导入成功，完整events窗口分类163项通过、退出0且无引擎错误，日志位于 `build/checks/20260910T131110739-63844/`；复用现有检查，无新增截图。
 
 ## 2026-09-10 魅纹师的空房插图接入
-
 域：角色与美术、界面。
-
 - 用户提供的 `00086-4247279898.png` 原样复制到 `assets/art/event-enchanters-empty-studio-v1.png`，源图与项目副本SHA256一致；通过现有 `ARTWORK` 映射接入正式事件和练习，完整等比显示，不改变事件效果和文案。
-- 先ListOnly确认events窗口范围，再执行 `tools/check.ps1 -Import -UIOnly -UISuite events -TimeoutSeconds 240`。纹理导入完成，完整events窗口分类163项通过；日志位于 `build/checks/20260910T130548739-62972/`。复用现有检查，无新增截图。
+- 先ListOnly确认events窗口范围，再执行 `tools/check.ps1 -Import -UIOnly -UISuite events -TimeoutSeconds 240`。纹理导入完成，完整events窗口分类163项通过；日志位于 `build/checks/20260910T130548739-62972/`。
 
 ## 2026-09-10 偷渡商人的魔药箱插图接入
-
 域：角色与美术、界面。
-
 - 用户提供的 `00085-558123539.png` 原样复制到 `assets/art/event-smuggled-mana-potions-v1.png`，源图与项目副本SHA256一致；通过现有 `ARTWORK` 映射接入正式事件和练习，完整等比显示，不改变事件效果和文案。
 - 先ListOnly确认events窗口范围，再执行 `tools/check.ps1 -Import -UIOnly -UISuite events -TimeoutSeconds 240`。纹理导入成功，完整events窗口分类163项通过、退出0且无引擎错误，记录在 `build/checks/20260910T130237552-63248/`；复用现有检查，无新增测试或截图。
 
 ## 2026-09-10 迷宫测绘队插图接入
-
 域：`ui/event_screen.gd`。
-
 - 将用户提供的 `00084-4094280623.png` 原样复制为 `assets/art/event-maze-survey-team-v1.png`，源图与项目副本 SHA256 一致；`ui/event_screen.gd::ARTWORK` 以稳定事件ID接入，正式事件与练习共用，沿原画框完整等比显示。
-- 在现有事件窗口用例中补充真实贴图路径与缩放方式检查，不新增截图。先以 `tools/check.ps1 -UIOnly -UISuite events -ListOnly` 核对范围，再执行 `-Import -UIOnly -UISuite events -TimeoutSeconds 240`；纹理导入成功，完整 events 窗口分类通过163项断言、退出0且无引擎错误，日志位于 `build/checks/20260910T125842194-45508/`。
+- 先以 `tools/check.ps1 -UIOnly -UISuite events -ListOnly` 核对范围，再执行 `-Import -UIOnly -UISuite events -TimeoutSeconds 240`；纹理导入成功，完整 events 窗口分类通过163项断言、退出0且无引擎错误，日志位于 `build/checks/20260910T125842194-45508/`。
 
 ## 2026-09-10 两张事件插图接入
-
 域：`ui/event_screen.gd`。
-
 - 将用户确认的二次元版废弃储物室、减少数量版漂浮皮带群复制到 `assets/art/event-abandoned-storeroom-v1.png` 与 `assets/art/event-floating-belt-cluster-v1.png`，两份原图与项目副本的 SHA256 分别一致。
-- 仅为 `ui/event_screen.gd::ARTWORK` 增加两个映射，正式事件与练习共用原事件画框；沿原完整等比缩放与鼠标忽略行为。事件正文、选项、数值、状态、随机和存档不变，原赌牌立绘保留。
-- 先以 `tools/check.ps1 -UIOnly -UISuite events -ListOnly` 核对范围，再执行 `-Import -UIOnly -UISuite events -TimeoutSeconds 240`。纹理导入成功，完整 events 窗口分类通过162项断言、退出0且无引擎错误；日志 `build/checks/20260910T125334872-58796/check-import.log` 与 `check-ui.log`。两事件的练习进入和原选择／结果流程均被现有分类覆盖；不新增镜像测试，不额外截图。
+- 先以 `tools/check.ps1 -UIOnly -UISuite events -ListOnly` 核对范围，再执行 `-Import -UIOnly -UISuite events -TimeoutSeconds 240`。纹理导入成功，完整 events 窗口分类通过162项断言、退出0且无引擎错误；日志 `build/checks/20260910T125334872-58796/check-import.log` 与 `check-ui.log`。
 
 ## 2026-09-10 向墙移动放在坐下上方
-
 域：塔路与地图、界面。
-
-- 战斗中的向墙移动位于右侧姿势列最上方，与坐下等宽、边缘对齐并间隔4像素。基础动作横栏仍为五项；坐姿有两个后续姿势时共享紧凑布局，保持在横栏下方、结束回合上方。非战斗入口不变。只重排原候选按钮，不改变移动资格、费用、回合、被动滑脱或提交管线。
-- wall窗口检查真实移动、位置与费用、贴墙后的姿势、坐姿多按钮边界；旧安装测试同步实际展开菜单及重新打开日志。先ListOnly确认basic_attacks／wall范围，最终窗口77项通过，退出0、无引擎错误：build/checks/20260910T134930684-56444/check-ui.log。已查看本批唯一代表截图build/ui-basic-action-rail.png，向墙移动位于坐下正上方。
+- 先ListOnly确认basic_attacks／wall范围，最终窗口77项通过，退出0、无引擎错误：build/checks/20260910T134930684-56444/check-ui.log。已查看本批唯一代表截图build/ui-basic-action-rail.png，向墙移动位于坐下正上方。
 
 ## 2026-09-10 种子标签
-
 域：界面、检查与测试。
 
-- 重新开始窗口的输入标签统一为“种子”，整数校验提示同步为“种子需要填写整数。”，说明改为“相同种子生成相同初始局面。”。仅修改显示文字，种子输入、校验和开局逻辑不变。静态检查ui／data／core已无“局面编号”和“同编号”旧表述；本次未运行游戏回归。
-
 ## 2026-09-10 专心致志与双拘束面
-
 域：界面、装备与解除。
-
-- 范围：新增罕见1费技能concentration、独立SVG、UNCOMMON来源；bound_modes／damage_growth声明双拘束面及本场按实体成长，原目标候选与预览、实际伤害、工具和复放共用。新增活牌damage_bonus，不改卡组；清理沿end_powers。验证非负整数及合法增量，快照拒绝坏成长数据；不迁移旧存档。
-- 界面／文案：face_names／free_faces区分选择位和实际自由效果，手牌／卡组／动画读取card_instances的当前基础伤害，图鉴和奖励读取模板值；第二面复用选择部位→目标，不直接走自由效果，实际对白按滑脱动作选择。日志具名报告成长，两面共用数值。费用、回合、随机域、材料、层级、锁、身体辅助、蓄力、被动及环境规则不变。
-- card_growth规则分类覆盖8→12→16、同名UID隔离、两面预览和实际伤害、拒绝不变、同场重抽、快照恢复／非法值、场末清理、休息第二面、无目标、合法免疫0伤、第二面免费复放与失效跳过。真实窗口验证右键、拖向人物后选择目标、只显示当前面目标、重抽数值、独立同名牌及卡组浏览。card_growth交叉区域含core／casting／equipment／rewards／content／persistence。
-- 新卡规则20项、窗口11项初验通过。初验发现测试沿用提交前的旧卡引用导致重抽丢失成长，已改为按UID获取当前实体；窗口正文实际读取face_effects，因此为实例投影补齐完整元数据，并让动画使用真实UID。复放目标扩展仅用于带成长或双拘束配置的卡，保留原连续牌的三字段记录格式。已查看唯一代表截图build/ui-concentration.png，两面名称、伤害和独立实体显示正确。
+- 验证非负整数及合法增量，快照拒绝坏成长数据；不迁移旧存档。
+- card_growth规则分类覆盖8→12→16、同名UID隔离、两面预览和实际伤害、拒绝不变、同场重抽、快照恢复／非法值、场末清理、休息第二面、无目标、合法免疫0伤、第二面免费复放与失效跳过。
+- 已查看唯一代表截图build/ui-concentration.png，两面名称、伤害和独立实体显示正确。
 - 最终card_growth／services／content及自动选入的交叉分类通过3969项断言、退出0且无引擎错误：build/checks/20260910T115431448-30572/check-rules.log。商店容量用例改为按实际剩余容量填充，而非假定初始背包为空；施法动作教程窗口断言同步现有的一只手自由文案，不修改遗物规则。完整casting／card_growth窗口复验通过211项、退出0且无引擎错误：build/checks/20260910T120235887-17512/check-ui.log。
 - 额外通用UI检查未全通过，不能报告全量绿色：同批interface完成457项且无失败；baseline仍有9项失败，涉及事件固定拒绝／离开遍历（3项）、未展开工具详情的安装及后续损耗（4项）、链接悬停旧共享耐久文案（1项）、单手套挂钩旧结构提示（1项）。记录于build/checks/20260910T115431448-30572/check-ui.log；这批未改动相应事件、工具安装、链接或挂钩规则，需在相应界面维护批次核对。该日志中的另1项施法遗物旧文案断言已由上述211项复验解决。
 
 ## 2026-09-10 行动日志文案整理
-
 域：界面、文案与本地化。
-
-- 文案批次：实付费用只读格式化，结果优先；统一施法成败说明、明确敌人剩余生命，精简开锁／解除／场次结束／遗物触发的重复规则。卡牌机械日志附带action_result用于侧栏，原计算正文与结构化倍率保留；移动读取已有被动滑脱摘要，遗物来源读取原relic_trigger。
-- 不影响：伤害、费用、施法概率、随机域、候选资格、回合、状态清理及牌区去向；不修改已有正文包中的人物对白与事件叙事。历史摘要在提交时保存，不从当前装备重算；不做旧存档迁移。
-- action_log_cases并入action_copy分类，覆盖实际失败施法、费用小数、各魔力来源、微量支出、留手、拒绝不变、只读重复投影、装备伤害短结果／完整公式、恢复历史、真实遗物退款来源和移动摘要。action_copy交叉关联补齐casting／equipment／slip_motion／rewards／core；窗口使用真实火球拖放检查结果和费用文案，无截图。
-- 已ListOnly检查action_copy／casting／slip_motion／rewards／core及action_copy窗口范围。首轮合并检查7550项，唯一失败为新移动日志夹具使用了不参与被动滑脱的脚踝；改用既有大腿根夹具，并移除与该姿态正式候选不符的一格距离限制，只提交实际候选。其余分类未发现错误，日志build/checks/20260910T111034872-32796/check-rules.log。修正夹具后，完整action_copy分类通过60项，真实窗口通过29项，两项均退出0、无引擎错误且有PASS标记，日志build/checks/20260910T111417165-54236/check-rules.log与check-ui.log。无截图，未为通过测试修改移动规则。
+- action_log_cases并入action_copy分类，覆盖实际失败施法、费用小数、各魔力来源、微量支出、留手、拒绝不变、只读重复投影、装备伤害短结果／完整公式、恢复历史、真实遗物退款来源和移动摘要。
+- 首轮合并检查7550项，唯一失败为新移动日志夹具使用了不参与被动滑脱的脚踝；改用既有大腿根夹具，并移除与该姿态正式候选不符的一格距离限制，只提交实际候选。其余分类未发现错误，日志build/checks/20260910T111034872-32796/check-rules.log。修正夹具后，完整action_copy分类通过60项，真实窗口通过29项，两项均退出0、无引擎错误且有PASS标记，日志build/checks/20260910T111417165-54236/check-rules.log与check-ui.log。
 
 ## 2026-09-10 乌龟壳与蓄力保留条件
-
 域：压力与快感。
 
 ## 2026-09-10 道具图鉴
-
 域：装备与解除、检查与测试。
-
-- items分类从Tools.TYPES枚举全部正式物品，按药剂／卷轴／工具分支，沿用名称／效果搜索与原图鉴详情。物品不显示无关品质筛选，复用ShopGlyph；详情含基础效果、次数、材料／条件、安装被动及免费丢弃规则。无领取或使用按钮，不启动新局，不写存档或随机。
-- Tools.description、Consumables.description、InstalledTools.description提取纯effect_description格式器：背包与商店仍传入当前实际效果，图鉴传入注册表基础值。未修改使用判定、伤害或次数结算。百科分类关联installed_tools与consumables，既有基础类型收录断言保留。
-- 规则检查1054项通过：build/checks/20260910T110430202-49392/check-rules.log。新增完整注册表收录、道具次数与共享效果来源检查；窗口通过实际导航验证分类、卷轴过滤、锯条搜索、具体数值／图标以及查看不改游戏状态。
+- 百科分类关联installed_tools与consumables，既有基础类型收录断言保留。
+- 规则检查1054项通过：build/checks/20260910T110430202-49392/check-rules.log。
 - 首次窗口检查遇到另一批新遗物SVG尚未完成导入及工具整数展示格式问题；补齐整数格式并导入已落盘资源后，完整重跑home,installed_tools,services，251项通过，退出0且无引擎错误：build/checks/20260910T110610411-42188/check-ui.log。唯一截图build/ui-encyclopedia-items.png已查看，药剂／卷轴／工具筛选和道具详情布局正常，正文在详情滚动区完整显示。
-
-- 默认所有蓄力在本场结束时清除，包含整备获得的层数。新增一般稀有遗物乌龟壳，通过retain_prepared_charge修饰与Game.retained_charge共用查询，仅保留尚未消耗的整备来源份额。此条替代下方无遗物时也保留整备蓄力的旧记录。
-- 不新增状态、命令、随机域或存档字段；原charge_prepared继续记录来源，全量释放、普通消耗顺序、费用、伤害公式及入狱清除不变。奖励／商店／宝箱沿一般稀有池；新增独立SVG，状态、遗物悬停、卡牌关键词和教程同步说明条件与实际余量。
-- charge_cases覆盖无遗物的战斗与整备清空、正式稀有奖励抽取、拾取不恢复旧层数、持有后整备→地图→战斗保留、混合来源优先消耗及结束仅保留原份额、全量用完、休息／牢房新得层数不保留。status窗口同时检查无遗物／有遗物说明、真实右键及遗物图标注册；旧整备奖励测试同步新清除预期。
-- 分类门禁发现原整塔遍历器把“仍有能量但无合适攻击”当作错误，并只允许10次操作结束一场战斗；改用正式结束回合候选，保留30次操作的有界限制。终局断言同步既有“所有阶段可丢弃道具”入口，仍断言17个房间完成、每战一次奖励与终局；未改变游戏规则来适配遍历。
-- 已先ListOnly核对status／rewards／services／core与status／rewards窗口范围，SVG导入成功。最终规则分类检查通过6970项断言、退出0且无引擎错误（build/checks/20260910T104933390-59168/check-rules.log）。同批窗口检查仅有一处旧status悬停断言仍要求默认跨战保留；rewards的181项完成且无该分类错误。修正旧预期后，完整status窗口复验通过56项断言、退出0且无引擎错误（build/checks/20260910T105428261-56708/check-ui.log）。已查看唯一代表截图build/ui-charge-all.png，乌龟壳图标、全量模式、伤害预览与3层可保留／4层清除说明一致。
+- 终局断言同步既有“所有阶段可丢弃道具”入口，仍断言17个房间完成、每战一次奖励与终局；未改变游戏规则来适配遍历。
+- 最终规则分类检查通过6970项断言、退出0且无引擎错误（build/checks/20260910T104933390-59168/check-rules.log）。同批窗口检查仅有一处旧status悬停断言仍要求默认跨战保留；rewards的181项完成且无该分类错误。修正旧预期后，完整status窗口复验通过56项断言、退出0且无引擎错误（build/checks/20260910T105428261-56708/check-ui.log）。已查看唯一代表截图build/ui-charge-all.png，乌龟壳图标、全量模式、伤害预览与3层可保留／4层清除说明一致。
 
 ## 2026-09-10 蓄力右键全量释放与整备来源保留
-
 域：压力与快感、界面。
-
-- 状态：charge仍为总层数，charge_prepared记录其中整备获得的余量，charge_all记录下一次全量释放。获取、计算、消耗和清理集中在Game；卡牌／能力／药剂／遗物共用，普通消耗优先本场份额。仅整备余量跨战保留，入狱／续局全部清除。
-- 候选／事务：status_toggle使用原ID、版本复核及原子提交，零费用／零回合；无蓄力及终局无入口。伤害公式保留原材料、紧度、堆叠、锁、部位、环境、属性、肩带及链接倍率，体术保持原整次触发，逐段卡牌首个触发段用完后重新预览。失败／过期请求不消耗，纯倍率群体／被动／火球不新增蓄力收益。
-- 界面／日志：战场图标与详情卡真实右键均可切换，全量模式金色强调；伤害预览、悬停、教程和卡牌关键词同步，状态说明分别显示两类余量。沿原行动日志与摘要、资源反馈，不新增叙事 cue；状态切换不改变资源、回合、牌区、装备、敌人或随机。沿当前快照整体状态，不开展旧档兼容与存档专项。
-- status分类复用charge_cases覆盖7层释放、切回、普通／多段体术、挣扎／滑脱／捕缚、逐段卡牌后续不重用旧蓄力、火球保留、拒绝回滚、整备→地图→战斗、优先消耗与混合份额全量清除、休息／牢房清理；更新灵活变通、牢房出口与原整备夹具的旧保留预期。status交叉区域补充basic_attacks／equipment／guard／prison／core。
-- 首轮8512项检查有2处断言失败：新切换测试漏排除正常更新的日志摘要；旧装备练习测试与同批已接入的“随时丢弃道具”候选冲突。已修正比较范围，并保留六回合结束、无塔路进度、仅允许通用丢弃的检查；未改练习规则或丢弃规则。
-- 先ListOnly核对范围。最终`tools/check.ps1 -Suite status,basic_attacks,equipment,guard,rewards,prison -TimeoutSeconds 300`通过8515项断言，日志`build/checks/20260910T101331411-23748/check-rules.log`。`-UIOnly -UISuite status -Screenshots ui-charge-all.png`通过54项真实窗口断言，日志`build/checks/20260910T101239468-53588/check-ui.log`。两项退出0、无引擎错误；已查看唯一代表截图`build/ui-charge-all.png`，图标、预览和说明一致。
+- 失败／过期请求不消耗，纯倍率群体／被动／火球不新增蓄力收益。
+- status分类复用charge_cases覆盖7层释放、切回、普通／多段体术、挣扎／滑脱／捕缚、逐段卡牌后续不重用旧蓄力、火球保留、拒绝回滚、整备→地图→战斗、优先消耗与混合份额全量清除、休息／牢房清理；更新灵活变通、牢房出口与原整备夹具的旧保留预期。
+- 首轮8512项检查有2处断言失败：新切换测试漏排除正常更新的日志摘要；旧装备练习测试与同批已接入的“随时丢弃道具”候选冲突。
+- 最终`tools/check.ps1 -Suite status,basic_attacks,equipment,guard,rewards,prison -TimeoutSeconds 300`通过8515项断言，日志`build/checks/20260910T101331411-23748/check-rules.log`。`-UIOnly -UISuite status -Screenshots ui-charge-all.png`通过54项真实窗口断言，日志`build/checks/20260910T101239468-53588/check-ui.log`。两项退出0、无引擎错误；已查看唯一代表截图`build/ui-charge-all.png`，图标、预览和说明一致。
 
 ## 2026-09-10 魔瓶即时存取
-
 域：未在原文标注。
 
 ## 2026-09-10 场景SL
-
 域：检查与测试、界面。
-
-用户指定重新进入恢复场景第一回合，并新增菜单快速SL。scene_restart_cases并入persistence，检查同场景攻击／回合保持检查点、随机重放、过期拒绝、磁盘重开、商店付款与库存整体撤回、离店收益、牢房及战斗奖励边界。原精确快照测试继续保留；文件写入与窗口恢复断言改为场景起点。home/persistence窗口检查菜单真实点击、重新启动、连续牌撤回、事件选择撤回、文件错误与槽位隔离。先ListOnly核对persistence关联分类及home/persistence窗口；不新增截图。规则门禁通过7078项断言（build/checks/20260910T101244207-13248/check-rules.log）。首轮UI两项失败来自测试用普通按钮尝试重新打出拖拽牌，已改用真实拖拽重放；完整home/persistence窗口复验通过156项断言，无引擎错误（build/checks/20260910T101748543-37724/check-ui.log）。
+scene_restart_cases并入persistence，检查同场景攻击／回合保持检查点、随机重放、过期拒绝、磁盘重开、商店付款与库存整体撤回、离店收益、牢房及战斗奖励边界。原精确快照测试继续保留；文件写入与窗口恢复断言改为场景起点。规则门禁通过7078项断言（build/checks/20260910T101244207-13248/check-rules.log）。首轮UI两项失败来自测试用普通按钮尝试重新打出拖拽牌，已改用真实拖拽重放；完整home/persistence窗口复验通过156项断言，无引擎错误（build/checks/20260910T101748543-37724/check-ui.log）。
 
 ## 2026-09-10 分辨率与三种显示模式
-
 域：`ui/display_settings.gd`。
-
-- ui/display_settings.gd通过Godot Window接口控制真实窗口，统一管理三种模式、当前显示器尺寸筛选、窗口居中、全屏返回尺寸与borderless标记。设置页复用原抽屉和控件主题，保留行动速度设置；原1600×900逻辑画布与keep比例不变。显示偏好使用独立ConfigFile，不修改游戏快照、资源、随机或回合；缺失配置保留默认窗口，越界尺寸按当前屏幕收敛，保存失败在设置内明确提示。
-- 引擎接口依据：[Godot DisplayServer文档](https://docs.godotengine.org/en/stable/classes/class_displayserver.html)。全屏自动设置borderless，退出时必须按所选模式显式复原；全屏模式不提供无效的窗口尺寸按钮。
-- 新display窗口分类测试真实1280×720窗口、无边框、全屏、返回有边框和原尺寸、选择前后游戏状态完全不变，以及隔离配置写入／新实例读取／异常尺寸回退。主页既有设置检查改用DisplayMode入口，显示测试恢复原窗口后继续主页流程；测试不读写玩家的真实偏好文件。
-- ListOnly后完整执行display,home窗口分类，105项断言通过，退出0且无引擎错误：build/checks/20260910T100754218-20528/check-ui.log。已查看唯一截图build/ui-display-settings.png，720p下设置完整可见，三个控件与正文正常显示，无裁切或拉伸。无规则改动，未重复规则全量检查。
+- ui/display_settings.gd通过Godot Window接口控制真实窗口，统一管理三种模式、当前显示器尺寸筛选、窗口居中、全屏返回尺寸与borderless标记。显示偏好使用独立ConfigFile，不修改游戏快照、资源、随机或回合；缺失配置保留默认窗口，越界尺寸按当前屏幕收敛，保存失败在设置内明确提示。
+- 引擎接口依据：[Godot DisplayServer文档](https://docs.godotengine.org/en/stable/classes/class_displayserver.html)。
+- ListOnly后完整执行display,home窗口分类，105项断言通过，退出0且无引擎错误：build/checks/20260910T100754218-20528/check-ui.log。已查看唯一截图build/ui-display-settings.png，720p下设置完整可见，三个控件与正文正常显示，无裁切或拉伸。
 
 ## 2026-09-10 墙缝安装二级菜单
-
 域：装备与解除、界面。
-
-- 道具栏将三个安装入口收为“安装到墙缝”，展开后显示低／中／高，分别提交原foot_wall／hand_wall／high_wall候选。展开状态复用原道具位置选择；同级使用位置互斥，切换物品重置。费用、可用性、具体原因、接触范围及提交复核不变，无规则或存档字段修改。
-- installed_tools窗口新增默认收起、三个高度映射、正式可用性、展开／收起零状态变化检查；既有安装及触发继续验证真实结算。共享UI测试点击入口补上菜单展开步骤，牢房／嘴部安装／环境工具仍走原候选。
-- ListOnly确认installed_tools,wall,exploration,equipment_complete,enemy_feedback后执行完整五类窗口检查，275项通过，退出0且无引擎错误。日志build/checks/20260910T100105938-38340/check-ui.log。仅生成并查看build/ui-tool-install-menu.png：菜单与低／中选项正常显示，高选项在同一滚动区；说明保留换行，无内容越出窗口。
+- 日志build/checks/20260910T100105938-38340/check-ui.log。仅生成并查看build/ui-tool-install-menu.png：菜单与低／中选项正常显示，高选项在同一滚动区；说明保留换行，无内容越出窗口。
 
 ## 2026-09-10 道具随时丢弃
-
 域：界面、检查与测试。
-
-- 单一item_discard候选由Game.candidates为全部真实道具生成，复用正式dispatch版本复核、原子移除与事件；删除行动阶段及商店重复候选。随身／已安装道具均可丢弃，无身体、姿态、触及或阶段限制，不扣资源或回合，不新增状态／迁移。各阶段道具栏与商店整理共用；无使用候选时只显示丢弃，不显示空目标选择。
-- 新item_discard交叉分类关联installed_tools、services、prison、rewards、pressure、events。真实地图出发、休息开始、战斗结束、巡视进入、强制回合及多段续打等流程覆盖：候选唯一、查看不变、旧版本拒绝、只移除指定物品、资源／回合／随机／阶段及未完成卡牌保持不变、重复请求原子拒绝，原连续行动仍可完成。旧阶段锁定断言仅放行免费丢弃，原道具使用限制保留。
-- ListOnly后运行item_discard规则及installed_tools,services窗口：286项规则、148项UI断言通过，日志build/checks/20260910T094933976-30216/。窗口使用真实点击从地图道具栏丢弃，并检查资源和回合不变；无布局修改，不另截图。
-- 扩展prison,pressure,services,rewards分类共执行7125项，发现旧工具投影／商店描述与内容覆盖断言尚未匹配当前代码。更新后按失败分类content,installed_tools,services重新ListOnly并完整回归其关联分类，共3883项通过，退出0且无引擎错误：build/checks/20260910T095520277-46984/check-rules.log。初次其余分类均通过，未重复运行已通过且未变更部分。
-
-- 存入／取出继续提交原候选ID与版本；仅修改ResourceFeedback的展示方式。成功后自身魔力条、战场魔力条及瓶内余额即时显示最新投影，不为转移排队飘字。旧行动／遗物记录保留浮字，停止对这两项余额插值；后续普通记录仍正常播放。
-- 复用mana_flask_ui_cases验证真实连续存入、次数耗尽与取出，移除原9秒等待余额测试；另以致死火球的真实扣费／遗物返还队列验证存取后数值不回跳、旧浮字保留且呈现不修改状态。余额、次数、药剂资格／取整、购物、回合、随机和存档规则均未改变，无新增玩家文案或布局。
-- 已先ListOnly核对范围；`tools/check.ps1 -UIOnly -UISuite consumables,rewards -TimeoutSeconds 300`完成216项窗口断言，退出0且无引擎错误。日志：`build/checks/20260910T094406605-59728/check-ui.log`。无布局改动，不截图。
+- 真实地图出发、休息开始、战斗结束、巡视进入、强制回合及多段续打等流程覆盖：候选唯一、查看不变、旧版本拒绝、只移除指定物品、资源／回合／随机／阶段及未完成卡牌保持不变、重复请求原子拒绝，原连续行动仍可完成。旧阶段锁定断言仅放行免费丢弃，原道具使用限制保留。
+- ListOnly后运行item_discard规则及installed_tools,services窗口：286项规则、148项UI断言通过，日志build/checks/20260910T094933976-30216/。
+- 扩展prison,pressure,services,rewards分类共执行7125项，发现旧工具投影／商店描述与内容覆盖断言尚未匹配当前代码。更新后按失败分类content,installed_tools,services重新ListOnly并完整回归其关联分类，共3883项通过，退出0且无引擎错误：build/checks/20260910T095520277-46984/check-rules.log。
+- 已先ListOnly核对范围；`tools/check.ps1 -UIOnly -UISuite consumables,rewards -TimeoutSeconds 300`完成216项窗口断言，退出0且无引擎错误。日志：`build/checks/20260910T094406605-59728/check-ui.log`。
 
 ## 2026-09-10 道具详细效果补全
-
 域：装备与解除、界面。
-
-- 问题来源：game_view只为药剂／卷轴填description，普通工具为空；安装被动也只在已安装后显示。现在Tools.description统一读取正式类型、伤害、材料与当前伤害倍率，覆盖切割、开锁和逃离工具；药剂卷轴沿原说明。商店复用同源说明，地图只读阶段保留完整效果；安装前可查看原InstalledTools.description，无候选不再显示空目标标题。
-- 展示7点真实伤害、适用材料、当前剩余2次、使用耗1次、安装1能量／取回免费及安装后的牌伤触发。当前伤害有增益时同时标明基础值。未修改判定、消耗或伤害规则，也未引入可写状态。
-- ListOnly仅installed_tools窗口分类，追加地图只读道具详情与商店同源效果、费用／材料／次数和查看不改状态检查；原真实切割、安装与出牌被动触发继续回归。`tools/check.ps1 -UIOnly -UISuite installed_tools -Screenshots ui-tool-effect-details.png -TimeoutSeconds 300`通过33项，退出码0。日志build/checks/20260910T094102253-20504/。
+- `tools/check.ps1 -UIOnly -UISuite installed_tools -Screenshots ui-tool-effect-details.png -TimeoutSeconds 300`通过33项，退出码0。日志build/checks/20260910T094102253-20504/。
 - 已查看build/ui-tool-effect-details.png：地图上打开锯条也可完整阅读基础与安装效果，正文在右侧正常换行，无空目标分组或截断。
 
 ## 2026-09-10 单手套与单腿套旧项目图片恢复
-
 域：存档。
 
 ## 2026-09-10 魔力预备卡面正文
-
 域：压力与快感、界面。
-
-恢复被临时魔力徽章过滤的reserve_mana效果正文，统一为“获得N层魔力预备”；保持+5／+10徽章与实际临时魔力。rewards下既有card_text_cases核对术式解锁正文、徽章及回合开始效果；casting窗口通过真实右键翻面验证正文存在和解释仍可悬停。先ListOnly核对关联分类，不截图、不改规则或存档；5594项规则断言通过，日志build/checks/20260910T093648989-42784/check-rules.log；casting窗口201项断言通过，日志同目录check-ui.log；均退出0且无引擎错误。
-
-- 对照旧项目game/presentation/composite-restraint-icon.ts，确认正式图为structure-armbinder.png和structure-legbinder.png；当前项目已保留相同文件，SHA-256一致。只修正EquipmentImages的两条模板映射，装备目标与图鉴同步。未重画、裁剪或变更规则／存档。
-- encyclopedia规则262项与home,equipment_complete窗口182项通过，退出0、无引擎错误：build/checks/20260910T093429173-35384/。直接查看旧图确认是用户提供的插画版，本次不重复截图或增加镜像测试。
+先ListOnly核对关联分类，不截图、不改规则或存档；5594项规则断言通过，日志build/checks/20260910T093648989-42784/check-rules.log；casting窗口201项断言通过，日志同目录check-ui.log；均退出0且无引擎错误。
+- encyclopedia规则262项与home,equipment_complete窗口182项通过，退出0、无引擎错误：build/checks/20260910T093429173-35384/。
 
 ## 2026-09-10 已有装备图片接入与图鉴同步
-
 域：装备与解除、检查与测试。
-
-- EquipmentImages按稳定family补已有特殊装备图片；图鉴普通、复合、链接及特殊条目使用同一映射。用户确认只接已有图，因此硅胶棒系列三种品质复用旧图，其他特殊装备空图且保留名称。原文件复制后SHA-256一致，运行时只读本项目副本。
-- 图鉴列表缩略图与详情完整图使用同一纹理，等比居中、限制边界；切换到缺图条目清除旧图。图鉴数据查询及浏览不更改游戏状态、规则、随机或存档。新增检查并入既有encyclopedia与home窗口，不复制装备机制测试。
 - Import与初次图鉴检查通过；最终encyclopedia规则262项通过：build/checks/20260910T091512161-38776/check-rules.log。home,equipment_complete窗口183项通过：build/checks/20260910T091618740-58232/check-ui.log，无引擎错误。
 - 仅截图build/ui-equipment-book-images.png，已查看列表与详情无越界，图片未拉伸。未运行all、未生成新美术、未发布或导出。
 
 ## 2026-09-10 滑脱原因区分与重复套体目标
-
 域：装备与解除、界面。
-
-- 套体受两侧肩带固定时明确提示先解除至少一侧；交叉肩带提示先松到1档。肩带条件满足后，外层遮挡提示真实部位与装备名称。_outer_cover_at提取原曝光检查中的遮挡对象，_outer_at沿原条件返回布尔；只调整原因表达与优先次序，不改变实际资格、数值、费用或存档。
-- _body_card_actions将颈部既有去重推广至合并身体组：同一物理目标／牌面仅显示一项，优先保留已合法候选，自由部位仍保留原位置。候选ID／版本／正式提交不变，手掌与手指不再重复同一套体。
-- 规则ListOnly后composites／links及关联分类1561项通过：build/checks/20260910T091341547-59836/check-rules.log。补充肩带与真实遮挡区别及正式解除肩带后改为手腕遮挡的案例；原案例一次挂钩只降档，修正为两次正式操作后确认实际移除。首轮牢房目录两项未过，诊断时当前初始化正确，同分类复跑已通过；本批未修改牢房规则。
-- 同轮shoulder窗口17项、special_equipment46项、equipment_complete95项通过。新增body_layout窗口先发现测试仍读取提交前装备引用，改为提交后真实装备查询后，完整body_layout53项通过：build/checks/20260910T091533993-56544/check-ui.log。检查重复目标消失、真实原因、拒绝不扣费、不改随机、解除阻碍后原生拖牌正确扣费和伤害。最终相关进程退出0且无引擎错误。
-- 已查看ui-hand-slip-reason.png，两个物理目标各显示一次、肩带提示清晰，未运行全项目回归。
+- 规则ListOnly后composites／links及关联分类1561项通过：build/checks/20260910T091341547-59836/check-rules.log。
+- 新增body_layout窗口先发现测试仍读取提交前装备引用，改为提交后真实装备查询后，完整body_layout53项通过：build/checks/20260910T091533993-56544/check-ui.log。检查重复目标消失、真实原因、拒绝不扣费、不改随机、解除阻碍后原生拖牌正确扣费和伤害。
 
 ## 2026-09-10 安全等级巡视周期
-
 域：监狱与收押、界面。
-
-- PRISON_INTERVALS改为16／14／12／10／8，入狱初始化、检查后重置与校验使用共用表，去掉固定4级索引上限。练习描述读取首级周期，教程及game-design同步。5级仍沿原高安全监室终局，不开放新回合或迁移旧档。
-- 新增1—4级真实回合边界用例：第N－1回合仍在牢房且剩1，读取不扣时，第N回合进入检查，正式inspect／accept／resume后重置同一周期。已有再次入狱、钥匙暂停、巡视反抗及练习断言更新；探索界面验证行动本身不推进计时。
-- ListOnly初次受工作区依赖脚本临时无法解析影响，重新只读校验core/game后再次ListOnly通过。正式prison及关联分类3032项通过（build/checks/20260910T090939655-14656/check-rules.log）；练习目录equipment_complete补跑424项通过（build/checks/20260910T091146038-50680/）。
+- 已有再次入狱、钥匙暂停、巡视反抗及练习断言更新；探索界面验证行动本身不推进计时。
+- 正式prison及关联分类3032项通过（build/checks/20260910T090939655-14656/check-rules.log）；练习目录equipment_complete补跑424项通过（build/checks/20260910T091146038-50680/）。
 - 首轮窗口仅旧地图标题断言失败：此前布局已把“监狱 · 移动消息”精简为“移动消息”，更新为同时检查当前标题与真实map_name／region_name，未改游戏行为。最终 `tools/check.ps1 -UIOnly -UISuite prison,exploration -TimeoutSeconds 300`通过179项，退出码0，日志build/checks/20260910T091320864-42688/。
 
 ## 2026-09-10 阶段完成文案更正
-
 域：文案与本地化。
 
 ## 2026-09-10 顶栏运行信息
-
 域：界面、检查与测试。
-
-只读投影提供当前层数、阶段对应回合和战斗先后手；interface检查正式开场、变更后刷新、非战斗不残留战斗信息、牢房独立回合及距墙栏不重叠。ListOnly确认architecture规则与interface窗口，保留一张ui-run-header.png检查实际布局；55项规则、455项窗口断言通过，退出0且无引擎错误。日志build/checks/20260910T091120177-11388，截图build/ui-run-header.png已检查三项信息与距墙提示不重叠。
-
-- 按用户最新要求，出口标题使用“第一阶段完成／第二阶段完成／第三阶段完成”；相关日志、结束选项、出口名称和阶段提示移除“试炼”。只修改文案，轮次、倍率、奖励和候选不变；删除未使用的enemy_health_multiplier视图字段。
-- tower_progression规则141项及实际窗口51项通过：build/checks/20260910T085912640-24064/，退出0，无引擎错误；不重复截图。随后同步塔图名称“塔顶出口”和阶段摘要“当前阶段完成”。
+ListOnly确认architecture规则与interface窗口，保留一张ui-run-header.png检查实际布局；55项规则、455项窗口断言通过，退出0且无引擎错误。日志build/checks/20260910T091120177-11388，截图build/ui-run-header.png已检查三项信息与距墙提示不重叠。
+- tower_progression规则141项及实际窗口51项通过：build/checks/20260910T085912640-24064/，退出0，无引擎错误；不重复截图。
 
 ## 2026-09-10 出口、三轮续局与首领固定奖励
-
 域：塔路与地图、战斗与敌人。
-
-- 出口正式候选提供结束／继续，第三轮仅结束。继续复用原监狱返塔的塔图重建，保留卡组、遗物、成长与随身物品，清除拘束／组件／链接／特殊装备和战斗临时状态，补满实际魔力上限；监狱返塔的原资源规则保持不变。demo_cycle与demo_finished使用当前快照修订33，不迁移旧档。
-- 全部敌人基础生命按1／1.5／2缩放；已按父体实际生命计算的分裂子体不重复缩放，固定缝补仍＋5。Boss固定三选一稀有卡与一件未持有稀有遗物，耗尽为滚木，曾见未持有仍可获得。
-- tower_progression收录续局、清装、保留成长、实际Boss奖励、分裂／召唤生命、非法版本回滚、快照恢复与第三轮终止；关联tower／prison／rewards／enemies／persistence，继续采用单次联合分类入口。首页已结束存档禁用继续但不报损坏，新游戏恢复第一轮。主页三条过时图鉴断言改为登记分类／实际筛选结果，不锁死数量或首条内容。
+- tower_progression收录续局、清装、保留成长、实际Boss奖励、分裂／召唤生命、非法版本回滚、快照恢复与第三轮终止；关联tower／prison／rewards／enemies／persistence，继续采用单次联合分类入口。主页三条过时图鉴断言改为登记分类／实际筛选结果，不锁死数量或首条内容。
 - 联合分类tower_progression,rewards,enemies,persistence,runner：7641项通过，183.21秒；日志build/checks/20260910T084731409-32240/check-rules.log。最终规则增量复验tower_progression：141项通过，日志build/checks/20260910T085450138-40688/check-rules.log。
-- 最终home,tower_progression真实窗口检查133项通过，29.23秒，退出0且无引擎错误：build/checks/20260910T085607624-51156/check-ui.log。仅保留一张出口截图build/ui-45-summit-cleared.png，已查看；移除出口费用尾缀，清理之前的飘字／卡牌动画，标题和按钮无遮挡。续局重置原界面选择与地图画线，不另造游戏命令。未运行all、未导出或发布。
+- 最终home,tower_progression真实窗口检查133项通过，29.23秒，退出0且无引擎错误：build/checks/20260910T085607624-51156/check-ui.log。仅保留一张出口截图build/ui-45-summit-cleared.png，已查看；移除出口费用尾缀，清理之前的飘字／卡牌动画，标题和按钮无遮挡。
 
 ## 2026-09-10 捕缚条穿透状态窗口修复
-
 域：界面、检查与测试。
-
-- 根因是HeroGuardBind、数字、标签和GuardBindTarget分别使用246—248层，高于InformationDrawer的230层。移除这组特例，使其与战场魔力条使用默认层级；坐标、资源、正式候选及左下自适应不变。
-- 复用guard正式敌人回合施加捕缚后，打开状态并选择捕缚详情，检查窗口覆盖原条形位置、全组层级、真实鼠标命中窗口及点击不改状态。关闭后检查原控件仍在原处可交互，再以原生拖牌验证实际损伤与支付。
-- ListOnly确认status／guard完整窗口分类；85项通过、退出0且无引擎错误，日志：build/checks/20260910T085507868-47988/check-ui.log。已查看ui-guard-status-layer.png，状态说明中不再出现穿透的捕缚条；未运行无关规则或all。
+- ListOnly确认status／guard完整窗口分类；85项通过、退出0且无引擎错误，日志：build/checks/20260910T085507868-47988/check-ui.log。
 
 ## 2026-09-10 回合提示魔力小数修复
-
 域：界面、压力与快感。
-
-- enemy_feedback收尾阶段原先直接用%s输出浮点魔力，现复用game.number；18.6053240740741/100.0显示为18.61/100。仅格式化展示，不更改资源精度或结算。同步清除上一动作遗留tooltip。
-- ListOnly确认enemy_feedback窗口分类，沿已有演出／跳过／隐藏动作／状态不变检查，不新增镜像文案测试。`tools/check.ps1 -UIOnly -UISuite enemy_feedback -TimeoutSeconds 300`通过42项，退出码0；日志`build/checks/20260910T085249043-47604/`。
+- 同步清除上一动作遗留tooltip。
+- `tools/check.ps1 -UIOnly -UISuite enemy_feedback -TimeoutSeconds 300`通过42项，退出码0；日志`build/checks/20260910T085249043-47604/`。
 
 ## 2026-09-10 拖牌目标透明素材与伤害提示
-
 域：角色与美术、界面。
-
-- 检查同工作区旧项目PNG透明通道：已有透明套体special素材直接复用，30张普通材质图原为实色底，使用tools/prepare_equipment_icons.py本地去底色及环内空隙，保留高光和主体。本项目副本更新，旧项目不写入；未使用imagegen。
-- 拖牌二级提示仅留装备名称与正式preview伤害数值／类型，工具切割单列，向下链接倍率已计入；删费用、装备参数及重复倍率说明。非伤害结果／整件脱下／实际不可用原因沿原候选。耐久40%／80%标记改为2px亮金线＋4px深色描边。没有规则、费用、随机或存档变化。
-- ListOnly确认installed_tools／slip_motion／equipment_complete完整窗口分类，导入后136项全部通过，退出码0，无引擎错误；日志：build/checks/20260910T084809946-44880/check-ui.log。包括30张材料图透明背景与非空主体、挣扎／滑脱／附加切割实际预览、链接倍率及真实拖放一次扣费与损伤。
-- 已查看ui-118-equipment-drag-card.png和ui-120-card-tool-bonus.png：多目标与附加切割提示紧凑清楚，图标无方形底色，分界线可见；未运行无关规则或all。
+- ListOnly确认installed_tools／slip_motion／equipment_complete完整窗口分类，导入后136项全部通过，退出码0，无引擎错误；日志：build/checks/20260910T084809946-44880/check-ui.log。
 
 ## 2026-09-10 准备类行动日志简写
-
 域：界面、检查与测试。
-
-- 警卫及共用捕缚准备正文统一为“准备捕缚。”，删除下一次行动、初始数值与叠加规则。_enemy_preparation不再自动拼接敌人名，避免重复；蓄力、法阵和停顿使用动作短句，actor标题与蒙眼隐藏仍沿原结构化来源。
-- 纯文案复用已有检查，不添加镜像测试。ListOnly先检查enemies/guard广域关联，按实际文案范围收至action_copy/intent及自动关联status，窗口enemies。初次运行发现将idle统一成等待会丢失实际“动作落空”原因，已保留intent原结果正文，仅去掉重复姓名。
-- 最终 `tools/check.ps1 -Suite action_copy,intent -UI -UISuite enemies -TimeoutSeconds 300`：195项规则与196项窗口检查通过，退出码0。日志 `build/checks/20260910T084544654-59108/`。检查包括蒙眼不泄漏准备行动、行动顺序、原结果记录及敌人窗口流程；不改游戏数值、状态、随机或存档。
+- 最终 `tools/check.ps1 -Suite action_copy,intent -UI -UISuite enemies -TimeoutSeconds 300`：195项规则与196项窗口检查通过，退出码0。日志 `build/checks/20260910T084544654-59108/`。
 
 ## 2026-09-10 扩大地图与紧凑消息栏
-
 域：塔路与地图、界面。
-
-- 地图主面板从(376,151,1172,650)扩为(376,68,1212,820)，右栏从365缩至约220px；剩余空间分配给地图。共享遗物条移入地图列顶部，保留悬停和计数，节点不受遮挡。总览纵向填满，按钮字号14，定位文字精简。无规则、候选、费用、随机或存档变化。
-- ListOnly仅route窗口分类。新增主区域边界、地图宽高、消息栏宽度、遗物归属与不遮挡、悬停说明与状态不变检查；原右键绘画／缩放对齐／清除、左键拖图、正式前进、暂停和无连线拒绝回归通过。
+- 新增主区域边界、地图宽高、消息栏宽度、遗物归属与不遮挡、悬停说明与状态不变检查；原右键绘画／缩放对齐／清除、左键拖图、正式前进、暂停和无连线拒绝回归通过。
 - `tools/check.ps1 -UIOnly -UISuite route -Screenshots ui-map-expanded.png,ui-118-map-art-overview.png,ui-98-map-messages.png -TimeoutSeconds 300`：105项通过、退出码0。日志：`build/checks/20260910T083451182-29300/`。
-- 已查看三张截图，详细地图、总览与旅行状态均无截断，消息正常换行，窄栏内旅行和地图按钮完整，遗物悬停可读。
 
 ## 2026-09-10 左下资源按捕缚状态排布
-
 域：压力与快感、界面。
-
-- MainResourcePanel保持原位置和高度，按真实view.guard_bind显示两行或三行：无捕缚时加大快感／魔力的行距及条形高度，有捕缚时三行等距收紧，清除后恢复。删除CaptureMeterSpace空占位，保留原资源控件ID、魔力悬停和飘字；魔瓶、能量和牌堆不移位。标题禁用自动换行，数字按实际条形高度居中。
-- 沿consumables内原魔瓶窗口流程检查两行→三行→恢复、条形和文字不越界、名称／数值与条形同中心、魔瓶位置稳定及读取不改状态；原存取、实际捕缚、商店付款和动画仍验证。casting旧空占位断言更新为实际魔力条边界；guard沿正式回合及拖牌验证。
-- ListOnly后完整casting/guard/consumables窗口258项通过：build/checks/20260910T083016440-60364/check-ui.log。截图发现自动换行使标签下移，修正短标签并补充对齐检查后，完整consumables窗口33项通过：build/checks/20260910T083325587-57336/check-ui.log。两轮均退出0且无引擎错误。已查看最终build/ui-mana-flask.png与build/ui-mana-flask-capture.png，无规则或存档修改，未跑无关规则或all。
+- casting旧空占位断言更新为实际魔力条边界；guard沿正式回合及拖牌验证。
+- ListOnly后完整casting/guard/consumables窗口258项通过：build/checks/20260910T083016440-60364/check-ui.log。截图发现自动换行使标签下移，修正短标签并补充对齐检查后，完整consumables窗口33项通过：build/checks/20260910T083325587-57336/check-ui.log。已查看最终build/ui-mana-flask.png与build/ui-mana-flask-capture.png，无规则或存档修改，未跑无关规则或all。
 
 ## 2026-09-10 地图右键自由绘画
-
 域：塔路与地图、界面。
-
-- RouteMap新增右键笔画与清除入口，只维护UI数组；按地图节点坐标归一化，保持缩放／滚动／重建对齐。地图外起笔无效，越界分段，地图外松手结束；原左键拖动、节点候选与版本提交不变。按地图拓扑隔离画线，同会话重开窗口保留，换局／载入清空。不涉及规则、随机、资源或存档变更；教程只补一句操作说明。
-- 先ListOnly确认route分类；新增实际右键按下／移动／释放、节点上绘画无误触、滚动对齐、越界与重入、纸外释放、纸外起笔、总览／定位重建保留、教程遮挡、清除及新局重置检查。原合法路线、拖图不移动、拒绝无连线目的地和自动旅行回归继续运行。
+- 原合法路线、拖图不移动、拒绝无连线目的地和自动旅行回归继续运行。
 - 首轮 `20260910T082832946-48776` 发现总览缩放的横向标记偏移；改为与节点同用115px侧边距的归一化坐标后复跑。最终 `tools/check.ps1 -UIOnly -UISuite route -Screenshots ui-map-freehand.png -TimeoutSeconds 300` 通过99项，退出码0，日志 `build/checks/20260910T082916132-60636/`。
 - 已查看 `build/ui-map-freehand.png`：暗红笔画清晰，保持纸内裁切，右下清除按钮完整可用，无额外大说明框。
 
 ## 2026-09-10 现有卡图区放大与横向比例
-
 域：检查与测试、界面。
-
-- 共享CardFace上部图层改为牌高2/3，标题／费用覆盖顶部，正文在下部固定区域。用户进一步要求横向对齐后，将铺满裁切改为KEEP_ASPECT_CENTERED：卡图在标题下按宽高同时约束，完整等比居中，上下空余由原牌面背景衔接。保持原卡框及现有SVG，不使用ImageGen、不改卡牌数值／随机／持久状态。
-- CardText改为ScrollContainer＋Content，保留全部效果、身体条件和不可用原因；正文过长时可滚动且共享悬停补充全文，翻面重置阅读位置。interface覆盖全部卡牌、两种卡宽、两面、图片区固定比例、完整素材无裁切、正文边界及实际滚轮输入；费用与法力徽记原位置／翻面更新检查保留。
-- ListOnly确认interface及casting窗口范围。两轮检查因窗口被最小化而等待绘制帧，分别触发300秒／180秒超时；恢复且将测试窗口移出可见桌面后正常执行。build/checks/20260910T082536474-62276的casting模块201项完成，无该模块失败；同轮interface新增滚轮案例错误地选用内容已完整容纳的宽卡，导致断言失败。改用真实184×252手牌宽度，并先断言确有溢出，没有修改运行逻辑来迎合案例。
-- 最终interface检查：`tools/check.ps1 -UIOnly -UISuite interface -Screenshots ui-72-unified-drawer.png -TimeoutSeconds 180`，447项通过、退出0、无引擎错误；日志build/checks/20260910T082911579-52300/check-ui.log。已查看牌组截图build/ui-72-unified-drawer.png：横向素材完整，牌名／费用／法力及下部文字未重叠。临时诊断输出已删除，未运行无关全项目回归。
+- build/checks/20260910T082536474-62276的casting模块201项完成，无该模块失败；同轮interface新增滚轮案例错误地选用内容已完整容纳的宽卡，导致断言失败。改用真实184×252手牌宽度，并先断言确有溢出，没有修改运行逻辑来迎合案例。
+- 最终interface检查：`tools/check.ps1 -UIOnly -UISuite interface -Screenshots ui-72-unified-drawer.png -TimeoutSeconds 180`，447项通过、退出0、无引擎错误；日志build/checks/20260910T082911579-52300/check-ui.log。已查看牌组截图build/ui-72-unified-drawer.png：横向素材完整，牌名／费用／法力及下部文字未重叠。
 
 ## 2026-09-10 教程书统一简洁用语
-
 域：界面、文案与本地化。
-
-- 精简88个教程正文条目、共享敌人术语和自动生成装备／道具说明；短句列条件、效果与关键数值，去掉反问、比喻、重复步骤及实现说明。分类、稳定条目ID、数据表插值与卡牌／遗物来源保持原路径；无规则、费用、随机或存档变更。
-- 单手套特殊脱下说明按现有has_open_strap核对为至少一侧肩带解除，紧度百分比明确40%与80%边界。搜索提示同步缩短。
-- ListOnly确认仅interface窗口分类。最终运行 `tools/check.ps1 -UIOnly -UISuite interface -TimeoutSeconds 300`，443项通过，退出码0；覆盖条目完整性、分类过滤、肩带搜索与焦点保持、空结果、关闭及浏览不改状态。日志：`build/checks/20260910T080420345-58232/`。纯文案不新增镜像测试，不运行无关全量或截图。
+- 最终运行 `tools/check.ps1 -UIOnly -UISuite interface -TimeoutSeconds 300`，443项通过，退出码0；覆盖条目完整性、分类过滤、肩带搜索与焦点保持、空结果、关闭及浏览不改状态。日志：`build/checks/20260910T080420345-58232/`。
 
 ## 2026-09-10 地图取消悬停弹窗
-
 域：塔路与地图、界面。
-
-- 按用户明确答复，RouteMap所有节点删除原生tooltip，不增加二级浮窗；保留鼠标／键盘高亮、连线、点击及拖图。route_view移除不再消费的description字段；房间候选短说明删怪物池列表、生成规则、种子与泛化精英教学。移动消息空列表不再显示操作说明，装备查看删除无效提示行；教程同步地图行为并精简过时的池与实现说明。
-- 路线窗口沿实际输入等待原生提示延迟，验证所有节点tooltip为空、实际悬停无弹窗、状态和随机不变；原节点对齐、拖图不误出发、合法移动、无连线拒绝、暂停与换局计时检查保留。tower原房间说明检查改为短文案且查看不抽取敌人。
-- ListOnly范围：tower/encyclopedia及自动合并交叉分类，窗口route/interface。首次build/checks/20260910T075510548-51720的规则检查有2项旧图鉴断言要求显示怪池“各50%”，因此整轮失败且未进入窗口检查；已改为核验真实皮带材质与分裂说明，保留此前所有实际抽取、分裂和保存边界测试。
+- 路线窗口沿实际输入等待原生提示延迟，验证所有节点tooltip为空、实际悬停无弹窗、状态和随机不变；原节点对齐、拖图不误出发、合法移动、无连线拒绝、暂停与换局计时检查保留。
+- 首次build/checks/20260910T075510548-51720的规则检查有2项旧图鉴断言要求显示怪池“各50%”，因此整轮失败且未进入窗口检查；已改为核验真实皮带材质与分裂说明，保留此前所有实际抽取、分裂和保存边界测试。
 - 最终build/checks/20260910T075737891-40672：3203项规则、531项窗口断言通过，退出0且无引擎错误；规则采用原日常随机集合，未运行all或Exhaustive。已查看唯一截图build/ui-map-hover-no-popup.png，悬停可前往节点时无底部长条或二级窗口。
 
 ## 2026-09-10 主页仅保留游戏标题
-
 域：界面。
 
 ## 2026-09-10 怪物图鉴文案统一
-
 域：战斗与敌人、装备与解除。
-
-精简所有已登记敌人的图鉴正文，统一生命、开场／行动、特殊效果、出现位置；只读文本中的同名分裂子怪合并计数，捕缚说明共用一份通则，移除后台随机筛选及过期的练习限定说明。敌人定义、行动、数值、随机及存档均未改动；纯文案不新增镜像测试。先ListOnly确认encyclopedia规则及interface窗口，沿既有覆盖检查条目完整性、关键捕缚规则、只读性与图鉴入口。验证build/checks/20260910T075334248-52060：257项图鉴规则、443项interface窗口断言通过，退出0且无引擎错误；无截图。
-
-- 左侧只保留96字号“紧缚尖塔”，移除宣传说明、开发提示、内容包入口及无人调用的弹窗处理器、徽记和分隔线；右侧菜单与存档逻辑不变，无规则或持久状态变化。
-- 更新home现有标题断言，验证左侧控件只有标题、状态不变；启动、开始新局、继续、菜单入口和窗口缩放的检查均通过。完整home窗口分类运行77项，3项图鉴筛选断言未通过（分支全集、能力稀有筛选、遗物稀有度数量），未修改本任务无关的图鉴逻辑，也不报告全分类通过。日志build/checks/20260910T074916996-49700/check-ui.log。无新增截图。
+验证build/checks/20260910T075334248-52060：257项图鉴规则、443项interface窗口断言通过，退出0且无引擎错误；无截图。
+- 更新home现有标题断言，验证左侧控件只有标题、状态不变；启动、开始新局、继续、菜单入口和窗口缩放的检查均通过。完整home窗口分类运行77项，3项图鉴筛选断言未通过（分支全集、能力稀有筛选、遗物稀有度数量），未修改本任务无关的图鉴逻辑，也不报告全分类通过。日志build/checks/20260910T074916996-49700/check-ui.log。
 
 ## 2026-09-10 战场及窗口冗余提示清理
-
 域：界面。
 
 ## 2026-09-10 商店品质价格
-
 域：卡牌与奖励、检查与测试。
-
-卡牌15／25／40、遗物45／65／90，特殊遗物45。既有services分类增加实际生成商品的各品质价格、显示候选一致性及自身／魔瓶两种正式付款检查；窗口services核对每件商品的品质价和可见价签，复用原购买、容量、重开与宝箱免费检查。ListOnly选中consumables/shop_release/casting/services/rewards及services窗口，不修改生成池，无需扩大穷举或截图。检查通过：2525项规则、114项窗口断言，退出0且无引擎错误；日志build/checks/20260910T074101075-41596/check-rules.log与check-ui.log。
-
-- 删除战场顶部drag_feedback控件及各拖放分支的有效操作长说明，固定动作拖拽只显示名称。错误原因复用TermExplanation，在实际目标旁显示，重复校验不反复建窗，移出／结束拖动清理；提交失败仍能显示notice。卡组、图鉴、奖励、事件、塔路、菜单和设置删除重复操作页脚，准备阶段教学行删除；可用手牌不再显示“可用”，失效原因、变暗状态及关键数值保留。
-- targeting分类补充真实原生拖放：过期请求就地解释、复用浮窗、取消不扣费、正常火球对实际目标仅支付一次；casting沿原身体限制恢复流程验证恢复亮度并清除原因。仅展示变化，不改规则、候选、随机或存档。
-- 初次ListOnly后完整运行casting/route/targeting/interface/guard/prison/events/rewards，共1247项。build/checks/20260910T073239702-30648/check-ui.log中casting有三次旧文案断言失败（强欲之壶两面仍要求无消耗说明、顺延仍找旧措辞），整轮不标通过；其余七分类完成且未报错。保留独立消耗词条与当前三级顺延说明，按现行文案同步断言。
-- 最终ListOnly后复查受影响casting/targeting/interface完整分类，677项通过、退出0且无引擎错误：build/checks/20260910T073714127-56296/check-ui.log。其余五类首次完整检查共570项未报错。未运行无关规则或all回归。已查看最终单张代表截图build/ui-drag-clean-battlefield.png，确认有效拖放期间顶部无文字横栏、鼠标旁只有动作名。
+检查通过：2525项规则、114项窗口断言，退出0且无引擎错误；日志build/checks/20260910T074101075-41596/check-rules.log与check-ui.log。
+- 错误原因复用TermExplanation，在实际目标旁显示，重复校验不反复建窗，移出／结束拖动清理；提交失败仍能显示notice。
+- build/checks/20260910T073239702-30648/check-ui.log中casting有三次旧文案断言失败（强欲之壶两面仍要求无消耗说明、顺延仍找旧措辞），整轮不标通过；其余七分类完成且未报错。保留独立消耗词条与当前三级顺延说明，按现行文案同步断言。
+- 最终ListOnly后复查受影响casting/targeting/interface完整分类，677项通过、退出0且无引擎错误：build/checks/20260910T073714127-56296/check-ui.log。其余五类首次完整检查共570项未报错。已查看最终单张代表截图build/ui-drag-clean-battlefield.png，确认有效拖放期间顶部无文字横栏、鼠标旁只有动作名。
 
 ## 2026-09-10 玩偶与玩偶师站位
-
 域：未在原文标注。
 
 ## 2026-09-10 卡牌悬停去冗
-
 域：卡牌与奖励、检查与测试。
-
-沿card_text_cases检查纯抽牌无额外术语／备注、检索只有共享短说明及原元数据完整性；沿card_power_ui_cases用实际悬停检查两面强欲之壶不再解释抽牌，仅保留消耗说明、魔路检索只有一句补充，并继续验证原抽牌／选牌／费用。文案只改data/card_text、balance备注与通用悬停组合，不改变规则。首次规则检查build/checks/20260910T073025039-21976只有henshin备注的固定短语断言失败；已在精简文案中保留明确的“同源不叠加”。同期强欲之壶改为0费消耗，复验073235551-6112中的纯抽牌测试因此需要区分抽牌与独立消耗词条；已保留新效果，并调整只读文案断言。最终复验build/checks/20260910T073539394-46376：5215项规则、200项casting窗口断言通过，退出0且无引擎错误；实际悬停和出牌验证通过，无截图。
-
-- 战场本地展示列表把玩偶师排到右侧，召唤出的玩偶在左侧；完整EnemyGroup与点击／拖牌区域一同排列。只处理展示列表，不改GameView或真实敌人数组、行动及伤害顺序。
-- 敌人窗口分类补充左右站位／点击区域及重绘不改状态、原敌人顺序的检查。先ListOnly后运行完整enemies窗口分类，197项通过、退出0且无引擎错误：build/checks/20260910T072123477-47272/check-ui.log。已查看单张截图build/ui-puppet-formation.png。
+首次规则检查build/checks/20260910T073025039-21976只有henshin备注的固定短语断言失败；已在精简文案中保留明确的“同源不叠加”。同期强欲之壶改为0费消耗，复验073235551-6112中的纯抽牌测试因此需要区分抽牌与独立消耗词条；已保留新效果，并调整只读文案断言。最终复验build/checks/20260910T073539394-46376：5215项规则、200项casting窗口断言通过，退出0且无引擎错误；实际悬停和出牌验证通过，无截图。
+- 先ListOnly后运行完整enemies窗口分类，197项通过、退出0且无引擎错误：build/checks/20260910T072123477-47272/check-ui.log。已查看单张截图build/ui-puppet-formation.png。
 
 ## 2026-09-10 状态合并与图标
-
 域：界面、检查与测试。
-
-- StatusView保持唯一只读目录，新增图标、角标、归属及是否常驻的展示信息；力量／灵巧合并手牌来源，姿态合并行动顺序／速度，咏唱合入口部。保留牌和同定义同触发时点的刺激合并说明，分别保留真实期限；同能力实体的进度全部保留，未合并计时器或改结算。
-- 遗物重复条目及耳坠累计／腿足灵巧／姿态减免专用状态行移除；RelicEffects.view在原counter之外投影current触发机会及当前姿态减免，顶栏悬停读取。装备锁、肩带、连接限制继续由原装备详情提供。角色实际获得的蓄力和临时魔力照常显示。
-- StatusIcon本地程序图案＋已有能力卡图供战场与总览共用；角色和敌人分别排列已有状态，头顶IntentView删除坚硬／分裂／玩偶保护重复投影。总览六列图卡、单一详情区，自适应高度；悬停／点击沿原术语浮窗与互斥抽屉，不改游戏状态。
-- 原分类新增／更新读投影不改变状态、装备解除即撤图标、敌人离场、能力独立进度、来源完整性、图标归属／角标、实际悬停点击及遗物使用机会测试。trader窗口旧“不得进入强怪池”的断言与项目当前versatile_trader强怪组合冲突，改为验证弱池不含、强池包含，未修改敌人池。
-- ListOnly：build/checks/20260910T070703520-24580。关联规则status/rewards/intent及交叉18模块5814项通过：build/checks/20260910T070723854-7060/check-rules.log。日常随机样本，未运行all／Exhaustive。
+- trader窗口旧“不得进入强怪池”的断言与项目当前versatile_trader强怪组合冲突，改为验证弱池不含、强池包含，未修改敌人池。
+- ListOnly：build/checks/20260910T070703520-24580。关联规则status/rewards/intent及交叉18模块5814项通过：build/checks/20260910T070723854-7060/check-rules.log。
 - 联动窗口初次1303项检查中两项失败：位置断言误取位于原点的容器而非动作按钮、玩偶说明断言查找未显示的“嘲讽”字样，实际界面分别已有正确位置与“单体攻击必须选择玩偶”。修正断言后，完整targeting/intent/status/enemies分类295项通过，退出0且无引擎错误：build/checks/20260910T071552365-60740/check-ui.log。前批其余trader/hand_assist/casting/wall/interface/pressure/guard/rewards分类未报错，不将初轮整体报告为通过。
-- 截图检查补足单行状态总览高度，增加完整卡面不被滚动区域裁切的断言；最终status完整分类47项通过、退出0且无引擎错误：build/checks/20260910T071753435-24836/check-ui.log。已查看build/ui-status-icons-overview.png与build/ui-status-icons-battle.png。常驻练习长说明从战场移除，拖牌提示继续显示并在拖动结束复位，避免覆盖敌人状态或挤入行动轨道。
+- 截图检查补足单行状态总览高度，增加完整卡面不被滚动区域裁切的断言；最终status完整分类47项通过、退出0且无引擎错误：build/checks/20260910T071753435-24836/check-ui.log。已查看build/ui-status-icons-overview.png与build/ui-status-icons-battle.png。
 - 初轮规则与窗口报告不计为通过：旧独立状态行预期和测试练习名修正前分别记录于build/checks/20260910T065844692-11396、build/checks/20260910T070108971-23664。
 
 ## 2026-09-10 强欲之壶改为0费消耗
-
 域：检查与测试、界面。
-
-- 用户将强欲之壶改为0费、消耗；两面抽2张、普通技能与卡池保持原样。只修改SPECS.cost及既有CARD_TRAITS.exhaust，共用抽牌、消耗区、动画和卡面词条，不新增接口、状态、随机域或存档迁移。README、规则设定、卡牌框架及协作说明同步，此条替代历史1费正常弃置说明。
-- 修改原有规则和窗口案例，覆盖双面费用、零能量仍可打出、实际抽牌及消耗区、满手限制、过期请求原子拒绝、悬停消耗解释及预览无状态变化。不追加重复测试或截图。初轮旧无关键词预期未通过，已同步为两面仅含消耗解释；同批还出现henshin文案断言失败，单独诊断当前源码符合原断言，未改其规则或断言，完整重跑通过。失败日志保留于build/checks/20260910T073147907-32844/。
+- 修改原有规则和窗口案例，覆盖双面费用、零能量仍可打出、实际抽牌及消耗区、满手限制、过期请求原子拒绝、悬停消耗解释及预览无状态变化。初轮旧无关键词预期未通过，已同步为两面仅含消耗解释；同批还出现henshin文案断言失败，单独诊断当前源码符合原断言，未改其规则或断言，完整重跑通过。失败日志保留于build/checks/20260910T073147907-32844/。
 - rewards及其完整关联规则分类5215项断言通过，日志build/checks/20260910T073453233-12084/check-rules.log，退出0、无引擎错误。
 - casting完整窗口分类200项断言通过，含两面真实点击、卡面0费／消耗说明、悬停与实际消耗区，日志同目录check-ui.log；退出0、无引擎错误，无截图。
 
 ## 2026-09-10 拖牌装备图标目标栏
-
 域：`assets/ui/equipment/SOURCE.md`。
-
-- 将拖牌大卡面改成贴着部位按钮的图片＋耐久条。两条细线显示40%／80%分界；栏宽随数量变化，最多三行后内部滚动。悬停复用只读候选中的伤害／费用／工具加伤／具体失败原因及现有TermExplanation，保留原DropTarget提交与版本复核；拖动期间隐藏原大详情框，结束恢复。未修改数值、行动条件、随机或存档。
-- 复用旧项目原PNG，来源与缺图退回真实名称策略记录在assets/ui/equipment/SOURCE.md。architecture追加一项集中资源存在性检查，原投影隔离与随机不变检查继续通过；55项通过，日志build/checks/20260910T064850470-50572/check-rules.log。
-- 更新原目标栏相关断言，改为实际悬停后读二级窗口。完整targeting、equipment_complete、installed_tools、slip_motion、special_equipment、shoulder、torso_binding窗口分类204项通过，日志build/checks/20260910T065120953-58776/check-ui.log；精确命中、费用、工具磨损、链接／组件及特殊目标均沿正式操作验证。只针对本次界面查看ui-118-equipment-drag-card.png，未开启全截图矩阵。
-- 初轮equipment_complete保留了旧的单侧手部区域0级预期，已按项目已接入的任一侧计分规则改为1级，仍验证另一手能实际使用工具。扩大运行的baseline未通过：事件流程仍假设所有事件可以拒绝，休息工具夹具仍选旧foot_wall安装位置，共7项错误；日志build/checks/20260910T064850470-50572/check-ui.log。该批如实记失败，未改无关玩法或删断言，不将本次报告为全项目回归通过。
+- 悬停复用只读候选中的伤害／费用／工具加伤／具体失败原因及现有TermExplanation，保留原DropTarget提交与版本复核；拖动期间隐藏原大详情框，结束恢复。
+- architecture追加一项集中资源存在性检查，原投影隔离与随机不变检查继续通过；55项通过，日志build/checks/20260910T064850470-50572/check-rules.log。
+- 更新原目标栏相关断言，改为实际悬停后读二级窗口。完整targeting、equipment_complete、installed_tools、slip_motion、special_equipment、shoulder、torso_binding窗口分类204项通过，日志build/checks/20260910T065120953-58776/check-ui.log；精确命中、费用、工具磨损、链接／组件及特殊目标均沿正式操作验证。
+- 扩大运行的baseline未通过：事件流程仍假设所有事件可以拒绝，休息工具夹具仍选旧foot_wall安装位置，共7项错误；日志build/checks/20260910T064850470-50572/check-ui.log。该批如实记失败，未改无关玩法或删断言，不将本次报告为全项目回归通过。
 - 最后将目标栏高度增加6像素，避免单行出现多余滚动条；重跑equipment_complete完整窗口分类65项通过，无截图，日志build/checks/20260910T065249904-24724/check-ui.log。
 
 ## 2026-09-10 玩偶师与玩偶
-
 域：未在原文标注。
 
 ## 2026-09-10 基础动作栏重制
-
 域：检查与测试、界面。
-
-规则仅增加正式候选的简洁显示字段，不改攻击判定或结算。basic_attacks覆盖每种形态的单段数值与段数；窗口覆盖整行两端边距、五格等宽、轨道内包含关系、下方手牌间距、精简文本、右键切换、原候选点击／拖放、深呼吸与火球悬停。先ListOnly确认basic_attacks及关联enemies规则，窗口basic_attacks/casting/status/targeting；本轮美术验证只留ui-basic-action-rail.png一张截图。首次检查（build/checks/20260910T064548625-56284）规则1332项通过，窗口暴露整数伤害仍带.0及文本测试未去空行两项问题；已修正简洁数值格式与对应读取断言。复验build/checks/20260910T064822318-37092：规则1332项、窗口279项断言通过，退出0且无引擎错误；截图build/ui-basic-action-rail.png已人工检查整行占位、两行内容及手牌间距。
-
-- 72生命人形精英进入第一幕精英池、图鉴和独立练习。T1召唤具有保护的10生命玩偶，T2添加嘲讽与受击反应；按最后修订，T3增加5生命上限并回满、T4准备复合装备、T5准备特殊装备，循环T3—T5。共享伤害入口处理生命下限、逐段反应和溢出转移，击败操纵者立即清除召唤物。现有装备施加／替换继续承担实际安装，不增加第二套规则。
-- enemies集中覆盖正式召唤／循环、嘲讽原子拒绝、群攻、逐段伤害、零伤害、非攻击来源、准备消耗、缝补、操纵者死亡、单次奖励、快照校验及恢复后确定性；窗口分类验证独立练习、两种插图、保护／嘲讽图标、实际多段命中及T3回血。沿既有分类合并执行，不另建截图矩阵。
-- 初次门禁发现遗漏独立练习注册，已修正；后续爬塔门禁发现路线测试的持续战斗夹具漏认人形敌人和玩偶师，导致随机路线停留战斗。只补充该测试夹具的既有类别列表，仍通过正式攻击／奖励／移动命令完成路线，不改变战斗数值或通过删除断言掩盖失败。诊断重跑路线无失败。失败日志保留于20260910T060313142-6664、20260910T060810784-55060及20260910T061428821-60636。
+首次检查（build/checks/20260910T064548625-56284）规则1332项通过，窗口暴露整数伤害仍带.0及文本测试未去空行两项问题；已修正简洁数值格式与对应读取断言。复验build/checks/20260910T064822318-37092：规则1332项、窗口279项断言通过，退出0且无引擎错误；截图build/ui-basic-action-rail.png已人工检查整行占位、两行内容及手牌间距。
+- enemies集中覆盖正式召唤／循环、嘲讽原子拒绝、群攻、逐段伤害、零伤害、非攻击来源、准备消耗、缝补、操纵者死亡、单次奖励、快照校验及恢复后确定性；窗口分类验证独立练习、两种插图、保护／嘲讽图标、实际多段命中及T3回血。
+- 只补充该测试夹具的既有类别列表，仍通过正式攻击／奖励／移动命令完成路线，不改变战斗数值或通过删除断言掩盖失败。诊断重跑路线无失败。失败日志保留于20260910T060313142-6664、20260910T060810784-55060及20260910T061428821-60636。
 - 美术沿现有SVG注册表，已查看一次两种敌人的实际绘制合图build/puppeteer-preview.png；没有扩展截图回归。
-- 最终相关规则分类合并检查通过7350项断言，日志build/checks/20260910T061815922-39068/check-rules.log。该批窗口首次失败是测试未先选择玩偶并翻到两段攻击，已补成真实鼠标操作；仅重跑受影响的enemies完整窗口分类，194项断言通过，退出0，日志build/checks/20260910T062209057-7564/check-ui.log。无引擎错误，不重复已通过的规则检查，不生成窗口截图。
+- 最终相关规则分类合并检查通过7350项断言，日志build/checks/20260910T061815922-39068/check-rules.log。该批窗口首次失败是测试未先选择玩偶并翻到两段攻击，已补成真实鼠标操作；仅重跑受影响的enemies完整窗口分类，194项断言通过，退出0，日志build/checks/20260910T062209057-7564/check-ui.log。
 
 ## 2026-09-10 卡牌右上角魔力标记
-
 域：卡牌与奖励、压力与快感。
-
-- 即时耗魔／恢复与临时魔力点数共用右上角组件，负数为消耗、正数为获得；临时池使用紫色较小圆角样式，普通魔力为青色圆角样式。没有即时收支则隐藏。标题自动让位，左右翻面同步数字、颜色、显隐与原能量费用；效果正文移除重复的即时值，条件追加耗魔及回合触发保留。
-- CardRules.face_mana_base与正式CardEffects.face_mana共享基础费用；CardText按效果数据整理face_mana，Balance.card_metadata向全部CardFace入口提供只读数值与分面正文。静态目录显示基础费用，运行时显示正式当前费用；临时魔力按档数乘既有5点常量，不改变真实付款或恢复。没有新增状态、随机或存档迁移。
-- card_text_cases在既有rewards入口检查全部卡牌两面费用、动态／固定费用、普通及临时收益、整数格式、条件收益不冒充即时收益和投影不变性；casting真实翻面检查正负、池样式、隐藏与资源不变，interface集中检查所有卡片两种尺寸下的标记／标题／正文边界。原出牌、商店、奖励及动画交互继续检查。
-- 首轮窗口数值断言发现默认数字格式带“.0”，已去除；保留了浮点费用精度和所有执行断言。规则复查同时遇到当前共享工作区的路线夹具遗漏人形持续敌人，原路线停在奴隶贩子／多面手遭遇；已确认最新共享route_driver补入humanoid／puppeteer，再运行原完整分类，不改敌人机制或跳过正式行动。
-- 先用ListOnly选择rewards,casting及传递分类；UI选择casting,services,interface,rewards。仅本批两张代表截图用于实际排版检查：ui-107-card-casting-tooltip.png、ui-card-mana-badges.png；整数格式修正后不重复截图。最终门禁结果记录如下。
+- 首轮窗口数值断言发现默认数字格式带“.0”，已去除；保留了浮点费用精度和所有执行断言。
 - 最终窗口 **917项断言通过**，退出0、无引擎错误，包含正式翻面、支付／出牌、卡组、商店、领取与卡牌动画。日志`build/checks/20260910T061714122-45756/check-ui.log`。
-- 最终rewards,casting及全部关联规则分类 **6566项断言通过**，退出0、无引擎错误；日志`build/checks/20260910T061815045-60200/check-rules.log`。采用原日常种子集，无新增随机分支或全项目回归。
+- 最终rewards,casting及全部关联规则分类 **6566项断言通过**，退出0、无引擎错误；日志`build/checks/20260910T061815045-60200/check-rules.log`。
 
 ## 2026-09-10 卡面关键词与束缚等级
-
 域：检查与测试、卡牌与奖励。
-
-- 用户确认将区域综合等级改称“束缚等级”，并接入短词卡面、独立身体／目标条件及随翻面更新的解释。保留单件紧度、所有既有数值、费用、目标、施法与抽牌规则，无状态、随机或存档变更。README、卡牌框架、游戏规则、教程及协作说明同步。
-- CardRules沿原效果数据提供compact文本，CardText只读生成分面关键词与限制；执行和展示共用face_casts。Hand／Book共用metadata；卡组移除旧说明拼接与重复信号，所有卡牌界面共用悬浮入口。浮窗记录所属卡片，在翻面时替换内容；旧浮窗隐藏、改名后延迟释放，避免连续替换导致名称冲突，也不在退出场景时同步移除节点。卡面按真实文本高度缩短插图，不裁切效果／限制。
-- 原rewards分类新增分面正文、条件跟随数据、词条去重、投影隔离检查；原界面分类集中检查全部卡牌两面和两种尺寸，casting保留真实翻面／施法与身体条件测试，并检查长解释框边界。毕业证书相关断言更新为“挣扎9／滑脱9”，继续检查遗物加值真实进入手牌与卡组。
-- 先执行ListOnly确认rewards,casting,status及传递分类。规则完整范围为consumables,basic_attacks,battle_saturation,architecture,event_flow,curses,encyclopedia,content,installed_tools,exploration,shoulder,slip_motion,casting,wall,special_equipment,services,status,rewards,core,prison,enemies,trader；日常样本，无生成器变化，不扩展随机矩阵。**6550项规则断言通过**，退出0、无引擎错误；日志`build/checks/20260910T054748184-21256/check-rules.log`。
+- 毕业证书相关断言更新为“挣扎9／滑脱9”，继续检查遗物加值真实进入手牌与卡组。
+- **6550项规则断言通过**，退出0、无引擎错误；日志`build/checks/20260910T054748184-21256/check-rules.log`。
 - 首轮旧文案断言、卡组重复信号、界面夹具父节点类型及浮窗名称冲突均曾被门禁拒绝，未记为通过；已逐项修正，失败日志保留。`20260910T055337220-36564`虽完成942项断言，但退出时同步移除浮窗报错，外层门禁正确拒绝；修正为隐藏、改名及延迟释放后再检查。
 - 最终casting,services,status,interface,rewards完整窗口分类 **942项断言通过**，包含真实翻面、施法、商店、奖励领取、状态、卡组与退出清理；退出0、无引擎错误。日志`build/checks/20260910T055701413-51700/check-ui.log`，本次不重复截图。
 - 本批只截取并查看`build/ui-107-card-casting-tooltip.png`一次，用于确认真实手牌及说明框排版；不为每卡／每分支重复截图。
 
 ## 2026-09-10 卡牌数值、腿部目标与准备效果整合
-
 域：卡牌与奖励。
 
 ## 2026-09-10 魔力回路
-
 域：压力与快感、检查与测试。
-
-新增2费稀有能力，复用能力区、两面资格、通用效果、实际付款与状态投影。rewards下的mana_circuit_cases覆盖两面并存和同面叠加、分批激活的独立余数、跨回合、两种魔力付款、失败施法、额外付款、一次跨多个阈值、后续身体受限、多段完成时发奖、复演与场次清理。casting/interface窗口通过真实翻面及点击，检查两张自由面效果、状态进度、禁用原因与拘束面出牌。沿既有当前格式校验记录必要字段，不做旧档适配。
-
-按ListOnly确认rewards、casting、persistence及关联规则分类，新增稀有池使用Exhaustive；窗口限定casting、interface。首次检查build/checks/20260910T045804182-49896因新增测试夹具耐久大于上限而出现脚本错误，未记为通过；已修正为合法耐久及上限，保留原失败日志。修正后同范围穷举规则9555项断言通过，退出0，日志build/checks/20260910T050113296-5620/check-rules.log；casting/interface窗口609项断言通过，退出0，日志同目录check-ui.log；通过真实点击和翻面检查，无截图。
-
-- 2026-09-10卡牌修订：一点点抽出基础滑脱5点，绷紧再挣基础挣扎4点；翘腿无视拘束面仅限腿部拘束具。术式解锁与双重解锁自由面改为1档临时魔力（5点），删除储备术式与开锁免能量。蓄力每层基础＋3同时用于主动挣扎、普通／魔法滑脱及原体术，每次命中消耗1层，多段逐段处理；被动移动与纯倍率群体效果不使用。找准松处拘束面改为获得1层蓄力、抽1张牌，无需装备目标；自由面仍先保留1张再抽1张。余势复演的相关说明统一写“拘束面”。
-- 影响：卡牌数据与目标候选、正式数值预览／伤害／分段消耗、捕缚伤害、开锁和牢门费用、状态与资源反馈、卡面及教程、规则文案。移除reserve_unlock和slip_focus及旧专用focus方式，不添加替代状态或兼容支路；快照只更新当前格式。原抽牌管线、10张上限、自由面其他效果、随机域、奖励池、施法条件、环境／材料／层序倍率均不变。
-- 更新既有rewards、core、prison、status、slip_motion及关联清理案例，加入腿部各槽正例／上肢反例、找准松处正式出牌、主动三类伤害增益与消耗、多段逐段消耗、免疫消耗、被动不消费、开锁优先使用临时魔力但不免能量。casting／status窗口验证卡面与真实点击，沿原分类唯一执行，无截图。
-- 先执行ListOnly，再执行rewards,equipment,casting,status,guard及全部关联分类，**7696项规则断言通过**；casting,status真实窗口测试**214项断言通过**。退出0，无引擎错误；日志为build/checks/20260910T044519775-49700/check-rules.log与check-ui.log。采用日常种子，无生成器／随机分支变化，不扩展种子，不截图；规则书、卡牌框架、README与协作说明已同步。
+rewards下的mana_circuit_cases覆盖两面并存和同面叠加、分批激活的独立余数、跨回合、两种魔力付款、失败施法、额外付款、一次跨多个阈值、后续身体受限、多段完成时发奖、复演与场次清理。
+首次检查build/checks/20260910T045804182-49896因新增测试夹具耐久大于上限而出现脚本错误，未记为通过；已修正为合法耐久及上限，保留原失败日志。修正后同范围穷举规则9555项断言通过，退出0，日志build/checks/20260910T050113296-5620/check-rules.log；casting/interface窗口609项断言通过，退出0，日志同目录check-ui.log；通过真实点击和翻面检查，无截图。
+- 先执行ListOnly，再执行rewards,equipment,casting,status,guard及全部关联分类，**7696项规则断言通过**；casting,status真实窗口测试**214项断言通过**。退出0，无引擎错误；日志为build/checks/20260910T044519775-49700/check-rules.log与check-ui.log。
 
 ## 2026-09-10 魔路检索总严密等级修正
-
 域：卡牌与奖励、界面。
-
-- 用户更正自由面资格：上半身总严密等级≥1禁用。用已有free_max_levels={arms:0}替代逐槽free_slots；正式候选与提交共用level("arms")，没有新增规则接口、状态、随机或存档字段。此条替代下方首版的逐部位资格说明。
-- 更新卡面、详情、README、游戏规则、卡牌框架及AGENTS。rewards案例覆盖总等级0／1、头嘴及下肢反例、单侧大臂三档但总等级0、捕缚最低1、提交前变化的原子拒绝；casting窗口验证眼部有拘束仍可用、总等级1禁用及实际拘束面抽牌。费用、抽牌词条和数量均保持。
-- 验证完成：先执行ListOnly，再执行rewards完整关联分类，4664项断言通过；casting窗口165项断言通过，含413次真实鼠标事件。退出0，无引擎错误。日志位于build/checks/20260910T042421637-12720/。本批无美术或随机变化，不扩展种子、不截图。
+- rewards案例覆盖总等级0／1、头嘴及下肢反例、单侧大臂三档但总等级0、捕缚最低1、提交前变化的原子拒绝；casting窗口验证眼部有拘束仍可用、总等级1禁用及实际拘束面抽牌。
+- 验证完成：先执行ListOnly，再执行rewards完整关联分类，4664项断言通过；casting窗口165项断言通过，含413次真实鼠标事件。日志位于build/checks/20260910T042421637-12720/。
 
 ## 2026-09-10 魔路检索与魔法／能力双词条
-
 域：检查与测试、界面。
-
-- mana_search为1费普通技能，不消耗、不判施法。拘束面定向抽1张、自由面抽2张；自由面与控火共用上半身精准部位列表及整数紧度检查。新增180×90透明检索书／放大镜SVG，按既有注册表进入共用卡面。
-- 用户确认按卡面词条判定魔力牌。type_tags默认主类型，猛火下山明确登记magic+power；卡面、教程、图鉴、卡组筛选、类型计数和抽牌匹配共用此数据，主类型仍决定实体能力生命周期。抽牌沿原draw效果与Game._draw的可选filter.tag，从栈顶依序取匹配牌，不动其余牌；空堆正常洗弃牌，非空无匹配时停止，10张上限和逐张反馈保持。实际抽牌日志不把不足数量写成足额结果。
-- mana_search_cases归rewards→card_power_cases唯一执行：普通池与费用、无消耗、双词条能力入手、保留未匹配顺序／随机不动、预览和版本拒绝、缺目标／不足／空堆洗牌／满手牌、精准上半身1档／0档与腿部反例、无魔力高压力下技能照常使用、复演、当前快照及定义拒绝。casting窗口真实翻面／出牌／查看牌组验证禁用与双分类；interface集中验证全部卡面插图、尺寸、教程和现有操作。
-- 首轮Exhaustive完整种子检查8244项无断言失败，但零档口部装备夹具尚未走正式清理就枚举候选，产生4个引擎错误，整批记失败。修正为先执行共享清理，再检查自由面；enemy_cycle 16/16、enemy_pool 24/24样本均已完成。首轮日志：`build/checks/20260910T035954622-52640/check-rules.log`。
-- 修正后的rewards,casting及全部关联完整分类 **6041项通过**，退出0，无引擎错误。日志：`build/checks/20260910T040203546-53652/check-rules.log`。未更改随机域或生成器，最终回归使用日常样本，保留首轮完整矩阵证据。
-- 本批窗口casting,interface **567项通过**，退出0、无引擎错误；日志：`build/checks/20260910T040203546-53652/check-ui.log`。未生成截图，未运行全项目回归。README、游戏规则、卡牌框架与AGENTS同批同步；无新持久状态或旧档兼容工作。
+- mana_search_cases归rewards→card_power_cases唯一执行：普通池与费用、无消耗、双词条能力入手、保留未匹配顺序／随机不动、预览和版本拒绝、缺目标／不足／空堆洗牌／满手牌、精准上半身1档／0档与腿部反例、无魔力高压力下技能照常使用、复演、当前快照及定义拒绝。
+- 首轮Exhaustive完整种子检查8244项无断言失败，但零档口部装备夹具尚未走正式清理就枚举候选，产生4个引擎错误，整批记失败。首轮日志：`build/checks/20260910T035954622-52640/check-rules.log`。
+- 日志：`build/checks/20260910T040203546-53652/check-rules.log`。
+- 本批窗口casting,interface **567项通过**，退出0、无引擎错误；日志：`build/checks/20260910T040203546-53652/check-ui.log`。未生成截图，未运行全项目回归。
 
 ## 2026-09-10 当前进度与架构接口跟进
-
 域：架构与接口、检查与测试。
-
-- 本轮核对卡牌复演／多段顺延／能力叠加、临时魔力与魔瓶、遗物回合生命周期、休息前选择、事件和奖励入口。83个运行时脚本、167条初始脚本引用（最终164条）未发现依赖环、core/data反向依赖UI或UI直写game.state／调用Game内部写方法。最终静态资源字面引用768项未发现缺失；内容包12份、模板5份经原校验器通过。
-- 删除Game._play_card单调用转发，正式card分支直接调用Cards.play；删除无调用的Prison.DISCOVERIES旧正文表，折返符真实定义仍在FieldTools.TYPES。清理9个无调用旧常量：AFTER_BATTLE_MANA、BASIC_ESCAPE、NORMAL_ATTACK、HEAVY_ATTACK、BLINDFOLD_HP、CHAINS、EVENT_ADJUST、EVENT_WAGER、COLUMNS。真实卡牌／攻击／敌人／事件／地图定义及数值不变。
-- 跟进上轮链接转接性能：把空候选列表作为必然损失，结合可保留数量上界和已见损失集合剪枝；不同损失集合、方向额度和首次合法结果继续保留。新增真实三链接、三替代连接点用例，旧实现21次连接点查询触发性能断言，修正后不超过12次，保留结果、顺序、状态与随机不变。原方向配额／损失比较／原子提交用例继续执行。此为具体重复计算的修正，没有据此宣称密集装备整局性能已解决。
-- 架构专项由31项扩充到54项，复用一个投影契约检查器；casting与tower加入其交叉归属，分类选择runner 20项通过（200105830-55436）；新增正式打牌建立的双重能力、待复演和临时魔力组合，再验证场次清理、冻结休息选择和正式开始休息。检查重复查询不改变状态或随机、视图没有可变引用泄漏、候选ID唯一且稳定。未新增运行时状态、玩家命令或检查框架。
+- 新增真实三链接、三替代连接点用例，旧实现21次连接点查询触发性能断言，修正后不超过12次，保留结果、顺序、状态与随机不变。
 - 修改前相关24个分类6272项通过，日志build/checks/20260909T194624490-54464/check-rules.log。新增性能用例首次因测试插入位置错误产生语法错误（194817784-54892）；修正后准确复现21次冗余查询并仅性能断言失败（194829500-14704）。修正算法后相关24类6300项通过（194929834-53284）；以上失败日志保留，不记为通过。
-- 旧常量清理后，architecture/core/links/pressure/tower及关联28个分类6995项通过，118.13秒，退出0；日志build/checks/20260909T195133543-52656/check-rules.log。采用现行日常样本：enemy_cycle 4/16、enemy_pool 4/24、tower_graph 7/201；没有修改生成算法或种子集合。
-- casting/services/status/interface/rewards五个窗口分类854项通过，退出0、无引擎错误；日志build/checks/20260909T194955105-15928/check-ui.log。保留真实输入、动画与状态检查，无截图。
-- 检查期间接连挣动的拘束面在共享工作区改为三段滑脱并自动顺延。追加检查195401885-38044准确发现旧手动续段案例换用peel时误把payload.kind也改为peel，导致候选为空及后续越界；此轮失败，未进入窗口阶段。正式续段命令仍是chain。并行任务于05:55:28同步修正规则筛选和窗口夹具，保留手动peel与自动顺延chain各自验证；本任务没有覆盖新规则，也未重复改写已修正文件。最终当前定义的rewards及关联13个规则分类4546项通过，无引擎错误，复用共享工作区日志build/checks/20260909T195554335-54280/check-rules.log；同批casting 142项、rewards 179项无断言失败，但该并行任务额外的存档窗口失败导致整轮UI退出失败；本轮没有检查或修改其存档问题，也不把这次整体失败记为PASS。另用仅含casting／rewards的窗口检查独立确认，321项（142＋179）通过，112.69秒、退出0且无引擎错误；日志build/checks/20260909T200009099-12476/check-ui.log。与此前services 98／status 32／interface 409项合计，本轮五个非存档窗口分类最终分批860项通过，不将重跑项重复相加。
-
-存档专项继续延期到整个Demo完成后，本轮没有修改存档实现或专项案例。采用现有受影响分类及日常种子，没有宣称全项目all或完整随机矩阵通过，也没有重跑上轮三条耗时正常试玩。未改UI布局／美术，不新增截图、导出或发布。README、AGENTS和内容扩展文档同步；最近两处并行记录错位的章节标题已归位，历史内容与失败记录保留。
+- 旧常量清理后，architecture/core/links/pressure/tower及关联28个分类6995项通过，118.13秒，退出0；日志build/checks/20260909T195133543-52656/check-rules.log。
+- casting/services/status/interface/rewards五个窗口分类854项通过，退出0、无引擎错误；日志build/checks/20260909T194955105-15928/check-ui.log。
+- 追加检查195401885-38044准确发现旧手动续段案例换用peel时误把payload.kind也改为peel，导致候选为空及后续越界；此轮失败，未进入窗口阶段。最终当前定义的rewards及关联13个规则分类4546项通过，无引擎错误，复用共享工作区日志build/checks/20260909T195554335-54280/check-rules.log；同批casting 142项、rewards 179项无断言失败，但该并行任务额外的存档窗口失败导致整轮UI退出失败；本轮没有检查或修改其存档问题，也不把这次整体失败记为PASS。另用仅含casting／rewards的窗口检查独立确认，321项（142＋179）通过，112.69秒、退出0且无引擎错误；日志build/checks/20260909T200009099-12476/check-ui.log。
+存档专项继续延期到整个Demo完成后，本轮没有修改存档实现或专项案例。README、AGENTS和内容扩展文档同步；最近两处并行记录错位的章节标题已归位，历史内容与失败记录保留。
 
 ## 2026-09-10 四种漂浮敌人插图
-
 域：战斗与敌人、角色与美术。
-
-- 按用户收窄后的范围，只替换漂浮绳索、漂浮皮带、漂浮锁、漂浮口球的旧素材。新增4张640×640透明SVG，采用与卡面一致的哑金／冷青及平滑轮廓；其他简洁程序绘制和魅魔警卫原立绘不变。共用arena控件的战场、练习、图鉴同步生效。
-- 删除旧敌人图集加载、区域映射、裁图函数与无用抠色分支，未删除原资源文件。保留现有悬浮、淡出、尺寸适配、拥挤缩放和点击目标；无规则、状态、数值、事件文案或存档变更。
-- enemies既有分类集中检查四种实际定义的透明且独立纹理、半尺寸显示、平滑采样、无抠色、不拦截输入、inactive淡化及不改状态。受影响窗口分类一次验证：`tools/check.ps1 -Import -UIOnly -UISuite enemies,guard,hero_art -TimeoutSeconds 300`，**236项通过**（enemies185、guard27、hero_art24），退出0，无引擎错误。日志：`build/checks/20260909T195419225-47060/check-ui.log`。没有运行全项目或截图测试。
+- 删除旧敌人图集加载、区域映射、裁图函数与无用抠色分支，未删除原资源文件。
+- 受影响窗口分类一次验证：`tools/check.ps1 -Import -UIOnly -UISuite enemies,guard,hero_art -TimeoutSeconds 300`，**236项通过**（enemies185、guard27、hero_art24），退出0，无引擎错误。日志：`build/checks/20260909T195419225-47060/check-ui.log`。
 - 人工核对单张4敌人总览：`build/floating-enemy-preview.png`，实际arena渲染完整且无裁切。用户警卫原图修改前后SHA256一致：紫色B26789330D06D718CF2C3706263F0858E3EE721AC392DB60BC3B6CEB45E38148；棕色598562AE70145A1A2C882796F9626AA5D0321163E2A9E2861A43A610A217D1D2。
 
 ## 2026-09-10 默认卡面插图替换
-
 域：角色与美术、卡牌与奖励。
-
-- 范围：23张复用怪物素材的卡牌及原程序绘制的火焰精通，共新增24张原创SVG；保留此前11张独立插图。共享CardFace现覆盖35张内置牌，删除怪物贴图回退、抠色材质和火焰精通特殊绘制分支。
-- 无数值、候选、事务、日志正文、随机域或存档变化。卡牌名称、费用、描述、稀有度边框和操作保持原投影；美术映射统一作用于所有既有卡牌入口。
-- 在既有interface_ui_cases集中加入4项覆盖检查：所有真实登记卡牌都有图；非空且不重复使用同一纹理；190/290两种卡宽与双面下均在图槽内且不拦截输入；展示不改变正式状态。未新增逐卡测试文件或完整规则回归。
 - `tools/check.ps1 -Import -UIOnly -UISuite interface -TimeoutSeconds 300` 通过：**409项**，退出0、无引擎错误。日志：`build/checks/20260909T194548912-14248/check-ui.log`。
-- 仅渲染并人工检查一张24图总览：`build/card-art-preview.png`，各图轮廓、颜色、缩放和中文名称清晰，无裁切。总览脚本及图片留在忽略的build目录，不进入游戏运行逻辑。
+- 仅渲染并人工检查一张24图总览：`build/card-art-preview.png`，各图轮廓、颜色、缩放和中文名称清晰，无裁切。
 
 ## 2026-09-10 连续挣
-
 域：界面、检查与测试。
-
-- repeated_strain为1费普通消耗技能，base=1／hits=5／follow_through=true，自由面增加2层charge。仅用原数据字段登记普通池、两面文字与原创SVG；顺延与牌区结算不另造逻辑，也无新存档字段。规则书、卡牌框架、README和AGENTS已同步。
-- 在follow_through_cases增加普通品质与真实池成员、两面费用／消耗、五次实际基础1伤害、一次消耗动画、费用不足整份状态不变、精准点→大部位→区域、提前结束不跨区以及消耗后的当前快照恢复。casting窗口通过两面真实拖放验证1费、数值、消耗区与文本高度。
 - 本次完整种子检查中新增连续挣案例通过，但并行开发的余势复演出现3项失败，因此整轮失败，见build/checks/20260909T194011928-38112/check-rules.log。随后共享工作区联合规则检查已通过5950项，包含rewards1090项及相关分类且无引擎错误，见build/checks/20260909T194142849-51972/check-rules.log；复用该已完成结果。
-- 同期拖牌入口改为候选ID区分同一装备的多个行动选项，窗口助手仍按物理ID查找导致1项报错。reveal_drop_target现可从正式候选payload.target定位物理目标，或直接使用候选ID，不按控件文字猜测。修正后本任务单独复查casting窗口136项全部通过，退出码0，无引擎错误；日志build/checks/20260909T194343851-45204/check-ui.log。未生成截图或运行全项目回归。
+- 同期拖牌入口改为候选ID区分同一装备的多个行动选项，窗口助手仍按物理ID查找导致1项报错。修正后本任务单独复查casting窗口136项全部通过，退出码0，无引擎错误；日志build/checks/20260909T194343851-45204/check-ui.log。未生成截图或运行全项目回归。
 
 ## 2026-09-10 余势复演
-
 域：`tests/echo_cast_cases.gd`。
-
-- 新增1费罕见技能echo_cast，原控火保留。自由准备下一火球，挣扎准备下一张双面不同的挣扎面牌；只复放原目标，失效跳过。统一复用卡牌效果／攻击／施法及正式费用管线，复放不额外移动实体卡、扣能量／魔力／火球次数或计技能出牌。能力复放保存一张卡的两重效果，连续牌保存已执行目标序列；当前快照校验同步更新，无旧档适配。
-- tests/echo_cast_cases.gd由rewards→card_power_cases唯一接入。覆盖费用、原控火保留、两面与排除、预览只读／过期回滚、失败留手、独立施法、猛火下山抽牌、余火消耗后的重算、群体及装备火球、致死跳过、工具每牌一次、技能计数、上下层不改目标、多段与顺延、重复能力回合效果、跨回合／场次清理、连续状态恢复及坏字段拒绝。窗口casting沿真实翻面／点击／目标操作，校验名称／稀有度／文字高度／费用／伤害／状态消失。
-- 初轮完整种子检查8093项无断言失败，但新夹具当前耐久30误配默认上限10，产生1个引擎错误，整批失败；第二轮8153项有3个夹具断言失败：自动续段被误当作等待玩家、低紧度外层用了不满足最高紧度资格的挣扎。均已改为正式合法夹具：显式耐久上限、需要选择的双重开锁续段及滑脱外层。两轮完整enemy_cycle 16/16、enemy_pool 24/24种子均已跑完；不能把失败批次标成通过。
-- 最终受影响完整分类rewards,casting及关联分类 **5950项通过**，退出0、无引擎错误。日志：`build/checks/20260909T194142849-51972/check-rules.log`。此前完整种子矩阵日志：`build/checks/20260909T194008465-8004/check-rules.log`；修正只涉及测试夹具，最终无需重复随机矩阵。
-- 最终窗口casting **136项通过**，退出0、无引擎错误；日志：`build/checks/20260909T194241262-52652/check-ui.log`。窗口先补导入并行新增的连续挣SVG，再将该用例的拖牌目标参数由装备ID纠正为正式候选ID；余势复演窗口检查无失败。未运行全项目回归，不生成截图。
-- README、规则书、卡牌框架、AGENTS和本验证记录已同步；原创双重火焰SVG与卡面共用现有展示。没有发布或改动隔壁网页项目。
+- 覆盖费用、原控火保留、两面与排除、预览只读／过期回滚、失败留手、独立施法、猛火下山抽牌、余火消耗后的重算、群体及装备火球、致死跳过、工具每牌一次、技能计数、上下层不改目标、多段与顺延、重复能力回合效果、跨回合／场次清理、连续状态恢复及坏字段拒绝。
+- 初轮完整种子检查8093项无断言失败，但新夹具当前耐久30误配默认上限10，产生1个引擎错误，整批失败；第二轮8153项有3个夹具断言失败：自动续段被误当作等待玩家、低紧度外层用了不满足最高紧度资格的挣扎。两轮完整enemy_cycle 16/16、enemy_pool 24/24种子均已跑完；不能把失败批次标成通过。
+- 日志：`build/checks/20260909T194142849-51972/check-rules.log`。此前完整种子矩阵日志：`build/checks/20260909T194008465-8004/check-rules.log`；修正只涉及测试夹具，最终无需重复随机矩阵。
+- 最终窗口casting **136项通过**，退出0、无引擎错误；日志：`build/checks/20260909T194241262-52652/check-ui.log`。窗口先补导入并行新增的连续挣SVG，再将该用例的拖牌目标参数由装备ID纠正为正式候选ID；余势复演窗口检查无失败。
 
 ## 2026-09-10 猪神之皇焚与三级顺延
-
 域：装备与解除、界面。
-
-- 3费稀有技能、6×5挣扎伤害／5层蓄力，登记稀有卡池及原创SVG。follow_through复用hit/card_chain/normalize及完整清理，原件未解开持续命中；解除后按精准点→同一左栏大部位→原头／手／腿区域选择当前最外层，同优先级才随机。左栏与顺延共用equipment.PANEL_GROUPS，投影深拷贝。首段普通挣扎资格不改，后续只取代最高紧度目标排序；完整伤害倍率、方法资格、工具每牌一次及每段蓄力沿原管线。
-- follow_through_cases由rewards下card_expansion唯一接入：费用与两面文字、无随机自由面、预览／过期／不足费用原子拒绝、原件五段不转移、指定位置内层显露优先、其余分段先于区域、脚趾纳入腿区、无目标停止、不跨区域、后继只选外层、确定性恢复与独立随机域、单牌工具一次、逐段蓄力、真实手掌／手指与脚掌／脚趾左栏分组。窗口casting增加真实拖牌全自动结算、自由面给层、两面高度与关键词悬停，卡面不展示长说明。
+- follow_through_cases由rewards下card_expansion唯一接入：费用与两面文字、无随机自由面、预览／过期／不足费用原子拒绝、原件五段不转移、指定位置内层显露优先、其余分段先于区域、脚趾纳入腿区、无目标停止、不跨区域、后继只选外层、确定性恢复与独立随机域、单牌工具一次、逐段蓄力、真实手掌／手指与脚掌／脚趾左栏分组。
 - 第一轮完整种子矩阵6591项无断言失败，但新测试用普通安装器传入不支持的单侧手指精确点，导致夹具为空而出现1个引擎错误，整轮按失败处理；修正夹具为普通手指正式覆盖，并补齐用户确认的左栏大部位分组。日志build/checks/20260909T192634056-51480/check-rules.log。
-- 修正后rewards及全部关联日常分类4413项通过，casting窗口114项通过，退出码0且无引擎错误；日志build/checks/20260909T192948088-54340/check-rules.log和check-ui.log。无全项目回归，无截图，无旧存档迁移；随机域按当前版本统一校验。规则书、卡牌模板、README与AGENTS同批更新。
-
-- 最终复查：rewards／casting及关联完整分类5845项通过；窗口casting 114项通过，规则和窗口退出0，无引擎错误。日志：`build/checks/20260909T192757726-7980/check-rules.log`、`check-ui.log`。保留首轮已通过的完整随机样本证据；未运行全项目或截图。
+- 修正后rewards及全部关联日常分类4413项通过，casting窗口114项通过，退出码0且无引擎错误；日志build/checks/20260909T192948088-54340/check-rules.log和check-ui.log。
+- 日志：`build/checks/20260909T192757726-7980/check-rules.log`、`check-ui.log`。
 
 ## 2026-09-10 猛火下山
-
 域：卡牌与奖励、检查与测试。
-
-- wildfire_descent为1费稀有能力，基础耗魔20，嘴部施法，双面相同且共用一个不可叠加的buff。能力模板开放原cast／mana_cost字段；统一施法入口先结算，再在成功后移入能力区，失败付费但保留原手牌，临时魔力／快感倍率／定咒及零概率拦截照原流程。
-- BUFFS.spell_use_effects声明抽牌，统一_cast_magic在记录一次结果后调用Cards.spell_used；按指定spell过滤，不按牌名分支。群体只触发一次，装备目标也触发，失败使用仍抽牌；其他法术和无效／过期请求不触发。致死火球先抽再结束场次，满手牌、重洗、UID和动画共用原抽牌逻辑。共用效果日志改为报告实际抽牌数量，满手牌不会声称抽到1张。
-- 规则覆盖双面费用与嘴部零概率、失败留手、临时池重试、无自触发、普通／群体／失败／装备目标抽牌、同名能力去重、存取后的连续使用、10张上限、空堆重洗及致死清理。UI使用真实翻面、悬停成功率、点击激活与火球术，断言费用、能力区、实际手牌增长和文字高度。加入稀有池及原创SVG，规则书、卡牌框架、README、AGENTS同步，无新状态或旧档迁移。
-- 首轮扩展检查日志`build/checks/20260909T192601551-55884/check-rules.log`：8025项断言无失败，但关联follow_through测试的手指夹具用了不被普通安装接受的fingers_left参数，访问空对象时报1处引擎错误；未把该轮记为通过。夹具改用正式fingers位置，不改顺延规则。该轮enemy_cycle 16/16、enemy_pool 24/24的扩展样本与其余完整分类通过；修复后重新运行所涉完整分类，不重复无变化的全随机矩阵。
+- 能力模板开放原cast／mana_cost字段；统一施法入口先结算，再在成功后移入能力区，失败付费但保留原手牌，临时魔力／快感倍率／定咒及零概率拦截照原流程。
+- 群体只触发一次，装备目标也触发，失败使用仍抽牌；其他法术和无效／过期请求不触发。
+- 规则覆盖双面费用与嘴部零概率、失败留手、临时池重试、无自触发、普通／群体／失败／装备目标抽牌、同名能力去重、存取后的连续使用、10张上限、空堆重洗及致死清理。UI使用真实翻面、悬停成功率、点击激活与火球术，断言费用、能力区、实际手牌增长和文字高度。
+- 首轮扩展检查日志`build/checks/20260909T192601551-55884/check-rules.log`：8025项断言无失败，但关联follow_through测试的手指夹具用了不被普通安装接受的fingers_left参数，访问空对象时报1处引擎错误；未把该轮记为通过。
 
 ## 2026-09-10 灵活变通
-
 域：卡牌与奖励、压力与快感。
-
-- 验证：ListOnly确认范围后，rewards及关联完整分类使用Exhaustive通过6538项（enemy_cycle 16/16、enemy_pool 24/24）；窗口casting通过91项，含新卡真实输入与卡面适配。素材导入、规则及窗口退出0，无引擎错误。日志：`build/checks/20260909T191927966-48544/check-rules.log`、`check-ui.log`。未运行全项目或截图。
-
-- 新增adaptability：1费罕见能力，自由面每回合开始经reserve_mana=1获得5点临时魔力，挣扎面经charge=1获得1层蓄力。加入罕见池，既有奖励、商店、图鉴与能力区共享分类和卡面；新增本地SVG。打出当下不发放，同面不叠加、双面可以并存。
-- BUFFS.turn_start_effects沿现有附加效果列表校验，Cards.begin_turn在统一玩家回合补能／遗物之后、抽牌之前执行apply_effects；不新增牌名分支、计时字段或存档迁移。回合开始重复效果属于当前已生效能力，手牌／弃牌／查看／翻面与恢复快照不触发。战斗结束移除能力，所得蓄力按原规则保留，临时魔力清空。
-- 新规则案例覆盖正式付款、旧版本与资源不足原子拒绝、延迟到下回合、无上限魔力池、飘字收据、同面拒绝、双面同时触发、同版本还原后的后续回合一致性、场次清理以及整备／休息／牢房正式结束回合。窗口案例使用真实翻牌、点击能力与结束回合，检查双面文字、牌面高度和资源变化。README、规则书、卡牌框架与AGENTS同步。
+- 日志：`build/checks/20260909T191927966-48544/check-rules.log`、`check-ui.log`。
+- 新规则案例覆盖正式付款、旧版本与资源不足原子拒绝、延迟到下回合、无上限魔力池、飘字收据、同面拒绝、双面同时触发、同版本还原后的后续回合一致性、场次清理以及整备／休息／牢房正式结束回合。
 
 ## 2026-09-10 控火与独立临时魔力池
-
 域：压力与快感、界面。
-
-- 最终窗口casting／status／rewards共292项通过，含真实出牌、永久加伤、10点临时魔力、状态寿命、魔力条点数显示与卡面高度：`build/checks/20260909T191236306-52240/check-ui.log`。规则及窗口退出0，无引擎错误；默认无截图。
-
-- 控火为普通1费消耗技能，不判施法：自由面永久增加火球基础伤害1点，按头部／颈肩／双臂双手的实际非零紧度检查（范围暂定）；挣扎面经共用预备魔力效果提供10点临时魔力。永久增值跨战保留、新局清零、基础相加后再乘增益；卡图、卡面、状态与真实点击已接入。
-- 预备魔力每层立即转成5点temporary_mana，移除原层数状态与逐次折扣，池子独立且无容量上限。候选和提交共享付款拆分：卡牌、火球及牢门开锁优先抵扣，再扣自身；固定魔力转换适用，失败照付。魔瓶／商店商品／服务不读取临时池，耗魔遗物及返还只算自身真实支出。各类end_combat统一清空，跨回合保留；当前格式保存小数余额，无旧档迁移。
-- 更新卡牌、节魔卷轴、状态、魔力条、教程、日志、资源飘字与规则书。删除离场时笼统承诺所有增益保留的旧句。临时池损耗与自身魔力分开记录，致死施法先付费再清空余量，反馈保留两段。
-- 控火单独完成时，规则扩展样本7836项、窗口279项通过，日志`build/checks/20260909T190433886-49696/`。随后临时魔力整批扩展检查`build/checks/20260909T191058312-49352/check-rules.log`共9219项，6项失败均为新增临时池测试夹具：未排除开场遗物的结束恢复，以及未清掉第二只敌人；其余分类通过。修正夹具后按casting、consumables及关联完整分类复查3001项全通过：`build/checks/20260909T191236306-52240/check-rules.log`，包含小数、无上限、付款不足原子拒绝、旧版本拒绝、失败施法、固定转换、遗物实际支出、商店及魔瓶隔离、各场次清空与同版本存取。保留已通过的扩展池样本结果，不重复全项目。
+- 最终窗口casting／status／rewards共292项通过，含真实出牌、永久加伤、10点临时魔力、状态寿命、魔力条点数显示与卡面高度：`build/checks/20260909T191236306-52240/check-ui.log`。
+- 候选和提交共享付款拆分：卡牌、火球及牢门开锁优先抵扣，再扣自身；固定魔力转换适用，失败照付。
+- 控火单独完成时，规则扩展样本7836项、窗口279项通过，日志`build/checks/20260909T190433886-49696/`。随后临时魔力整批扩展检查`build/checks/20260909T191058312-49352/check-rules.log`共9219项，6项失败均为新增临时池测试夹具：未排除开场遗物的结束恢复，以及未清掉第二只敌人；其余分类通过。修正夹具后按casting、consumables及关联完整分类复查3001项全通过：`build/checks/20260909T191236306-52240/check-rules.log`，包含小数、无上限、付款不足原子拒绝、旧版本拒绝、失败施法、固定转换、遗物实际支出、商店及魔瓶隔离、各场次清空与同版本存取。
 
 ## 2026-09-10 余火
-
 域：压力与快感、卡牌与奖励。
-
-- 普通0费、基础5魔力、手部施法。free复用next_attack增益并将base_bonus=4接入火球基础伤害计算；同源不叠加，失败保留，整次群攻成功后一次消耗，装备自解分支也消耗。bound先抽1张，然后按当前余额及optional_draw固定5魔力追加一次抽牌；使用原临时魔力分摊与真实自身耗魔遗物hook，不额外施法，不新增状态或UI行动。
-- 规则用例归入原rewards卡牌扩展，验证5／9.9／10魔力边界、0能量可施法、临时池和耳坠、伤害倍率前加值、群攻整波、同源拒绝、火球失败保留、装备自解半伤和消耗、双面失败扣首次费用并留牌；窗口casting实际点击验证普通卡、手部要求及双次抽牌付款。源码注册、教程式说明、状态、实际额外付款与抽牌日志、普通池和SVG同步，不截图。
+- free复用next_attack增益并将base_bonus=4接入火球基础伤害计算；同源不叠加，失败保留，整次群攻成功后一次消耗，装备自解分支也消耗。
+- 规则用例归入原rewards卡牌扩展，验证5／9.9／10魔力边界、0能量可施法、临时池和耳坠、伤害倍率前加值、群攻整波、同源拒绝、火球失败保留、装备自解半伤和消耗、双面失败扣首次费用并留牌；窗口casting实际点击验证普通卡、手部要求及双次抽牌付款。
 - `rewards,casting,basic_attacks`及关联分类5903项全部通过：`build/checks/20260909T193222310-51720/check-rules.log`。
 - `basic_attacks,casting`窗口132项通过，脚本退出0、无截图：`build/checks/20260909T193222310-51720/check-ui.log`。
 
 ## 2026-09-10 死灰复燃与通用失败留牌
-
 域：界面、检查与测试。
-
-- 死灰复燃：普通1费、基础10魔力、手部施法，两面成功后将既有火球术已用次数清零；上限仍读取BasicAttacks.usage，炫火3→4和敌人／装备共用次数继续有效。加入普通池、图鉴、卡面与本地SVG。refresh_spell沿self_faces声明并校验已登记法术，无新增状态或独立行动。
-- 用户后续明确修改全部卡牌法术：Cards.play在任何实体牌移动之前统一施法，失败照付、留手、保留原顺序与保留期限，没有离手动画或成功出牌计数；消耗牌亦然。成功后才执行原弃牌／消耗／效果，牢门调用同一流程。非卡牌法术的次数与费用不变。教程、悬停、卡牌说明、日志与规则书同步；无旧档迁移。
+- 用户后续明确修改全部卡牌法术：Cards.play在任何实体牌移动之前统一施法，失败照付、留手、保留原顺序与保留期限，没有离手动画或成功出牌计数；消耗牌亦然。
 - 沿既有casting和rewards用例更新失败断言，补充同一实体卡失败留手、无动画、保存恢复与重新成功的覆盖；死灰复燃用例验证耗尽后实际刷新并再次施放、3／4次数上限、两面、1＋10付款、手部阻止、失败不刷新、旧候选拒绝。UI实际点击普通刷新和消耗牌失败后重试，无截图。
 - 新卡初版规则5731项通过：`build/checks/20260909T191810321-38608/check-rules.log`；同轮窗口仅首次火球悬停断言失败，补上先移出再移入以真正触发悬停。用户补充通用规则后，首轮3047项仅一处新增多段卡的文字格式断言失败：`build/checks/20260909T192209105-52040/check-rules.log`；将原只接受“6点”的断言扩展为接受准确的“6×5点”，保留真实基础值和段数校验，不改该卡规则。
-- 最终规则`casting`及关联分类3047项通过、退出0：`build/checks/20260909T192336459-46380/check-rules.log`。同批窗口被并行新增的两张SVG未导入阻止，随后仅导入并重跑窗口，未重复已通过规则。
+- 最终规则`casting`及关联分类3047项通过、退出0：`build/checks/20260909T192336459-46380/check-rules.log`。
 - 导入后的窗口中，失败留牌／重试和死灰复燃用例均通过；仅并行新增顺延卡测试把物理装备ID当作拖放候选ID，导致定位断言失败（实际后续行动通过）。按现有drop_targets候选键取正式candidate.id修正测试，不改游戏逻辑；日志`build/checks/20260909T192600244-55380/check-ui.log`，basic_attacks 16项已通过并保留结果。
-- 最终casting窗口114项全部通过、退出0、无截图：`build/checks/20260909T192744292-51796/check-ui.log`。规则与相关窗口门禁完成。
+- 最终casting窗口114项全部通过、退出0、无截图：`build/checks/20260909T192744292-51796/check-ui.log`。
 
 ## 2026-09-10 火动力学
-
 域：`tests/fire_dynamics_cases.gd`。
-
-- 2费稀有双面能力已接入原能力区、稀有池、图鉴和共享卡面，附本地SVG。自由面沿现有群攻冻结敌人名单，一次费用、一次次数、一次施法结果；保留魔法属性、伤害倍率、死亡与分裂结算。炫火自解仍单目标。挣扎面chance_bonus在快感／部位／法术倍率后加0.25并封顶，正式施法、预览、状态及事件共用。
-- `tests/fire_dynamics_cases.gd`挂在rewards既有能力测试内，覆盖2费、封顶、口部零倍率后的独立加区、其他法术不变、精通共存、双面／去重、当前格式恢复、场次清理、群攻付款及一次使用、魔法对机械全伤、分裂子代不追击、失败全体无伤、炫火单目标。UI沿casting测试实际翻面及打出，并检查插图、稀有品质和50%群攻投影。不加截图或旧档迁移。
-- 首次运行恰逢并行临时魔力字段迁移，旧reserve_mana读取失败，已停止该次运行。随后`rewards,casting,basic_attacks`及关联分类共5720项，除临时魔力专项6项外其余通过，火动力学无失败；日志`build/checks/20260909T191104468-53092/check-rules.log`。临时魔力用例同步修正后只重跑casting及其关联分类。
+- `tests/fire_dynamics_cases.gd`挂在rewards既有能力测试内，覆盖2费、封顶、口部零倍率后的独立加区、其他法术不变、精通共存、双面／去重、当前格式恢复、场次清理、群攻付款及一次使用、魔法对机械全伤、分裂子代不追击、失败全体无伤、炫火单目标。
+- 首次运行恰逢并行临时魔力字段迁移，旧reserve_mana读取失败，已停止该次运行。随后`rewards,casting,basic_attacks`及关联分类共5720项，除临时魔力专项6项外其余通过，火动力学无失败；日志`build/checks/20260909T191104468-53092/check-rules.log`。
 - 窗口`casting,basic_attacks`共97项通过、退出0，无截图：`build/checks/20260909T191213155-24068/check-ui.log`。
-- 修正后`casting`及关联分类3001项全部通过、退出0：`build/checks/20260909T191309169-56024/check-rules.log`。其余前轮已通过分类不重复运行。
+- 修正后`casting`及关联分类3001项全部通过、退出0：`build/checks/20260909T191309169-56024/check-rules.log`。
 
 ## 2026-09-10 休息处六回合与入场增益
-
 域：卡牌与奖励、装备与解除。
-
-- REST_TURNS=6。rest_choice在正式抵达时冻结三张不重复稀有卡，不推进普通卡牌rare_offset；点击卡牌扣4回合并获得它，rest_flask扣3回合补50魔瓶魔力，rest_begin保留6回合。不按装备状态限制，不发工具。删除旧rest_tool执行与rest_service_used字段，统一_begin_rest在选择后才开始场次及第1个真实回合；扣掉的时间不执行_end_turn或补发任何触发。练习直接开始6回合，保留场景配置工具。
-- 新选择页沿用手牌样式显示三个真实稀有卡，另列补魔瓶／直接休息。选择后页面关闭并显示剩余2／3／6回合；非回合选择阶段不开放魔瓶存取。挂钩3次、自由面禁用、背包及结束规则保留。教程、路线说明、练习说明、规则书、README同步，无截图或旧档迁移。
-- 规则覆盖实际卡牌与魔瓶领取、三条时长、原有装备不阻止选择、选择前无开场效果、选择后仅一次抽牌／补能／遗物、绿色小鸟从实际第1回合计数、无快感或回合末补魔的虚假跳过、魔瓶1000→1050且自身魔力不变、查看不重抽、旧版本重复提交拒绝、选择后不能再领、剩余回合耗尽退出。services关联pressure。
-- 旧测试迁移：原工具服务获取改为工具夹具；旧5回合期待改6；所有经过休息处的旧路线补上rest_begin选择。首轮基础／服务／压力／奖励批次5556项中的6项失败来自未更新的路线假设（含1处后续空敌人访问），第二轮物品／部件／核心／路线批次4966项中9项失败来自剩余监狱路线入口假设；各已通过分类保留结果。日志分别`build/checks/20260909T185241943-53564/check-rules.log`、`build/checks/20260909T185508860-47188/check-rules.log`。修正后的prison/tower_progression及关联分类1962项全部通过：`build/checks/20260909T185717360-54536/check-rules.log`。
-- 窗口services98项、prison120项通过：`build/checks/20260909T185717360-54536/check-ui.log`。该批仅旧pressure断言把既有魔瓶入口误判为多余操作；按现有规则排除魔瓶，并修正测试内同名局部变量后，pressure41项全通过、脚本退出0：`build/checks/20260909T190124235-53368/check-ui.log`。未改变魔瓶既有玩法，也未重复已通过的窗口分类。
+- 规则覆盖实际卡牌与魔瓶领取、三条时长、原有装备不阻止选择、选择前无开场效果、选择后仅一次抽牌／补能／遗物、绿色小鸟从实际第1回合计数、无快感或回合末补魔的虚假跳过、魔瓶1000→1050且自身魔力不变、查看不重抽、旧版本重复提交拒绝、选择后不能再领、剩余回合耗尽退出。
+- 首轮基础／服务／压力／奖励批次5556项中的6项失败来自未更新的路线假设（含1处后续空敌人访问），第二轮物品／部件／核心／路线批次4966项中9项失败来自剩余监狱路线入口假设；各已通过分类保留结果。日志分别`build/checks/20260909T185241943-53564/check-rules.log`、`build/checks/20260909T185508860-47188/check-rules.log`。修正后的prison/tower_progression及关联分类1962项全部通过：`build/checks/20260909T185717360-54536/check-rules.log`。
+- 窗口services98项、prison120项通过：`build/checks/20260909T185717360-54536/check-ui.log`。该批仅旧pressure断言把既有魔瓶入口误判为多余操作；按现有规则排除魔瓶，并修正测试内同名局部变量后，pressure41项全通过、脚本退出0：`build/checks/20260909T190124235-53368/check-ui.log`。
 
 ## 2026-09-10 炫火、火球次数与火焰精通费用
-
 域：装备与解除、界面。
-
-- 新增稀有1费能力炫火及本地SVG卡图。两面沿原能力来源：自由面每回合火球术3→4次；挣扎面从装备详情选择最外层拘束具造成当前火球术一半的魔法伤害。敌人与装备共享次数、施法与付款；失败计次，过期／不可用提交不计次。半伤复用基础增伤、手势与倍率公式，不重复加入挣扎／滑脱修正；外层、免疫和真实装备清理保留。火焰精通两面统一2费，实际卡面与不足2费拒绝同步验证。
-- 新案例flame_flourish_cases由rewards下card_power唯一接入，覆盖两面共存、同面拒绝、三次封顶、回合内加一次、跨目标共用、换回合、场次清理、当前快照、只读与过期回滚、锁定件直接扣耐久、倍率取半、外层遮挡／破坏及付费失败。窗口casting补充真实出牌、翻面、装备详情施法按钮点击、扣费／次数及两面卡面高度。targeting复查原基础攻击入口。
+- 敌人与装备共享次数、施法与付款；失败计次，过期／不可用提交不计次。火焰精通两面统一2费，实际卡面与不足2费拒绝同步验证。
+- 新案例flame_flourish_cases由rewards下card_power唯一接入，覆盖两面共存、同面拒绝、三次封顶、回合内加一次、跨目标共用、换回合、场次清理、当前快照、只读与过期回滚、锁定件直接扣耐久、倍率取半、外层遮挡／破坏及付费失败。
 - 首轮rewards/casting/content完整种子矩阵7867项中4项失败：两处装备断言读取了事务前引用、一处外层夹具选到了不同精准位置，及扩大卡池后原32种子未覆盖全卡；均修正为提交后按ID取目标、显式同部位夹具、按卡池规模设置有界抽样。该轮其余分类通过，日志build/checks/20260909T190733187-40504/check-rules.log。
-- 修正后按ListOnly范围运行rewards及全部关联日常分类，4297项通过；窗口casting/targeting共107项通过，均无引擎错误。日志build/checks/20260909T191122603-49452/check-rules.log及check-ui.log。没有运行全项目回归、生成截图或增加旧存档兼容。
+- 日志build/checks/20260909T191122603-49452/check-rules.log及check-ui.log。
 
 ## 2026-09-10 henshin自由面不可叠加
-
 域：界面、检查与测试。
-
-- 确认原共享增益逻辑已按稳定来源去重，重复自由面在付款前拒绝，保留该实现。自由卡面与状态说明直接写明“不可叠加”，通用重复提示改为具名“henshin已生效，不能重复叠加。”；不同来源的原倍率组合和挣脱面保持原规则。
-- 沿card_expansion既有实际重复使用、整份状态不变、伤害倍率、战斗结束清理及被动伤害案例补充显示断言。ListOnly确认后，rewards及关联完整日常分类通过4170项，窗口casting通过63项，包含双面卡牌实际操作及文本高度检查。日志`build/checks/20260909T184750323-49332/check-rules.log`与`check-ui.log`。未新增规则字段、截图或存档兼容，未运行全项目回归。
+- 确认原共享增益逻辑已按稳定来源去重，重复自由面在付款前拒绝，保留该实现。
+- 沿card_expansion既有实际重复使用、整份状态不变、伤害倍率、战斗结束清理及被动伤害案例补充显示断言。日志`build/checks/20260909T184750323-49332/check-rules.log`与`check-ui.log`。
 
 ## 2026-09-10 开信刀play
-
 域：界面、装备与解除。
-
-- 新增罕见1费双面能力letter_opener并进入罕见池，复用能力区及双面共存／同面不叠加规则。BUFFS.periodic统一配置技能类型、每3张阈值、目标和基础伤害；进度附着物理能力牌，每玩家回合开始归零，结束场次清除，多段完整结束后才触发，续段不重复计数。
-- 自由面5普通物理伤害复用全局倍率、敌人抗性、分裂及击败。挣扎面冻结当前全部外层目标和各自公式，以3点仅乘紧度、锁、堆叠、目标及伤害增益；不加属性／蓄力／辅助／墙面、不消费准备、不执行主动直接卸除。装备实际损伤和清理沿共享入口，不穿透新露出的内层。新增原创开信刀信封SVG、卡面说明和状态进度；模板与规则书同步，不做旧档迁移。
-- 导入成功，ListOnly确认后rewards及关联完整分类以Exhaustive通过6372项，日志`build/checks/20260909T184205458-49588/check-rules.log`。涵盖第三／第六张、每回合重置、零费技能、魔法与诅咒排除、失效命令、只读投影、多段技能一次、倍率数值、蓄力不消耗、低紧度外层打破后内层保留、复合／独立装备去重及群伤胜利清理。测试夹具使用同一精准小腿位置建立真实层叠，避免自动选位将两件放到不同位置。
-- 完整窗口casting最终通过63项，日志`build/checks/20260909T184521459-41396/check-ui.log`；status30项及rewards179项已在前一窗口批次完成。首轮新增点击用例将已自动显示自由面的技能误翻回挣扎面，修正测试为按当前牌面决定翻转后，仅重跑受影响casting。验证真实点击、右键牌面、费用、能力区、2／3状态及双面文字边界。未运行全项目或新增截图。
+- 导入成功，ListOnly确认后rewards及关联完整分类以Exhaustive通过6372项，日志`build/checks/20260909T184205458-49588/check-rules.log`。
+- 完整窗口casting最终通过63项，日志`build/checks/20260909T184521459-41396/check-ui.log`；status30项及rewards179项已在前一窗口批次完成。
 
 ## 2026-09-10 奥利哈基米
-
 域：存档、检查与测试。
-
-- 罕见一般遗物olihakimi，unspent_turn_mana=8。四类正式玩家回合结束时，未实际支付魔力则由共享hook恢复8并封顶；不在单纯结束战斗时补发。combat.mana_used在任何正数正式付款时记录，不依赖是否持有该遗物，也独立于耳坠累计余数；回合开始重置、场次结束清理。零费与魔瓶转移不标记，付费失败仍标记，恢复魔力不撤销。同步图标、说明、规则／模板和当前快照字段，提升集中修订号但不迁移旧档。
-- 完成ListOnly、导入及rewards/content相关Exhaustive检查。新用例覆盖真实结束回合、实际火球付款后饮药、零费准备、魔瓶转移、耳坠阈值归零、付费施法失败、回合中途拾取、恢复封顶、四类回合生命周期、同版本读回及损坏字段原子拒绝。最初夹具在受拘束站姿饮药、以及将用于读回的初始魔力赋为整数，修正为合法坐姿与浮点值；读回后的版本变更用真实快照比较。
-- 本遗物用例最终无失败；完整status/rewards窗口通过209项，日志`build/checks/20260909T183914781-37496/check-ui.log`，验证悬停品质／条件、真实结束回合恢复8及施法后不恢复。首次窗口受并行新增letter_opener.svg未导入影响，重新导入后通过。
-- 共享奖励分类整合门禁尚未全绿：`build/checks/20260909T183914781-3636/check-rules.log`共6344项，3项断言失败及4条引擎错误均来自并行新增的letter_opener_cases；该轮不能记作通过。未修改该并行实现或跳过其测试。本任务未新增截图、存档迁移或全项目回归。
+- 零费与魔瓶转移不标记，付费失败仍标记，恢复魔力不撤销。
+- 新用例覆盖真实结束回合、实际火球付款后饮药、零费准备、魔瓶转移、耳坠阈值归零、付费施法失败、回合中途拾取、恢复封顶、四类回合生命周期、同版本读回及损坏字段原子拒绝。
+- 本遗物用例最终无失败；完整status/rewards窗口通过209项，日志`build/checks/20260909T183914781-37496/check-ui.log`，验证悬停品质／条件、真实结束回合恢复8及施法后不恢复。
+- 共享奖励分类整合门禁尚未全绿：`build/checks/20260909T183914781-3636/check-rules.log`共6344项，3项断言失败及4条引擎错误均来自并行新增的letter_opener_cases；该轮不能记作通过。
 
 ## 2026-09-10 绿色小鸟
-
 域：检查与测试、卡牌与奖励。
-
-- 稀有一般遗物green_bird，pressure_guard_turns=4。combat.turn为全部战斗／类战斗统一回合数，开场归零、玩家回合先递增；巡视暂停不重置。Pressure.gain在倍率之后和阈值结算之前截断99，超额舍弃；开场及有效期内拾取也纠正已有99以上小数。第5回合正常增长，无补算。资源来源说明与遗物倒计数共用只读投影，新增绿色小鸟SVG及具名抵消反馈。规则／模板／README同步，不做旧档迁移。
-- 覆盖稀有池、四类真实开场、前1—4回合、真实结束行动、保护期间魔力／能量／手牌／阈值计数不变、第5回合正常阈值、当场第3回合取得只剩2回合、非战斗无保护、巡视后第5回合不重新保护。rewards分类关联pressure，防止将来专项遗漏。
 - 首轮rewards/pressure关联4970项中9项失败均来自新牢房夹具将倒计时设为非法10，正式行动被拒绝；修正为正式初始倒计时，其余分类通过。首轮日志`build/checks/20260909T183032721-5724/check-rules.log`。修正后rewards及其关联全分类4085项通过：`build/checks/20260909T183239129-50128/check-rules.log`；pressure及其他无变化分类未重复。
-- 界面初次被同时编辑的olihakimi.svg尚未导入阻塞；重新导入后status完整分类30项通过，但rewards加载时同时编辑的olihakimi测试函数尚未写完。其文件完整后，仅重跑rewards，179项通过，退出0。status证据`build/checks/20260909T183447757-22020/check-ui.log`，rewards最终证据`build/checks/20260909T183604714-3784/check-ui.log`。本任务未修改该并行功能。
-- 真实界面结束回合后快感98→99，遗物剩余保护4→3；资源详情说明99上限，所有遗物图标与完整悬停说明检查通过。无截图。
+- status证据`build/checks/20260909T183447757-22020/check-ui.log`，rewards最终证据`build/checks/20260909T183604714-3784/check-ui.log`。
 
 ## 2026-09-10 红烧鱼香茄子
-
 域：界面、检查与测试。
-
-- 稀有一般遗物braised_eggplant；仅注册已有pickup_mana_max=20、pickup_mana=20，先永久加上限再恢复。加入REWARDS和共用SVG图标；无需新增规则逻辑、接口、计数或存档字段，文案、规则说明、模板已同步。
-- 规则覆盖真实稀有池抽取、满魔力／非满魔力正式领取、只读资源投影、防止重复领取与过期提交再次增加、后续特殊战斗不重复加成。窗口真实点击领取后立即显示120/120与持有图标；全部遗物的悬停说明沿现有批量检查验证。无截图。
 - ListOnly后导入及rewards关联分类首轮4032项，仅同时修改中的触手朋友3项失败；本次新遗物和其他分类通过。日志：`build/checks/20260909T182213323-53140/check-rules.log`。触手朋友夹具更新后单独复查受影响consumables完整分类，120项通过：`build/checks/20260909T182429727-55732/check-rules.log`，本任务未修改其代码或夹具。
-- rewards完整窗口166项通过：`build/checks/20260909T182405813-36264/check-ui.log`。复查脚本退出0，无引擎错误。未重复无变化的已通过分类。
+- rewards完整窗口166项通过：`build/checks/20260909T182405813-36264/check-ui.log`。
 
 ## 2026-09-10 触手朋友
-
 域：装备与解除、界面。
-
-- 稀有一般遗物tentacle_friend，unrestricted_items=1。药剂、卷轴、开锁针和折返符取消身体／姿势／触及限制；魔瓶饮用复用药剂资格，potion_amount口部减效及取整原样保留。不改玩家真实身体自由度、施法或徒手辅助资格，次数、阶段、材料、外层遮挡和有效目标仍按原规则。
-- Tools.assisted/is_fixed/target_contact集中解释权限与全身接触，随身trigger_damage_types工具视为固定，复用InstalledTools最强兼容工具选择、每牌限次及固定伤害；含头部与特殊部位的可用工具环境。真实mount不改，工具仍占携带格、能随人离房，不需安装且不再提供直接切割入口。已真实安装的工具可由触手取回，原位置与数量校验保留。新SVG及道具面板显示“触手固定”“全身”，不把虚拟固定写成真实墙面安装。
-- 已确认分类范围并完成导入。初轮consumables/installed_tools/rewards/content及关联Exhaustive执行6294项，3项新案例失败：测试临时改口部装备等级后未恢复结构，以及给不存在的独立颈部模板构造夹具；该轮不视作通过。修正为还原口部结构、以真实颈肩接触点验证范围，consumables先通过117项；再补充真实旧工具取回及手部状态不变案例，并覆盖special_equipment完整分类和关联接口，最终通过2320项，日志`build/checks/20260909T182416401-26048/check-rules.log`。其他未变分类已在`build/checks/20260909T182058439-32992/check-rules.log`完成。consumables交叉关联补入installed_tools/special_equipment/content。
-- 完整status/consumables/rewards窗口通过223项，日志`build/checks/20260909T182302963-54600/check-ui.log`。真实操作验证拘束下使用卷轴、旧禁用原因消失、随身工具显示固定被动及全身范围、共享遗物图标。规则验证真实眼部出牌加成、次数与伤害、过期命令不重复、外层／材料／耗尽反例、魔瓶半效及上下取整、工具携带与库存。未新增截图、存档迁移或全项目回归。
+- 初轮consumables/installed_tools/rewards/content及关联Exhaustive执行6294项，3项新案例失败：测试临时改口部装备等级后未恢复结构，以及给不存在的独立颈部模板构造夹具；该轮不视作通过。修正为还原口部结构、以真实颈肩接触点验证范围，consumables先通过117项；再补充真实旧工具取回及手部状态不变案例，并覆盖special_equipment完整分类和关联接口，最终通过2320项，日志`build/checks/20260909T182416401-26048/check-rules.log`。其他未变分类已在`build/checks/20260909T182058439-32992/check-rules.log`完成。
+- 完整status/consumables/rewards窗口通过223项，日志`build/checks/20260909T182302963-54600/check-ui.log`。
 
 ## 2026-09-10 爆炒麻辣米线
-
 域：卡牌与奖励、检查与测试。
-
-- 普通一般遗物spicy_rice_noodles，opening_charge=2。沿既有begin_combat增加charge，覆盖战斗／牢房／休息／整备，保留叠层、原有使用规则与状态投影。独立SVG和具名获得反馈已接入，说明／模板同步；无新状态、计数、迁移或截图。
-- ListOnly确认rewards及其关联分类，导入成功。首轮3986项中仅客房事件的2项旧测试失败：随机奖励抽到了改变魔力上限的遗物，与该夹具固定92上限的假设冲突；其余分类（包括新遗物完整规则用例）通过。日志：`build/checks/20260909T181633502-14512/check-rules.log`。
-- 客房两种数值夹具限定奖励资格，隔离无关的拾取加成，保持正式随机生成与交易。受影响event_flow分类复查302项全通过：`build/checks/20260909T181832905-53992/check-rules.log`。未重复已通过且无修改的规则分类。
-- 完整status/rewards窗口检查193项通过：`build/checks/20260909T181832905-53992/check-ui.log`，真实奖励进入整备获得蓄力，遗物横栏图标／悬停与现有状态投影正确。脚本退出0，无引擎错误、无截图。
-- 规则覆盖普通池抽取、途中拾取不追溯、四类真实开场叠层、普通换回合不重复、正式奖励转整备、只读查看与过期提交不重复，以及巡视后恢复不重开场。
+- 首轮3986项中仅客房事件的2项旧测试失败：随机奖励抽到了改变魔力上限的遗物，与该夹具固定92上限的假设冲突；其余分类（包括新遗物完整规则用例）通过。日志：`build/checks/20260909T181633502-14512/check-rules.log`。
+- 受影响event_flow分类复查302项全通过：`build/checks/20260909T181832905-53992/check-rules.log`。
+- 完整status/rewards窗口检查193项通过：`build/checks/20260909T181832905-53992/check-ui.log`，真实奖励进入整备获得蓄力，遗物横栏图标／悬停与现有状态投影正确。
 
 ## 2026-09-10 传单
-
 域：卡牌与奖励、检查与测试。
-
-- 普通一般遗物flyer，进入商店向魔瓶补充20魔力；shop_flask_mana沿既有RelicEffects._mana_hook增加魔瓶目标，复用商店stock首次初始化防重，不新增持久字段。店内取得不追溯，其他房间不触发，自身魔力与手动存入次数不变，无容量封顶。新增传单SVG、共用图标与具名资源反馈，规则书及模板同步。
-- ListOnly确认范围，导入成功。rewards/services/content及关联分类以Exhaustive完成首轮，6333项断言无失败，但新商店夹具误调用仅测试Game支持的_gain_relic，出现1条引擎错误，该轮未视作通过。修正为正式RelicEffects.gain后，受影响services及其全部关联consumables/shop_release/rewards分类通过1146项，日志`build/checks/20260909T180728221-42056/check-rules.log`；其他分类已在`build/checks/20260909T180620998-31860/check-rules.log`完成。仅修正测试调用，未重复运行无变化分类。
-- 覆盖真实路线进入商店／宝箱、连续不同商店、1000魔瓶余量继续增加、只读页面、过期进入命令原子拒绝、重开不补发、店内拾取不追溯、普通池实际抽取、可扩展字段及超界拒绝。services交叉分类补充rewards/content关联。
-- 完整窗口services/status/rewards通过279项，日志`build/checks/20260909T180728221-42056/check-ui.log`。真实点击到店后余额增加20，宝箱不增加；图标、普通品质与说明正确。未运行全项目、未新增截图或存档迁移。
+- rewards/services/content及关联分类以Exhaustive完成首轮，6333项断言无失败，但新商店夹具误调用仅测试Game支持的_gain_relic，出现1条引擎错误，该轮未视作通过。修正为正式RelicEffects.gain后，受影响services及其全部关联consumables/shop_release/rewards分类通过1146项，日志`build/checks/20260909T180728221-42056/check-rules.log`；其他分类已在`build/checks/20260909T180620998-31860/check-rules.log`完成。
+- 覆盖真实路线进入商店／宝箱、连续不同商店、1000魔瓶余量继续增加、只读页面、过期进入命令原子拒绝、重开不补发、店内拾取不追溯、普通池实际抽取、可扩展字段及超界拒绝。
+- 完整窗口services/status/rewards通过279项，日志`build/checks/20260909T180728221-42056/check-ui.log`。
 
 ## 2026-09-10 成王之礼精装修订重置版
-
 域：界面、卡牌与奖励。
-
-- 稀有一般遗物kings_gift_revised，trigger复用turn_end／battle周期，round=7、fixed_enemy_damage=77。第7个玩家回合结束时冻结在场敌人，固定伤害不受坚硬／力量／蓄力／henshin倍率影响。普通攻击与遗物统一_damage_enemy处理生命、死亡和分裂；新子代不在本次目标集合内，全灭立即结算一次奖励。复用round、combat.serial、relic_used与只读counter，无新计数状态或存档字段。模板校验、说明、日志、图标及回合／已触发显示同步。
-- 完整rewards、basic_attacks、content及关联分类通过3750项，日志`build/checks/20260909T180151538-31668/check-rules.log`。覆盖第6／7／8回合、机械与普通目标固定伤害、蓄力保留、全灭奖励／重复提交、下场重置、死亡／半血分裂子代和休息排除，以及JSON指定回合整数与适用范围校验。首轮分裂测试误读提交前对象，改为按ID读取正式敌人后通过，未修改分裂规则。
-- 窗口basic_attacks通过16项、enemies通过182项，同目录check-ui.log；该批随后加载rewards时因并行新增图标引起ART资源解析失败，未计整批通过。统一重新导入后完整rewards通过157项，日志`build/checks/20260909T180535409-49700/check-ui.log`。真实点击结束第7回合验证全部敌人100→23及图标7→✓，共享悬停说明通过。未截图或运行存档专项。
+- 完整rewards、basic_attacks、content及关联分类通过3750项，日志`build/checks/20260909T180151538-31668/check-rules.log`。
+- 窗口basic_attacks通过16项、enemies通过182项，同目录check-ui.log；该批随后加载rewards时因并行新增图标引起ART资源解析失败，未计整批通过。统一重新导入后完整rewards通过157项，日志`build/checks/20260909T180535409-49700/check-ui.log`。未截图或运行存档专项。
 
 ## 2026-09-10 滚木
-
 域：卡牌与奖励、界面。
-
-- 新增特殊收藏遗物rolling_log，没有效果，不进入一般遗物池。抽中品质池耗尽时统一替代发放，不再换抽其他品质；精英奖励、商店、宝箱和随机事件共用。重复领取只累加持有数量，顶部一个图标右下角计数；同步原创木段SVG、悬停说明、内容模板和规则书。
-- 复用collectible、can_gain与counter投影，收藏定义禁止附带属性、触发或卡面加值。拾取不触发效果动画，魔力、能量及角色属性不变；每个商店货位独立购买与售罄。删除宝箱30魔力及商店留空回退。快照仅更新正式事务所需的合法遗物／领取资格校验，未添加旧存档兼容或迁移。
-- ListOnly确认范围后，rewards/services/content及关联完整分类以Exhaustive通过6309项，日志`build/checks/20260909T175626751-38324/check-rules.log`。覆盖单品质／全池耗尽、普通池不受替代领取影响、重复拾取、真实精英领奖、三份商店购买、宝箱免费领取、回合不增加数量、只读预览、失效命令及内容校验。首轮修正测试夹具对相同商品字典的索引查找，正式货位逻辑未变。
-- 完整窗口services/status/rewards通过271项，日志`build/checks/20260909T175626751-27220/check-ui.log`。真实点击验证奖励重复领取及三个独立商品扣费／售罄，图标数量和悬停说明正确；已查看`build/ui-rolling-log.png`。未运行全项目回归。
+- ListOnly确认范围后，rewards/services/content及关联完整分类以Exhaustive通过6309项，日志`build/checks/20260909T175626751-38324/check-rules.log`。
+- 完整窗口services/status/rewards通过271项，日志`build/checks/20260909T175626751-27220/check-ui.log`。真实点击验证奖励重复领取及三个独立商品扣费／售罄，图标数量和悬停说明正确；已查看`build/ui-rolling-log.png`。
 
 ## 2026-09-10 大理石
-
 域：界面、卡牌与奖励。
-
-- 罕见一般遗物marble，low_mana_end_restore=20。真实战斗／牢房探索场次结束时，在行动遗物flush之后、余烬护符等battle_mana之前，按当前魔力≤当前上限50%判定并恢复封顶；不依赖持有顺序。探索巡视只暂停，不触发；反抗转战斗或逃离时结束探索，休息／整备排除。复用active避免重复结算，无新状态／存档字段。说明、模板、具名触发日志及共享大理石SVG同步。
-- 完整rewards及关联分类通过3586项，日志`build/checks/20260909T174413035-48612/check-rules.log`。覆盖50%临界及略高反例、变化后的上限、恢复封顶、两种持有顺序、只读预览、重复结束、真实整备／休息离开、探索移动／巡视暂停／反抗／逃离。
-- 完整status、rewards窗口分类通过169项，日志`build/checks/20260909T174413035-48612/check-ui.log`。真实付费法术击败敌人后魔力降至50，先大理石＋20再护符＋10，奖励页正确显示80；全部遗物图标及悬停说明通过。未截图、未运行全项目或存档专项。
+- 完整rewards及关联分类通过3586项，日志`build/checks/20260909T174413035-48612/check-rules.log`。
+- 完整status、rewards窗口分类通过169项，日志`build/checks/20260909T174413035-48612/check-ui.log`。未截图、未运行全项目或存档专项。
 
 ## 2026-09-10 优秀学员毕业证书
-
 域：卡牌与奖励、检查与测试。
-
-- 新增罕见一般遗物graduate_certificate：奋力挣动／扭身抽离卡面基础5→9。通用card_base_bonuses按稳定卡牌ID配置加值；Cards.base_damage统一供装备、捕缚与动态卡面使用，不改共享SPECS和自由面，不影响其他牌／体术／被动。加值在倍率之前，三档滑脱仍免疫卡牌伤害，原环境真实伤害保持独立。
-- 手持、卡组、奖励、商店、图鉴陈列共用GameView.card_texts；卡牌候选说明同样读取动态牌面。新增原创证书SVG与悬停说明，无伪计数器。既有JSON加载器支持可选card_base_bonuses，校验真实有基础伤害的卡牌ID、非空对象及1—100整数，批次失败不提交。
-- ListOnly确认范围后运行Import与rewards/content/services完整分类；修正捕缚测试为正式guard练习的三回合施加流程，并将三档反例分开断言卡牌免疫与环境真实伤害。最终`-Suite rewards -Exhaustive`及关联完整分类通过5767项，日志`build/checks/20260909T174036305-50028/check-rules.log`；生成域完整矩阵保留。先前services、shop_release与trader各分类也已完成，最终只重跑受修正影响的rewards及关联分类。
-- 完整窗口services/interface/rewards通过598项，日志`build/checks/20260909T173712127-51936/check-ui.log`。真实鼠标操作验证两张手牌及卡组均显示9、遗物悬停显示罕见和＋4、查看不改变游戏状态；已查看`build/ui-graduate-certificate-deck.png`。规则覆盖实际装备／捕缚伤害、原有倍率、三档免疫、锁与堆叠、其他牌不变、自由面不变、重复授予、失效命令原子拒绝、新局不受影响及内容加载正反例。未新增存档兼容或迁移。
+- 既有JSON加载器支持可选card_base_bonuses，校验真实有基础伤害的卡牌ID、非空对象及1—100整数，批次失败不提交。
+- ListOnly确认范围后运行Import与rewards/content/services完整分类；修正捕缚测试为正式guard练习的三回合施加流程，并将三档反例分开断言卡牌免疫与环境真实伤害。最终`-Suite rewards -Exhaustive`及关联完整分类通过5767项，日志`build/checks/20260909T174036305-50028/check-rules.log`；生成域完整矩阵保留。
+- 完整窗口services/interface/rewards通过598项，日志`build/checks/20260909T173712127-51936/check-ui.log`。真实鼠标操作验证两张手牌及卡组均显示9、遗物悬停显示罕见和＋4、查看不改变游戏状态；已查看`build/ui-graduate-certificate-deck.png`。规则覆盖实际装备／捕缚伤害、原有倍率、三档免疫、锁与堆叠、其他牌不变、自由面不变、重复授予、失效命令原子拒绝、新局不受影响及内容加载正反例。
 
 ## 2026-09-10 一只小猪
-
 域：界面、装备与解除。
-
-- 稀有一般遗物little_pig以always_wall=1接入at_wall，wall_contact独立保留真实墙面距离判定。贴墙起身、探索免摔倒与原墙面加成使用效果判定；工具安装／取回／触发、挂钩与对应特殊装备工具条件使用真实接触。实际位置、墙种、距离与随机域不因拾取改变，状态、移动预告、日志和教程明确区分持续支撑与真实位置。新增共享猪形SVG，不新增状态或存档字段。
 - 完整rewards、wall及关联分类通过4155项，日志`build/checks/20260909T172813464-4548/check-rules.log`。新案例验证真实折扣起身、离墙仍有效、无墙边界、蒙眼探索不掷摔倒骰、实际位移及远程工具拒绝；沿现有wall分类并登记rewards关联，不另建启动器。
-- 完整wall、status、rewards窗口分类通过209项，日志`build/checks/20260909T173112340-47616/check-ui.log`。真实点击离墙起身、距离显示、持续状态来源及全遗物悬停说明通过。首轮窗口被并行新增但尚未导入的graduate_certificate.svg阻断，统一重新导入资源后复查通过；没有调整无关功能、截图或存档专项。
+- 完整wall、status、rewards窗口分类通过209项，日志`build/checks/20260909T173112340-47616/check-ui.log`。
 
 ## 2026-09-10 遗物靠左与对白自动关闭
-
 域：卡牌与奖励、界面。
-
-- 遗物横栏移至场景最左上角（405,78），人物对白层级在其上。对白框与尾巴统一显隐：左键按下任意位置立即关闭，右键不关闭，未点击则首次展示5秒后自动关闭。按正式speech.id识别新发言；普通重绘和窗口操作不延长期限，也不复活已关闭对白。仅UI状态，不修改日志、回合和资源；点击继续传给原控件。
 - 先ListOnly确认范围，再运行`./tools/check.ps1 -UIOnly -UISuite action_copy,rewards,casting,interface -Screenshots ui-77-dialogue-action-log.png,ui-relics-after-dialogue.png -TimeoutSeconds 240`，577项断言通过。日志`build/checks/20260909T171155900-52752/check-ui.log`。
-- 实际输入覆盖对白内／外左键、右键反例、真实5秒等待、中途重绘保留截止时间、消失后新发言、遮盖时遗物不透出悬停、消失后遗物可悬停、计数遗物与施法遗物入口。查看两张截图确认对白、尾巴与遗物层级。同步更新既有遗物悬停测试为先按实际点击关闭遮挡对白，未绕过输入。未运行无关规则或存档专项。
 
 ## 2026-09-10 小宝石
-
 域：界面、检查与测试。
-
-- 新增普通一般遗物small_gem，opening_energy=1；战斗、牢房、休息与整备首回合正常补能后额外＋1，复用combat.first_turn，不新增计数器。中途拾取不补发，后续回合不重复；说明、模板、具名触发日志和共享宝石图标同步。
-- 完整rewards及关联分类通过3328项，日志`build/checks/20260909T170925732-54160/check-rules.log`；覆盖四类场次首回合、准备背包／预备能量／甜甜圈叠加、真实战后进入整备及过期提交拒绝。首轮新增测试未重置抽牌堆，修正夹具后通过，未改变游戏抽牌规则。
-- 完整status、rewards窗口分类通过153项，日志`build/checks/20260909T171249932-11148/check-ui.log`。验证实际进入整备显示4能量、下一回合恢复3、图标与完整悬停说明；窗口焦点切换修正后复查通过。没有新增截图、存档兼容或全项目回归。
+- 完整rewards及关联分类通过3328项，日志`build/checks/20260909T170925732-54160/check-rules.log`；覆盖四类场次首回合、准备背包／预备能量／甜甜圈叠加、真实战后进入整备及过期提交拒绝。
+- 完整status、rewards窗口分类通过153项，日志`build/checks/20260909T171249932-11148/check-ui.log`。
 
 ## 2026-09-10 场景遗物横栏与顶部精简
-
 域：卡牌与奖励、界面。
-
-- 全部持有遗物改为场景上方一字横排，超宽横向滚动；悬停直接显示名称、品质、完整效果和当前累计进度，离开关闭。移除独立遗物按钮、列表浮窗和旧show_relics状态；计数器继续读取正式投影并锚定图标右下角，触发反馈使用新横栏。场景上方房间名、阶段文字按用户要求删除，展开日志下移避免挡住遗物。
-- ui/relic_icon统一20种遗物图案，新增19张本地原创SVG，已有开心小fa保留；商店与奖励共享映射，未知扩展遗物保留通用图案回退。无规则、资源结算或存档修改。
-- 先ListOnly确认casting、services、interface、rewards窗口范围；Import与上述完整窗口分类通过637项断言。日志：`build/checks/20260909T170204373-40596/check-ui.log`。覆盖全部持有遗物逐个真实悬停、完整说明、单行布局、横向滚动后的末项可达、查看不改变状态、实际回合0→1→2→0计数及第三回合能量4、旧按钮及场景重复标题消失、商店购买与施法遗物入口。已查看`build/ui-relic-turn-counter.png`、`build/ui-55-relics-scrolled.png`及`build/ui-97-shop.png`。首次检查发现日志遮挡末尾图标，已修复并完整重跑通过。
+- 先ListOnly确认casting、services、interface、rewards窗口范围；Import与上述完整窗口分类通过637项断言。日志：`build/checks/20260909T170204373-40596/check-ui.log`。已查看`build/ui-relic-turn-counter.png`、`build/ui-55-relics-scrolled.png`及`build/ui-97-shop.png`。
 
 ## 2026-09-10 欲望魔方
-
 域：装备与解除、卡牌与奖励。
-
-- 新增稀有遗物欲望魔方，加入一般奖励池；沿现有遗物魔力钩子，每成功施加一件拘束具恢复5魔力，受当前魔力上限限制。普通件、独立链接与特殊装备计入，复合根整件计一次；加固、上锁、组件维护与原装备归还不触发。替换只在成功提交时计新装备，预演不发放，失败整组回滚。
-- `./tools/check.ps1 -Suite rewards,application -TimeoutSeconds 300`及关联分类通过3442项，日志`build/checks/20260909T165702510-53284/check-rules.log`。补充完整replacement及关联分类通过674项，日志`build/checks/20260909T165827838-51036/check-rules.log`。覆盖实际敌人施加、各类安装、奖励池、上限、拒绝安装、预演只读、替换提交、重复提交拒绝和原子回滚；遗物说明与触发日志同步。未新增截图测试或存档兼容。
+- 替换只在成功提交时计新装备，预演不发放，失败整组回滚。
+- `./tools/check.ps1 -Suite rewards,application -TimeoutSeconds 300`及关联分类通过3442项，日志`build/checks/20260909T165702510-53284/check-rules.log`。补充完整replacement及关联分类通过674项，日志`build/checks/20260909T165827838-51036/check-rules.log`。覆盖实际敌人施加、各类安装、奖励池、上限、拒绝安装、预演只读、替换提交、重复提交拒绝和原子回滚；遗物说明与触发日志同步。
 
 ## 2026-09-10 开心小fa与累计遗物计数器
-
 域：卡牌与奖励、界面。
-
-- 新增罕见一般遗物happy_fa，turn_energy_step=3，沿统一玩家回合入口在补能后每3回合＋1能量；relic_counters按遗物ID保存余数，跨战斗／整备／休息／牢房保留，地图及零回合操作不计。新增字段沿普通状态事务提交，不扩展存档兼容或迁移。RelicEffects.counter/view输出只读计数，顶部快捷图标与遗物图卡共用ui/relic_icon右下角数字；魔力耳坠使用其原耗魔余数，无累计的遗物不显示数字。原创笑脸挂饰happy-fa.svg在持有、商店和奖励处共用。
 - `-Suite rewards,services,content -Exhaustive`及关联分类通过5937项，日志`build/checks/20260909T164804106-48488/check-rules.log`。新增实际结束回合、战斗结束保留2回合进度、领奖进入整备触发第三回合、补能叠加、过期命令拒绝、非玩家回合不计、重复授予不清进度和新局归零检查；新遗物可由真实一般池取得，日志含实际触发与能量收益。
-- 完整窗口services、status、rewards分类通过197项，日志`build/checks/20260909T164804106-48488/check-ui.log`。真实回合操作验证0→1→2→0与第三回合能量4，点击顶部图标只打开详情、状态不变，详情计数器完整位于图标右下角。已查看`build/ui-relic-turn-counter.png`和`build/ui-relic-turn-trigger.png`。未进行存档专项或全项目all。
+- 完整窗口services、status、rewards分类通过197项，日志`build/checks/20260909T164804106-48488/check-ui.log`。已查看`build/ui-relic-turn-counter.png`和`build/ui-relic-turn-trigger.png`。
 
 ## 2026-09-10 商店固定品质货位与扩容
-
 域：卡牌与奖励、界面。
-
-- 商店按2普通、2罕见、1稀有卡牌＋4种道具＋3个一般遗物货位生成；移除已无调用的shop卡牌品质概率，共用reward_offer的固定池与count参数。道具池纳入现有全部6种药剂／卷轴，暂定各15魔力，原工具保留价格。遗物继续去除持有／已展示项，池不足留空，不创建专属池。扩宽商店，以三排显示全部12件；商店行动日志沿原日志浮窗，避免遮挡商品和付款。
-- `-Suite services,rewards -Exhaustive`通过5841项，日志`build/checks/20260909T162241088-53928/check-rules.log`。新增32种子检查固定品质配额、同店去重、9道具覆盖、不同rare_offset下同种子货品一致、全局随机域不动、重复进入不补货、遗物仅余0／1／2件。既有购买、资源不足、售罄和背包满事务检查继续通过。旧卡牌概率测试移除商店百分比，保留战斗及事件修正测试。
-- 首轮窗口测试暴露日志侧栏挡住魔瓶付款；改用原日志浮窗后，完整services、consumables窗口分类通过116项，日志`build/checks/20260909T162538765-53212/check-ui.log`。12商品控件在1600×900与1280×720下均可见且互不重叠；原生点击魔瓶付款、购买、删牌／解除和日志只读检查通过。已查看`build/ui-97-shop.png`、`build/ui-shop-1280.png`、`build/ui-shop-flask-payment.png`。早期失败不计通过，未修改存档实现或兼容旧档。
+- `-Suite services,rewards -Exhaustive`通过5841项，日志`build/checks/20260909T162241088-53928/check-rules.log`。
+- 首轮窗口测试暴露日志侧栏挡住魔瓶付款；改用原日志浮窗后，完整services、consumables窗口分类通过116项，日志`build/checks/20260909T162538765-53212/check-ui.log`。已查看`build/ui-97-shop.png`、`build/ui-shop-1280.png`、`build/ui-shop-flask-payment.png`。早期失败不计通过，未修改存档实现或兼容旧档。
 
 ## 2026-09-10 各界面视觉统一
-
 域：界面、卡牌与奖励。
-
-- ui/visual_theme集中维护暗底、按钮状态、搜索／筛选菜单、滚动条与细分隔线；新增原创window-frame.svg可伸缩角饰边框与crest.svg菱形纹章。主页、装备、塔路、商店、事件、卡组、状态、奖励及共用信息窗同步使用，状态筛选明确选中，遗物改两列图卡并保留全部正文。非行动页面收紧魔瓶底框，取消下半部空白。
-- 完整窗口分类home、interface、body_layout、status、services、events、rewards、route、consumables通过837项，日志`build/checks/20260909T160944841-42100/check-ui.log`。替换遗物旧的按文案查找且可能不执行的滚动检查，改为断言真实持有卡片数量及最后一张可完整滚动到达。实际查看主页、塔图、卡组筛选、状态、遗物末页、装备详情、商店、事件及奖励列表截图。
-- 底框收紧后重跑完整route、consumables窗口分类，通过112项，日志`build/checks/20260909T161242469-53748/check-ui.log`；已查看`build/ui-shop-flask-payment.png`，确认商店魔瓶紧凑、付款入口保留。未运行规则全量或存档专项，没有改变规则结算。
+- 完整窗口分类home、interface、body_layout、status、services、events、rewards、route、consumables通过837项，日志`build/checks/20260909T160944841-42100/check-ui.log`。替换遗物旧的按文案查找且可能不执行的滚动检查，改为断言真实持有卡片数量及最后一张可完整滚动到达。
+- 底框收紧后重跑完整route、consumables窗口分类，通过112项，日志`build/checks/20260909T161242469-53748/check-ui.log`；已查看`build/ui-shop-flask-payment.png`，确认商店魔瓶紧凑、付款入口保留。
 
 ## 2026-09-10 贴身魔瓶、双来源商店付款与左下紧凑布局
-
 域：卡牌与奖励、界面。
-
-区域美化追加：资源条采用统一暗底，捕缚保留第三行；魔瓶与新增能量徽章上下对齐，右侧统一能力区／抽牌堆宽度，抽牌堆加入原创卡背图标，整个操作区使用低对比暗底与细金属边。抽牌／能力动画中心随按钮同步。`-Import -UIOnly -UISuite consumables,interface`通过394项窗口断言，日志`build/checks/20260909T154300718-51408/check-ui.log`。已查看`build/ui-mana-flask.png`和`build/ui-mana-flask-capture.png`，确认正常／捕缚两种状态下数字、魔瓶与按钮无重叠；未修改规则结算。
-
-视觉层级调整：新增原创矢量资源`assets/ui/mana-flask.svg`，以青蓝玻璃、黄铜瓶口和微光构成大魔瓶主体；储量贴瓶显示，存取按钮缩小并纵向排列于右侧，剩余存入次数以两个小圆点表示。移除外围大边框，存取结算不变。完整consumables窗口分类25项通过，日志`build/checks/20260909T153723331-50604/check-ui.log`；已查看更新后的`build/ui-mana-flask.png`，确认魔瓶比按钮醒目，且不遮挡捕缚条、能量和抽牌堆。
-
-完成全局flask候选与正式转移、每回合存入配额、共用药剂资格和取整、商店商品／删牌／解除的self或flask单来源付款。左下资源横排，真实捕缚条占预留位置，魔瓶固定在抽牌堆上方；删除重复教学，施法概率移至魔力悬停。数值反馈与抽牌／能力动画位置同步，存档运行代码未扩展。
-
+`-Import -UIOnly -UISuite consumables,interface`通过394项窗口断言，日志`build/checks/20260909T154300718-51408/check-ui.log`。已查看`build/ui-mana-flask.png`和`build/ui-mana-flask-capture.png`，确认正常／捕缚两种状态下数字、魔瓶与按钮无重叠；未修改规则结算。
+完整consumables窗口分类25项通过，日志`build/checks/20260909T153723331-50604/check-ui.log`；已查看更新后的`build/ui-mana-flask.png`，确认魔瓶比按钮醒目，且不遮挡捕缚条、能量和抽牌堆。
+数值反馈与抽牌／能力动画位置同步，存档运行代码未扩展。
 - `./tools/check.ps1 -Suite consumables,services,core,pressure`及全部关联分类通过2363项规则断言，日志`build/checks/20260909T152118299-55004/check-rules.log`。之后补充嘴部减效下小数缺额补满的边界处理，重跑完整受影响分类`consumables,services,core`通过1222项，日志`build/checks/20260909T152627335-54020/check-rules.log`。
-- 新增mana_flask_cases归入consumables，分类关联增加services。覆盖2次上限／实际新回合重置、部分余额与百万储量、取出不限次数、药剂嘴部整数边界、半点缺额、站姿与握持限制、坐姿豁免、领奖和打断阶段可存入、预览只读、过期／重复操作拒绝、存储不触发耗魔遗物、商店全额扣魔瓶且不混付、售罄／余额不足不结算以及删牌／解除服务。
-- `./tools/check.ps1 -UIOnly -UISuite consumables,services,casting,rewards`通过182项窗口断言，日志`build/checks/20260909T152335518-46708/check-ui.log`。真实点击验证存入／取出／禁用余次、付款切换不改状态、从魔瓶购买；检查飘字结束后两种余额与实际值一致，真实50/100捕缚条不会与魔瓶重叠。已查看`build/ui-mana-flask.png`、`build/ui-mana-flask-capture.png`、`build/ui-shop-flask-payment.png`。
-- 过程修正：原分段卡牌／巡视／打断断言只允许阶段行动，现保留原限制并允许用户明确要求的全局魔瓶；原“全部遗物”窗口夹具只注入随机奖励池，遗漏新增专属来源遗物，改为注入正式TYPES全集。没有改动遗物掉落池或其他规则。早期失败不计为通过；未运行全项目all或存档专项。
+- 覆盖2次上限／实际新回合重置、部分余额与百万储量、取出不限次数、药剂嘴部整数边界、半点缺额、站姿与握持限制、坐姿豁免、领奖和打断阶段可存入、预览只读、过期／重复操作拒绝、存储不触发耗魔遗物、商店全额扣魔瓶且不混付、售罄／余额不足不结算以及删牌／解除服务。
+- `./tools/check.ps1 -UIOnly -UISuite consumables,services,casting,rewards`通过182项窗口断言，日志`build/checks/20260909T152335518-46708/check-ui.log`。已查看`build/ui-mana-flask.png`、`build/ui-mana-flask-capture.png`、`build/ui-shop-flask-payment.png`。
+- 过程修正：原分段卡牌／巡视／打断断言只允许阶段行动，现保留原限制并允许用户明确要求的全局魔瓶；原“全部遗物”窗口夹具只注入随机奖励池，遗漏新增专属来源遗物，改为注入正式TYPES全集。早期失败不计为通过；未运行全项目all或存档专项。
 
 ## 2026-09-10 偷渡商人的魔药箱
-
 域：事件、界面。
-
-- 新增正式地图事件与练习“偷渡商人的魔药箱”。开场对白按确认稿使用“嘘，小声点。我可是偷偷溜进来做生意的。”；【赊账】使贴身魔瓶直接获得90魔力并取得诅咒“敏感”，【不赊】无代价离开且不改变资源、卡组、装备或遗物。
-- 新增可跨事件复用的`flask_mana_gain`效果，已覆盖内容字段白名单与0—100范围校验、方案说明、原子执行、结果说明、快照校验和结构化`flask_mana`资源反馈。它不建立金币或欠款状态，不改变角色当前魔力、不受角色魔力上限约束，也不占用每回合两次手动存入次数；执行流程没有事件ID专用分支。
-- 联合规则门禁`tools/check.ps1 -Suite content,events,event_flow,tower,consumables -TimeoutSeconds 300`覆盖20个关联模块，3771项通过，记录`build/checks/20260909T160440389-17680/`。事件窗口`tools/check.ps1 -UIOnly -UISuite events -TimeoutSeconds 240`通过96项，记录`build/checks/20260909T160620555-51340/`。按截图精简要求未请求或生成截图，也未运行全项目回归。
+- 联合规则门禁`tools/check.ps1 -Suite content,events,event_flow,tower,consumables -TimeoutSeconds 300`覆盖20个关联模块，3771项通过，记录`build/checks/20260909T160440389-17680/`。事件窗口`tools/check.ps1 -UIOnly -UISuite events -TimeoutSeconds 240`通过96项，记录`build/checks/20260909T160620555-51340/`。
 
 ## 2026-09-10 战后战利品领取界面
-
 域：`ui/reward_screen.gd`。
-
-战后改为居中的卡牌／道具／遗物独立领取列表；卡牌行打开三选一，支持右键翻面、返回和领取后回到列表，最后点击继续。道具与遗物生成只冻结结果，正式领取才入包或触发拾取效果；继续清空掉落记录并放弃未领内容。复用原reward候选、版本复核、道具容量整理和监狱出口流程。ui/reward_screen.gd只消费GameView.battle_rewards，图标沿用扩展后的shop_glyph。
-
 - 规则：`./tools/check.ps1 -Suite core`及其完整关联分类通过1004项断言，其中rewards为470项。新增battle_reward_cases覆盖三种领取顺序、实际入包、重复与过期拒绝、只读投影、随机不重抽、继续放弃及下一战重置；原容量、阶段与出口案例已按明确领取／继续更新。日志：`build/checks/20260909T143612681-54680/check-rules.log`。
 - 窗口：`./tools/check.ps1 -UIOnly -UISuite rewards,consumables,prison`通过196项断言；包含鼠标真实点击奖励行／返回／领取、卡牌右键翻面、灰置已领项和出口继续。日志：`build/checks/20260909T143345630-41204/check-ui.log`。已人工查看`build/ui-reward-list.png`、`build/ui-54-reward-cards.png`和`build/ui-reward-claimed.png`，无文本越界或遮住领取按钮。
 - 宽范围检查`core,rewards,tower_progression`并未全绿：日志`build/checks/20260909T143420215-14660/check-rules.log`记录13个断言失败及1个额外脚本错误。事件路线助手原本假定所有事件都能拒绝，现改为提交实际合法事件步骤，上述1004项复核已通过；另有两项关联存档检查仍按“掉落遗物必已入包”的旧假设拒绝未领取奖励，按用户暂缓存档要求未修改存档运行代码。该轮强怪组合案例还出现drone_pair、ominous_circle_pair、serpent_weak及数量索引失败；同目录敌人测试在检查期间有并行修改，本轮未处理或标记其为通过。
-- 本批未运行全项目all回归，未启动存档专项、兼容或迁移；没有把宽范围失败当作通过。规则正文同步至game-design、card-framework与AGENTS。
+- 本批未运行全项目all回归，未启动存档专项、兼容或迁移；没有把宽范围失败当作通过。
 
 ## 2026-09-09 全目录架构检查与精简
-
 域：架构与接口、检查与测试。
-
-本次按用户要求检查整个独立项目的架构和接口，包含运行时、定义表、窗口、内容包、测试、脚本、资源接线和维护文档。存档专项按用户最新要求延期；只读依赖扫描经过文件名，不据此认定存档机制已验收。旧存档不适配，相关运行代码与专项案例未修改。
-
-| 范围 | 检查与处理 |
-|---|---|
-| core / data / ui | 78个运行时脚本的引用、职责与调用方扫描；156条字面脚本引用无环，未发现core反向依赖UI或UI直接读写game.state。分别核对正式提交、装备工厂、施加／替换、接触与能力、回合与敌人、捕缚、奖励、事件、商店、牢房与塔路。 |
-| 冗余接口 | 删除仅供旧测试使用的Game._install_composite，14个调用转入原_install_assembly；删除Enemies.POOLS兼容代理，内容加载与测试直接读写FirstFloor.POOLS。保留具有不同目标集合语义的physical_pieces／equipment_targets／action_targets及真实调用的内部入口。 |
-| 重复数据与声明 | Guard.application复用EnemyPlans.application；普通房间说明直接读取强怪组合及弱怪阈值，图鉴类别读取card_rules.TYPES。删除4个未使用UI常量／预加载，不新增规则框架。 |
-| 查询与预演成本 | EquipmentOffers.links复用单次查询的接触位置，并调用正式邻接判断排除不可能组合；对照完整工厂枚举，检查候选及顺序完全一致、配额重新复核、查询不改状态或随机。Replacement使用原_assign做乐观可行性检查，并排除分数不可能优于已得方案的重复试装；链接转接只保留每个丢失集合的首个合法接法，全部链接均保留时停止等价搜索。最小移除集合、链接损失、实际比较与提交复核仍以原实现为准。 |
-| 测试组织与流程 | 检查现有99个测试脚本的入口和助手归属，不另建runner。路线规则与窗口共用整理背包策略，真实丢弃／确认后才继续到出口；正常试玩在两次检查仍未离开牢房时尝试正式反抗，保持原3个种子、1800／600步上限、完整生命、资源和提交检查，不注入状态或假定胜利。 |
+存档专项按用户最新要求延期；只读依赖扫描经过文件名，不据此认定存档机制已验收。
 | 工具、内容与资源 | 4个PowerShell及4个Python工具通过语法检查；实际内容包1份与模板5份通过原内容校验。核对场景、资源路径和脚本UID，未发现缺失静态资源引用或重复UID；60张PNG／SVG无完全相同文件。不重新处理素材，不清理未知动态资源。检查器的故意报错与超时反例均正确拒绝。 |
-| 文档 | README从413行整理为102行，保留启动、操作、架构归属、权威文档、门禁与素材来源；原存档章节原样保留。AGENTS与内容文档去掉旧怪池代理、旧施法／收押条件、过期组合数量及重复辅助说明，保留用户鼓励语与长期维护要求。 |
-
 过程中的失败与复核：
-
-- 首轮全窗口的基础长路线未处理新增掉落带来的pack阶段；最终到达出口断言失败。补齐正式整理操作后，基础窗口流程283项通过。没有跳过背包容量或直接写phase。
-- 正常开局的密集装备场景暴露链接枚举与替换预演的重复工作；原执行途中停止以进行定位，停止的进程不记为通过。临时诊断只使用本轮构造的内存夹具，没有经过存档加载器；诊断脚本与二进制夹具在完成后删除，日志保留。
-- 新增链接对照案例最初误用普通绳索和单侧位置参数，改用合法细绳工厂夹具后，links及关联分类1309项通过；其中links163项。新塔路说明案例的局部变量与已有变量重名，修正命名后重新执行完整所选分类，没有删断言。
-- 原自动试玩从不选择反抗，在重复检查中长期循环；策略改为根据只读投影中的真实检查次数选择正式反抗，已有可逃离入口仍优先。此策略只用于测试，游戏规则和玩家操作不变；结果不能据此解释为胜率或最终平衡结论。
+- 首轮全窗口的基础长路线未处理新增掉落带来的pack阶段；最终到达出口断言失败。
+- 新塔路说明案例的局部变量与已有变量重名，修正命名后重新执行完整所选分类，没有删断言。
 - 替换专项最终671项通过，包含密集强装备提前拒绝、密集弱装备保持合法替换、等价链接转接去重、纯查询不变以及完整原子提交。日志：build/checks/20260909T124325413-54064/check-rules.log。
 - runner专项20项通过；故意脚本错误和1秒挂起反例均未误报PASS，日志：build/checks/20260909T122821197-40904/。
-
-最终覆盖与日志：
-
 - 41个非存档、非正常试玩规则分类使用完整原随机矩阵，10771项断言通过（enemy_cycle 16/16、enemy_pool 24/24、tower_graph 201/201）；日志build/checks/20260909T123752550-46596/check-rules.log。
-- 最终42个非存档规则分类一次运行全部通过：12308项断言，1717.56秒，Godot退出码0；完整enemy_cycle 16/16、enemy_pool 24/24、tower_graph 201/201。日志build/checks/20260909T124419823-26252/check-rules.log。normal_play保留原3个种子，共1534项断言：42／cautious执行572步到达prison_end，20260906／elite执行422步通关，7／trade执行531步到达prison_end；全部最终状态校验通过，没有到达1800步上限。此前独立试玩用于定位，已停止并由本次运行替代，不记为通过。
-- 34个非存档窗口分类已分批复核，最终合计3922项断言无未处理失败。首轮全窗口3918项仅rewards中1条旧施法断言失败，其余32个分类3810项通过、casting 58项通过；日志build/checks/20260909T124429381-48580/check-ui.log。奖励案例按当前手／嘴可选路径补齐正反例，并把仅限双手的限制检查移到真正仅限手部的术式解锁；免费准备面不掷施法概率的边界保留。之后完整rewards＋casting共112项通过（54＋58），日志build/checks/20260909T130227183-51132/check-ui.log。中间一次复核仍引用旧原因句而失败，已改为当前具体手掌／手指条件；失败日志130056704-53684保留。本结论是最终分类结果合计，不把首轮失败运行记为整体PASS。
-
-运行性能仍有余项：seed 42正常试玩572次正式操作耗时1051862ms，最终97个装备目标并到达五级高安全监室；seed 20260906执行422次操作、133778ms到达通关出口；seed 7执行531次操作、373627ms到达高安全监室。整局时间包含投影和校验，且曾与窗口测试并行，不能据此声称平均帧率或稳定加速倍数；但逐操作诊断已确认密集装备下有秒级链接／替换预演成本。本轮已减少无效枚举和等价预演，现有功能断言通过也不代表这一性能问题已完全解决。
-
-覆盖指所有目录的接口／依赖／资源接线及上述现有门禁，不等于穷举所有装备、卡牌和内容组合。没有新增截图，没有导出或发布。
+- 最终42个非存档规则分类一次运行全部通过：12308项断言，1717.56秒，Godot退出码0；完整enemy_cycle 16/16、enemy_pool 24/24、tower_graph 201/201。日志build/checks/20260909T124419823-26252/check-rules.log。normal_play保留原3个种子，共1534项断言：42／cautious执行572步到达prison_end，20260906／elite执行422步通关，7／trade执行531步到达prison_end；全部最终状态校验通过，没有到达1800步上限。
+- 34个非存档窗口分类已分批复核，最终合计3922项断言无未处理失败。首轮全窗口3918项仅rewards中1条旧施法断言失败，其余32个分类3810项通过、casting 58项通过；日志build/checks/20260909T124429381-48580/check-ui.log。之后完整rewards＋casting共112项通过（54＋58），日志build/checks/20260909T130227183-51132/check-ui.log。中间一次复核仍引用旧原因句而失败，已改为当前具体手掌／手指条件；失败日志130056704-53684保留。本结论是最终分类结果合计，不把首轮失败运行记为整体PASS。
+本轮已减少无效枚举和等价预演，现有功能断言通过也不代表这一性能问题已完全解决。
 
 ## 2026-09-09 当前框架与接口复查（首领、施法及捕缚接入后）
-
 域：架构与接口、战斗与敌人。
-
-- 扫描core/data/ui共78个运行时脚本、159条字面脚本引用：没有引用环、core反向依赖UI、UI访问game.state／Game内部写接口，未发现五行以上完全相同的函数体。核对新增CaptureBind、CardRewards、RelicRewards与原Game提交、施加、效果生命周期、只读投影的接线。
-- 六缚普通施加复制了通用普通施加的整份声明，现改为调用EnemyPlans.application并设置原替换权限。保留来源池、等级、紧度、数量、文案和执行时机，不新增接口或改变随机算法。
-- 架构案例增加魔导无人机和魔导拘束盒正式回合后的捕缚投影检查；查询不得改变状态或随机，公开视图不得引用权威状态、卡牌增益或遗物注册表中的可变容器。
-- 用户中途明确存档等整个Demo完成后再跟进：已停止本轮存档专项，撤回刚新增的专项案例，没有修改存档运行时代码。相关检查时机已写入AGENTS.md；此轮不认定存档部分完成。
-- 范围收缩前的基线运行：`tools/check.ps1 -Suite architecture,casting,rewards,enemies,persistence,runner -Exhaustive -TimeoutSeconds 600`，7789项通过，150.66秒；日志`build/checks/20260909T115148385-51796/check-rules.log`。之后不再选择存档专项。
+- 范围收缩前的基线运行：`tools/check.ps1 -Suite architecture,casting,rewards,enemies,persistence,runner -Exhaustive -TimeoutSeconds 600`，7789项通过，150.66秒；日志`build/checks/20260909T115148385-51796/check-rules.log`。
 - `tools/check.ps1 -Suite architecture,enemies -UI -UISuite enemies,casting,status -TimeoutSeconds 600`：规则2390项通过（69.97秒），其中architecture 31项；采用原日常抽样，生成算法未修改。日志`build/checks/20260909T115702544-48120/check-rules.log`。
 - 同次窗口运行269项中，施法提示悬停1项失败；status 30项与enemies 182项无失败。该案例翻面后直接取卡牌矩形中心，改为沿既有card_point先移出再移入，明确触发原生悬停；保留提示断言，增加实际投影概率与悬停不改变状态的检查，不改运行时施法或UI行为。关联日志为同目录`check-ui.log`，不将这次失败运行记为整体通过。
-- `tools/check.ps1 -UIOnly -UISuite casting -TimeoutSeconds 300`复查58项通过，Godot用时18.40秒；日志`build/checks/20260909T120003276-54228/check-ui.log`。最终关联窗口分项合计270项（58＋30＋182）无未处理失败，非一次全窗口运行。不新增截图，不运行全项目all或存档专项。
+- `tools/check.ps1 -UIOnly -UISuite casting -TimeoutSeconds 300`复查58项通过，Godot用时18.40秒；日志`build/checks/20260909T120003276-54228/check-ui.log`。最终关联窗口分项合计270项（58＋30＋182）无未处理失败，非一次全窗口运行。
 
 ## 2026-09-10 单侧手部区域计分
-
 域：装备与解除、检查与测试。
-
-- 手掌／手指任意侧存在有效拘束即计入手部合计1分，不按件数、左右或掌指重复累计；全覆盖4级仍要求双侧手掌和手指都受限。其他部位权重与共同固定判定不变，无新增分侧结构或状态字段。
-- 单侧包裹纳入状态计分来源；左右握持、施法及辅助继续独立，辅助触及保留原共同固定／捕缚条件，避免区域总分限制自由侧。教程、设计和README同步。
-- 复用现有检查覆盖单／双手包裹计分、解除后归零、单侧不满足全覆盖／双侧全覆盖、自由侧施法与切割、辅助伤害、药水站姿限制与坐姿使用、状态来源。
-- `tools/check.ps1 -Suite equipment_complete,consumables,status,hand_assist,basic_attacks -TimeoutSeconds 300`及自动关联分类通过2953项，44.23秒。日志：`build/checks/20260909T155427517-50836/`。未新增截图、测试框架或存档专项。
+- `tools/check.ps1 -Suite equipment_complete,consumables,status,hand_assist,basic_attacks -TimeoutSeconds 300`及自动关联分类通过2953项，44.23秒。日志：`build/checks/20260909T155427517-50836/`。
 
 ## 2026-09-10 药剂姿势限制
-
 域：塔路与地图、检查与测试。
-
-- 用户最终修正：站姿上肢分值＜1且能握持即可，含0.5；坐／躺绕过握持。嘴部半效独立计算。抽出原分级计算保留0.5，其他行动经level向上取整保持原行为；无新增状态或玩家接口。物品说明、具体禁用原因、教程及设计文档同步。
 - 现有consumables分类覆盖三种药剂的0／0.5／1边界、站姿拒绝不扣资源、双手无法握持时坐姿全效和躺姿嘴部半效实际使用、物品说明投影；嘴部单独拘束仍可站着喝，卷轴坐姿仍需原操作部位资格。
-- `tools/check.ps1 -Suite consumables -TimeoutSeconds 300`：50项通过，2.50秒；日志`build/checks/20260909T150102495-8036/`。无新增截图或存档专项。
-- 扩大分类`consumables,pressure`未全绿：药剂50项与pressure118项无失败，关联事件检查出现room_events.gd缺少choices字段等错误，最终7/1171断言失败、56引擎错误；日志`build/checks/20260909T150013292-50352/`。未扩大修改事件逻辑。同文件行动回滚处两行多余缩进已纠正；此前脚本加载失败已随后续成功运行排除。
+- `tools/check.ps1 -Suite consumables -TimeoutSeconds 300`：50项通过，2.50秒；日志`build/checks/20260909T150102495-8036/`。
+- 扩大分类`consumables,pressure`未全绿：药剂50项与pressure118项无失败，关联事件检查出现room_events.gd缺少choices字段等错误，最终7/1171断言失败、56引擎错误；日志`build/checks/20260909T150013292-50352/`。同文件行动回滚处两行多余缩进已纠正；此前脚本加载失败已随后续成功运行排除。
 
 ## 2026-09-10 强怪组合扩充
-
 域：检查与测试、存档。
-
-- 新增双无人机、双强怪魔法阵、绳蛇＋强度1弱怪、多面手＋奴隶贩子；绳蛇后台强度3，生命和行动不变。复用固定成员与弱怪预算，无新增接口、存档字段或截图。
-- 更新已有敌人检查：四种实际编队、总强度4、绳蛇弱怪补位及奴隶贩子入池；连续组合去重仍沿原正式入场检查。UI与日志沿原成员／组合投影，文档同步。
-- 最终运行 `tools/check.ps1 -Suite enemies -TimeoutSeconds 300`：2394项断言中2393项通过，新增组合及去重检查通过。整体门禁未通过：`enemy_heap_cases.gd:123`的战后恢复检查报“战斗遗物领取记录损坏”。按用户暂缓存档工作的要求保留失败记录，不改存档、不跳过断言。
+- 最终运行 `tools/check.ps1 -Suite enemies -TimeoutSeconds 300`：2394项断言中2393项通过，新增组合及去重检查通过。按用户暂缓存档工作的要求保留失败记录，不改存档、不跳过断言。
 - 日志：`build/checks/20260909T143635636-32492/check-rules.log`。此前两轮分别修正旧的奴隶贩子不入池断言、未注册练习夹具及不应依赖战场显示顺序的组合断言。
 
 ## 2026-09-09 状态牌分类
-
 域：检查与测试、界面。
-
-- 玩弄、玩弄+从诅咒分类调整为状态牌，同步卡面、图鉴分支、筛选和状态统计；原效果及临时清除规则保持不变。
 - 运行 `tools/check.ps1 -Suite curses,encyclopedia,status -UI -UISuite home -TimeoutSeconds 300`，相关规则2186项、首页界面81项通过；未新增截图检查。
 - 日志：`build/checks/20260909T114236030-43232/`。
 
 ## 2026-09-09 魔导拘束盒
-
 域：界面、装备与解除。
-
-- 接入64生命、后台强度4的单只强怪组合、独立练习、图鉴和机械箱体立绘。普通池保留皮革与口球，回合被动仅皮革；机械类复合施加授权现有替换流程，普通施加不扩权。
-- 正式回合验证：首次40捕缚，下一玩家回合被动后50；固定坐姿；施加／累计四档加固→准备→备用复合装备循环；捕缚解除后准备再施加，不补充库存。来源死亡停止其被动，其他来源继续。
-- 三件库存成功才消耗，合法候选在出手时随机选择；满位替换弱外层、过强外层阻止替换并保留库存、全用完后捕缚＋10均通过。准备后的保存恢复得到相同下一步，重复库存索引原子拒绝。
-- 强怪池检查从固定三组计数改为读取注册表，仍验证总强度4、实际编队与不连续同组。新例复用enemies入口，没有新增检查框架或截图。随机库存选择保留16种子覆盖，完整三件消耗流程仅跑一次，不按每个种子重复安装三套。
+- 准备后的保存恢复得到相同下一步，重复库存索引原子拒绝。
 - 完整受影响检查：`./tools/check.ps1 -Suite guard,enemies,application,replacement,persistence,status -Exhaustive -UI -UISuite enemies,guard,status,persistence -TimeoutSeconds 600`。规则7200项、窗口298项通过；日志`build/checks/20260909T084443155-32688/`，规则205.51秒、窗口107.40秒。
-- 测试去重后仅重跑敌人及其关联分类：`./tools/check.ps1 -Suite enemies -Exhaustive -TimeoutSeconds 600`，4595项通过、109.52秒；日志`build/checks/20260909T092525833-47852/`。运行时代码与已验证窗口未再修改，无重复窗口或截图检查。
+- 测试去重后仅重跑敌人及其关联分类：`./tools/check.ps1 -Suite enemies -Exhaustive -TimeoutSeconds 600`，4595项通过、109.52秒；日志`build/checks/20260909T092525833-47852/`。
 
 ## 2026-09-09 魔导无人机与同种去重捕缚
-
 域：界面、装备与解除。
-
-- 魔导无人机进入弱怪池、独立练习和图鉴，32生命／后台强度2；机械坚硬、三步循环、2能量被动施加与累计加固2档均通过正式行动结算。没有合法胶带目标时不选择加固，预告后失去目标则空过。
-- 从Guard移出共用捕缚逻辑至CaptureBind，保持单一进度条和原拖牌目标。按种类保存来源与余数；同种不叠加，异种按新种类初始值的一半增加；55与65两个顺序、重复实例／同类新实例均有检查。固定站姿、来源离场、归零清除、100后下一敌方回合收押复用现有回合与监狱流程。
-- 敌方阶段冻结当阶段已预告行动，防止中途达到100后后排敌人即时改成收押。坚硬在每次实际命中按伤害属性处理；状态、意图图标、伤害说明、日志、教程和图鉴同步。
-- 存档修订号仍集中于Snapshot.REVISION，不迁移旧档。新来源结构、残余能量、保存恢复后相同下一步、非法来源与过期动作的原子拒绝通过。
-- 新例集中于drone_cases并由既有enemies分类单次调用；原24路线种子继续验证入场，完整成员可达改用有限直接怪池抽样，避免为观察新成员反复建塔。截图为0，未增加独立检查框架。
-- 最终命令：`tools/check.ps1 -Suite guard,enemies,basic_attacks,persistence,status -Exhaustive -UI -UISuite guard,enemies,status,persistence -TimeoutSeconds 600`。规则 **7059项通过**（126.09秒），窗口 **294项通过**（103.68秒），引擎退出码0且无错误。完整enemy_cycle 16/16、enemy_pool 24/24。
-- 日志：`build/checks/20260909T081051724-37752/check-rules.log`、`check-ui.log`。此前失败为原抽样集未覆盖扩大的全部弱怪，已由上述定向采样修正并复查。不是全项目all回归。
+- 新来源结构、残余能量、保存恢复后相同下一步、非法来源与过期动作的原子拒绝通过。
+- 最终命令：`tools/check.ps1 -Suite guard,enemies,basic_attacks,persistence,status -Exhaustive -UI -UISuite guard,enemies,status,persistence -TimeoutSeconds 600`。规则 **7059项通过**（126.09秒），窗口 **294项通过**（103.68秒），引擎退出码0且无错误。
+- 日志：`build/checks/20260909T081051724-37752/check-rules.log`、`check-ui.log`。此前失败为原抽样集未覆盖扩大的全部弱怪，已由上述定向采样修正并复查。
 
 ## 2026-09-09 八件遗物、力量／灵巧与特殊战斗
-
 域：卡牌与奖励、战斗与敌人。
-
-- 新增魔力耳坠、准备背包、光滑的丝袜、甜甜圈、神秘药剂、小刻印、体术书、草莓，登记稀有度、真实效果、图鉴、教程和状态文案。草莓／神秘药剂由共用拾取入口永久写入mana_max，再恢复对应魔力；事件、购买和精英奖励共用入口，恢复不会重放拾取。
-- 复用RelicEffects统一普通／特殊战斗开场、首回合和结束；combat保存场次编号、首回合、余能、耳坠余数。巡视暂停不重开，反抗／整备／返回牢房分别进入新场次；结束只结算一次。魔力耳坠统计实际支付、包含失败和固定兑换；非出牌阶段不累计，余数本场保留。甜甜圈在回合末效果之后保存能量。
-- 力量加入挣扎及三组体术每段基础伤害；腿足灵巧按真实滑脱部位加入主动和移动被动，不扩大方法资格或重复叠加部位。原状态／手牌加值、倍率和预览／提交共用；魔法攻击不加力量。
-- RelicRewards与原奖励／商品／事件流程接线，独立relic随机域、已展示去重、精英一件、商店两个一般货位及大小宝箱分布。空稀有度沿剩余池回退，暂无首领／商店专属池时不伪造。规则来源及适配边界见game-design第10节。
-- Snapshot.REVISION已更新，保存上限、场次进度及已抽遗物，拒绝损坏状态，不迁移旧档。事件回归发现外部JSON整数字段counter以浮点进入冻结结果，在既有冻结边界规范为整数，未增加事件接口。
-- 新例收进现有rewards分类，覆盖拾取／恢复／重复拒绝、真实兑换支付、非法动作回滚、四类场次、巡视暂停恢复、放大后的魔力上限、体术变体、部位限定、被动滑脱及掉落分布。旧用例移除固定遗物总数、固定唯一稀有遗物和旧版无特殊战斗回魔假设；没有复制测试入口或新增截图。
-- 最终命令：`tools/check.ps1 -Suite rewards,services,status,basic_attacks,slip_motion,persistence,casting,events,content -Exhaustive -UI -UISuite rewards,services,home,persistence,status -TimeoutSeconds 600`。规则 **7801项通过**（199.89秒）；窗口 **255项通过**（53.90秒）。随机生成修改采用完整enemy_cycle 16/16及enemy_pool 24/24种子矩阵。
-- 最终日志：`build/checks/20260909T072723328-33628/check-rules.log`与`check-ui.log`。退出码0、无引擎错误、无截图；未运行全项目all、导出或发布。临时修改脚本与诊断脚本已移除，正式检查日志保留。
+- 魔力耳坠统计实际支付、包含失败和固定兑换；非出牌阶段不累计，余数本场保留。
+- Snapshot.REVISION已更新，保存上限、场次进度及已抽遗物，拒绝损坏状态，不迁移旧档。
+- 新例收进现有rewards分类，覆盖拾取／恢复／重复拒绝、真实兑换支付、非法动作回滚、四类场次、巡视暂停恢复、放大后的魔力上限、体术变体、部位限定、被动滑脱及掉落分布。
+- 最终命令：`tools/check.ps1 -Suite rewards,services,status,basic_attacks,slip_motion,persistence,casting,events,content -Exhaustive -UI -UISuite rewards,services,home,persistence,status -TimeoutSeconds 600`。
+- 最终日志：`build/checks/20260909T072723328-33628/check-rules.log`与`check-ui.log`。退出码0、无引擎错误、无截图；未运行全项目all、导出或发布。
 
 ## 2026-09-09 遗物核对与三档分类
-
 域：卡牌与奖励、检查与测试。
-
-- 现有7件遗物明确登记common／uncommon／rare。余烬护符、折叠工具匣、回身缎带为普通；整备沙漏、断缚护腕、游丝指环为罕见；余烬晶石为稀有。数值、触发机会、抽取权重和价格不变，初始遗物不因分类进入奖励池。
-- 核对实际调用后，将余烬晶石正文从泛指“耗魔行动”修正为首次付费施法返还实际支出50%，失败同样返还、零支付保留机会；设计页去掉过时“比例待定”。没有改写施法或遗物触发逻辑。
-- 图鉴新增遗物分类及三档筛选，持有列表、状态来源、商店小标签和宝箱说明复用注册表投影。内容包rarity为必填，未知／缺失值拒绝，模板与设计示例同步。存档只持有原ID，不新增存档字段或修订号。
+- 核对实际调用后，将余烬晶石正文从泛指“耗魔行动”修正为首次付费施法返还实际支出50%，失败同样返还、零支付保留机会；设计页去掉过时“比例待定”。
+- 内容包rarity为必填，未知／缺失值拒绝，模板与设计示例同步。
 - 案例加入现有encyclopedia／content／home／services模块：注册覆盖、初始来源保持、只读视图、内容包字段保存与错误拒绝、首页真实筛选、商店可见标签；未新建测试框架或重复遗物效果测试。
-- 先用ListOnly确认范围，再执行`tools/check.ps1 -Suite rewards,content,services,encyclopedia,status -UI -UISuite home,services,rewards -TimeoutSeconds 400`。规则**3241项通过**（118.64秒）；窗口**166项通过**（33.83秒）。规则按日常抽样enemy_cycle 4/16、enemy_pool 4/24，分类未改随机生成算法。
+- 先用ListOnly确认范围，再执行`tools/check.ps1 -Suite rewards,content,services,encyclopedia,status -UI -UISuite home,services,rewards -TimeoutSeconds 400`。
 - 日志：`build/checks/20260909T062917372-48704/check-rules.log`及`check-ui.log`。最终退出码0，无引擎错误，无截图，未运行全项目all或导出发布。
 
 ## 2026-09-09 双面新卡、独立来源增益与稀有度奖励
-
 域：契约 `card-framework.md`。
-
-- 接入强力肘击、欲能转换、魔力转换、魔力涌流、henshin；火焰精通双面共存。来源ID分别保存／派生，伤害相乘、同源不叠加；真实费用、施法失败、消耗区、多段完成后消耗、完整解除及战斗清理均沿原事务。状态栏和能力区显示实际来源／牌面。
-- CardRewards采用尖塔1逐张稀有度及动态修正，正常／精英／首领／商店区分来源，显式事件池保留限定抽取；固定百分位覆盖概率带，不用大型概率模拟。奖励修正、双面能力和独立增益均覆盖快照恢复及下一次动作。规则详见[卡牌框架](card-framework.md)。
-- 新案例card_expansion_cases由rewards唯一调用，不建新runner；rewards交叉关联增加equipment／slip_motion。旧power案例明确选择牌面，防止测试助手从另一合法牌面出牌；窗口发现并修正能力区默认面未反映已打出面的实际问题。新增移动案例读取原子提交后的目标，工具案例使用正式可触及目标。
+- 来源ID分别保存／派生，伤害相乘、同源不叠加；真实费用、施法失败、消耗区、多段完成后消耗、完整解除及战斗清理均沿原事务。
 - 扩展种子5、10暴露旧heap断言禁止链接，与已冻结的绳索池包含链接规则冲突。诊断确认新增普通件与链接均为中级三档、原链接保留，只修改旧断言，不修改敌人执行逻辑。
 - 规则最终：`tools/check.ps1 -Suite rewards,casting,persistence,equipment -Exhaustive -TimeoutSeconds 800`，**8099项通过**，138.10秒，enemy_cycle 16/16、enemy_pool 24/24。日志：`build/checks/20260909T054750186-37468/check-rules.log`。
-- 商店分类补充：`-Suite services -Exhaustive -TimeoutSeconds 120`，shop_release／services **182项通过**，1.74秒，日志：`build/checks/20260909T055117955-6960/check-rules.log`。其中shop_release与上一命令重叠，不将两次数字相加声称唯一覆盖数量。
-- 窗口最终：`-UIOnly -UISuite home,casting,rewards,interface,services -TimeoutSeconds 500`，**544项通过**，57.02秒；真实翻面、选择后提交、双面施法悬停、能力区、分类、奖励与商店，以及全部新卡双面文字边界。日志：`build/checks/20260909T054303830-14600/check-ui.log`。
-- 上述最终进程退出码均为0，无引擎错误。无截图；未运行全项目all，未发布或生成新导出包。旧存档不迁移，修订号读取Snapshot.REVISION。
+- 商店分类补充：`-Suite services -Exhaustive -TimeoutSeconds 120`，shop_release／services **182项通过**，1.74秒，日志：`build/checks/20260909T055117955-6960/check-rules.log`。
+- 日志：`build/checks/20260909T054303830-14600/check-ui.log`。
+- 上述最终进程退出码均为0，无引擎错误。无截图；未运行全项目all，未发布或生成新导出包。
 
 ## 2026-09-09 框架与接口复查、随机域与施加反馈修正
-
 域：架构与接口。
 
 ## 2026-09-09 卡牌二重分类与火焰精通
-
 域：`data/balance.gd`；契约 `card-framework.md`。
-
-- 卡牌定义显式登记技能／魔法／能力／诅咒及基础／普通／罕见／稀有／诅咒，图鉴、卡组、手牌、奖励与商店共用分类卡面。图鉴和卡组交叉筛选；基础牌及诅咒不进入常规奖励，原事件学习池仍保留三项。新增稀有能力火焰精通进入现有奖励／供货来源，没有增加稀有度抽样或随机域。
-- 能力沿原自身出牌候选与费用事务进入真实powers区；统一牌区守恒、重复能力拒绝、非战斗拒绝、过期版本／费用不足回滚、回合洗牌不回收能力、胜利及收押清理、快照坏数据拒绝和恢复后正式施法均有验证。火球术独立忽略口部倍率并失去手势增伤，保留快感概率及法术费用，不改变其他法术。
-- 新案例模块card_power_cases由rewards唯一调用；补充rewards关联persistence／status，复用原分类选择器。新窗口案例由casting唯一调用；首页验证稀有能力筛选，卡面最小高度检查覆盖手牌文字边界。
-- 规则：`tools/check.ps1 -Suite rewards,casting,persistence -TimeoutSeconds 360`，**5079项通过**。实际选入consumables、basic_attacks、battle_saturation、replacement、application、architecture、installation_priority、event_flow、curses、encyclopedia、shop_release、content、installed_tools、environment_height、exploration、shoulder、slip_motion、torso_binding、casting、special_equipment、status、persistence、rewards、core、links、prison、enemies、trader，逐项去重；173.25秒。日志`build/checks/20260909T042601325-44380/check-rules.log`。
+- 能力沿原自身出牌候选与费用事务进入真实powers区；统一牌区守恒、重复能力拒绝、非战斗拒绝、过期版本／费用不足回滚、回合洗牌不回收能力、胜利及收押清理、快照坏数据拒绝和恢复后正式施法均有验证。
+- 规则：`tools/check.ps1 -Suite rewards,casting,persistence -TimeoutSeconds 360`，**5079项通过**。日志`build/checks/20260909T042601325-44380/check-rules.log`。
 - 窗口：`-UIOnly -UISuite home,casting`，最终紧凑卡面版本**100项通过**，日志`build/checks/20260909T043313475-14576/check-ui.log`；`-UIOnly -UISuite rewards,interface,services`，**415项通过**，日志`build/checks/20260909T043746001-11100/check-ui.log`。共515项窗口断言，真实点击、翻面、能力区、交叉筛选、商店与奖励共用卡面均通过；所有引擎正常退出，无错误，无截图。
-- 本批未运行全项目all或发布。沿原存档修订策略拒绝旧档，不做迁移。完整规则与源码扩展模板见[卡牌框架](card-framework.md)。
-
-
-静态扫描覆盖core/data/ui的75个运行时脚本、152条字面脚本引用：未发现引用环、core反向依赖UI、UI直接访问game.state／内部写接口或五行以上完全相同的函数体。进一步复核新监狱路线、普通／复合混合施加与批次保护、消耗品、掉落、存档及只读投影。相似工厂、查询、事务与显示入口职责不同，未按文件行数或名称强行合并。
-
-确认并处理的问题：
-- 随机域名单在Game初始化、Snapshot字段规格及新增item_drop的补充初始化中重复维护，内容生成说明也已漏掉新增域。初始化与恢复校验改为共同读取data/balance.gd::RNG_SALTS；不改任何盐值、计数推进或随机算法。原校验接受未登记域的缺口已由失败案例复现，现在拒绝多余、缺失、非整数与负计数，失败不改当前状态。合法存档结构不变，Snapshot.REVISION本轮不提升，旧档仍不迁移。
-- runner旧断言要求persistence排除prison，与新增监狱路线的实际交叉归属冲突。修正为包含监狱读档，同时排除递归带入的tower_progression／normal_play，保留原去重与一次展开约束。
-- `_plan_install`没有正式调用，只剩测试在走旧预选流程；删除该入口，将案例接回Application及正式敌人回合。批次生成仍使用的`_install_choice`保留。装备测试不再从新apply声明读取旧slot字段；事件验证白名单补齐已实现的sequence行为。
-- 正式apply结果对链接沿用普通单部位coverage，导致反馈遗漏第二端；现在读取链接真实slots，不改变普通装备覆盖规则。同一敌人同一操作的多次安装日志原只保留第一条slots，现在按事件顺序合并全部实际部位并去重。正式链接回合、商贩批次及窗口高亮检查覆盖修复，播放结束不改游戏状态。
-- 补充初始化全域零计数、逐域坏数据、监狱地图查询无状态引用泄漏，以及真实领奖返塔重置全部随机计数／保留本幕掉落概率的交互检查。按game-design第6.2节，逃狱重建仍在第一幕，掉落概率保留符合规则，未擅自重置40%。
-
-所有范围先经ListOnly确认。记录：
+- 沿原存档修订策略拒绝旧档，不做迁移。
+- 原校验接受未登记域的缺口已由失败案例复现，现在拒绝多余、缺失、非整数与负计数，失败不改当前状态。
+- runner旧断言要求persistence排除prison，与新增监狱路线的实际交叉归属冲突。
 - 修改前现行功能基线：tools/check.ps1 -Suite architecture,prison,consumables,application,replacement,persistence,tower -Exhaustive -UI -UISuite prison,route,consumables -TimeoutSeconds 240，通过8106项规则、214项窗口断言；85.50秒／62.48秒。日志build/checks/20260908T165038756-50156/，包含enemy_cycle 16/16、enemy_pool 24/24、tower_graph 201/201。
 - 新增拒绝案例在旧实现上的复现：-Suite persistence，3910项中1项失败，未登记随机域被恢复；build/checks/20260908T165233635-37348/check-rules.log。
 - 首轮全规则回归在11959项中发现3项断言失败及4次引擎错误记录：runner交叉归属过期、两个法阵的sequence白名单遗漏、装备案例访问已废弃的预选slot，build/checks/20260908T165422919-49852/check-rules.log；修正后runner专项20项通过（0.79秒），build/checks/20260908T165610800-31952/check-rules.log。
@@ -1048,1443 +635,683 @@
 - enemy_feedback窗口42项中复现批量部位与高亮2项失败，build/checks/20260908T170830214-43124/check-ui.log，保留案例并修正合并逻辑。
 - 随机域调整后，-UIOnly -UISuite prison,route,consumables,persistence通过273项窗口断言（78.16秒），build/checks/20260908T165654026-43728/check-ui.log。
 - 反馈修正后，-UIOnly -UISuite enemies,enemy_feedback通过211项窗口断言（80.83秒），build/checks/20260908T170924101-9684/check-ui.log；含真实链接双端、批量全部部位高亮、显示播放不修改状态。
-
-最终`tools/check.ps1 -Suite all -TimeoutSeconds 300`完整规则回归通过11970项断言（214.35秒），涵盖全部43个分类，enemy_cycle 16/16、enemy_pool 24/24、tower_graph 201/201完整种子；日志`build/checks/20260908T170849131-41384/check-rules.log`。本轮关联窗口合计484项通过（273＋211），并非全窗口all。完成运行均通过退出码、成功标记与引擎错误门禁。无美术修改或新增截图。
-
-最新批次（2026-09-09，敌人阵列与魅魔警卫对齐）：敌人行按788—1568的完整战场范围计算居中起点，单人右移88像素、双人右移130像素，三人以上继续使用原完整宽度；行动日志不再占用阵列布局范围。魅魔警卫专用146像素立绘框右移70像素，与意图、光圈、名称及血条共用中心，点击区域同步。`tools/check.ps1 -UIOnly -UISuite guard,enemies`通过199项窗口断言，单／双警卫截图已复核。
-
-最新批次（2026-09-09，拘束等级战斗立绘）：用户提供的坐姿与卧姿原图通过项目本地GrabCut脚本生成真实透明PNG；坐姿臀部下方低色度投影杂色已以最低前景连通条件清除，未调用生成工具或重绘人物。只读视图统一投影`has_restraint_level`，双臂／双腿任一等级大于0时切换拘束态坐／卧图，拘束态站姿直接复用装备栏组合器；仅眼／口装备不虚构肢体等级。`tools/check.ps1 -Import -UIOnly -UISuite hero_art,equipment_art`通过190项窗口断言，并生成站／坐／卧三张实机截图。
+最终`tools/check.ps1 -Suite all -TimeoutSeconds 300`完整规则回归通过11970项断言（214.35秒），涵盖全部43个分类，enemy_cycle 16/16、enemy_pool 24/24、tower_graph 201/201完整种子；日志`build/checks/20260908T170849131-41384/check-rules.log`。完成运行均通过退出码、成功标记与引擎错误门禁。
+`tools/check.ps1 -UIOnly -UISuite guard,enemies`通过199项窗口断言，单／双警卫截图已复核。
+`tools/check.ps1 -Import -UIOnly -UISuite hero_art,equipment_art`通过190项窗口断言，并生成站／坐／卧三张实机截图。
 
 ## 2026-09-09 链接池覆盖、魔法阵满位加固与眼部两件上限
-
 域：装备与解除、界面。
-
-本批核对发现：魔法阵旧循环只施加且普通白名单漏了链接；通用事件随机冻结只接受install，也会拒绝生成器返回的link。按用户随后确认，改为EquipmentOffers.for_pool单点派生：普通池含绳索／细绳／皮带／细皮带／皮革眼罩及其base_template派生款时，自动加入既有合法链接绳。敌人、监狱、批量动作、事件统一消费；链接保持第三优先级、两端真实装备、方向容量与具体装备对唯一，不占普通格、不免费补端。明确上锁、指定部位／位置继续复核两端。复合、特殊装备及仅口球等池不因皮革材质而被扩充。
-
-事件生成结果可冻结为link，通过原execute_concrete提交，沿已有探测副本与事务实现版本复核、费用和失败回滚；预览、日志显示两个真实位置，快照复用现有链接意图形状验证。警卫普通名单排除已移出的布带眼罩。两种魔法阵以tighten_missing显式开启无处新增后的逐次普通加固；其他意图无目标空过规则不变，空间耗尽判断同时检查该能力。眼部容量在Equipment.capacity集中改为2，安装、替换、存档、投影共同遵守。集中修订号更新，旧档不迁移。
-
+本批核对发现：魔法阵旧循环只施加且普通白名单漏了链接；通用事件随机冻结只接受install，也会拒绝生成器返回的link。
+事件生成结果可冻结为link，通过原execute_concrete提交，沿已有探测副本与事务实现版本复核、费用和失败回滚；预览、日志显示两个真实位置，快照复用现有链接意图形状验证。
 规则分类`tools/check.ps1 -Suite enemies,equipment,events,persistence,links -TimeoutSeconds 360`共5241项通过，日志`build/checks/20260908T174711258-1880/check-rules.log`。窗口分类`tools/check.ps1 -UIOnly -UISuite enemies,intent,equipment_complete,events -TimeoutSeconds 240`共346项通过，日志`build/checks/20260908T174721538-29432/check-ui.log`。均先ListOnly确认范围，未运行all或完整随机矩阵，未生成截图。
-
-新增或修订案例覆盖真实来源池的第三档链接候选与提交、皮带变体实际链接、事件公开两端及同版本恢复、端点消失时连同费用原子拒绝、魔法阵先补最后一条链接再加固、全空间耗尽只结算一次、眼部跨材质共享两格、第三件拒绝、损坏存档拒绝及合法外层替换。首轮发现旧测试把“皮带没有链接”和“普通格满即必须替换”当作前提；复合数量／强度边界改用不会额外生成链接的胶带来源保留覆盖，监狱用例分别验证链接余地优先和连同链接完全饱和后的替换。另修正一处测试读取事务前旧对象引用的问题，最终用提交后的真实编号查询。后续仅同步文档。
+新增或修订案例覆盖真实来源池的第三档链接候选与提交、皮带变体实际链接、事件公开两端及同版本恢复、端点消失时连同费用原子拒绝、魔法阵先补最后一条链接再加固、全空间耗尽只结算一次、眼部跨材质共享两格、第三件拒绝、损坏存档拒绝及合法外层替换。
 
 ## 2026-09-09 独立监狱路线与领奖后重新攀塔
-
 域：监狱与收押、塔路与地图。
-
-离开牢房统一进入出发点、5回合休息点、出口精英战组成的独立监狱地图；复用现有房间图、移动、休息、战斗和奖励提交。出口固定生成当前警戒度数量的魅魔警卫，必须击败全队，只结算一次奖励。领取或跳过后返回新塔路，超容量先走原整理流程，不追加战后整备或返程恢复。新种子在正式提交中生成，重置地图与遭遇随机进度，保留角色、装备、卡组、资源、警戒度和存档归属。实例编号继续递增，同版本领奖页恢复会生成相同的新种子；旧档不迁移。
-
-沿prison现有分类验证可继续探索的1—4级警戒对应人数、不可跳过休息点、移动与奖励页恢复、损坏路线原子拒绝、多人战一次奖励、容量整理先于返塔、状态保留和失败后再次收押。tower_progression沿正式行动通过新增路线；normal_play的旧限时检查点明确标为到达监狱路线，不冒充通过出口。
-
-ListOnly确认后执行`tools/check.ps1 -Suite prison,tower,persistence,rewards -TimeoutSeconds 240`，4514项通过，日志`build/checks/20260908T163124463-11204/check-rules.log`。首轮发现普通奖励记录清理范围扩大导致旧塔路案例索引失败，已将清理收窄到监狱出口奖励并完整复跑上述分类。窗口执行`tools/check.ps1 -UIOnly -UISuite prison,route -TimeoutSeconds 240`，205项通过，日志`build/checks/20260908T163627385-45284/check-ui.log`，覆盖地图名称、真实节点进入、五回合休息、出口战及领奖返塔。没有新增截图，也未执行all或完整随机矩阵。最后只同步折返符旧去向说明和文档。
+沿prison现有分类验证可继续探索的1—4级警戒对应人数、不可跳过休息点、移动与奖励页恢复、损坏路线原子拒绝、多人战一次奖励、容量整理先于返塔、状态保留和失败后再次收押。
+ListOnly确认后执行`tools/check.ps1 -Suite prison,tower,persistence,rewards -TimeoutSeconds 240`，4514项通过，日志`build/checks/20260908T163124463-11204/check-rules.log`。首轮发现普通奖励记录清理范围扩大导致旧塔路案例索引失败，已将清理收窄到监狱出口奖励并完整复跑上述分类。窗口执行`tools/check.ps1 -UIOnly -UISuite prison,route -TimeoutSeconds 240`，205项通过，日志`build/checks/20260908T163627385-45284/check-ui.log`，覆盖地图名称、真实节点进入、五回合休息、出口战及领奖返塔。
 
 ## 2026-09-09 魅魔警卫双立绘池
-
 域：`assets/art/enemy-guards-v1/README.md`。
-
-用户指定两张源图作为魅魔警卫战斗立绘，并要求每只敌人独立随机、允许重复。本批使用本地 `tools/extract_portrait.py` 抠除边缘连通白底，没有调用图像生成工具；两张输出均含真实Alpha且四边透明，源图、裁框和哈希记录在 `assets/art/enemy-guards-v1/README.md`。
-
-规则只新增数据声明 `guard.visual_pool`、独立 `enemy_visual` 随机域和敌人实例的稳定 `visual_variant`。双警卫逐只调用有放回抽取；只读投影公开选中ID，Arena据此加载透明PNG。行动随机域保持独立，UI刷新不抽取。敌人状态和随机域进入快照校验，`Snapshot.REVISION`提升至12，旧档继续按既定策略拒绝而不迁移。
-
-先用 `tools/check.ps1 -Suite guard,persistence -UI -UISuite guard -ListOnly` 查看影响范围。规则最终执行 `tools/check.ps1 -Suite guard,persistence -TimeoutSeconds 240`，相关23个规则模块3846项通过，日志 `build/checks/20260908T154431635-45480/check-rules.log`。日常随机样本为 enemy_cycle 4/16、enemy_pool 4/24，未运行全项目all。
-
-资源导入后执行 `tools/check.ps1 -UIOnly -UISuite guard -Import -Screenshots ui-34-guard-intent.png,ui-36-double-guard.png`，警卫窗口25项通过，日志 `build/checks/20260908T154029134-46088/check-ui.log`。实际截图确认透明背景、单人完整比例及双警卫同场重复立绘。随后工作区并行新增主角姿势资源；重新导入后复跑在既有收押界面读取 `view.prison.toy_rule` 时失败，警卫立绘映射断言此前已通过，失败点与本批敌人美术状态无关，日志 `build/checks/20260908T154649586-29752/check-ui.log`。本批没有改动该并行中的收押投影工作。
-
+敌人状态和随机域进入快照校验，`Snapshot.REVISION`提升至12，旧档继续按既定策略拒绝而不迁移。
+先用 `tools/check.ps1 -Suite guard,persistence -UI -UISuite guard -ListOnly` 查看影响范围。规则最终执行 `tools/check.ps1 -Suite guard,persistence -TimeoutSeconds 240`，相关23个规则模块3846项通过，日志 `build/checks/20260908T154431635-45480/check-rules.log`。
+资源导入后执行 `tools/check.ps1 -UIOnly -UISuite guard -Import -Screenshots ui-34-guard-intent.png,ui-36-double-guard.png`，警卫窗口25项通过，日志 `build/checks/20260908T154029134-46088/check-ui.log`。随后工作区并行新增主角姿势资源；重新导入后复跑在既有收押界面读取 `view.prison.toy_rule` 时失败，警卫立绘映射断言此前已通过，失败点与本批敌人美术状态无关，日志 `build/checks/20260908T154649586-29752/check-ui.log`。
 并行资源稳定后，尾巴围住的封闭白底由两个明确背景种子清除；最终执行 `tools/check.ps1 -UIOnly -UISuite guard -Screenshots ui-34-guard-intent.png,ui-36-double-guard.png,ui-guard-brown-portrait.png`，27项通过，日志 `build/checks/20260908T155219504-40320/check-ui.log`。三张截图分别覆盖紫发单人、双警卫允许重复和棕发单人；另用 `build/guard-cutout-preview.png` 在深色棋盘底检查两张透明轮廓及白色服装保留。
 
 ## 2026-09-08 当前架构复查与分类门禁修正
-
 域：检查与测试、架构与接口。
-
-复查core/data/ui共73个运行时脚本及150条字面脚本引用，未发现引用环、UI直接访问game.state或core反向引用UI。沿Game提交、Application/Replacement、EnemyPlans能力检查、连续攻击、瞬时反馈与Snapshot/SaveStore恢复边界复核；没有确认新的运行时接口冲突。本次没有改动游戏规则、存档结构或美术；静态扫描和以下分类回归不代表穷尽全部组合或全项目all。
-
-修正四类维护缺口：
-- AGENTS、README与内容扩展／生成说明仍混有旧的预选装备目标、无目标执行时补施加、prepared/attachment字段及互相冲突的当前存档版本数字。现行接口说明改为敌人出手选择、事件沿自身阶段冻结；当前修订号统一引用Snapshot.REVISION，保留旧档不适配及恢复失败回主页策略。历史验证记录仍保留当时版本。
-- basic_attack_cases与battle_saturation_cases原先仅内嵌在core，单独选enemies或application会漏跑对应交叉行为。两文件分别登记为basic_attacks与battle_saturation，移除core内重复调用，并用runner案例检查相关分类纳入和组合去重。architecture增加人形敌人练习及基础攻击注册表引用隔离检查。
+- 现行接口说明改为敌人出手选择、事件沿自身阶段冻结；当前修订号统一引用Snapshot.REVISION，保留旧档不适配及恢复失败回主页策略。
 - 日常奖励分类会带入敌人测试，绳蛇的双分支断言在旧4种子日常样本中失败；完整16种子通过。该定向案例现始终保留完整16种子，不删除断言、不修改随机或正式行动。失败证据：build/checks/20260908T113412957-15468/check-rules.log。
-
 - 卡牌动画窗口案例沿用默认frames/click等待，新增的抽牌落位等待会在断言前消耗完整动画，导致四项中间态检查失败。现有助手增加settle_feedback选项，默认仍等待落位；只有明确观察动画的三个调用只等待真实布局／绘制，保留原生控件提交、全部断言、到达期限与状态不变检查。失败日志build/checks/20260908T114109438-5696/check-ui.log。
-
-验证均先查看ListOnly：
-- tools/check.ps1 -Suite architecture,application,replacement,core,enemies,persistence -Exhaustive -UI -UISuite enemies,intent,persistence -TimeoutSeconds 240：5554项规则／250项窗口通过，规则96.36秒、窗口84.17秒；日志build/checks/20260908T112855869-12480/。这是分类调整前的现行功能基线，包含enemy_cycle 16/16及enemy_pool 24/24。
+- tools/check.ps1 -Suite architecture,application,replacement,core,enemies,persistence -Exhaustive -UI -UISuite enemies,intent,persistence -TimeoutSeconds 240：5554项规则／250项窗口通过，规则96.36秒、窗口84.17秒；日志build/checks/20260908T112855869-12480/。
 - tools/check.ps1 -Suite runner,architecture,basic_attacks,battle_saturation：调整后81项规则通过，11.78秒；日志build/checks/20260908T113311483-45500/check-rules.log。
 - tools/check.ps1 -Suite rewards,runner -UI -UISuite basic_attacks,rewards,trader -TimeoutSeconds 240：抽样修正后2054项规则通过，27.28秒；日志build/checks/20260908T113543253-42716/check-rules.log。本次窗口在240秒后超时，日志build/checks/20260908T113543253-42716/check-ui.log；不能记为通过。单独基础攻击随后16项通过（10.20秒，build/checks/20260908T114034073-16720/check-ui.log），同组合重跑复现上列四项动画观察失败；初次超时的原因尚未确定，后续未再复现。
-
 - 动画观察接口修正后：tools/check.ps1 -UIOnly -UISuite basic_attacks,rewards,trader -TimeoutSeconds 180，149项窗口通过（基础攻击16、人形敌人82、奖励与动画51），37.89秒；日志build/checks/20260908T114237118-6596/check-ui.log。没有提高原240秒超时上限，没有删除失败案例。
-
 各次范围有重叠，断言数字不相加为独立总覆盖；窗口只进行真实交互和状态核对，无截图。
 
 ## 2026-09-08 绳蛇与共用持续施加
-
 域：界面、装备与解除。
-
-新增40生命、后台强度2的游动的绳蛇，登记强怪图鉴、独立练习和代码绘制外观。缠身叠加紧缠，下一次各50%收紧或甩缚，再返回缠身；随机分支预告冻结，收紧目标出手时随机选定。持续施加由`EnemyPlans.activate_install/tick_install`共用：绳蛇按层数在玩家回合结束时触发，一堆绳／皮带固定1层在玩家回合开始触发。死亡／分裂清除来源层数，既有装备保留。没有新增随机强怪组合。
-
-状态从旧布尔值改为真实层数，快照修订号升至4，不迁移旧版；同版本读档、非法层数原子拒绝、打断续接已验证。新案例合入已有enemies分类，覆盖两种随机分支、先后手时机、延后的施加、叠层、多来源独立及死亡停效；原heap案例继续覆盖绳／皮带单件增生和分裂后的停效。
-
-先通过`-ListOnly`检查范围，再运行`tools/check.ps1 -Suite enemies,persistence,status -Exhaustive -UI -UISuite enemies,status`：规则5213项通过，enemy_cycle 16/16、enemy_pool 24/24，80.18秒，日志`build/checks/20260908T105813099-11140/check-rules.log`。没有运行全项目all。
-
-窗口检查发现旧状态栏案例把攻击的所有可切换形式都当作常驻按钮，改为检查实际四个`BasicAttack`控件，保留深呼吸布局与真实点击验证。随后仅重跑`tools/check.ps1 -UIOnly -UISuite enemies,status`：185项通过，63.12秒，日志`build/checks/20260908T110149959-45500/check-ui.log`。无截图。
+状态从旧布尔值改为真实层数，快照修订号升至4，不迁移旧版；同版本读档、非法层数原子拒绝、打断续接已验证。
+先通过`-ListOnly`检查范围，再运行`tools/check.ps1 -Suite enemies,persistence,status -Exhaustive -UI -UISuite enemies,status`：规则5213项通过，enemy_cycle 16/16、enemy_pool 24/24，80.18秒，日志`build/checks/20260908T105813099-11140/check-rules.log`。
+随后仅重跑`tools/check.ps1 -UIOnly -UISuite enemies,status`：185项通过，63.12秒，日志`build/checks/20260908T110149959-45500/check-ui.log`。
 
 ## 2026-09-08 30生命的小型魔法阵进入弱怪池
-
 域：界面、装备与解除。
-
-新增`small_circle`，从现有强怪法阵深复制定义，仅调整名称、排序、生命30和后台强度1；共用5点仪式和两档装备施加，不另建行动逻辑。登记真实弱怪来源、分类、图鉴和独立练习。顺序型敌人的入场资格读取已声明施加规格与既有安装候选；弱战和强怪组合的弱怪成员都会沿原预算抽到该类型。
-
-验证入口先用`-ListOnly`确认，再运行`tools/check.ps1 -Suite enemies,tower -Exhaustive -UI -UISuite enemies`。规则5841项通过（enemy_cycle 16/16、enemy_pool 24/24、tower_graph 201/201），窗口150项通过，无截图。日志为`build/checks/20260908T104658766-33888/check-rules.log`及`check-ui.log`；规则34.64秒，窗口52.88秒。
-
-原种子矩阵覆盖八种弱怪及重复组队；新增小型法阵30血、入池、真实施加和练习窗口检查。遍历夹具把顺序循环敌人纳入原有缩短持久战机制，仍走正式攻击。删除塔路套件里重复且按废弃“无目标自动补施加／冻结具体目标”规则编写的adaptive_cases；当前施加、加固时机和打断继续由已有application、enemies、intent分类验证。塔顶攻击集成检查改为使用正式候选伤害，不再硬编码旧6点基础伤害。
+验证入口先用`-ListOnly`确认，再运行`tools/check.ps1 -Suite enemies,tower -Exhaustive -UI -UISuite enemies`。日志为`build/checks/20260908T104658766-33888/check-rules.log`及`check-ui.log`；规则34.64秒，窗口52.88秒。
 
 ## 2026-09-08 魔法阵强怪与仪式
-
 域：检查与测试、界面。
-
-已接入`ominous_circle`：生命暂定40、后台强度2，强怪个体库、图鉴、独立练习与代码绘制的法阵外观。复用开场／循环计划和统一施加入口，两档规格每件独立选择；仪式及数量加成保存在真实敌人实例，沿自身回合末增长。没有新增随机强怪组合。
-
-`enemy_ritual_cases.gd`归入已有enemies套件，验证正式行动6／11件增长、两档真实装备、满位落空、启动前／后的打断差异、同版本读档续接、损坏状态原子拒绝、死亡停效和后手一次结算。新窗口步骤通过实际练习入口及结束回合按钮检查法阵、状态和真实施加。没有新建测试启动器或截图测试。
-
+`enemy_ritual_cases.gd`归入已有enemies套件，验证正式行动6／11件增长、两档真实装备、满位落空、启动前／后的打断差异、同版本读档续接、损坏状态原子拒绝、死亡停效和后手一次结算。
 最终规则检查：`tools/check.ps1 -Suite enemies,application,persistence,status -Exhaustive -UI -UISuite enemies,intent`，先通过`-ListOnly`核对分类。规则5158项通过，日志`build/checks/20260908T103106880-20672/check-rules.log`，50.59秒；包含关联交叉分类，未运行all。
-
-窗口初次检查揭示已有拖牌测试会在抽牌动画期间操作仍隐藏的手牌。共享等待助手现按真实`pending_draws`结束等待，与现有敌人反馈等待并列，保留超时上限，不跳过动画或直接提交卡牌。随后仅重跑`tools/check.ps1 -UIOnly -UISuite enemies,intent`：176项通过，日志`build/checks/20260908T103518321-16088/check-ui.log`，57.95秒，无截图。数值平衡未视为最终确定。
+随后仅重跑`tools/check.ps1 -UIOnly -UISuite enemies,intent`：176项通过，日志`build/checks/20260908T103518321-16088/check-ui.log`，57.95秒，无截图。
 
 ## 2026-09-08 施加／替换机制完成接入
-
 域：装备与解除、战斗与敌人。
-
-本批完成统一施加入口与内部替换事务，覆盖普通／复合分池、空位优先、显式替换权限、最外层与最小移除集合、逐位置品质／紧度／锁／链接损失比较、复合多数比较、整批单件完整覆盖和链接转接。保留原实例工厂、特殊装备同族／容量／方法限制与事件原结果；没有新增敌人组合或旧存档迁移。
-
-接线修正：敌人特殊池统一使用施加模块读取的`templates`；快照按池校验模板或复合选择器。普通、复合、链接、肩部及特殊的具体敌人操作也进入`execute_concrete`。人形权限与本次声明共同决定能否替换；警卫继续具备原有的成对肩部附加来源，一对组件按一次施加计数。正式结果携带实际装备ID与覆盖位置，施加反馈有标题、动作和部位高亮。
-
-结构清理：替换直接读取Game安装检查的`capacity_full`及位置结果，不复制层级逻辑或解析中文错误。移除重复状态预演、动态检查模块是否存在的临时分支、只被测试使用的分类查询、单独的替换测试启动器及无调用导入；移除未落地`trader`规则测试的悬空登记。没有添加第二套状态或玩家提交接口。测试中的旧预备目标已改为实际声明／出手选择；牢房奖励夹具在正式开始战斗前设定先手，避免把敌人实际先手施加后的攻击限制误当作奖励流程失败。
-
+测试中的旧预备目标已改为实际声明／出手选择；牢房奖励夹具在正式开始战斗前设定先手，避免把敌人实际先手施加后的攻击限制误当作奖励流程失败。
 最终验证：`tools/check.ps1 -Suite application,replacement,enemies,guard,events,persistence,core,equipment_complete -Exhaustive -UI -UISuite enemies,intent,enemy_feedback,events,persistence -TimeoutSeconds 240`。
-
-- 规则6313项通过，enemy_cycle 16/16及enemy_pool 24/24；按分类自动合并关联模块并去重，没有运行all。
-- 窗口347项通过：敌人、意图、行动反馈、事件、存档。默认未截图。
+- 默认未截图。
 - 日志：`build/checks/20260908T080918830-45084/check-rules.log`与`check-ui.log`；规则48.24秒，窗口21.73秒。
-
-范围限制：本结论针对施加／替换及其现有调用。工作区新敌人的完整行动循环不作为本批已验收内容；不把机制通过扩大为全部新内容或最终数值平衡通过。
+工作区新敌人的完整行动循环不作为本批已验收内容；不把机制通过扩大为全部新内容或最终数值平衡通过。
 
 ## 2026-09-08 加固意图生成与执行时机
-
 域：装备与解除、战斗与敌人。
-
-范围限定为本轮用户要求的加固意图：生成时无合法目标则从怪物已有施加意图随机选择；已生成的加固预告在执行时选择真实目标，无目标空过且推进原步骤。批量缺额不补施加，警卫复用同一生成函数。普通施加仍调用现有工厂；未为本次改动扩充装备、敌人或替换权限。删除了无调用的`prepare_special`转发函数，空批次日志直接说明动作落空，教程与行动表同步。
-
-验证使用现有`intent`分类，包含真实卡牌解除目标、剩余目标加固、完全空过、批量部分／全部空过、警卫单步流程、生成阶段随机改选、快照恢复后继续回合和只读预览。固定夹具设置初始阶段，之后经正式候选与版本提交；不靠直接删装备模拟玩家解除。
-
 - 范围预检：`tools/check.ps1 -Suite intent -Exhaustive -UI -UISuite intent -ListOnly`。
-- 最终验证：`tools/check.ps1 -Suite intent -Exhaustive -UI -UISuite intent`，126项规则断言与29项窗口断言通过；随机样本16/16。日志：`build/checks/20260908T074213035-18580/check-rules.log`及`check-ui.log`。没有截图、没有全项目回归。
-- 验证范围不包含此前尚未收尾的完整施加／替换与新敌人批次；工作区仍登记了尚缺文件的`trader`测试，旧`installation_priority`及警卫测试也有旧意图假设。本次通过不能表述为此前整批或全部敌人分类通过。
+- 最终验证：`tools/check.ps1 -Suite intent -Exhaustive -UI -UISuite intent`，126项规则断言与29项窗口断言通过；随机样本16/16。日志：`build/checks/20260908T074213035-18580/check-rules.log`及`check-ui.log`。
 
 ## 2026-09-08 接触与预检架构清理
-
 域：架构与接口。
 
 ## 2026-09-08 整体架构复查收尾
-
 域：契约 `content-extension.md`。
-
-本轮复查覆盖core的25个、data的21个、ui的22个运行时脚本，共68个；扫描139处脚本引用，核对主场景和UI派发入口，未发现缺失脚本、静态脚本引用循环或规则／数据层反向依赖UI。结合正式调用链复核事务、卡组、装备工厂、实例与依附生命周期、回合、事件／商店、地图／牢房、存档、只读投影和反馈显示。接口归属与后续扩展约定维护在`docs/content-extension.md`及AGENTS，不另建框架或第二份工作看板。这是运行时接口和现有测试覆盖的一轮整体复核，不代表穷尽未来内容组合。
-
-修复与整合：
-
-- 卡组原先在运行时只比较张数，而Snapshot另有uid／类型校验；相同张数下的类型错配、孤立编号和重复卡均可能通过行动入口。现在统一由`Cards.validate`检查uid、类型与唯一性，Snapshot先保护输入形状。商店和事件删牌共用`CardEffects.remove_permanent`及`ZONES`，按实例删除全部牌堆中的对应副本，保留其他同类型牌、顺序、资源与随机。商店和肩带的重复`slip_focus`删除也归并到原游戏清理阶段。
-- 普通安装的资格查询与工厂重复计算位置和层级，显式插入复合同层时只有工厂拒绝。`Game._prepare_installation`现在统一返回具体位置、层级和原因，两处消费相同结果；正常自动外层安装不变。删除已停用的`torso_rope/torso_belt`模板、旧显示／校验分支和身前／身后安装参数，41处调用同步到末尾`variant, point`。真实空间坐标、部位倍率和Binding附加状态不是该旧参数。
-- 多阶段事件在真实提交中预演下一阶段时，状态副本会回滚，但独立的资源反馈记录器没有隔离，导致尚未选择的代价生成“扣费再恢复”的虚假飘字。`freeze_effects/probe`现暂停并归还记录器；预演不产生反馈，真正选择代价时只记录一次支付。未改代价、事件结果、随机冻结规则或界面布局。
-
-失败复现：卡组边界旧实现6项失败见`build/checks/20260908T050546810-43664/check-rules.log`；复合同层查询与工厂不一致的单一失败见`build/checks/20260908T051144245-14216/check-rules.log`；事件预演虚假反馈的单一失败见`build/checks/20260908T051647280-18752/check-rules.log`。修复后均随下面的完整回归通过。
-
-完整回归也发现三个旧测试前提：正常试玩策略在零能量时无限交替免费坐下／靠墙站起，现结束耗尽回合；窗口试玩复用已有事件选牌窗口的真实打开流程；警卫窗口改验真实意图图标和简短悬停。未放宽1800／600步上限、替换失败种子、缩短真实试玩敌人生命或改变正式规则。三条纯正常试玩分别经过354／491／311次正式行动并达到逃离结果；断言总数减少来自不再重复无进展姿势循环。窗口案例继续复核真实拖放／点击、正式提交与状态版本。
-
-最终验证：
-
-- `tools/check.ps1 -Suite all -UI -UISuite all -TimeoutSeconds 600`的规则阶段通过全部37个模块、10368项断言，86.67秒；日志`build/checks/20260908T051857613-21580/check-rules.log`。包含enemy_pool 24/24、enemy_cycle 16/16及tower_graph 201/201完整随机样本。该次窗口因上述旧用例失败，不能计为窗口通过。
+- 普通安装的资格查询与工厂重复计算位置和层级，显式插入复合同层时只有工厂拒绝。
+- 多阶段事件在真实提交中预演下一阶段时，状态副本会回滚，但独立的资源反馈记录器没有隔离，导致尚未选择的代价生成“扣费再恢复”的虚假飘字。
+失败复现：卡组边界旧实现6项失败见`build/checks/20260908T050546810-43664/check-rules.log`；复合同层查询与工厂不一致的单一失败见`build/checks/20260908T051144245-14216/check-rules.log`；事件预演虚假反馈的单一失败见`build/checks/20260908T051647280-18752/check-rules.log`。
+未放宽1800／600步上限、替换失败种子、缩短真实试玩敌人生命或改变正式规则。三条纯正常试玩分别经过354／491／311次正式行动并达到逃离结果；断言总数减少来自不再重复无进展姿势循环。
+- `tools/check.ps1 -Suite all -UI -UISuite all -TimeoutSeconds 600`的规则阶段通过全部37个模块、10368项断言，86.67秒；日志`build/checks/20260908T051857613-21580/check-rules.log`。该次窗口因上述旧用例失败，不能计为窗口通过。
 - 仅修正窗口用例后，`tools/check.ps1 -UIOnly -UISuite normal_play,guard -TimeoutSeconds 600`通过1046项断言，49.05秒；日志`build/checks/20260908T052337546-43748/check-ui.log`。
-- 最终`tools/check.ps1 -UIOnly -UISuite all -TimeoutSeconds 600`通过全部32个窗口模块、2943项断言，138.59秒；日志`build/checks/20260908T052507825-3636/check-ui.log`。与最终规则结果之间只修改窗口测试及文档，运行时代码未再变化。
-
+- 最终`tools/check.ps1 -UIOnly -UISuite all -TimeoutSeconds 600`通过全部32个窗口模块、2943项断言，138.59秒；日志`build/checks/20260908T052507825-3636/check-ui.log`。
 最终两份全量日志均通过退出码、引擎错误和完成标记门禁。无布局／美术变动，未截图；测试存档使用原隔离目录，未触碰玩家存档。现行快照结构与合法状态含义未变，修订号仍为2，继续执行旧存档不适配、恢复失败统一回主界面的约定。
 
 ## 2026-09-08 长期维护边界与统一读档失败返回
-
 域：契约 `content-extension.md`。
-
-用户明确老存档统统不适配，并要求架构调整考虑长期维护；两项约定已写入项目AGENTS。快照新增集中维护的`Snapshot.REVISION=2`，缺失、错误类型或不同修订号在改写状态前拒绝；文件编码`FORMAT=1`独立保留。档位名单统一由Snapshot维护。启动或运行中恢复失败均回主界面，显示原因并暂停自动保存，原内存与文件保留；只有明确新游戏才替换不兼容档。当前版本损坏主文件的有效备份恢复继续工作，版本不兼容不自动回退。
-
-删除仅服务旧档的牢房四项发现池兼容、旧security/terminal固定架与专用材料分支。当前发现池要求完整匹配三项，终局沿用真实装备清单。历史兼容成功用例移除，改在存档输入边界覆盖缺失池与错误池的原子拒绝；折返符现有道具行为以当前库存夹具继续验证。
-
-装备生命周期发现普通件被正式徒手解除后仍残留`slip_focus`。先通过真实找准松处卡牌建立效果，再提交正式解除，旧实现出现“目标已删除但效果未清除”的单一失败；证据`build/checks/20260908T044825227-41980/check-rules.log`。现由`Game._cleanup`对真实行动目标统一清理依附效果；验证一次支付、不改无关魔力和随机、重复清理达到固定点。
-
-新增`architecture`交叉模块覆盖equipment、component_links、prison_test、succubus_three_games四种场景：查看与候选查询保持全部状态和随机域，视图不共享状态及主要内容表的可变容器。沿调用链复核事务、物理目标集合、随机域、敌方执行、遗物触发与内容注册；未把职责不同的结构校验和规则校验误合并。规则与接口结论同步`docs/content-extension.md`。
-
+快照新增集中维护的`Snapshot.REVISION=2`，缺失、错误类型或不同修订号在改写状态前拒绝；文件编码`FORMAT=1`独立保留。启动或运行中恢复失败均回主界面，显示原因并暂停自动保存，原内存与文件保留；只有明确新游戏才替换不兼容档。
+历史兼容成功用例移除，改在存档输入边界覆盖缺失池与错误池的原子拒绝；折返符现有道具行为以当前库存夹具继续验证。
+先通过真实找准松处卡牌建立效果，再提交正式解除，旧实现出现“目标已删除但效果未清除”的单一失败；证据`build/checks/20260908T044825227-41980/check-rules.log`。
 - 验证命令：`tools/check.ps1 -Suite architecture,persistence,equipment,prison,services,content,rewards,enemies,core,guard,pressure,events -UI -UISuite persistence,home,installed_tools,events`。
 - 规则通过5440项断言，41.83秒；窗口通过239项断言，16.64秒。日志分别为`build/checks/20260908T045245190-28096/check-rules.log`和`check-ui.log`，无引擎错误。
-- 存档窗口用真实按钮验证缺失修订号、结构损坏、JSON损坏均回主页；检查内存和原文件不变、提示可见、可开始新局。修订号案例同时放置有效备份，确认不会悄悄回退。测试均使用隔离目录，不接触玩家进度。
-- 使用分类关联去重与日常随机样本，未运行全项目all或Exhaustive；未新增截图。运行后仅同步说明文档与注释，未再改变运行时行为。
-
-
-`Contact.evaluate`统一生成接触原因和合法位置，`usable_slots`不再重复手部、外层及链接连接点判断；删除无调用的`Contact.mounted_reason`，牢房的同名位置检查保持独立。修复复合套体在膝上连接处外露、同区域大腿根被另一件装备覆盖时，正式切割候选合法但界面遗漏位置的问题。`FieldTools.operator_profile`统一安装／取回操作部位和原因；事件三种预检共用复制、校验与恢复骨架；随身切割清理不可达的已安装分支。保留原事务入口、版本复核、费用、材料与结构限制，沿用具体失败原因和正式切割结果文案。
-
+保留原事务入口、版本复核、费用、材料与结构限制，沿用具体失败原因和正式切割结果文案。
 先运行links分类，新增案例在旧实现中仅“合法链接应出现在位置分组”失败（`build/checks/20260908T042716337-6628/`）。修复后覆盖真实连接点遮挡反例、只读预览、过期版本和拒绝回滚、切割只扣共享绳耐久与一次工具次数，并以实际鼠标展开、滚动和点击验证入口。
-
-关联回归发现并修正旧测试前提：敌人外观清单补入已实现的四种团／堆外观；三档免疫检查乘区，零伤害付费案例使用普通墙；塔路助手识别配置循环敌人、优先攻击低生命目标并在能量耗尽时提交正式结束回合；菜单助手先真实关闭信息面板；已离场敌人检查命中区域移除；警卫窗口明确固定合法警卫遭遇及腿部夹具，不假设随机精英必为警卫或移动后初始脚踝装备必然保留。没有改变敌人、墙面、移动或攻击的正式规则。
-
 - `tools/check.ps1 -Suite contact,events,environment_height -UI -UISuite installed_tools,events`的规则阶段通过2447项断言，22.73秒；`build/checks/20260908T043253702-25500/check-rules.log`。该次窗口阶段因新增按钮未滚入视口失败，不算窗口通过。
 - 修正窗口案例后，`tools/check.ps1 -UIOnly -UISuite installed_tools,events,baseline,tower_progression,interface`通过749项断言，50.18秒；`build/checks/20260908T043921730-41244/check-ui.log`。包含道具25、基础287、界面313、塔顶44、事件80项；无引擎错误，未截图。
-
-仅运行受影响分类及其注册的关联模块；没有运行全项目all。架构说明同步至README与docs/content-extension.md；未安装外部分析工具，未添加新的规则框架或第二套提交接口。
+架构说明同步至README与docs/content-extension.md；未安装外部分析工具，未添加新的规则框架或第二套提交接口。
 
 ## 2026-09-08 第二局无拘束具后备分支
-
 域：装备与解除、事件。
-
-修复三局赌牌第一局后“继续第二局”因没有可押拘束具而变成灰色的问题。多阶段事件的`when`现在可比较一个既有卡牌／拘束具选择器的实际可选数量，与事件计数条件互斥；这是通用内容条件，没有按事件ID增加操作。三局赌牌声明零件后备选项：没有拘束具时第二局直接翻牌，胜率仍为1/2；成功获得1枚心形筹码并进入第二局结算，失败进入原拘束惩罚，由可执行的随机绳索／上锁皮带选项添加拘束具。有可押拘束具时仍只生成真实实例选择，不同时显示后备项。
-
+三局赌牌声明零件后备选项：没有拘束具时第二局直接翻牌，胜率仍为1/2；成功获得1枚心形筹码并进入第二局结算，失败进入原拘束惩罚，由可执行的随机绳索／上锁皮带选项添加拘束具。
 - `tools/check.ps1 -Suite event_flow,content,persistence -UI -UISuite events`：1986项规则、80项事件窗口断言通过，无引擎错误，记录`build/checks/20260907T171638805-38588/`。
 - `tools/check.ps1 -Suite events`：903项规则断言通过，记录`build/checks/20260907T171741337-25876/`。
-- 覆盖零装备进入第二局、后备项唯一且可执行、成功／失败固定种子、成功筹码、失败进入添加拘束具、候选预览不推进随机、有装备时不出现后备项、条件混填／未知选择器拒绝、内容加载、快照及原事件回归。窗口确认不再显示“这一阶段没有能够执行的选项”。本批没有视觉布局变化，依项目级截图要求保存0张截图。
+- 覆盖零装备进入第二局、后备项唯一且可执行、成功／失败固定种子、成功筹码、失败进入添加拘束具、候选预览不推进随机、有装备时不出现后备项、条件混填／未知选择器拒绝、内容加载、快照及原事件回归。
 
 ## 2026-09-08 明显的事件成功／失败提示
-
 域：事件、界面。
-
-结果页标题下新增70像素高的独立横条，34号文字与符号同时显示“✓ 成功”（绿色）、“× 失败”（红色）或“◇ 已完成”（中性金色）。输赢不依赖正文猜测：普通／多阶段选项及加权结果支持通用result_status；冻结在后台选项中，提交后保存到当前事件结果，读档保留。三局赌牌的10个既有分支均补显式标记，钥匙事件沿真实命中结果设置标记，后续普通推进／领取清回中性。没有改故事正文、随机权重、效果或支付数值。旧档缺失的标记保持中性，不反推过去输赢；查看完整提示应新进入／重开事件。
-
+结果页标题下新增70像素高的独立横条，34号文字与符号同时显示“✓ 成功”（绿色）、“× 失败”（红色）或“◇ 已完成”（中性金色）。
 验证：`tools/check.ps1 -Suite events,content,persistence -UI -UISuite events`，2186项关联规则与72项事件窗口断言通过，无引擎错误。记录`build/checks/20260907T165413027-46232/`。覆盖提交前不泄露、冻结和已提交结果读档、损坏标记拒绝并保留原状态、成功／失败／中性、进入下一页后横条隐藏。该次运行遵循当前共享截图开关，默认没有写图；为核对新增横条，仅定向运行`-UIOnly -UISuite events -Screenshots ui-event-result-page.png`，73项通过（含1项图片保存），记录`build/checks/20260907T165556612-30100/`，只更新并查看1张结果页截图。本次关联规则门禁全绿；前批记录的链接测试失败在当前共享树已不再出现，本任务未修改链接模块。
 
 ## 2026-09-08 结果先读、再显示下一阶段
-
 域：`tests/installation_priority_cases.gd`。
-
-事件结果页只显示本次report和一个“继续”，阅读后替换为阶段intro及正式选项。继续只更新本地已读page_id；不派发命令、不改资源、版本、随机或存档。后续提交替换当前report，之前已提交的日志保留。奖励页不重播开场，最终页直接显示结果与离开入口。事件移除独立HeroSpeech气泡，正文自带对白不改。
-
 - `tools/check.ps1 -UIOnly -UISuite events,action_copy,persistence`通过128项窗口断言，记录`build/checks/20260907T164521658-41764/`。覆盖结果／正文互斥、唯一继续、真实点击无状态改变、重绘保持已读、后续结果不累计、选卡／装备与取消、旧版本拒绝及读档续选。
 - 事件截图由原来的多分支截图缩减为两张：`build/ui-event-result-page.png`和`build/ui-event-next-page.png`，已查看。删除事件对白接口对应的重复截图，行为断言保留。
-- 关联规则门禁`-Suite events`本次851/854通过；event_flow的54项和events的220项全部通过。三项失败位于未修改的`tests/installation_priority_cases.gd`第27／74／76行，分别为链接安装优先级、失效端点重选与正式回合提交；不属于本次分页改动，未擅自修复。记录`build/checks/20260907T164446738-11636/check-rules.log`，因此不宣称关联门禁全绿。
+- 三项失败位于未修改的`tests/installation_priority_cases.gd`第27／74／76行，分别为链接安装优先级、失效端点重选与正式回合提交；不属于本次分页改动，未擅自修复。记录`build/checks/20260907T164446738-11636/check-rules.log`，因此不宣称关联门禁全绿。
 
 ## 2026-09-08 通用事件布局与二级选择
-
 域：`ui/event_screen.gd`。
-
-全部事件与事件练习共用`ui/event_screen.gd`：左上300×360插画预留区，右上独立滚动正文，右下少量主选项；未提供插画时不借用角色素材。永久卡牌与拘束具选择由只读事件投影按作者的选择来源分组，不解析中文或拆解ID，不暴露冻结结果。选卡与卡牌奖励复用六列CardFace；拘束具窗口显示真实部位、耐久、紧度与锁。统一抽屉负责遮罩、关闭与Esc，最终选定才提交原候选和打开时版本。文案正文、费用、效果、随机、存档格式与阶段顺序未改。
-
 - 关联规则：`tools/check.ps1 -Suite events -UI -UISuite events`，853项规则、首轮63项窗口检查通过，记录`build/checks/20260907T163414421-15484/`。
 - 最终窗口与事件关联交互：`tools/check.ps1 -UIOnly -UISuite events,action_copy,persistence`，131项窗口检查通过，无引擎错误，记录`build/checks/20260907T163628275-26848/`。
 - 覆盖普通／多阶段／练习、奖励二级窗口、十张实体卡不合并、原生鼠标选卡与选装备、翻面、Esc／关闭／遮罩取消、旧版本拒绝、结果日志及存档续选。规则断言还验证投影不改变随机或状态、不包含隐藏效果。
-- 已查看`build/ui-46-tailor-choices.png`、`ui-53-succubus-three-games-practice.png`、`ui-54-event-card-selection.png`与`ui-55-event-equipment-selection.png`；主框未越出视口，正文与选项分区，长卡组在弹窗内滚动。未来事件界面约定写入模板H5与AGENTS。仅验证相关分类，不宣称全项目回归。
+- 已查看`build/ui-46-tailor-choices.png`、`ui-53-succubus-three-games-practice.png`、`ui-54-event-card-selection.png`与`ui-55-event-equipment-selection.png`；主框未越出视口，正文与选项分区，长卡组在弹窗内滚动。仅验证相关分类，不宣称全项目回归。
 
 ## 2026-09-07 内容生成规则与 AI 编写模板
-
 域：契约 `content-generation.md`、`content-templates.md`、`content-extension.md`。
-
-新增 `docs/content-generation.md` 与 `docs/content-templates.md`，覆盖普通／复合拘束具、链接、特殊部位装备、道具、遗物、敌人／遭遇、事件及房间来源。核对当前注册表、生成器、安装工厂、事件效果、随机域、目标复核与快照字段；明确仅练习／正式池、设计字段／真实配置之间的边界。
-
-特殊装备按最新七子槽与容量【1】【2、2、2、1】【1、1】、固定品质与耐久、混合类型到期保留能量被动整理。躯干固定绳／带继续保留，仅身后。事件文档明确选牌在支付后生成，以及引用目标、组合预告、退出模式等现有扩展限制。
-
-同步修订 `content-extension.md` 的贴墙、身体入口、反馈、事件冻结与旧递归测试说明；README 和项目 AGENTS 增加统一入口。十个 JSON 数据／参数例子均只在文档，不添加游戏定义或生成池。
-
-文档静态核对通过：110项检查，包含10个 JSON 例子解析与关键形状／引用核对、本地链接及代码路径存在性、Markdown 围栏配对、样例未进入运行时。记录位于 `build/doc-checks/content-generation-20260907.json`。本批仅修改文档，没有运行玩法或窗口回归，也不据此宣称这些未注册样例已经可玩。
+记录位于 `build/doc-checks/content-generation-20260907.json`。
 
 ## 2026-09-07 五项优化修正
-
 域：`core/contact.gd`。
-
-1. 施法倍率计算后统一量化为10000个抽签结果，显示精度0.01%；候选可用性和正式施法使用同一成功结果数。新增99—100过载附近的边界案例，0%拒绝且不扣卡、能量、魔力或随机次数；保留免费准备、单次多目标判定与存档重放。
-2. core/contact.gd统一精准接触位置、躯干范围、链接端接触、同手限制与外层检查；手部辅助、徒手和手持工具复用。手工精细操作范围、工具材质与头颈禁切、安装工具的身体接触继续分开检查；同一只手须同时满足操作能力与目标触及。
-3. 右键翻牌只刷新该牌文本、亮度、拖放数据与目标详情；选敌只刷新标记和攻击框，日志固定原位更新。其他纯UI重排复用现有只读快照。窗口测试实际点击／拖放，并断言场景、其他卡牌和日志控件未被重建、规则投影次数未增加。
-4. 套件按初始修改范围补齐直接交叉案例，不再递归加载无关依赖；没有删除原套件或断言。规则与窗口共享引擎错误收集器，外层继续复核退出码、日志及完成标记。每次检查使用独立日志目录，避免并行任务覆盖。故意缺失字典键的规则／窗口反例均退出1、输出FAIL、不输出PASS。
-5. 辅助预览记录逐手原因：手腕受限、不能握持、同手无法自助、够不到或被外层遮挡。目标详情直接解释，拖放目标框悬停可查看，日志保存正式执行时的辅助事实。
-
+1. 新增99—100过载附近的边界案例，0%拒绝且不扣卡、能量、魔力或随机次数；保留免费准备、单次多目标判定与存档重放。
+3. 窗口测试实际点击／拖放，并断言场景、其他卡牌和日志控件未被重建、规则投影次数未增加。
+4. 套件按初始修改范围补齐直接交叉案例，不再递归加载无关依赖；没有删除原套件或断言。规则与窗口共享引擎错误收集器，外层继续复核退出码、日志及完成标记。故意缺失字典键的规则／窗口反例均退出1、输出FAIL、不输出PASS。
 最终相关检查：`tools/check.ps1 -Suite contact,casting,persistence,runner -UI -UISuite casting,targeting,interface,rewards,enemy_feedback,special_equipment -VerifyRunner`。
-
 - 2006项规则断言通过，29.39秒；包含当前并行任务的新特殊装备接口与存档交叉案例。
 - 400项窗口断言通过，16.35秒；覆盖施法、特殊装备、敌人反馈、选敌、菜单导航与奖励。
 - 两个故意报错的反例均被正确拒绝；错误输出为预期的测试输入，不计为正常检查通过。
 - 本批最终日志：`build/checks/20260907T044234049-7704/`。早期执行碰到另一任务尚未接完的特殊装备接口，以及新增直接存档覆盖后的旧范围断言；已保留新接口并更新范围断言，最终检查通过。
-
 此次为相关分类回归，不是全项目完整回归或平衡测试；不同批次检查范围不同，不将断言数减少当作等量测试加速。
 
 ## 2026-09-07 特殊装备容量、耐久与正式解除
-
 域：装备与解除、存档。
-
-按用户最新修正，七个子位置容量为【1】【2、2、2、1】【1、1】，可同时保存10个独立装备根。DESIGNS冻结每种样例的品质、耐久、部位、方法和环境／工具白名单；TYPES保留原三类触发与到期行为。旧无耐久样例被本节取代，不将下文历史记录当作当前规则。
-
-普通挣扎／滑脱复用完整伤害预览与事务，双手不能抓住目标且无可借用环境时拒绝并保持费用、卡牌、随机与状态不变。魔法滑脱按真实施法门槛、工具按原固定切割、挂钩按降档分别结算；特殊装备不参与普通敌人施加池或身体活动等级。已验证同槽最高紧度／堆叠除数、逐件损伤与移除、手部辅助、无手环境门槛、工具安装与接触、真实魔法支付、三档普通滑脱免疫、满槽回滚、固定品质拒绝伪造、独立编号与存档恢复。旧无耐久练习档明确拒绝恢复，重新开练习即可。
-
-最终受影响规则 special_equipment/hand_assist/casting/equipment/persistence 及入口合并的交叉范围共2021项通过，25.92秒；窗口special_equipment/status共59项通过，6.05秒。随后仅调整部位选择窗以容纳新增入口，targeting/special_equipment窗口66项通过，5.96秒；套件选择runner4项通过。没有运行全项目回归。检查日志分别位于build/checks/20260907T044047891-39412及20260907T044142107-2860。
-
-ui-108-special-equipment-drag.png记录实际拖牌：同子位置两件分别编号，选择第二件后只有该件耐久下降，第一件与原普通部位无变化。ui-104-special-slots-and-meters.png覆盖第四子位置、容量、耐久／紧度及真实手部范围。装备详情、拖放摘要、状态／压力来源、教程及设计文档已同步，投影不再假定每槽只有一件。
+普通挣扎／滑脱复用完整伤害预览与事务，双手不能抓住目标且无可借用环境时拒绝并保持费用、卡牌、随机与状态不变。已验证同槽最高紧度／堆叠除数、逐件损伤与移除、手部辅助、无手环境门槛、工具安装与接触、真实魔法支付、三档普通滑脱免疫、满槽回滚、固定品质拒绝伪造、独立编号与存档恢复。旧无耐久练习档明确拒绝恢复，重新开练习即可。
+检查日志分别位于build/checks/20260907T044047891-39412及20260907T044142107-2860。
 
 ## 2026-09-07 手部辅助与占位部位触及
-
 域：装备与解除、检查与测试。
-
-挣扎／普通滑脱／魔法滑脱沿escape_preview共用手部辅助：单手基础＋1、双手＋2。按真实左右握持、手腕、姿态、精准子位置、身前身后躯干固定和原外层资格计算；双臂自由所有姿态全触及。手腕自由且小臂无躯干固定时，全姿态额外触及手肘上方与六个占位子槽；原大腿范围包含位置3。特殊装备无耐久与普通施加禁令不变。卡牌每批候选共享临时范围，后续动作／连段重新获取，避免持久缓存过期。
-
-规则hand_assist/casting/wall/status/persistence/special_equipment及去重依赖4744项通过，34.68秒。随后补齐精细操作与普通握持区别、链接接触计数，hand_assist126项、action_copy19项、normal_play713项，连同入口校验861项通过（10.77秒）。三条正常开局用正式投影和命令完成：seed42谨慎路线251步逃狱；seed20260906精英路线243步通关；seed7交易路线213步通关，未注入角色或装备状态。
-
-窗口special_equipment30项、targeting27项、status21项通过；rewards旧手势原因措辞断言同步后27项通过（4.79秒）。已查看ui-104-special-slots-and-meters.png，六个特殊位置沿原面板显示实际可触及手，空位和装备信息清晰。真实卡牌提交、一次能量支付、日志辅助侧别、无手部辅助、内层遮挡、三档免疫、锁倍率与刷新后候选均已覆盖。
-
-遗物降档案例从6耐久调整到7，以保持其“二档降一档而非直接解除”的测试前提；断言仍检查真实降档和抽牌，未削弱规则。第一轮检查虽末尾打印PASS，但因脚本错误被共享入口正确判失败，修正后重跑通过。非全项目回归。
+窗口special_equipment30项、targeting27项、status21项通过；rewards旧手势原因措辞断言同步后27项通过（4.79秒）。
+遗物降档案例从6耐久调整到7，以保持其“二档降一档而非直接解除”的测试前提；断言仍检查真实降档和抽牌，未削弱规则。第一轮检查虽末尾打印PASS，但因脚本错误被共享入口正确判失败，修正后重跑通过。
 
 ## 2026-09-07 施法概率、口部倍率与卡牌可用性
-
 域：压力与快感、卡牌与奖励。
-
-当前魔法牌及火球术全部在card_rules显式声明嘴部施法与默认额外倍率1；概率只对嘴部配置乘口部等级、紧度，非嘴部配置不受影响。过载曲线、实际施放、牢门开锁、逐牌悬停和资源区显示共用正式概率计算。原手势资格保留；自由面准备不判失败。失败照常花费但不触发法术效果与连段；0%拒绝且不支付。手牌可用原因来自已有候选，不可用低亮但可正常悬停／翻面。
-
-规则casting/status/persistence/special_equipment与自动去重依赖4543项通过，24.97秒。随后追加失败魔法滑脱、牢门零概率拒绝和失败支付检查，casting最终193项通过，1.74秒。覆盖9种口部等级×紧度组合、曲线边界与单调性、非嘴部隔离、逐牌额外倍率、成功/失败、随机重放、不变预览、支付、自由面与诅咒例外。旧必成功检查改用明确的成功随机夹具，仍执行正式施放门槛；不删除规则来迎合旧断言。
-
-窗口casting 9项、special_equipment 29项、interface 257项通过；enemies修正夹具注入装备后须右键翻至拘束面的操作后36项通过（6.49秒）。casting最终另跑9项通过（3.26秒）。已查看ui-107-card-casting-tooltip.png：牌面原因与低亮、完整倍率浮窗、魔力下方及人物脚下成功率均在视口内。非全项目回归，未新增独立测试流程。
+原手势资格保留；自由面准备不判失败。失败照常花费但不触发法术效果与连段；0%拒绝且不支付。
+随后追加失败魔法滑脱、牢门零概率拒绝和失败支付检查，casting最终193项通过，1.74秒。覆盖9种口部等级×紧度组合、曲线边界与单调性、非嘴部隔离、逐牌额外倍率、成功/失败、随机重放、不变预览、支付、自由面与诅咒例外。旧必成功检查改用明确的成功随机夹具，仍执行正式施放门槛；不删除规则来迎合旧断言。
 
 ## 2026-09-07 合并部位、特殊占位装备与资源条
-
 域：装备与解除、压力与快感。
-
-手部/足部仅合并入口，保留真实掌/指槽、能力和候选。新增按1/3/2子槽配置的特殊区域与三类无耐久装备；能量支付只触发一次，回合开始准确递减次数，3号到期保留能量被动。旧鸣响束带及生成、来源、练习已移除；新装备暂仅进入独立练习。
-
-规则special_equipment、pressure、status、persistence及去重依赖4355项通过（46.26秒）。覆盖零费/多点能量、贴墙跨回合、立即过载取消待选连牌但保留首段、到期、存档后继续、独立槽容量与非法状态拒绝。相关窗口首次393项通过；最终文字/显示调整后special_equipment 29项、interface 253项再次通过（9.62秒），body_layout 29项、pressure 43项、persistence 44项沿用本批已通过结果。非全项目回归。
-
-实际拖牌从合并手部选择手指装备只改变该件；查看子槽不消耗资源；三号到期说明和全尺寸/紧凑两套资源条已核对。截图ui-104-special-slots-and-meters.png与ui-105-compact-resource-meters.png记录当前布局，窗口缩放至1280×720后仍在视口内。所有检查继续使用既有入口，无独立测试脚手架。
+覆盖零费/多点能量、贴墙跨回合、立即过载取消待选连牌但保留首段、到期、存档后继续、独立槽容量与非法状态拒绝。
 
 ## 2026-09-07 游戏主页
-
 域：界面、存档。
-
-主页接入新局、继续、教程、练习、设置及退出，菜单支持返回主页。启动不自动恢复或创建存档，明确继续才恢复；内存继续保留当前局。设置提供全屏和行动展示速度，不改变游戏规则。
-
-沿原窗口检查入口验证：home最终28项通过，5.92秒；本批interface 251项、persistence 44项通过。覆盖实际点击、无存档启动、开始后保存、返回与继续、损坏存档保护、隐藏行动拒绝及1280×720缩放。未运行无关规则全量。截图为`build/ui-102-home.png`与`build/ui-103-home-continue.png`。
+覆盖实际点击、无存档启动、开始后保存、返回与继续、损坏存档保护、隐藏行动拒绝及1280×720缩放。截图为`build/ui-102-home.png`与`build/ui-103-home-continue.png`。
 
 ## 2026-09-07 敌人动作衔接与结果反馈
-
 域：战斗与敌人、监狱与收押。
 
-新增敌方已提交结果队列：每次操作按真实enemy_id/sequence/kind/slots标记，普通多敌和警卫附加行动顺序展示；敌人轻微前移、高亮，结果短框与身体部位闪烁，结尾显示玩家行动/奖励/监狱等实际阶段。跳过展示和自然结束均不再结算，重开清队列，重绘/恢复不重复历史。蒙眼下准备动作保留unseen，不揭示蓄力或收押准备。玩家原有HP飘字保留。
-
-规则第一次enemies/intent/action_copy与依赖818项通过；补充警卫与不可观察准备后guard/intent/action_copy及依赖1451项通过（9.11秒）。窗口第一次enemy_feedback/intent/action_copy 40项通过；修正提示序号换行、缩小短框并补双操作目标测试后，baseline/enemy_feedback/guard共308项通过（33.86秒）。覆盖不同实例顺序、实际结果与目标锚点、播放时阻止重复提交、自然结束/跳过不改状态、不重放旧日志、蒙眼不泄露、新局清理及同一警卫两次操作独立分组。
-
-窗口检查仍执行真实队列与输入，普通模块把单步展示时长设为0.04秒，等待实际结束；专项用0.2秒验证中间态。并未禁用动画或略过正式敌方结算。已查看ui-100-enemy-action.png，发现序号被挤成三行，随后固定序号宽度并禁止换行，最终相关检查通过。未新增游戏规则、成人文本或图片资源。
-
 ## 2026-09-07 地图直接进入、左键拖动与移动消息
-
 域：塔路与地图、界面。
-
-用户最新确认：Demo阶段不修旧地图，也不维护旧版地图兼容。移除本批及此前的Tower.migrate、legacy_direct旧路程豁免与对应迁移用例；没有修改玩家存档文件。新图继续保证只走相邻层、无连续同类休息/商店/精英、第14层无休息，并补上首层汇合边裁剪、最后统一填普通战斗的原版分配顺序。依据地图算法逆向作者的第一手说明（设计文档已有链接），不宣称逐种子复制原版。
-
-点击可前往节点直接提交原depart，450毫秒间隔逐次提交travel_step，可暂停或单步。按住左键移动超过8像素仅拖图，不触发节点；滚轮与悬停说明保留。右侧删除重复目标选择按钮，改为滚动移动消息与紧凑进度控制。data.travel标记一次正式移动批次的所有结果，投影按真实顺序显示，不解析文字、不新建第二套日志；后续途中事件沿同一批次进入。信息菜单暂停自动移动，旧定时回调复核本局对象与版本，不能误推进新开局。
-
-新图规则与服务首次2239项通过；扩展到201个种子并合并压力及依赖后3126项通过（11.44秒）。首次拖图检查发现使用系统鼠标坐标无法可靠处理注入事件，改为事件自身坐标；随后baseline/route/services/interface共533项窗口检查通过（36.29秒）。后续菜单暂停/定时回调修正后route再次12项通过。包括从可用图标开始拖动不出发、非法节点不移动、实际五回合自动抵达、暂停与新局隔离、消息条目及原有操作。
-
-正常数值窗口最终通过639项（26.66秒）：seed7实际通关，安全等级0，移动17回合，未触发收押。此前预期必须收押的旧断言已替换为严格的真实终点与状态校验。
-
-已查看ui-98-map-messages.png确认右侧消息布局与地图短标签；ui-99-map-arrival.png记录抵达后的消息。普通战斗节点统一使用“战斗”短标题，修正旧weak/strong图标回退完整房间名导致的重叠。正常数值长路线测试不再强制seed7必须得到旧版同一结局，仍要求在步数上限内达到真实通关/终局/收押后逃离，并验证最终状态，未放宽无候选或循环判定。
+依据地图算法逆向作者的第一手说明（设计文档已有链接），不宣称逐种子复制原版。
+此前预期必须收押的旧断言已替换为严格的真实终点与状态校验。
 
 ## 2026-09-07 随机一幕、魔力商店、宝箱与目标复核
-
 域：`tests/game_fixture.gd`。
-
-本批完成：相邻层随机塔路（7列、15层、6条路径，固定首层战斗/第9层宝箱/第15层休息，接双警卫与出口）、按实际普通战斗次数选择前三场弱怪、随机精英/事件/商店、基础魔力交易与一次删牌、宝箱领取、旧图跳层修复及旧在途兼容。装备耐久/紧度带标签，手动松解仅在可使用时出现。敌人逐项复核失效目标，不增加行动次数/改变时机；头部专项附着保留指定部位。
-
-规则完整检查通过3625项（20.23秒）。最后稳定场景调整后，core/enemies/events/services及自动合并依赖再次通过2302项（11.72秒）。services中77项覆盖支付、余额不足、容量、重复领取、全部牌堆删牌、查看/读档不重抽、法术资源不影响购物、非法存档回滚、初始入口、前三场弱池及旧在途恢复。地图生成跨30个种子检查楼层、合法连接、交叉、特殊层和房型限制。
-
-完整窗口运行覆盖全部模块；中途发现旧测试仍假定早期休息固定位置、显示不可用徒手原因和恰好两个事件房，以及第二次拖牌没有显式备好该牌。这些夹具/断言已按新规则修正，未删除正式动作或绕过资格。修正后baseline/events/services重跑288项全部通过（24.95秒）；其余窗口模块在完整运行中通过。此前塔路图例断言已改为检查实际首领图标。未把中途失败的全窗口命令标记为通过。
-
-检查入口整合：UI_MODULES是窗口套件唯一注册表，baseline可以单独选或与相关模块合并；保留原退出码、错误日志和完成标记检查。稳定机制场景集中于tests/game_fixture.gd，仅声明场景数据，不覆盖规则或提交；地图生成、services与normal_play使用真实Game开局。后续无需每个小改动重复全部基础流程。
-
-正常数值规则试玩：seed42通关（252步、8场、魔力17.5），seed20260906通关（313步、10场、魔力16.71875）；seed7经历收押后成功逃回新塔底（195步、安全等级1）。窗口normal_play的610项断言通过。记录仅说明这些种子流程可推进，不能证明最终难度、胜率或商店价格平衡。
-
-已查看随机地图ui-96与商店/宝箱ui-97截图，并通过原生按钮执行购买、领取和离开。新布局缩小7列节点的实际点击区域，避免同行重叠；地图概览用短房型名，详情保留楼层和完整房间名。新地图分布只用于新开局/逃狱重建，旧档不重抽内容。
+services中77项覆盖支付、余额不足、容量、重复领取、全部牌堆删牌、查看/读档不重抽、法术资源不影响购物、非法存档回滚、初始入口、前三场弱池及旧在途恢复。
+这些夹具/断言已按新规则修正，未删除正式动作或绕过资格。此前塔路图例断言已改为检查实际首领图标。未把中途失败的全窗口命令标记为通过。
+检查入口整合：UI_MODULES是窗口套件唯一注册表，baseline可以单独选或与相关模块合并；保留原退出码、错误日志和完成标记检查。
+窗口normal_play的610项断言通过。
 
 ## 2026-09-07 教程、日志与腿部分段差分
-
 域：界面、角色与美术。
-
-本批完成：菜单教程书（11类、正文搜索）、卡牌/装备/房间重复说明迁入教程、51条通用解释与共享敌人术语改为短句/例子；人物实际操作和结果加入同一行动日志，费用只记录一次。随后按用户补充，将腿部从等级整图切换改为实际覆盖的七组差分，最终方案为包含皮肤、袜子和绳子的整段替换；有/无拘束每段各一张，脚趾暂无差分。分段底图留切边保护并作上下过渡，避免旧轮廓重影和缩放黑线。生成脚本逐像素验证无拘束七段可还原原底图。
-
-检查分批按影响范围执行：教程/日志的core、equipment_complete及依赖、intent、status、action_copy规则874项通过；更新共享术语后intent/action_copy 31项通过。教程原生搜索、分类、空结果、Esc与查看不改状态并入interface247项；action_copy窗口15项通过。整段差分与body_layout窗口200项通过；最后修正缩放接缝后的equipment_art专项172项通过，窗口4.747秒，含启动6.95秒。覆盖16种普通部位组合、单独脚趾、眼嘴独立层、真实切割套体/保留外带/解除固定点、查看不改状态。所有末次检查退出码0，无错误日志；未将专项称为全量回归。
-
-已查看教程分类与搜索截图ui-92/ui-93、最新腿段ui-94各位置与ui-95独立膝上外带；最后的全腿截图确认缩小后的切边无黑色接缝。中途发现搜索框吞Esc及切片透出旧轮廓/接缝，均已修正后运行相关检查。临时纯绳v2贴片已清理，运行时仅引用最终v3整段资源。
-
-# 原型检查记录
-
-最新批次（2026-09-07，装备栏等级差分与口/眼独立覆盖）：五张用户原图使用共享裁剪和本地白底抠图，图6/7只提取对应口/眼变化贴片；原文件不修改，未使用生成工具。equipment_portrait统一读取既有等级/占位投影，双臂0且双腿受限按要求使用图1，全部自由恢复原自由图；脸部两层独立，不改变战场立绘或游戏规则。
-
-首次关联`equipment_art,body_layout,equipment_complete`通过160项窗口断言（窗口8.893秒、含启动11.02秒）；之后补充真实腿部4→3解除切图和仅眼部佩戴不引入图7中的口部装备，末次equipment_art通过95项（窗口3.907秒、含启动6.43秒）。退出码0、无错误日志、完成标记齐全。检查覆盖25种正式等级组合、查看不改变状态/随机、自由图与差分图双层合成、真实徒手解除后分别恢复、低档切图保留脸部层，以及原有部位点击、拖牌、复合装备窗口流程。只变更显示与素材，未重复无关规则/完整长路线。
-
-已查看深色素材合成预览及ui-88-equipment-legs0.png、ui-89-equipment-free-face.png、ui-90-equipment-bound-face.png、ui-91-equipment-eyes-only.png；同组共享原始裁剪坐标，嘴/眼层随基图同一缩放对齐。装备栏属于用户指定的区域等级简化图，图片中的具体绳索样式不充当真实装备清单；战场三姿态仍独立。
-
-以下为此前批次记录。
-
-最新批次（2026-09-07，换姿与贴墙动态框组）：移除左侧固定三姿态和独立贴墙栏，合并到结束回合上方。候选新增来自原顺序检查的adjacent元数据，费用、合法性、状态提交不变。相邻但能量不足的选项保持可见，贴墙直接注明结束当前行动。最后微调双行按钮内边距，避免最小尺寸撑大导致相邻框重叠。
-
-core规则320项通过（4.03秒）；初次hero_art/interface窗口67项通过；新增动态框与实际换姿案例后末次interface70项通过（窗口5.333秒，含启动7.58秒）。覆盖站/坐/躺1/3/2框、有墙/非战斗、零能量普通起身不可用但贴墙可用、正式贴墙推进回合、原生拖放与面板操作；新增实际按钮边界断言防止双行内容重叠。退出码0，无错误日志。已查看ui-86-posture-choices-seated.png与ui-87-posture-choices-lying.png；未重跑无关长路线或全量规则。
-
-以下为此前批次记录。
-
-最新批次（2026-09-06，三张用户原图替换战场像素立绘）：站/坐通过边缘白底与人工确认封闭空隙抠图，躺姿通过本地GrabCut及明确床单空隙细修得到真实透明PNG。未使用生成工具、未改原图。资源统一登记在HERO_POSES，按正式姿态切换、各图等比缩放、共用底边；对话头像同步更换。装备栏独立图、敌人画材、拖放区域、规则与存档结构不变。
-
-`-UIOnly -UISuite hero_art,interface,action_copy,body_layout`通过108项窗口断言，窗口7.623秒、含启动9.66秒。随后只清理躺姿残留床单，末次导入后`-UIOnly -UISuite hero_art`通过21项（含启动3.71秒）。退出码0、无错误日志、完成标记齐全；未为美术更换重复完整规则/长路线测试。原公共美术检查迁入可单选hero_art模块，默认all不会重复执行。首次检查发现基线仍引用旧HERO常量，已同步修正，失败轮不计通过。
-
-已查看三张深色背景抠图以及正式`ui-21-hero-stand/sit/lie.png`截图，检查原比例、完整显示、共同落地线、头像、真实姿态切换及原生攻击/姿态/手牌拖放。躺姿保留用户原图构图，不据画面姿势修改正式坐/躺能力或制作装备差分。
-
-以下为此前批次记录。
-
-最新批次（2026-09-06，装备区立绘与纵向部位列表）：用户原图经本地确定性抠图得到621×2098真实透明PNG，已检查深色背景下的发丝、手臂间隙与白色衣料。左侧人物等比完整显示，全部12个部位从头到脚排列，装备详情移至侧旁独立滚动窗；正式规则与存档格式未修改。
-
-新增`body_layout`28项窗口断言，覆盖透明资源、等比显示、部位顺序及边界、最低部位真实点击、零回合查看、关闭后目标保留、头部真实装备、原生拖牌和取消不消耗。现有装备/链接/整备检查统一通过`inspect_body`实际打开详情，未删除原断言或绕过行动。相关窗口70项通过（含启动6.94秒），随后一次完整窗口通过1539项（窗口72.161秒，含启动73.81秒），退出码0且无错误日志。完整检查含756项正常数值试玩和敌人、装备、警卫、监狱、事件、奖励、存档流程；未重复无关规则检查。
-
-已查看`ui-81-pinned-log-selected-target.png`、`ui-84-body-equipment-details.png`、`ui-85-body-card-drop.png`及`cutout-dark-preview.png`。正式默认布局、详情滚动和逐装备拖放均保持可用；该立绘只是装备栏人物展示，不代表已增加装备外观差分。
-
-以下为此前批次记录。
-
-最新批次（2026-09-06，日志收起/固定与点击选敌）：`-UIOnly -UISuite targeting,interface,action_copy,intent,guard`通过140项窗口断言，窗口9.673秒、含启动11.43秒，退出码0且无错误日志。只修改界面和交互，未重跑无关规则。新增targeting27项验证未固定栏外点击自动关闭且同一次选择/攻击有效、栏内阅读不关闭、重新打开、固定保持、固定时手动关闭、取消固定，以及四种攻击逐一只伤害所选敌人。
-
-问题根因为名称按钮已接选择，而敌人立绘区域原先只接拖放；现两处复用_select_enemy。选择不写游戏状态，四个按钮的候选统一按实例切换，攻击拖到另一目标仍按实际落点执行。侧栏通过可见性切换收起，鼠标按下时不重建控件，不吞点击或拖放。已查看ui-81-pinned-log-selected-target.png与ui-82-collapsed-action-log.png；固定按钮、右上折叠入口及指向悬浮锁的攻击说明完整可见。
-
-以下为此前批次记录。
-
-最新批次（2026-09-06，警卫精简意图与术语悬停）：`-Suite intent`通过11项（10项行为＋1项套件校验），`-Suite status`53项通过；最终`-UIOnly -UISuite intent,guard,interface`通过100项，窗口7.306秒、含启动9.53秒。未修改游戏行动规则或存档格式，未重复无关全量。原意图和状态字段保留，警卫面板消费新的只读精简行。
-
-测试覆盖真实冻结计划、威压＋15和余波＋10×2、各警卫独立目标、被移除目标、只读/RNG不变，以及眼部受限时短文本和悬停说明不泄露隐藏计划。窗口以真实鼠标移入/移出打开关闭解释，检查左右侧避让与视口内边界、刷新关闭旧浮窗；并复核菜单/拖放和完整警卫收押流程。已查看ui-79-guard-term-hover.png、ui-80-hidden-intent-hover.png。早期检查发现并修复浮窗初始高度、树变更期间清理和void回调问题；报错轮即使打印PASS仍由统一日志门禁拒绝，不计成功。
-
-以下为此前批次记录。
-
-最新批次（2026-09-06，人物台词与右上行动日志）：`-Suite persistence,action_copy -UI`通过2650项关联规则和1463项完整窗口断言，检查分别11.93秒与69.53秒（含引擎启动）；退出码、错误日志与完成标记均通过。规则覆盖现有存档/事件/警卫/装备等传递依赖及新文案接口，完整窗口包含756项正常数值试玩。随后让事件选择也显示头像台词并为对话框留出空间，末次`-UIOnly -UISuite action_copy,events`35项通过，5.90秒；未为这项显示修改重复无关全量规则。
-
-人物与玩家拖放目标同步下移100设计像素；敌人横向收拢，为右上252宽的日志侧栏留出空间。人物头像沿既有源图区域显示；最新台词持续到下一成功动作，长文本可滚动，卡牌拖放和敌人目标仍走原生入口。日志只投影实际敌人执行和事件结果，默认测试文案从JSON读取，不改旧机械正文。事件内部施加与结果摘要去重，最新40条按发生顺序反向显示。
-
-新案例覆盖实际攻击/结束回合/事件、失败提交回滚、查看不重放/RNG不变、嘴部受限、看不清的准备动作、真实存档恢复和修改文案不改变状态；窗口覆盖下移后攻击与姿态拖放、头像对话框、侧栏与事件选择。第一次窗口检查发现测试姿态按钮参数错误，随后又发现正式posture动作未映射到专用台词cue，两项均修正后取得上述通过结果；失败轮不计通过。已查看ui-77-dialogue-action-log.png与ui-78-event-action-log.png，规则仍为暂定数值，未增加配音/逐字动画或成品叙事。
-
-以下为此前批次记录。
-
-最新批次（2026-09-06，统一状态栏与检查提速）：状态、环境与持续效果收进顶部“状态”，复用原面板互斥与正式稳定心神候选。只读状态目录集中身体能力、属性、装备限制、跨回合收益、压力来源/过载、动作使用记录、卡牌保留/连续操作、房间进度与遗物触发机会。双臂/双腿零级常驻，独立手部包裹来源按侧区分，不计为共同固定；终局不显示巡视倒计时。
-
-本批规则核心检查320项通过；新增状态专项最终53项通过（52项行为断言＋1项套件名称校验），覆盖全部练习投影、真实解除与增益消耗、只读/RNG不变、隐藏意图不泄露、左右手来源和实际五级终局。减少等待后完整窗口通过1450项，窗口总计60.184秒、含引擎启动的检查62.29秒，无错误日志。随后补充脚趾状态、侧别来源和可见稳定心神禁用原因，末次状态/压力窗口专项64项通过；未将专项复核计作再次完整回归。
-
-相同109项状态/interface/压力窗口断言的对照：优化前模块总计12.046秒（2.683/4.921/4.442秒），优化后6.763秒（1.636/2.441/2.686秒），本机样本耗时减少43.9%。这是相同检查的实测，不承诺所有机器相同比例。没有删除断言；共享布局等待由8帧减至2帧，仍等待绘制完成，移除输入助手之后的重复等待。完整窗口继续包含756项正常数值试玩以及装备、敌人、压力、警卫、监狱、塔路、事件、奖励和存档流程。
-
-日常通过既有-Suite/-UISuite选择完整关联模块，依赖去重、未知名称拒绝、零退出码/错误日志/完成标记三项门禁全部保留。状态投影不自动拉入无关长路线，所有模块与整个检查报告耗时。已查看最终ui-74-status-overview.png、ui-75-status-buffs.png、ui-76-status-pressure.png，身体零级、增益层数、分类切换、来源和持续条件清晰；稳定心神的真实费用/效果或禁用原因直接可见。
-
-以下为此前批次记录。
-
-最新批次（2026-09-06，第二轮UI简化整合）：最终 `-UIOnly` 完整窗口检查通过 **1430项**，包括interface46、正常试玩756、敌人36、装备39、压力43、警卫40、监狱60、塔路49、事件22、奖励27、存档36以及公共基线。退出码0，无错误日志，完成标记齐全。规则、资源数值、敌人行为和存档格式未修改，因此未重复运行无关规则检查。
-
-顶栏由八个按钮收为五个，菜单收纳存档、记录、玩法和重开；六类信息面板共用打开、互斥、标题、关闭及外侧遮罩。检查覆盖菜单切换、同入口收起、点击内部保留、外侧仅关闭而不穿透攻击、Esc、关闭后的攻击/姿态/出牌，以及真实练习菜单和存档恢复。身体自由提示与卡牌翻面提示去重，姿态费用明确单位并对齐左栏，固定行动归入同一条操作区。已查看1440×810默认窗口及新截图 `build/ui-71-game-menu.png`、`ui-72-unified-drawer.png`、`ui-73-simplified-battle.png`。
-
-测试侧同时适配新交互：打开练习先经真实菜单，拖牌前如有信息面板，先真实点击关闭；原演员拖放案例移入interface，只执行一次。早期失败没有计作通过；原自动策略穿过信息面板出牌已修正，未让游戏遮罩透传输入。共享frames增加已绘制帧等待；最终测试独占脚本指针输入，隔离29次外部系统鼠标事件。所有合成鼠标/键盘事件继续走真实Viewport/Control命中、拖放及正式候选提交；这不是系统级物理鼠标驱动验收。输入隔离只在ui_smoke进程启用，正式游戏不变。
-
-以下为之前批次记录。
-
-本批最新（2026-09-06，UI与美术升级）：`-UIOnly`完整窗口检查通过1372项，包含正常开局到入狱再逃离的754项操作；随后补充卡牌插图尺寸与实际伤害数字回归，`-UIOnly -UISuite enemies`通过34项。未修改规则、数值或存档结构，没有重跑无关规则套件。此前两次检查长时间未完成而人工终止，不计通过；补充分段进度后的一次完整运行取得正式成功标记及零退出码。
-
-已检查新版默认1440×810窗口、双警卫、奖励和塔路截图：`build/ui-08-default-window.png`、`ui-36-double-guard.png`、`ui-04-reward.png`、`ui-05-map.png`。身体三列、装备卡、双面插图卡牌、敌人立绘和地图文字完整可见；原生拖放、右键翻面、眼部隐藏意图、姿态图集与绿底去除仍通过完整窗口流程。
-
-本批修正了卡牌插图在布局前读取零宽度的问题，并让绿底画材保留节点颜色/透明度，使离场敌人的淡出真实生效。新增检查验证插图在卡框内拥有正尺寸，正式攻击后伤害数字等于实际生命差，数字消失不改变游戏状态。颜色/面板/画材归入visual_theme，六种敌人合并为图集与共享显示；源码内几何占位敌人已移除。没有制作穿戴差分、攻击帧动画或额外新敌人。
-
-以下为此前批次记录。
-
-本批最新（2026-09-06，正常开局试玩与眼部意图）：眼部改动关联规则`-Suite guard`通过1392项，敌人26＋警卫38共64项窗口专项通过；正常试玩`-Suite normal_play`通过807项，实际窗口`-UIOnly -UISuite normal_play`通过754项。均沿原检查入口，错误日志与完成标记一并复核；不是全项目回归计数。末次运行时改动仅修正回合开始可见性文案，随后再次检查眼部/警卫关联范围。
-
-正常数值自动试玩使用100魔力、初始10牌、正式敌人生命，不注入装备或资源、不删装备、不读隐藏计划/钥匙/未来牌序。只读取玩家快照选候选并正式提交。完成两轮共6次；第一次有不必要的牢房反复起坐及休息时超过策略目标继续取牌，随后修正试玩策略、保留游戏数值，再复跑三局。结果随选牌/牌序变化，不能估计胜率或把全部失败归因于数值。
-
-最后一轮：
-
-| 种子 | 路线偏好 | 结果 | 逃离方法 | 剩余魔力 | 压力 | 正式操作数 |
-|---|---|---|---|---:|---:|---:|
-| 42 | 保守选路 | 到达第17层出口 | — | 40.00 | 35 | 230 |
-| 20260906 | 优先精英 | 被收押后逃回塔底 | 踢开通风口 | 20.94 | 55 | 321 |
-| 7 | 优先事件 | 被收押后逃回塔底 | 术式开门 | 17.04 | 60 | 249 |
-
-策略在卡组达到18张后跳过可选取牌，这只是试玩策略，不是新增卡组容量上限。精英路线牢房结束3回合后从通风口离开；事件路线结束5回合后用术式开门离开，两者此轮均在首次巡视前逃离。保守路线通关时保留10层蓄力，表明跨战积累值得在数值阶段评估；另外两路仍有合法逃离路径，未遇到无候选或步数上限。所有数字是样本结果，不是难度结论。
-
-实际窗口完整复核种子7，从普通入口到塔顶失败、入狱、出牌解除装备、术式开门、站起并离开，最终魔力17.04、压力60、安全等级1、保留一件装备。没有读取或覆盖玩家存档。已查看ui-66-hidden-intents.png、ui-70-normal-escape.png；正常开始与收押画面另存ui-68/69，恢复意图为ui-67。
-
-眼部案例验证任意紧度、多件堆叠、部分损伤不恢复、最后一件真实解除立即恢复原计划；后手眼罩施加即生效，盲视打断仍延后，保存恢复不重抽。视图不输出真实意图阶段/收押状态；新蓄力和收押准备日志不泄露看不见的计划，已观察历史和实际结果不删除。没有额外关闭攻击、改变命中或抽牌。颈部单件和未定义额外加固结构仍只保留设计预留，不因本次说明开放生成。
-
+所有末次检查退出码0，无错误日志；未将专项称为全量回归。
+首次关联`equipment_art,body_layout,equipment_complete`通过160项窗口断言（窗口8.893秒、含启动11.02秒）；之后补充真实腿部4→3解除切图和仅眼部佩戴不引入图7中的口部装备，末次equipment_art通过95项（窗口3.907秒、含启动6.43秒）。退出码0、无错误日志、完成标记齐全。
+覆盖站/坐/躺1/3/2框、有墙/非战斗、零能量普通起身不可用但贴墙可用、正式贴墙推进回合、原生拖放与面板操作；新增实际按钮边界断言防止双行内容重叠。退出码0，无错误日志。已查看ui-86-posture-choices-seated.png与ui-87-posture-choices-lying.png；未重跑无关长路线或全量规则。
+`-UIOnly -UISuite hero_art,interface,action_copy,body_layout`通过108项窗口断言，窗口7.623秒、含启动9.66秒。退出码0、无错误日志、完成标记齐全；未为美术更换重复完整规则/长路线测试。首次检查发现基线仍引用旧HERO常量，已同步修正，失败轮不计通过。
+新增`body_layout`28项窗口断言，覆盖透明资源、等比显示、部位顺序及边界、最低部位真实点击、零回合查看、关闭后目标保留、头部真实装备、原生拖牌和取消不消耗。现有装备/链接/整备检查统一通过`inspect_body`实际打开详情，未删除原断言或绕过行动。相关窗口70项通过（含启动6.94秒），随后一次完整窗口通过1539项（窗口72.161秒，含启动73.81秒），退出码0且无错误日志。
+最新批次（2026-09-06，日志收起/固定与点击选敌）：`-UIOnly -UISuite targeting,interface,action_copy,intent,guard`通过140项窗口断言，窗口9.673秒、含启动11.43秒，退出码0且无错误日志。只修改界面和交互，未重跑无关规则。
+早期检查发现并修复浮窗初始高度、树变更期间清理和void回调问题；报错轮即使打印PASS仍由统一日志门禁拒绝，不计成功。
+最新批次（2026-09-06，人物台词与右上行动日志）：`-Suite persistence,action_copy -UI`通过2650项关联规则和1463项完整窗口断言，检查分别11.93秒与69.53秒（含引擎启动）；退出码、错误日志与完成标记均通过。
+新案例覆盖实际攻击/结束回合/事件、失败提交回滚、查看不重放/RNG不变、嘴部受限、看不清的准备动作、真实存档恢复和修改文案不改变状态；窗口覆盖下移后攻击与姿态拖放、头像对话框、侧栏与事件选择。第一次窗口检查发现测试姿态按钮参数错误，随后又发现正式posture动作未映射到专用台词cue，两项均修正后取得上述通过结果；失败轮不计通过。
+本批规则核心检查320项通过；新增状态专项最终53项通过（52项行为断言＋1项套件名称校验），覆盖全部练习投影、真实解除与增益消耗、只读/RNG不变、隐藏意图不泄露、左右手来源和实际五级终局。
+相同109项状态/interface/压力窗口断言的对照：优化前模块总计12.046秒（2.683/4.921/4.442秒），优化后6.763秒（1.636/2.441/2.686秒），本机样本耗时减少43.9%。没有删除断言；共享布局等待由8帧减至2帧，仍等待绘制完成，移除输入助手之后的重复等待。
+日常通过既有-Suite/-UISuite选择完整关联模块，依赖去重、未知名称拒绝、零退出码/错误日志/完成标记三项门禁全部保留。
+退出码0，无错误日志，完成标记齐全。
+已查看1440×810默认窗口及新截图 `build/ui-71-game-menu.png`、`ui-72-unified-drawer.png`、`ui-73-simplified-battle.png`。
+早期失败没有计作通过；原自动策略穿过信息面板出牌已修正，未让游戏遮罩透传输入。
+此前两次检查长时间未完成而人工终止，不计通过；补充分段进度后的一次完整运行取得正式成功标记及零退出码。
+已检查新版默认1440×810窗口、双警卫、奖励和塔路截图：`build/ui-08-default-window.png`、`ui-36-double-guard.png`、`ui-04-reward.png`、`ui-05-map.png`。
+结果随选牌/牌序变化，不能估计胜率或把全部失败归因于数值。
+实际窗口完整复核种子7，从普通入口到塔顶失败、入狱、出牌解除装备、术式开门、站起并离开，最终魔力17.04、压力60、安全等级1、保留一件装备。
 历史批次（2026-09-06，高安全装备修正、延期生成与整局衔接）：`tools/check.ps1 -Suite persistence -UI`中全部14套规则通过2626项；完整窗口发现旧长路线直接跳过整备和休息测试混入施法条件的问题。修正窗口测试流程和帮助文案后，`tools/check.ps1 -UIOnly`完整通过611项，无引擎错误。未把此前失败窗口计为通过，末次仅测试/文案修订未重跑无关规则。
-
-- 五级沿用现有高级三档满耐久装备，保留物理编号、封闭结构和有效链接，按合法容量补齐并锁住可锁处。验证已穿长套的边界、所有计数部位覆盖、普通容量/封闭资格、终局无行动/重复入狱、完整清单恢复与损坏原子拒绝；8种入狱种子配置均合法。旧固定架生成拒绝，历史已结束记录仍可恢复。
-- 新探索池只有小石片、锈锯条、通风口；旧四项待发现记录中的折返符不进入候选计数或领取，其他三项顺序不重抽。保留已有库存的姿态/手指/容量/阶段资格、检查没收、一次性逃离与存档归属验证，明确使用库存夹具而非声称正式掉落。
-- 窗口长路线和规则长路线共用整备动作选择；窗口实际拖牌到口部目标，普通手动解开沿实际按钮，消耗真实牌与费用。休息禁自由效果用基础非魔法牌独立检查，不由另一项咏唱限制掩盖目标规则。
-- 完整窗口包含长塔路、拖放/姿态/休息及九个专项模块；终点实际抵达第17层，战斗奖励次数一致。警卫生命仍使用既有短战斗夹具，最终数值难度和全部策略组合尚未验证。
-- 已查看`build/ui-07-cleared.png`及`build/ui-65-security-five.png`：终点与高安全监室说明、真实24/24耐久、装备列表可读。帮助、主规则、装备说明、内容接口和README同步更新。仅参考旧规则书高安全监室“满容量最高档”设定，没有读取旧Demo代码。
-
-历史批次（2026-09-06，五级终局与折返符）：规则2619项通过；最后纯显示投影改为读取实际终局组件数值后，牢房55项/存档33项窗口专项共88项通过。已查看ui-64-return-seal.png与ui-65-security-five.png，道具条件和终局真实数值均完整可读。
-
-验证五级工厂上下文与普通生成池隔离、关闭套体内层完整保留、三组件/1000耐久/极高损伤仍为0、真实身体4级与头部限制、拒绝残缺存档、旧終局原样恢复；折返符四项实际探索获得、三种姿态/一只手/双手禁用、消费后容量、过载/巡视/反抗阻断、正常检查保留/再收押没收、一次性原子逃离及资源与存档归属保持、保存恢复后正式逃离一致。新增发现使旧测试的道具数量增加，改用正式丢弃处理全部超载，而非削弱容量断言。检查仍共用既有prison/persistence模块，未新建启动器。
-
-
-历史批次（2026-09-06，悬浮口部敌人与遭遇池）：2540项规则断言通过；窗口enemies19/persistence33，共52项专项通过。已查看ui-62-floating-silencer.png与ui-63-mouth-restriction.png，独立敌人轮廓、蓄力进度、施加后口部装备与具体咏唱禁用原因可见。
-
-复用眼罩的两次蓄力/最终施加逻辑，覆盖16种种子、双模板、首次冻结/预览不变、三阶段打断与存档续局、提前击倒、满位/临时释放/再次占满、后手立即禁咏唱而保留手势魔法、多人离场奖励一次、正式塔路强弱池可达。原眼罩全套回归保留。修正测试随机断言只比较装备/敌人域，正常回合洗牌不应被误判为重抽装备；长路线测试通过正式整备解除口部，不改胜负或身体规则。新增两个真实练习，现有存档逐练习往返检查自动包含，测试入口没有复制。
-
-
-历史批次（2026-09-06，正式压力来源）：规则2342项通过，窗口专项pressure38/events22/persistence33，共93项通过，未将专项冒称全窗口。已查看ui-60-formal-pressure.png与ui-61-timed-pressure.png，来源、次数、停止条件均可见。
-
-覆盖正式装备工厂/合法警卫池、独立附着与真实解除、降档不停止、跨房保持、玩家回合末触发、警卫意图冻结/打断/持续到期/不同施加者、战斗胜利/收押清理、事件公开代价与一次性过载、保存恢复后下一正式动作一致、错误持续时间原子拒绝。已有十四套规则由persistence依赖合并去重。修复先手连动已完成时空意图存档误拒绝，保留当前回合行动记录与上次意图校验。修订等级检查以验证新模板的最低等级拒绝边界。新增来源未改变普通装备压力、魔法曲线或既有过载惩罚数值；本批新增来源数值为暂定。
-
-
-本项目使用独立的轻量开发流程。规则改动检查相关行为，界面改动增加窗口操作验证；不继承其他项目的阶段门禁。
+- 验证已穿长套的边界、所有计数部位覆盖、普通容量/封闭资格、终局无行动/重复入狱、完整清单恢复与损坏原子拒绝；8种入狱种子配置均合法。旧固定架生成拒绝，历史已结束记录仍可恢复。
+- 警卫生命仍使用既有短战斗夹具，最终数值难度和全部策略组合尚未验证。
+- 已查看`build/ui-07-cleared.png`及`build/ui-65-security-five.png`：终点与高安全监室说明、真实24/24耐久、装备列表可读。
+验证五级工厂上下文与普通生成池隔离、关闭套体内层完整保留、三组件/1000耐久/极高损伤仍为0、真实身体4级与头部限制、拒绝残缺存档、旧終局原样恢复；折返符四项实际探索获得、三种姿态/一只手/双手禁用、消费后容量、过载/巡视/反抗阻断、正常检查保留/再收押没收、一次性原子逃离及资源与存档归属保持、保存恢复后正式逃离一致。新增发现使旧测试的道具数量增加，改用正式丢弃处理全部超载，而非削弱容量断言。
+历史批次（2026-09-06，悬浮口部敌人与遭遇池）：2540项规则断言通过；窗口enemies19/persistence33，共52项专项通过。
+修正测试随机断言只比较装备/敌人域，正常回合洗牌不应被误判为重抽装备；长路线测试通过正式整备解除口部，不改胜负或身体规则。
+覆盖正式装备工厂/合法警卫池、独立附着与真实解除、降档不停止、跨房保持、玩家回合末触发、警卫意图冻结/打断/持续到期/不同施加者、战斗胜利/收押清理、事件公开代价与一次性过载、保存恢复后下一正式动作一致、错误持续时间原子拒绝。修复先手连动已完成时空意图存档误拒绝，保留当前回合行动记录与上次意图校验。修订等级检查以验证新模板的最低等级拒绝边界。
 
 ## 2026-09-07 具体位置、抽牌牌面与行动交互
-
 域：卡牌与奖励、装备与解除。
-
-- 规则相关分类合并运行：equipment_complete、rewards、persistence、action_copy、intent及自动去重的依赖，4325项通过，27.29秒。
-- 界面针对实际拖牌、工具安装→关窗→换姿→重开→切割、贴墙结束休息回合、重复刷新不重播反馈进行了验证。baseline 252、enemy_feedback 36、interface 250、equipment_art 172均通过；奖励旧翻面预期修正后，rewards 27、prison 60与enemy_feedback 36复核通过（最后一轮123项、12.60秒）。不把最后一轮称为全项目回归。
 - 精确位置检查覆盖独立小腿段不互相遮挡/减伤、同段真实外层遮挡、位置容量、无效位置原子拒绝、肩带排序与存档原位恢复；旧15回合预期统一改为5。
-- 抽牌以新抽取序号初始化UI，保留手动翻面；资源不足不影响默认面的目标判断，三档免疫与身体条件影响。新字段损坏的存档必须拒绝且不改当前局。
-- UI证据沿用既有固定文件名覆盖，未另建检查脚手架。ui-101-installed-tool-and-feedback.png记录已安装工具常驻入口；ui-86-posture-choices-seated.png记录贴墙按钮与普通起身并排。
+- 新字段损坏的存档必须拒绝且不改当前局。
 
 ## 2026-09-07 · 贴墙状态、颈部与子位置
-
 域：装备与解除、塔路与地图。
-
-- 新增 `wall` 专项，正式Game验证战斗距墙1—4随机、读档不重抽、预览不改随机；固定输入后验证移动支付、末段停墙、边界拒绝、贴墙属性、起身不结束回合、工具与挂钩接触、入狱及反抗位置。三能量移动仅触发一次能量被动，不推进持续回合。71项通过，1.70秒。
+- 新增 `wall` 专项，正式Game验证战斗距墙1—4随机、读档不重抽、预览不改随机；固定输入后验证移动支付、末段停墙、边界拒绝、贴墙属性、起身不结束回合、工具与挂钩接触、入狱及反抗位置。
 - 关联规则批次执行4500项，其中两条沿用“贴墙结束回合”的旧断言失败；已按新需求改为保持当前回合／先后手，再执行core全部338项通过。其他关联套件（存档、商店、状态、特殊装备、奖励、事件、装备、链接、复合、监狱、警卫、压力、敌人、塔路）在原批次没有失败，没有无故重复运行。
-- 界面实际点击、拖牌验证距墙显示、右侧“向墙移动”费用与结算、到墙后起身、颈部两子位与肩带、空大腿三子位；展开的行动日志不遮挡移动。最新wall／targeting／status／equipment_complete共110项通过（10.01秒）。此前interface／body_layout／enemy_feedback／special_equipment共348项通过；新的位置专项覆盖后续移动入口调整。
 - 视觉核对 `build/ui-106-neck-and-wall.png`：顶栏仅距墙数字，贴墙Buff在状态栏；右下移动按钮，左侧14组完整可见，颈部位于口部与大臂之间。
-- 工具安装、墙边使用、取回与挂钩共用实际接触条件；安装工具未因离墙删除。部位细分只投影原装备真实点；肩带的展示位置不更改动作接触规则或身体活动等级。未增普通颈部装备池。
 
 ## 2026-09-07 左侧装备双列小卡片
-
 域：装备与解除、界面。
-
-普通／复合／链接／特殊装备详情复用同一小卡片组件，显示字段由equipment_entry统一提供。新增真实窗口断言验证两卡并排无重叠、点击展开与收起均不改变游戏快照，并保留真实拖牌目标与解除流程。遗留外带及特殊装备到期后的被动状态保留在默认卡面，不因折叠说明被隐藏。
-
-规则special_equipment及关联status/rewards共288项通过（4.29秒）；窗口body_layout/special_equipment/equipment_complete/targeting共142项通过（9.96秒）。检查记录build/checks/20260907T044820511-22688。截图ui-84-body-equipment-details.png已查看，双列卡片位于原部位详情窗内，名称、耐久、紧度和详情按钮清晰。未改动行动规则，未运行全项目回归。
+新增真实窗口断言验证两卡并排无重叠、点击展开与收起均不改变游戏快照，并保留真实拖牌目标与解除流程。遗留外带及特殊装备到期后的被动状态保留在默认卡面，不因折叠说明被隐藏。
+检查记录build/checks/20260907T044820511-22688。
 
 ## 2026-09-07 跨子部位自动紧凑排列
-
 域：装备与解除、界面。
-
-取消每个子部位单独起一行的网格。整个详情面板连续排卡，按宽度与数量自适应列数；共享物理ID去重显示，卡内保留全部子部位，空位置不再占据整行卡片空间。特殊装备沿相同布局，保留容量和触及信息。
-
-窗口body_layout/special_equipment/equipment_complete共114项通过；随后添加截图对应的拘束衣双掌共享卡、单卡满宽、手掌与手指不同装备同排和位置标签检查，body_layout最终43项通过（4.52秒）。截图ui-109-compact-jacket-card.png和ui-110-compact-cross-slot-cards.png已生成，后者已视觉核对。未修改规则或运行无关回归。
 
 ## 2026-09-07 躯干固定仅保留身后版本
-
 域：装备与解除、存档。
-
-用户澄清保留躯干固定绳／带及额外限制，只取消身前版本。已移除身前生成选项和六个身前练习；工厂拒绝身前施加，存档拒绝旧身前实例且保持恢复前状态；身后接触与解除规则保留。教程、装备投影、状态说明、设计文档已同步。hand_assist将原身前夹具改为身后夹具，并把原大腿额外范围断言移到装入躯干固定前，继续分别验证真实前置与固定后的限制。
-
-contact范围及关联规则1180项通过（15.31秒），equipment_complete窗口42项通过（6.21秒）。记录build/checks/20260907T045926725-3092。已通过任务消息同步给“设计紧缚尖塔游戏设定”（01a070f2-5b3a-7980-82c2-3816e7a504a1），明确不能删除该装备或其身后限制。
+已移除身前生成选项和六个身前练习；工厂拒绝身前施加，存档拒绝旧身前实例且保持恢复前状态；身后接触与解除规则保留。hand_assist将原身前夹具改为身后夹具，并把原大腿额外范围断言移到装入躯干固定前，继续分别验证真实前置与固定后的限制。
+记录build/checks/20260907T045926725-3092。
 
 ## 2026-09-07 躯干固缚附加状态（取代上文专用绳／带方案）
-
 域：装备与解除、存档。
-
-本批规则变更：普通大臂／小臂／手腕三档单件随机附加连接式或一体式；降档保留，加固结果三档刷新（包含二档回三档、连接耗尽且原件仍三档）。附着状态、独立耐久、最外层生效、同层追加、普通外层拒绝、复合施加时原子取消及原件移除级联全部进入正式规则。连接式只在挣扎上豁免堆叠，滑脱仍受影响；一体式沿原件两种计算。
-
-影响安装／加固候选、敌人／警卫／事件／监狱事务、装备清理、独立binding随机域、严格存档恢复、手部接触、装备卡／状态／教程／日志及练习目录。失败不清除状态，预览不消耗随机。费用、原有环境资格、其他乘区、七子槽容量、手势魔法及已安装工具身体接触不变。独立耐久10／16／24为待平衡值，紧度读取原件；刷新保留原形式。旧专用装备不静默迁移，需重新开始练习。
-
-torso_binding规则专项覆盖：两种种子结果、三档触发／二档不触发、手指手掌排除、降档保留、真实卡牌仅破坏连接、两种加固刷新、同层／外层、复合成功／失败、原件正式解除、存档恢复／损坏拒绝、已有外层下休眠恢复及教程更新。窗口专项通过真实菜单与卡牌拖放核对卡片、连接耐久和费用。
-
-关联contact,enemies,guard,events,persistence：2210规则通过，31.07秒；equipment_complete,body_layout：85窗口通过，7.49秒（build/checks/20260907T053457103-13164）。随后补齐连接读取原件整数紧度、教程及连接降耐久说明，最终torso_binding,action_copy：81规则通过，1.13秒；torso_binding：11窗口通过，3.48秒（build/checks/20260907T054312726-43368）。build/ui-111-torso-binding-cards.png已视觉核对，原件与连接目标紧凑并排。未运行无关全量回归。
+附着状态、独立耐久、最外层生效、同层追加、普通外层拒绝、复合施加时原子取消及原件移除级联全部进入正式规则。
+失败不清除状态，预览不消耗随机。
+torso_binding规则专项覆盖：两种种子结果、三档触发／二档不触发、手指手掌排除、降档保留、真实卡牌仅破坏连接、两种加固刷新、同层／外层、复合成功／失败、原件正式解除、存档恢复／损坏拒绝、已有外层下休眠恢复及教程更新。
+关联contact,enemies,guard,events,persistence：2210规则通过，31.07秒；equipment_complete,body_layout：85窗口通过，7.49秒（build/checks/20260907T053457103-13164）。随后补齐连接读取原件整数紧度、教程及连接降耐久说明，最终torso_binding,action_copy：81规则通过，1.13秒；torso_binding：11窗口通过，3.48秒（build/checks/20260907T054312726-43368）。build/ui-111-torso-binding-cards.png已视觉核对，原件与连接目标紧凑并排。
 
 ## 2026-09-07 易滑脱倍率与移动被动
-
 域：装备与解除、塔路与地图。
-
-本批变更：肩部站／坐／躺均1.2；脚掌与脚趾为1／1.2／1.2；其余腿部按game-design第4.2B表。主动普通／魔法滑脱增加独立位置乘区。付费室内位移、每个实际跨房移动回合、成功探索接入共享被动；各点随机选择外层支持挣扎的物理件，预先冻结选择，按物理ID去重，不继续攻击新外露内层。肩带使用独立滑脱位置查询，不扩大套体覆盖、容量或触及。
-
-涉及：escape_preview与正式行动事务、精准物理点、组件前置与清理、motion随机域、严格存档、墙面移动／塔路／探索、结构日志、短摘要、即时反馈和教程。费用、回合数、物品生成、敌人计划、锁及紧度的原有作用、手部辅助范围、特殊装备触发、施法成功率不变。被动不读取灵巧／环境平加值／手部辅助／蓄力／准备层，不消耗准备，不判魔法成功率，不受过载值影响。旧Demo存档缺少motion域时拒绝恢复，不做兼容迁移。
-
+旧Demo存档缺少motion域时拒绝恢复，不做兼容迁移。
 slip_motion专项142项：三姿态完整系数表、肩带和套体区分、主动普通／魔法倍率、正式位移只触发一次、辅助与准备不消耗、同层均匀抽取及较松件减半、共享套体去重、外层移除不穿透、结构禁止与三档免疫、过载不影响伤害、脚踝排除、资源不足／过期版本拒绝、晚期校验回滚、存档继续复现、姿态不触发、有装备探索与免费探索、跨房五步和最终入房顺序、教程与数值表一致。
-
-最终关联规则：slip_motion,equipment,composites,links,casting,wall,prison,tower,tower_progression,rewards,persistence,hand_assist,status，经原分类入口去重展开19个套件，4207项通过，17.81秒。日志：build/checks/20260907T063634994-44976/check-rules.log。
-
-最终窗口：slip_motion,casting,wall,route,prison,interface，共369项通过，18.38秒。日志：build/checks/20260907T063808279-40668/check-ui.log。使用真实移动点击、肩带卡牌拖放、塔路点击与行进、探索／牢门卡牌及教程入口；新增窗口检查确认耐久4→2.5、短摘要不混入公式、历史损耗不重放。build/ui-112-slip-motion.png已核对即时反馈；随后短摘要改动由窗口断言验证，详细公式只留日志。
-
-调整现有检查：跨房组件不再断言耐久完全不变，改为按正式被动结果逐件核对损耗，同时保留全部其他结构／编号；紧凑装备栏检查实际位置文案，不再查已移除的旧子面板节点；牢门成功拖牌案例显式固定无口部阻碍、零过载的施法条件，魔法失败代价仍由casting覆盖；悬停案例先从手牌外移入，消除上一套件鼠标停留同坐标的干扰。未运行无关全量回归，未新增独立测试框架。
+日志：build/checks/20260907T063634994-44976/check-rules.log。
+日志：build/checks/20260907T063808279-40668/check-ui.log。build/ui-112-slip-motion.png已核对即时反馈；随后短摘要改动由窗口断言验证，详细公式只留日志。
+调整现有检查：跨房组件不再断言耐久完全不变，改为按正式被动结果逐件核对损耗，同时保留全部其他结构／编号；紧凑装备栏检查实际位置文案，不再查已移除的旧子面板节点；牢门成功拖牌案例显式固定无口部阻碍、零过载的施法条件，魔法失败代价仍由casting覆盖；悬停案例先从手牌外移入，消除上一套件鼠标停留同坐标的干扰。
 
 ## 2026-09-07 肩部附加拘束定稿写入
-
 域：界面、装备与解除。
-
-状态：DesignConfirmed，ImplementationPending。用户本轮要求“写入”，本批仅更新设计、生成／模板／扩展说明、README和AGENTS；未修改运行时、玩家教程或测试，不报告绿色规则回归。权威正文equipment-design第7.2A节；单手套第6.1节同步撤销旧规则权威并保留待迁移说明。
-
-影响计划：成对安装／加固补缺事务、原件一对上限、左右独立数值与交叉历史、滑脱数量倍率、肩部真实接触和同层容量、单手套结构、级联清理、存档、生成与随机、UI卡片／原因／教程／日志。changedUiAndLogs：本批N/A（仅文档）；上述玩家表面是实现完成条件。既有费用、一般材料资格、非肩部容量、躯干固缚及肩部部位倍率不变；移动被动既有“支持挣扎”资格在后续案例中明确核对，不能借本批擅自扩大。
-
-第7.2A列出的正常、反例、边界、回滚、存档和窗口案例全部待编写／待执行，不是已通过的测试。旧肩带测试仅证明旧行为，不能证明本定稿。文档一致性核对覆盖3档触发、初中高初始1/2/3、一件一对、左右独立、2/1/0侧、交叉3→2→1、禁止挣扎及补缺规则。
+第7.2A列出的正常、反例、边界、回滚、存档和窗口案例全部待编写／待执行，不是已通过的测试。
 
 ## 2026-09-07 直接进入牢房的练习与探索讨论稿
-
 域：契约 `prison-exploration-proposal.md`。
-
-范围：新增prison_test与prison_blind两个练习目录项，通过现有普通装备工厂装入一档手腕／大腿装备，蒙眼版加布带眼罩；Prison.start_practice只建立初始化状态和真实巡视基准，然后复用enter／begin_turn。开场一级安全、躺姿靠墙、8回合巡视、基础卡组，存档保持practice归属。没有新增探索命令、空间位置或蒙眼随机，也没有改变普通入狱姿态；空间探索改版与已确认的蒙眼零移动代价记录在prison-exploration-proposal.md，状态为讨论中。
-
-影响：练习目录、初始化、普通卡牌／探索／巡视的直接进入条件、初始日志及练习说明、存档／菜单显示。生成池、敌人行动、正式入狱、旧探索费用、距离状态、姿态候选、被动滑脱公式均不修改。两个测试场景共用正式牢房对象，不复制第二套规则。安全等级和清单等由初始化配置建立；之后实际行动全部走候选＋版本复核。
-
-规则新增20项：两种可见性、躺姿靠墙、正常首回合资源与抽牌、无敌人、真实巡视清单、练习存档身份、恢复后刷新版本但保留其余全部状态、过期行动拒绝、探索发现和支付一次、共享移动被动、正式回合倒计时与完整校验。目录遍历和存档全练习遍历自动覆盖新入口；目录明确区分战斗、休息、牢房开局。
-
-最终 prison,persistence,equipment_complete 关联门禁展开8套件，1202项通过（12.06秒），build/checks/20260907T065843094-45396/check-rules.log。窗口prison,equipment_complete共117项通过（12.30秒），build/checks/20260907T065647620-43940/check-ui.log；真实菜单点击两种场景，验证旧探索按钮、巡视、眼罩和对应场景身份，截图build/ui-113-prison-practice.png。并行肩带改造期间出现编译错误及旧cross夹具错误，已与对应任务同步并在修复后重跑；肩部倍率夹具统一为40%耐久比例，保留新肩带不参与挣扎及移动被动的规则。未运行无关全量检查。
+规则新增20项：两种可见性、躺姿靠墙、正常首回合资源与抽牌、无敌人、真实巡视清单、练习存档身份、恢复后刷新版本但保留其余全部状态、过期行动拒绝、探索发现和支付一次、共享移动被动、正式回合倒计时与完整校验。
+最终 prison,persistence,equipment_complete 关联门禁展开8套件，1202项通过（12.06秒），build/checks/20260907T065843094-45396/check-rules.log。窗口prison,equipment_complete共117项通过（12.30秒），build/checks/20260907T065647620-43940/check-ui.log；真实菜单点击两种场景，验证旧探索按钮、巡视、眼罩和对应场景身份，截图build/ui-113-prison-practice.png。
 
 ## 2026-09-07 肩部链接与单手套独立肩带实装
-
 域：`core/shoulder_links.gd`。
-
-本记录将上文肩部DesignConfirmed／ImplementationPending推进为Implemented／Verified。新增core/shoulder_links.gd作为game管线内部助手；普通原件嵌套一对肩部链接，真实左右目标进入统一物理列表。单手套改left/right两组件，不再使用cross共享组件；交叉历史独立保存，旧组件记录拒绝恢复。普通施加与各处加固共用刷新，三档触发／补缺不修复幸存侧，不因预览或普通清理再生。警卫的额外肩部施加走正式选装、公开意图、目标复核与执行，保存后不重抽；失败不写入半对。肩带无挣扎，其他基础材料方法继承，交叉封锁统一作用滑脱与挂钩；2／1／0侧控制原件滑脱。解除位置仅肩部，UI与教程和状态面板同步，肩部主动×1.2仍保留，移动被动因无挣扎资格不再抽肩带。
-
-新增shoulder规则专项最终105项通过：三品质初始档、六种基础材料、左右独立损耗、真实出牌费用、2／1／0侧效果、交叉3→2→1及再升3、历史存档、损坏配对拒绝、加固补缺、原件删除、幸存侧不重置、单手套同规则、焦点增益清理、同肩三对同层、额外警卫意图保存与施加。肩部窗口19项通过，实际进入新练习、拖牌解除一侧、验证另一侧耐久及费用、原件0.5提示和单手套交叉左右卡。
-
-验证记录：
+单手套改left/right两组件，不再使用cross共享组件；交叉历史独立保存，旧组件记录拒绝恢复。警卫的额外肩部施加走正式选装、公开意图、目标复核与执行，保存后不重抽；失败不写入半对。
+新增shoulder规则专项最终105项通过：三品质初始档、六种基础材料、左右独立损耗、真实出牌费用、2／1／0侧效果、交叉3→2→1及再升3、历史存档、损坏配对拒绝、加固补缺、原件删除、幸存侧不重置、单手套同规则、焦点增益清理、同肩三对同层、额外警卫意图保存与施加。
 - 初次关联contact/guard/enemies/persistence/events/slip_motion共2487项，4项旧断言失败，其余通过：肩部主动倍率夹具原先借套体同步紧度，及旧肩带显示在小臂的断言；已按新规则修正，不更改正式数值。
 - 修正后shoulder/slip_motion/equipment及直接交叉套件921项全部通过（5.73秒）；shoulder/body_layout/equipment_complete窗口104项通过（10.44秒），build/checks/20260907T065822663-676。
-- 增加肩带解除清除找准松处测试后shoulder/status共120项通过（2.20秒）；同批intent/status/interface窗口分别14／21／260项均通过。baseline暴露旧口部自由面禁用测试，与当前施法规则冲突，已改为口部不阻止准备、真正手势卡仍检查手指。未修改正式施法逻辑。
 - 六种材料补充后shoulder最终105项通过（1.25秒），build/checks/20260907T070205356-24864。
 - 最终baseline窗口252项通过（38.24秒），覆盖长短单手套真实拖牌、肩部入口、交叉禁挂钩、套体特殊脱下及墙面工具，build/checks/20260907T070446172-43456。
-
-截图build/ui-113-shoulder-pair.png、build/ui-114-independent-crossed-shoulders.png均已视觉核对：紧凑左右卡片独立显示名称、耐久、紧度、交叉与无法挣扎说明。未运行无关全项目回归。另一任务正在同步开发躺姿牢房练习，本批保留其改动，未将该练习误计为肩带新增内容。
+截图build/ui-113-shoulder-pair.png、build/ui-114-independent-crossed-shoulders.png均已视觉核对：紧凑左右卡片独立显示名称、耐久、紧度、交叉与无法挣扎说明。
 
 ## 2026-09-07 手指资格与手掌半效辅助
-
 域：`core/contact.gd`、`core/hand_assist.gd`。
-
-按用户最新要求，辅助逐手先检查手指自由，受限贡献0；手指自由且手掌可用贡献1，手掌不能使用贡献0.5。原有手腕、触及、自身手部和外层限制不变。core/contact.gd仅在assist分支改变资格与倍率，手持切割／徒手／开锁仍保留原来的握持和精细操作要求。core/hand_assist.gd汇总两手实际贡献，目标预览与机械事件保存逐手倍率／加值；label不再整数截断，状态面板使用相同摘要。减半只减少辅助加值，原有力量、灵巧、锁、紧度与堆叠乘区照常处理。教程与设计／生成／README／AGENTS同步，旧“手指精细不影响辅助”描述已撤销。
-
-规则hand_assist/special_equipment/action_copy/status共286项通过；之后完整contact及直接关联肩部、躯干、装备、复合、链接、牢房等1340项通过（15.97秒）。新增边界覆盖双手掌不可用各0.5、三个解除模式真实伤害、锁后倍率、一侧手指受限且另一侧掌受限总0.5、工具资格不被放宽、预览只读、正式支付及日志。hand_assist/status窗口30项通过（5.49秒），实际状态卡、分数预览、拖牌支付与结果均核对。记录build/checks/20260907T073610912-27720，截图build/ui-115-half-hand-assistance.png已检查。未运行无关全量回归。
+记录build/checks/20260907T073610912-27720，截图build/ui-115-half-hand-assistance.png已检查。
 
 ## 2026-09-07 后台方格探索与行动级摔倒（已接入）
-
 域：`core/prison_space.gd`。
-
-用户最新修正：贴墙免判按每次移动行动的起步判断，不保留至回合结束。无眼罩只选目的地，方向仅标在目的地上；蒙眼用方向移动与？？？地点列表，最短路程≤2高亮，脚下才揭示。旧50%零移动机制取消。
-
-实现：core/prison_space.gd统一后台7×7空间、最短路径、发现、实时墙距、工具位置、只读信息过滤与落位校验。探索候选和wall_move复用wall_movement_profile费用／步长，逐格发现后只调用一次SlipMotion；能量被动结算后按当前腿部等级判摔倒。概率采用20/40/50/60%×(2-Pressure.cast_chance)+蒙眼20个百分点，封顶100%。起步或抵达墙边免判，坐／躺／腿0不判。摔倒1—2级坐、3—4级躺，保留位移及费用，不强制结束回合。新增explore/fall独立随机域、快照校验；无旧档迁移。普通入狱躺姿起步。眼罩坐转站在原减免后+1费，墙面起身同样适用。
-
-出口和道具：通风口、门钥匙、开门法术、开锁针和连锁开锁第二目标复核当前地点。安装处保存真实位置并加入返回目的地；现有墙缝容量不变，反抗战斗继续使用原距墙模型，战后恢复探索位置，新安装工具挂在最近可达墙格。已知工具、发现和巡视检查继续使用同一库存及正式管线，不新造第二套入口。UI只有选择框，不显示网格；移动与摔倒直接提示，明细保留日志。
-
-验证：prison,wall,persistence,casting关联14套件共2034项通过，21.06秒；日志build/checks/20260907T075803506-16104/check-rules.log。随后追加远距连锁开门阻断、外部阶段起身加费、战斗安装工具返回牢房、两格行动只判一次等10项，exploration完整专项171项通过，3.77秒；日志build/checks/20260907T080302790-39228/check-rules.log。两组计数包含重叠，不相加为总覆盖数。旧牢房／奖励／施法／赶路案例改用明确空间夹具，功能提交仍为真实候选；完整连续路线由新专项覆盖，无眼罩和蒙眼均走到全部发现并验证往返不重复发物品。
-
-窗口exploration,prison,wall,casting,slip_motion共136项通过，12.51秒；日志build/checks/20260907T075803506-16104/check-ui.log。覆盖原生目的地点击、路径距离刷新、隐藏方位和距离、附近高亮、现场发现、解除眼罩恢复目的地、安装／巡视／通风口逃离与门卡拖放。已查看build/ui-114-prison-destinations.png及build/ui-115-prison-blind.png，蒙眼地点采用紧凑两列，方向动作费用不重复，移动提示同步实际距离与被动结果。未运行无关全量检查，未改旧网页工程或图像素材；并行肩部和手部辅助修改保留。教程、README、规则书、扩展接口、随机域清单和AGENTS同步，以新探索正文替代早前讨论稿。
-
-2026-09-07：稳定心神更名为深呼吸，战斗固定行动栏调整为五列，深呼吸固定在火球术右侧；整备、休息、牢房保留同位置入口。状态面板只保留操作位置和效果／禁用原因说明。原calm候选、1能量／降低25压力及版本复核保持不变，教程、练习描述、状态和日志同步更名。pressure关联规则642项、targeting/status/pressure窗口103项通过；原生点击验证降压及扣费，验证同排右侧位置和零压力禁用原因，已查看ui-116-deep-breath-action.png。日志：build/checks/20260907T082302181-16496。
+验证：prison,wall,persistence,casting关联14套件共2034项通过，21.06秒；日志build/checks/20260907T075803506-16104/check-rules.log。随后追加远距连锁开门阻断、外部阶段起身加费、战斗安装工具返回牢房、两格行动只判一次等10项，exploration完整专项171项通过，3.77秒；日志build/checks/20260907T080302790-39228/check-rules.log。
+窗口exploration,prison,wall,casting,slip_motion共136项通过，12.51秒；日志build/checks/20260907T075803506-16104/check-ui.log。已查看build/ui-114-prison-destinations.png及build/ui-115-prison-blind.png，蒙眼地点采用紧凑两列，方向动作费用不重复，移动提示同步实际距离与被动结果。
+日志：build/checks/20260907T082302181-16496。
 
 ## 2026-09-07 牢房二级操作与装备拖牌卡
-
 域：监狱与收押、装备与解除。
-
-主探索框改双列地点卡，巡视／待探索计数、移动步长／费用各显示一次，删除重复行走说明与混排的全部出口操作。地点“查看”进入原框内对应门／已发现通风口／工具二级页，返回仅改界面焦点。门锁拖牌区仅在门页显示，实际候选、距离、费用、牌面和版本复核均保留。PrisonSpace.view只新增可见性过滤后的site.interaction；蒙眼远处不给设施或工具类型，未发现通风口不提前开放操作。
-
-装备拖牌目标改双列卡，和左侧装备卡共用位置／名称／材质／耐久条／紧度／锁及关键状态内容，另突出本次费用、效果和具体不可用原因。整个卡面继续使用原DropTarget，子文字不截获鼠标；容器按内容计算高度，修复首版卡面被撑至1200像素的问题。未增加第二套装备或探索规则。
-
-规则exploration完整180项通过，包含预览不修改快照、蒙眼远处无交互元信息、已发现脚下通风口上下文，以及原路径／摔倒／移动／存档规则；日志build/checks/20260907T082045619-45016/check-rules.log。窗口exploration、prison、equipment_complete、baseline、body_layout、hand_assist、shoulder、slip_motion共491项通过（49.64秒），日志build/checks/20260907T082452132-47116/check-ui.log。覆盖原生查看／返回、门卡正确与错误牌面、实际魔力扣费、通风口逃离、工具二级页，以及普通／复合／链接装备真实拖牌一次结算。新增高度断言防止标题竖排或装备卡异常撑高。
-
-此前窗口检查发现装备卡高度反馈错误，以及原生查看测试被已展开日志挡住；前者改正常容器布局，后者使用正式收起日志按钮后再点击，并新增确认确实进入二级页的断言，没有绕过拖放或行动校验。最终无脚本错误。已核对build/ui-114-prison-destinations.png、ui-117-prison-door-details.png及ui-118-equipment-drag-card.png，计数横排、主列表精简、门页独立、装备卡耐久条与效果可见。README、设计、探索及扩展说明、AGENTS同步；未运行无关全量，未修改图片或旧网页工程，并行任务代码保留。
+规则exploration完整180项通过，包含预览不修改快照、蒙眼远处无交互元信息、已发现脚下通风口上下文，以及原路径／摔倒／移动／存档规则；日志build/checks/20260907T082045619-45016/check-rules.log。窗口exploration、prison、equipment_complete、baseline、body_layout、hand_assist、shoulder、slip_motion共491项通过（49.64秒），日志build/checks/20260907T082452132-47116/check-ui.log。新增高度断言防止标题竖排或装备卡异常撑高。
+此前窗口检查发现装备卡高度反馈错误，以及原生查看测试被已展开日志挡住；前者改正常容器布局，后者使用正式收起日志按钮后再点击，并新增确认确实进入二级页的断言，没有绕过拖放或行动校验。已核对build/ui-114-prison-destinations.png、ui-117-prison-door-details.png及ui-118-equipment-drag-card.png，计数横排、主列表精简、门页独立、装备卡耐久条与效果可见。
 
 ## 2026-09-07 正式地图美术与纸面降亮
-
 域：`ui/route_map.gd`、`tests/route_ui_cases.gd`。
-
-ui/route_map.gd 接入 map-icons-v1 八类节点和 map-parts-v2 七张独立素材。纸面以RGB 0.78调制显示；背景按可见窗口等比取图，滚动时重绘，左右建筑等比且低透明度显示，避免把纸面／建筑拉伸至整条长路线。详细／总览用不同显示尺寸，状态文字继续保留；当前位置金圈、可前往／正在前往青圈、已完成勾记只消费原投影，已走／正在走连线读取原path.status。删除旧程序图标和纸面划痕，正式移动、版本复核、房间和随机逻辑不变。
-
-沿tests/route_ui_cases.gd新增实际窗口纸面明度、所有节点与原点击区域对齐、总览／定位前后快照不变及截图。原拖动防误触、非法目的地、正式五回合移动、暂停／自动继续、抵达消息、新局旧计时器失效检查全部保留。执行 tools/check.ps1 -Import -UIOnly -UISuite route 导入；修正新测试对Control坐标转换的调用后，tools/check.ps1 -UIOnly -UISuite route 88项通过，无引擎错误。通过日志：build/checks/20260907T082722506-48532/check-ui.log，窗口套件5.355秒。未修改规则，未跑无关全量。
-
-已查看实际窗口 build/ui-117-map-art-detail.png、ui-118-map-art-overview.png、ui-99-map-arrival.png，确认暗纸面、透明图标、详细标题／状态、总览17层与入口、实际已走路线和右侧移动消息正常。没有使用示意拼装图的房间布局或路径代替正式数据。
-
-2026-09-07警卫行动删除：按用户要求删除guard_charge及其准备／抢先两次操作生命周期、15点威压与两次10点余波定义；取消回合开始的优先行动分支，普通附加行动、打断延后和收押保持。同步意图、术语、教程、练习、文案包及设计说明；当前普通警卫存档可恢复，旧蓄力和优先计划拒绝恢复。新例覆盖全部普通阶段不生成删除项、打断后原计划执行一次且不增压、保存及非法旧行动回滚；窗口从正式警卫入口连续推进验证。guard/pressure/intent关联规则1212项与窗口98项通过，persistence关联847项通过（两批存在重复依赖，不合计为唯一案例数）。已查看ui-117-guard-no-charge.png。检查日志分别为build/checks/20260907T083617364-44724、build/checks/20260907T083710735-46988。历史记录中的警卫蓄力覆盖自本次起废止。
+执行 tools/check.ps1 -Import -UIOnly -UISuite route 导入；修正新测试对Control坐标转换的调用后，tools/check.ps1 -UIOnly -UISuite route 88项通过，无引擎错误。通过日志：build/checks/20260907T082722506-48532/check-ui.log，窗口套件5.355秒。未修改规则，未跑无关全量。
+已查看实际窗口 build/ui-117-map-art-detail.png、ui-118-map-art-overview.png、ui-99-map-arrival.png，确认暗纸面、透明图标、详细标题／状态、总览17层与入口、实际已走路线和右侧移动消息正常。
+同步意图、术语、教程、练习、文案包及设计说明；当前普通警卫存档可恢复，旧蓄力和优先计划拒绝恢复。新例覆盖全部普通阶段不生成删除项、打断后原计划执行一次且不增压、保存及非法旧行动回滚；窗口从正式警卫入口连续推进验证。检查日志分别为build/checks/20260907T083617364-44724、build/checks/20260907T083710735-46988。
 
 ## 2026-09-07 探索距离条、安装地点与离墙预告
-
 域：装备与解除、界面。
-
-距离条按入口到各地点的固定最短距离作基准，靠近缩短、超过区段标红；0格初始基准与装置地点正常支持，重绘与读档不重新设定。PrisonSpace投影已安装工具实际位置／次数，UI优先显示独立地点卡，并继续通过原二级页安装／使用／取回。蒙眼远处不投影数字或安装工具身份。离墙提示取本次实际步长路径：沿墙不报、离墙报、中途离墙后回墙独立提示；预览不更改任何结算。
-
-规则exploration198项通过，覆盖新增的入口基准、走远／回程、0基准、沿墙／离墙／回墙／后续行动边界、蒙眼信息、真实安装／取回、安装坐标读档与原探索全套；窗口exploration、wall、prison共156项通过。记录build/checks/20260907T084650404-47120，规则4.49秒、窗口15.05秒。后续把条体高度调至22以容纳数字，并通过正式收起日志按钮拍摄完整面板；exploration窗口48项再次通过，build/checks/20260907T085000233-46260，6.12秒。已核对ui-119-prison-distance-tool.png及ui-120-prison-blind-wall-warning.png，红段、安装地点与蒙眼提示可见。
-
-查阅原项目规则书第19、23章及多操作部位／高度交叉契约，将高度／部位／姿势简化建议放在探索说明讨论稿；未复制旧代码，也未把未定稿高度、嘴部安装、家具层级或临时姿势接入运行时。原工具伤害／费用／资格、墙面状态与摔倒规则保持不变；未修改其他任务刚删除的警卫技能或深呼吸入口。未做旧存档迁移或无关全量测试。
+记录build/checks/20260907T084650404-47120，规则4.49秒、窗口15.05秒。后续把条体高度调至22以容纳数字，并通过正式收起日志按钮拍摄完整面板；exploration窗口48项再次通过，build/checks/20260907T085000233-46260，6.12秒。
+未做旧存档迁移或无关全量测试。
 
 ## 2026-09-07 小石片／锯条嘴部安装与高度方案v1
-
 域：契约 `environment-interaction-proposal-v1.md`。
-
-两件工具新增逐物品mouth_install白名单；嘴部自由时站／坐安装随手墙缝、躺姿安装墙脚缝。Tools.install_operators统一列出手指／脚趾／嘴部资格，保留旧路线；Game候选与正式installation事件记录实际operator。仍需贴墙、空位、1能量，不扣次数；没开放嘴部直接切割、开锁或取回。装好后继续走原身体接触，嘴部之后被占用不影响已安装用途。界面和教程同时补可用部位、嘴部路线、费用与边界说明。
-
 wall关联完整6套件833项通过：新增六种工具×姿势组合的真实提交、嘴部占用、错误高度、远离墙、无墙、空位、能量、过期版本、次数不变、旧手部路线与安装后固定切割；首跑6项断言错误来自测试读取事务提交前旧物品引用，已改为读取提交后的正式实例，未为修测试改动事务。记录build/checks/20260907T090046837-38984/check-rules.log，12.63秒。
-
-exploration／wall／prison窗口164项通过，14.77秒，同目录check-ui.log；手指和脚趾都受限的牢房练习真实使用嘴部安装，验证1能量／次数／新增工具地点和日志，截图ui-121-mouth-installation.png已核对。完整后续方案写入docs/environment-interaction-proposal-v1.md，明确三档高度、嘴部取回、按具体安装点计容量仍待确认。未改变其他任务的警卫生成、品质、紧度或深呼吸修改，未修改旧网页工程。
+exploration／wall／prison窗口164项通过，14.77秒，同目录check-ui.log；手指和脚趾都受限的牢房练习真实使用嘴部安装，验证1能量／次数／新增工具地点和日志，截图ui-121-mouth-installation.png已核对。
 
 ## 2026-09-07 固定三档高度、躺姿抬腿与中位挂钩
-
 域：装备与解除、界面。
-
-按最新确认实施环境高度方案：低／中／高墙缝固定0.2／0.8／1.4米；身体按真实子部位判断。躺姿膝下和小腿中部可低中，脚踝／脚掌／脚趾可低中高；脚趾安装／取回仍需自由且双腿≤2级。两件工具的嘴部取回、同格同档容量与不同墙格独立安装已接入，原费用、固定损伤、用途／材质／遮挡和正式版本提交保留。挂钩固定墙边中位0.8米，共用高度表与原次数／滑脱结构判定；坐姿上半身与躺姿抬腿范围真实参与候选。
-
 contact、wall、persistence及直接关联完整套件共2236项断言通过，build/checks/20260907T092319560-9440/check-rules.log（21.69秒）。新增environment_height覆盖具体手肘子位置、高位足部／中位小腿、内外层、嘴／脚趾取回、换姿势保留安装点、费用次数、远处拒绝、同高不同位置、重复占位读档拒绝与挂钩降档。旧挂钩肩部／头部夹具改为坐姿后仍执行原结构断言；没有绕过正式规则放行。
-
-界面exploration、wall、baseline、equipment_complete、prison共484项通过，build/checks/20260907T093420616-44864/check-ui.log（56.82秒）。最终补齐特殊装备卡与非装备目标的排列后，wall、special_equipment、prison共176项通过，build/checks/20260907T093611981-47472/check-ui.log（15.92秒）。原生点击覆盖地点安装、页内刷新、具体装备卡使用、取回、真实坐起后挂钩、嘴部操作与折返符说明；正常试玩与原拖牌路径保留。已检查ui-122-fixed-height-targets.png、ui-123-mid-height-hook.png。完整矩阵移至教程书；主界面仅保留实际高度与占用，可用目标优先并以双列紧凑卡呈现。
-
-文档、教程、练习提示、具体禁用原因和安装／取回日志已同步；无旧档迁移、无第二套空间或状态系统、未修改旧网页工程及角色美术。
+界面exploration、wall、baseline、equipment_complete、prison共484项通过，build/checks/20260907T093420616-44864/check-ui.log（56.82秒）。最终补齐特殊装备卡与非装备目标的排列后，wall、special_equipment、prison共176项通过，build/checks/20260907T093611981-47472/check-ui.log（15.92秒）。
 
 ## 2026-09-07 高度仅后台、前台按身体部位说明
-
 域：装备与解除、界面。
-
-用户取消显式高度说明。墙缝改为一／二／三编号，安装候选、固定工具和挂钩直接列出当前可接触的身体部位；取回显示操作部位，无法接触说明实际目标部位。教程不再展示高度档位／米数，后台高度与全部判定保留。field_tools.part_names仅将完全覆盖的区域合并，部分范围仍显示精准子部位。
-
-environment_height完整22项规则断言、exploration／wall／special_equipment窗口136项通过；build/checks/20260907T094059483-14000，规则1.46秒、窗口11.24秒。真实点击仍验证躺姿高处足部与中处小腿区别、安装取回及挂钩动作；界面检查身体名称存在且无高度数字，已核对ui-123-mid-height-hook.png。
-
-
+environment_height完整22项规则断言、exploration／wall／special_equipment窗口136项通过；build/checks/20260907T094059483-14000，规则1.46秒、窗口11.24秒。
 ### 2026-09-07 道具二级位置菜单与安装伤害被动
-
-最新用户修正：触发按卡牌实际伤害类型，不绑定固定牌名或普通行动模式。CardRules.damage_type 与 Tools.trigger_damage_types 分离方法与伤害；魔法滑脱属于滑脱。已安装切割不再生成主动 item_use，随身道具投影合法位置分组；共享接触助手按真实外露位置筛选，连接绳解析真实连接部位。安装工具在原牌伤害后提供固定值，次数、最强选择、多段逐工具一次、末次清理、读档和版本拒绝已接入。
-
-- 规则 core/equipment/rewards/persistence/wall/environment_height 及直接交叉套件2443项通过：build/checks/20260907T095803966-11644/check-rules.log。新installed_tools专项39项涵盖跨牌名／魔法伤害、零伤害、锁、免疫、原牌先解除、材质、姿态、位置、最强选择、多段换工具、末次清理及读档。
+安装工具在原牌伤害后提供固定值，次数、最强选择、多段逐工具一次、末次清理、读档和版本拒绝已接入。
+- 规则 core/equipment/rewards/persistence/wall/environment_height 及直接交叉套件2443项通过：build/checks/20260907T095803966-11644/check-rules.log。
 - 后续修正合法位置投影后，contact/installed_tools及直接交叉套件1404项通过：build/checks/20260907T100012925-33728/check-rules.log。
-- 最终窗口 installed_tools/wall/baseline/equipment_complete/events 共404项通过：同目录check-ui.log。原生位置点击、切割、安装、姿态、拖牌固定加成、连接绳／复合、牢房取回与开锁针均通过；检查ui-118-tool-position-menu、ui-119-installed-tool-passive、ui-120-card-tool-bonus截图。
+- 最终窗口 installed_tools/wall/baseline/equipment_complete/events 共404项通过：同目录check-ui.log。
 - 前轮 enemy_feedback/interface/rewards/persistence 窗口各38/256/27/44项无失败；该轮整体因旧交互测试与位置分组缺口失败，不能标记整轮通过。上述失败均由最终404项覆盖修复。
-- 没有修改压力来源或结算。并行内容加载器曾短暂缺文件导致编译失败，配套落盘后已重新验证；不删他人改动、不绕过错误门禁。
-
-最终截图验收补充：拖牌紧凑目标卡直接显示工具名称、另加固定切割和耗1次，不再仅在detail里说明。installed_tools窗口20项通过（build/checks/20260907T100240498-35644/check-ui.log），重新检查ui-120-card-tool-bonus截图。
-
+- 并行内容加载器曾短暂缺文件导致编译失败，配套落盘后已重新验证；不删他人改动、不绕过错误门禁。
+installed_tools窗口20项通过（build/checks/20260907T100240498-35644/check-ui.log），重新检查ui-120-card-tool-bonus截图。
 ### 2026-09-07 塔图连线与前进统一
-route_connection_reason统一真实出边及相邻层校验，出发、每次travel_step和行程验证共用。路径available复用目标进入资格；无连线分支仅显示具体原因。新增规则覆盖视图连线与候选一致、同层上方无连接、跨层／回头原子拒绝、途中边失效无资源变化、非法行程读档。tower及关联2297项通过（build/checks/20260907T100534533-48804/check-rules.log）；route窗口90项通过（build/checks/20260907T100619758-47992/check-ui.log），包括原生点击相邻无连线房间保持状态、显示具体原因，以及既有真实节点出发与逐回合抵达。
+新增规则覆盖视图连线与候选一致、同层上方无连接、跨层／回头原子拒绝、途中边失效无资源变化、非法行程读档。tower及关联2297项通过（build/checks/20260907T100534533-48804/check-rules.log）；route窗口90项通过（build/checks/20260907T100619758-47992/check-ui.log），包括原生点击相邻无连线房间保持状态、显示具体原因，以及既有真实节点出发与逐回合抵达。
 
 ## 2026-09-07 五类可加载内容包与普通单件三档边界
-
 域：`content/README.md`、`tools/check-content.ps1`。
-
-- 新增 content/templates 五种独立可校验 JSON，填写说明和 AI 交接要求在 content/README.md。content/packs 默认为空，仅有说明文件；不将示例自动投放。启动扫描固定排序，逐种严格字段/范围/引用检查，全批次成功后合入原静态注册表。正常塔路/敌人装备/事件/遗物奖励均使用原来源，特殊装备通过正式 special_install 事件取得。新增内容沿候选、事务、日志和存档验证生效。
-- 新增 tools/check-content.ps1 只读检查命令；5个模板独立及整批校验通过。主页提供加载数量、实际目录及可滚动错误详情；错误包全批次停用，保留内置定义。明确仅支持已有机制、重启新局启用、缺少引用拒绝读档，不提供旧包迁移或任意脚本执行。
-- content专项最终283项包含磁盘加载、启动一次性登记、错误批次拒绝、重复ID、所有模板根字段的错误类型、跨文件引用、正式塔路出现、新敌人实际行动、新拘束具真实解除、新遗物容量、事件支付和奖励、特殊装备触发/到期、版本拒绝与保存恢复。新增普通变体按基础模板识别原有肩部规则，不以新名称绕过资格。
-- 用户补充：全部三档紧度触发的额外添加机制仅普通单件适用。删除单手套套体三档补回肩带的旧分支及其“可加固补缺”资格。复合自带组件、左右独立耐久与交叉/滑脱数量规则保留。短/长单手套×两种肩带配置均验证一侧/两侧解除后不再生、存档不补回、三档不产生躯干固缚；普通单件正例仍通过。教程、规则与模板说明同步。
-- 接入批次 equipment/special_equipment/events/enemies/rewards/persistence/tower 及直接交叉4444项、home/events/special_equipment/enemies窗口130项通过：build/checks/20260907T100435633-46776。随后启动错误类型边界专项通过，初次发现 schema_version 数组类型比较会报引擎错误，已先类型检查后判定数值，全部错误类型用例重跑通过。
+- 新增 tools/check-content.ps1 只读检查命令；5个模板独立及整批校验通过。明确仅支持已有机制、重启新局启用、缺少引用拒绝读档，不提供旧包迁移或任意脚本执行。
+- content专项最终283项包含磁盘加载、启动一次性登记、错误批次拒绝、重复ID、所有模板根字段的错误类型、跨文件引用、正式塔路出现、新敌人实际行动、新拘束具真实解除、新遗物容量、事件支付和奖励、特殊装备触发/到期、版本拒绝与保存恢复。
+- 接入批次 equipment/special_equipment/events/enemies/rewards/persistence/tower 及直接交叉4444项、home/events/special_equipment/enemies窗口130项通过：build/checks/20260907T100435633-46776。
 - 最终普通单件/复合边界修改后 content/shoulder/composites 及直接交叉1090项、shoulder窗口19项通过：build/checks/20260907T101743186-31088。此前 content/shoulder/persistence及交叉1209项、special_equipment/home窗口73项通过：build/checks/20260907T101334565-48492。
 - 主页最终35项通过：build/checks/20260907T101125870-45416，已目视核对 ui-102-home.png、ui-124-content-error.png，错误正文可读且显示文件与问题，不写游戏状态或存档。
-- 事件原有开锁针案例补上已存在的到门位置夹具，保持正式开锁的距离限制，未开放远距离使用。没有复制第二个 Demo，没有发布或声称验证导出安装包。
 
 ## 2026-09-07 商店陈列重制与整件解除服务
-
 域：`ui/shop_screen.gd`、`core/room_services.gd`。
-
-- `ui/shop_screen.gd` 替换旧商店长列表，使用原生几何商人、棚檐、灯笼、双层货架与既有卡牌插图；售罄保留原位。解除、删牌、整理道具复用互斥二级面板，点击均提交既有候选ID与版本，商品及费用仍由规则层提供。
-- `core/room_services.gd` 按整件根投影服务清单。普通20魔力、完整复合加15、所处理部分有锁加10（一次）；先开锁再归零全部组成部分，复用正式事务回滚、徒手解除效果与既有清理。不修改玩家手部自由状态或姿态，不消耗能量、回合、预备层数、随机流，不触发挣扎遗物或施法返还。
-- 107项新服务断言覆盖普通及含锁报价、复合整件与独立外带、附带肩部／躯干连接／焦点清理、独立装备保留、链接依赖、外层阻挡、余额边界、重复服务、过期提交、最终校验失败回滚与存档恢复。服务不接入特殊部位装备列表。
+- 普通20魔力、完整复合加15、所处理部分有锁加10（一次）；先开锁再归零全部组成部分，复用正式事务回滚、徒手解除效果与既有清理。
+- 107项新服务断言覆盖普通及含锁报价、复合整件与独立外带、附带肩部／躯干连接／焦点清理、独立装备保留、链接依赖、外层阻挡、余额边界、重复服务、过期提交、最终校验失败回滚与存档恢复。
 - 最终 `services,composites,links` 与自动选中的交叉分类共1025项规则断言通过，`services` 原生界面39项通过；日志：`build/checks/20260907T110045362-44804/`。检查器同时核对引擎错误与退出码，没有将中途其他任务测试文件改写时出现的编译失败计为通过。
-- 原有服务UI用例同步当前装备卡的耐久／紧度标签与“查看详情”入口，继续真实点击徒手解除；没有通过隐藏控件信号绕过鼠标操作。
 - 已目视核对 `build/ui-97-shop.png`（售罄）、`build/ui-shop-release.png`（报价）、`build/ui-shop-low-mana.png`（余额不足）、`build/ui-shop-1280.png`（720p）。新商店支持原生购买、删牌、整件解除、空目标与离店；规则与教程同步，未发布或测试导出包。
 
 ## 2026-09-07 特殊设备与资源文案独立验收
-
 域：`core/content_catalog.gd`、`ui/main.gd`。
-
-- 只做验收与明显错误修复，未修改冻结的设备数值、容量或事件费用。修复 `core/content_catalog.gd` 特殊类型字段校验的一处多余缩进，以及 `ui/main.gd` 特殊部位说明、收押说明两处多余缩进。
 - 更新过期断言：房间来源使用实际源名与 room/equipment 依赖，不再要求中文名包含“房间”；设备练习下回合开始为8→16，只有当前回合型来源触发，不再沿用旧的两个来源20点预期。
-- 新增33种内置设备逐一工厂安装、验证、只读投影、候选及三种预览检查；可用挣扎牌实际提交，确认特殊目标不会读取普通装备模板而崩溃。两种无线设备分别覆盖大臂、手腕、手掌、手指阻止时原子拒绝；全部自由后一次移除、花费1能量且保留无关根。
-- 既有用例通过：容量与家族唯一、敏感度、耗尽后设备仍保留、复合真实覆盖、跨槽零容量装备，以及已安装环境白名单。新增事件断言检查裁缝调整和锁匠失败都把对应接触来源写入实际资源变化日志。
+- 两种无线设备分别覆盖大臂、手腕、手掌、手指阻止时原子拒绝；全部自由后一次移除、花费1能量且保留无关根。
+- 新增事件断言检查裁缝调整和锁匠失败都把对应接触来源写入实际资源变化日志。
 - `pressure,content,special_equipment,status` 及自动交叉共1386项通过：`build/checks/20260907T120320444-22160/check-rules.log`。界面 special_equipment 38项、status 32项在 `20260907T120525076-28908` 通过；该轮pressure发现旧预期后，修改并单独重跑47项通过：`20260907T120644104-2728/check-ui.log`。合计117项界面检查通过，未声称此前整轮失败日志为PASS。
-- `rg` 扫描 ui/core/data/content 的 `.gd` 与 `.json`，玩家侧旧词“压力／过载／威压／占位装备”无命中。后台稳定ID与测试名称保持原样。
+- `rg` 扫描 ui/core/data/content 的 `.gd` 与 `.json`，玩家侧旧词“压力／过载／威压／占位装备”无命中。
 
 ## 2026-09-07 主页读取商店存档中断修复
-
 域：存档、界面。
-
-用户启动日志证实：`SaveStore.summary` 缺少 shop 显示映射，读取真实商店存档时抛错，后续 summary.available 访问再次失败，主页只创建到内容包按钮。补全 shop/treasure 的存档摘要名称，集中为 PHASE_NAMES；未修改用户存档或游戏规则。
-
+用户启动日志证实：`SaveStore.summary` 缺少 shop 显示映射，读取真实商店存档时抛错，后续 summary.available 访问再次失败，主页只创建到内容包按钮。
 新增合法快照全部阶段均有摘要名称的契约断言；主页原生测试增加商店已购商品／宝箱分别保存→冷启动→全部主页按钮可见→继续游戏，验证金额、库存、已售状态和存档文件不被启动覆盖。home共63项通过：build/checks/20260907T121112739-33392/check-ui.log，截图build/ui-home-shop-save-fixed.png已目视核对。persistence及自动交叉1432项通过：build/checks/20260907T121153009-44544/check-rules.log。最后通过原启动器重新打开游戏，实际用户目录的启动日志不再报错。
-
-
 ### 2026-09-07 规则书 v0.12 整理
-
-文档批次，仅整理普通道具、安装被动和塔图前进。主规则第6章补当前工具数值、直接使用菜单、共享次数与后台三处安装点；第9.3节集中维护真实连线、分支限制、途中复核与读档；第15章修正地图纸面旧说明。内容生成指南补high_wall及伤害类别字段，未改运行时代码、数值或既有测试。核对依据为field_tools、installed_tools、contact及game的现行规则；实现验证沿用此前道具与塔路记录，本批只做文档结构及引用检查，不声称重新完成游戏回归。
-# 2026-09-07 口球组合替换
-
-验收补记：用户要求运行测试后，`-Suite equipment_complete,casting,enemies,guard,prison,persistence` 自动合并相关交叉分类，3298项断言全部通过；`-UIOnly -UISuite equipment_complete,casting,enemies,body_layout` 共139项窗口断言全部通过，两个最终进程均退出0且无引擎错误。修正了规则／窗口各一处旧施法夹具：高级口球现在带马具，零成功率案例改用独立手腕目标，避免先被口球结构限制拦截；保留零成功率不支付、不随机、不可提交及界面原因断言，不修改玩法。最终日志分别为 `build/checks/20260907T124423228-48500/check-rules.log` 与 `build/checks/20260907T124542306-51400/check-ui.log`。下段“未运行”是上一批提交时的历史记录，本次结果以本补记为准；非全项目回归。
-
-沿mouth_band原接口接入四种组合及固定等级，复用口部卡牌／徒手／上锁／施法和马具滑脱限制；停止独立马具新生成。练习、敌人预告、事件、教程与高安全等级显示同步。equipment_complete增加组合、单目标及存档断言，现有马具用例改为整件口球。按用户要求本批未运行测试，待equipment_complete／casting／enemies／guard／prison／persistence及相关窗口验收；不能据此标记验证通过。旧名称口部装备存档未做迁移，需重新开始。
-
+验收补记：用户要求运行测试后，`-Suite equipment_complete,casting,enemies,guard,prison,persistence` 自动合并相关交叉分类，3298项断言全部通过；`-UIOnly -UISuite equipment_complete,casting,enemies,body_layout` 共139项窗口断言全部通过，两个最终进程均退出0且无引擎错误。修正了规则／窗口各一处旧施法夹具：高级口球现在带马具，零成功率案例改用独立手腕目标，避免先被口球结构限制拦截；保留零成功率不支付、不随机、不可提交及界面原因断言，不修改玩法。最终日志分别为 `build/checks/20260907T124423228-48500/check-rules.log` 与 `build/checks/20260907T124542306-51400/check-ui.log`。
+equipment_complete增加组合、单目标及存档断言，现有马具用例改为整件口球。旧名称口部装备存档未做迁移，需重新开始。
 ### 2026-09-07 仅向下普通链接滑脱×1.25
-Links.slip_factor从有效普通同肢链接和真实两端部位派生，仅普通单件受益，多条不叠乘，有向上链接则无加成。共用escape_preview接入普通／魔法／移动被动，独立link_factor进入历史计算日志，拖牌卡直接标明已计入。新增方向反序、三姿态、普通与魔法、被动、挣扎不变、多下链、上下链、解除重算、三档免疫、读档、正式出牌及旧请求拒绝。规则与教程同步；未改变原blocked_slip方向限制、数值档位、固定切割或复合结构。links/slip_motion及关联981项通过；窗口slip_motion通过，日志build/checks/20260907T130658818-29604。
+新增方向反序、三姿态、普通与魔法、被动、挣扎不变、多下链、上下链、解除重算、三档免疫、读档、正式出牌及旧请求拒绝。links/slip_motion及关联981项通过；窗口slip_motion通过，日志build/checks/20260907T130658818-29604。
 
 ## 2026-09-07 结构审查六项修复与缓存清理限制
-
 域：`data/phases.gd`、`data/environments.gd`、`data/encyclopedia.gd`、`ui/encyclopedia.gd` 等。
-
-- 阶段定义归并至`data/phases.gd`，合法存档阶段、主页摘要和房间标题读取同一表。卡牌文案通过`Balance.card_info`读取基础伤害、段数、加成与实际魔力费用，不再匹配“消耗10魔力”替换整句话；实际费用保留统一两位小数显示。
-- 规则／窗口注册表只保存路径，选中后加载对应模块；检查进程默认180秒超时，可配置。`-VerifyRunner`额外验证挂起进程在1秒后终止，故意运行时报错不能得到PASS。仅处理检查启动的进程。
-- 删除无调用的`Contact.torso_reach`及旧`buffs/legacy`副本，现有UI和测试使用结构化`statuses`。保留被真实特殊装备投影调用的`equipment_entry`描述与电量显示。
-- 复合装备的候选和安装共用`Game._prepare_assembly`；准备函数只构造待安装组件并检查资格，不替换state、不推进编号或随机、不发事件。实际安装才提交。补充空闲／已有复合装备的预检与真实安装一致性、拒绝原子性及引用隔离验证。
-- 每份快照只生成一次特殊装备列表和压力投影，供身体区域、状态及资源显示复用。特殊装备安装及回合触发迁入Game的既有工厂／回合管线，数据文件不再执行这两类写入；内容模板文档与测试调用同步。
-- 二级信息面板只重建自身覆盖区域；打开、切换、关闭后主场景和手牌控件实例保持不变，候选按钮引用正确回收，遮罩不穿透。实际行动及存档状态变化仍沿既有完整刷新。
-- 完整试玩暴露牢房保留选牌期间没有探索候选时的空字典访问，已修复并显示先完成选牌提示。自动试玩改用可见地点的已探索状态、距离和交互类型选路，使用当前二级界面，不读取隐藏位置或改写规则。三条规则试玩分别249／246／300次正式行动完成；第三条实际入狱后逃离。折返符与塔顶点击测试按当前目标选择及连线限制核对。
-
-验证：
-
+- `-VerifyRunner`额外验证挂起进程在1秒后终止，故意运行时报错不能得到PASS。
+- 补充空闲／已有复合装备的预检与真实安装一致性、拒绝原子性及引用隔离验证。
 - `tools/check.ps1 -Suite runner -VerifyRunner`：规则范围合并及运行时错误／超时负例通过，记录`build/checks/20260907T125135306-49624/`。
 - `-Suite all`：全32个规则模块，7016条断言通过，记录`build/checks/20260907T130756551-21040/check-rules.log`。同批窗口全套检查发现上述特殊装备旧调用、牢房选牌空候选及两项旧UI路径断言，未将该批窗口记作PASS。
-- 最终受影响分类复验`-Suite status -UI -UISuite special_equipment,normal_play,prison,tower_progression`：178条规则断言、1166条窗口断言通过，无引擎错误，记录`build/checks/20260907T131306807-34444/`。其余完整窗口模块在上一批完成；导航专项额外验证主场景与手牌实例不重建。主页截图`build/ui-home-shop-save-fixed.png`可见全部入口并可继续商店进度。
-
-第七项开发产物清理未执行：删除`build/cutout-deps`、旧浏览器预览缓存与过期隔离测试存档的命令被自动审批以“blocked by policy”拒绝；没有提供更细原因。未改用其他删除手段，所有文件保留。已记录本机抠图依赖的确切版本及重建方法，源码／素材、用户存档和历史验收截图未删除。本次统计assets约36.93MiB、core/data/ui合计约0.54MiB；build约257.71MiB、.godot约27.33MiB，缓存不作为游戏源码体积。
-
+- 最终受影响分类复验`-Suite status -UI -UISuite special_equipment,normal_play,prison,tower_progression`：178条规则断言、1166条窗口断言通过，无引擎错误，记录`build/checks/20260907T131306807-34444/`。主页截图`build/ui-home-shop-save-fixed.png`可见全部入口并可继续商店进度。
+第七项开发产物清理未执行：删除`build/cutout-deps`、旧浏览器预览缓存与过期隔离测试存档的命令被自动审批以“blocked by policy”拒绝；没有提供更细原因。已记录本机抠图依赖的确切版本及重建方法，源码／素材、用户存档和历史验收截图未删除。本次统计assets约36.93MiB、core/data/ui合计约0.54MiB；build约257.71MiB、.godot约27.33MiB，缓存不作为游戏源码体积。
 ### 2026-09-07 一层怪物库、独立出场池与空强池
-新增enemy_library个体弱/强/精英分类与配置版本；first_floor_enemy_pools独立维护普通弱池、空强池、精英与固定塔顶。原配对遭遇定义保留供练习，不进入当前普通随机池。Game支持强池为空：不抽空数组、后续普通战斗继续弱池、房间说明明确显示；Snapshot允许空强选项，拒绝错误分类和空强选项被标为已选。旧POOLS为同一份数据的兼容属性，现有内容包保持单一写入源。规则enemies/tower/persistence及交叉3848项通过（build/checks/20260907T131649485-35144/check-rules.log），含后续普通战斗仍用弱池、独立池影响真实生成、只入库不生成、分类与原子读档。窗口route/services/enemies共165项通过（build/checks/20260907T131828188-30068/check-ui.log）。规则书、生成指南、模板和独立怪物库文档已同步。
-
-
+Game支持强池为空：不抽空数组、后续普通战斗继续弱池、房间说明明确显示；Snapshot允许空强选项，拒绝错误分类和空强选项被标为已选。规则enemies/tower/persistence及交叉3848项通过（build/checks/20260907T131649485-35144/check-rules.log），含后续普通战斗仍用弱池、独立池影响真实生成、只入库不生成、分类与原子读档。窗口route/services/enemies共165项通过（build/checks/20260907T131828188-30068/check-ui.log）。
 ### 2026-09-07 股绳作为链接端
-
-- 初／中／高级股绳使用已有物理编号，提供大腿上端／手腕下端；资格独立于普通占位查询，仅允许上述两个区域。股绳自身不应用普通单件的仅向下链接倍率。其他特殊装备、链接自身、同一对重复连接、伪造接触部位均拒绝。
-- 原安装工厂、入狱链接配额、接触检查、链接解除、根移除级联和存档恢复共用正式路径。股绳侧与普通部位侧投影同一链接；特殊区域单独显示链接，不增加装备计数／容量。教程同步说明方向。
+- 其他特殊装备、链接自身、同一对重复连接、伪造接触部位均拒绝。
 - `tools/check.ps1 -Suite links,special_equipment,guard,persistence`及关联分类：2743断言通过；记录`build/checks/20260907T133139270-3524/check-rules.log`。新增64条链接断言覆盖三级／三姿势方向、拒绝原子性、读档与损坏读档回滚、真实出牌移除股绳、清理与更换不重接、实际股绳接触解绳、入狱配额生成。
-- `tools/check.ps1 -UIOnly -UISuite special_equipment,equipment_complete,guard`：128断言通过；记录`build/checks/20260907T133302784-3728/check-ui.log`。新增窗口案例真实打开特殊部位详情、拖入链接目标出牌、检查共享耐久只扣一次及两个连接装备保留，再从大腿侧检查同一链接。无引擎错误。
-# 2026-09-07 皮革眼罩
-
-新增中／高级eye_leather，复用现有眼罩与皮革固定接口；悬浮眼罩抽取前过滤模板等级，通用选装与两项练习接入。equipment_complete既有全模板／全等级检查覆盖初级拒绝及中高级安装；enemies补充初级排除与中级生成断言。按用户要求未运行测试。
-
-
+- `tools/check.ps1 -UIOnly -UISuite special_equipment,equipment_complete,guard`：128断言通过；记录`build/checks/20260907T133302784-3728/check-ui.log`。
+equipment_complete既有全模板／全等级检查覆盖初级拒绝及中高级安装；enemies补充初级排除与中级生成断言。
 ### 2026-09-07 环境三类统一
-
-- `data/environments.gd`集中墙壁／尖锐／挂钩类别ID与名称；普通／粗糙墙面映射墙壁类，小石片／锯条声明尖锐类，休息区挂钩映射挂钩类。特殊装备原environments及内容包校验读取同一注册表。
-- 分类实际参与环境匹配，保留装备接受类别、具体工具白名单、安装处、贴墙、真实接触与剩余次数；不新增损伤／费用／解除候选或存档状态。工具详情、墙面状态、挂钩详情、教程及模板说明同步。
-- `tools/check.ps1 -Suite special_equipment,environment_height,content -UI -UISuite installed_tools,special_equipment,status`：858条规则断言、101条窗口断言通过，无引擎错误。记录`build/checks/20260907T134319573-48996/`。新增19条规则检查验证墙面映射、正式安装激活、随身／高度／次数／类别不符失效及只读显示；窗口检查携带／已安装尖锐类标签。
-- 首轮新增测试持有安装事务前的工具引用，导致四项负例没有改变提交后的实例；测试已改为正式提交后重新按ID查询，再完整复验上述分类。未修改接触规则以迎合测试。
-
-
+- `tools/check.ps1 -Suite special_equipment,environment_height,content -UI -UISuite installed_tools,special_equipment,status`：858条规则断言、101条窗口断言通过，无引擎错误。记录`build/checks/20260907T134319573-48996/`。
 ### 2026-09-07 特殊部位统一装备显示
-
-特殊部位按钮改为普通部位相同的名称＋实际件数，空位只显示名称，移除容量分数及专用位置提示。详情复用同一装备卡与真实子位置列表，跨子位置的同一装备按ID只显示一次；容量和接触事实仍保留在只读数据及规则中。链接的显示位置按两个真实接触区域展开，使股绳侧及普通部位侧在共用列表均可查看同一绳，不修改实际占位。
-
 验证：`tools/check.ps1 -Suite links,special_equipment -UI -UISuite special_equipment,body_layout,equipment_complete`通过1795条规则断言和141条窗口断言，无引擎错误。记录`build/checks/20260907T134715171-20776/`；覆盖件数／空位文字、无容量横幅、容量拒绝仍有效、子位置、股绳链接双侧显示与实际拖牌。此前窗口检查发现旧手部触及文案断言与股绳侧显示映射缺失，已按新共用布局更新并完整复验。
-
 ### 2026-09-08 配置驱动冗余清理
-
-- 卡牌自由／命中／降档／直接解除效果改为共享列表执行，实际数量及卡面说明共用配置；段数、保留与工具已触发数量校验读取规则字段。
 - 新增配置案例验证新ID三段开锁的一次支付与中途读档、保留3张后抽2、手牌属性加值进入／离开／恢复及负值下限、未知效果原子拒绝。新ID遗物验证数值、周期、返还、姿态候选与状态说明；内容包验证合法trigger及错误组合全批拒绝；新ID精英验证普通战斗计数。
 - 主关联门禁：tools/check.ps1 -Suite rewards,content,status,persistence,installed_tools,links,slip_motion,enemies,tower -UI -UISuite rewards,status,slip_motion。规则4979项、窗口73项通过，无引擎错误；目录 build/checks/20260907T143433363-31260/。
-- 最后补充手牌负加值不得产生负伤害的下限：tools/check.ps1 -Suite rewards,installed_tools,links,slip_motion，1718项通过，无引擎错误；目录 build/checks/20260907T143642448-33708/。下限只约束临时属性合计，环境加值仍走原位置。
-- 初次窗口回归发现末段开锁说明仍暗示后续段，已改为读取真实remaining并完整复验窗口。初次新遗物案例错误地忽略了下一次挣扎会消耗1层蓄力，已修正测试预期，保留原消耗规则。
+- 最后补充手牌负加值不得产生负伤害的下限：tools/check.ps1 -Suite rewards,installed_tools,links,slip_motion，1718项通过，无引擎错误；目录 build/checks/20260907T143642448-33708/。
 - 存档待发放记录由三项汇总改为按遗物ID记录效果；旧结构按项目不迁移旧版约定拒绝恢复，原存档文件不删除。当前结构的中途连续／保留恢复与损坏数据拒绝均已覆盖。
-
-
 ### 2026-09-08 首页图鉴与统一卡面
-
-- 首页增加图鉴入口，复用已有互斥抽屉、关闭与Escape路线。四类内容从现有注册表读取；拘束具按材料／复合／链接及品质筛选，特殊装备按部位与品质筛选，卡牌保留普通／魔法／诅咒分支，敌人按弱／强／精英与实际出场池展示。未实现敌人不加入运行池，空分支不虚构条目。
-- `data/encyclopedia.gd`生成独立只读展示数据，`ui/encyclopedia.gd`负责筛选与详情；不创建装备、推进随机或修改存档。卡组只读投影补充类型及永久牌UID，删除仍提交原正式候选。
-- 卡组、图鉴、教程、商店、删牌、保留选择、宝箱与战斗奖励统一复用手牌CardFace和卡牌说明。展示卡关闭战斗拖放及悬停位移，保留右键翻面，容器保持固定卡面尺寸。真实手牌拖放、奖励选择、购买与删牌费用不变。
-- 最终门禁：`tools/check.ps1 -Suite encyclopedia,content,rewards,services -UI -UISuite home,interface,services,rewards`：845项规则断言、411项窗口断言通过，无引擎错误。记录`build/checks/20260907T143816332-31200/`。覆盖注册内容完整性、只读与随机不变、主页打开／分类／搜索／诅咒分支、卡面翻转与尺寸、真实购买／删牌及原手牌拖放。
+- 最终门禁：`tools/check.ps1 -Suite encyclopedia,content,rewards,services -UI -UISuite home,interface,services,rewards`：845项规则断言、411项窗口断言通过，无引擎错误。记录`build/checks/20260907T143816332-31200/`。
 - 前一轮的casting窗口11项、normal_play窗口557项通过，seed7正常试玩通关；该轮唯一失败是并行规则批次正在修正的末段开锁提示，修正后已在上述最终门禁完整复验rewards窗口。当前批次未另改连续开锁规则。
 - 视觉检查：`build/ui-encyclopedia-curse.png`与`build/ui-97-shop.png`，卡面没有横向拉伸，商店商品与服务区均在视口内。
-
 ### 2026-09-08 慌乱与敏感
-
-- 慌乱替换旧不可打出／虚无定义：1费、消耗、无其他效果；可直接点击或拖到玩家。敏感注册为保留／不可打出，实际手牌的 `hand_modifiers.pleasure_multiplier` 进入统一快感增长入口，多张相乘，离开手牌立即停止。普通奖励池、初始牌组与事件池均未扩大；敏感供既有事件加牌接口引用。
-- `CARD_TRAITS`承担诅咒分类、打出消耗与固有保留；固有保留不占主动保留名额。单面卡、状态栏、装备刺激预览、机械增长日志、图鉴与对应教程说明同步，不依赖牌名或显示文字判规则。
 - `tools/check.ps1 -Suite curses`：35项通过，记录 `build/checks/20260907T145632721-45304/check-rules.log`。覆盖费用／版本拒绝不变、正式自身出牌、休息与双手受限、未打出正常弃置、消耗恢复、手牌倍率／多张／移出、固有保留、保存恢复后继续行动、降低量不变、阈值与连续来源、实际能量支付触发与非法倍率。
 - 首次窗口 `-UIOnly -UISuite rewards,home,casting,status`：161项通过、无引擎错误，记录 `build/checks/20260907T145422848-51836/`；含两张牌的真实鼠标点击、原生拖到玩家、不可打出／费用不足、单面、图鉴。视觉检查 `build/ui-curse-cards.png`，两牌完整可见，敏感效果未截断；卡图沿用现有共享资源，未制作新插图。
 - 扩展回归没有全绿，不能把本次专项通过写成全项目通过：`20260907T145300402-11296`的3204项中，自己的读档测试误在0快感请求深呼吸已修正；另一失败为高安全监室seed2的高级三档／锁校验。单独复现时仅有原始10牌、倍率1，进入监室事务被正确回滚，未修改该系统。
 - 后续共享目录出现新敌人配置变化，`20260907T145502330-17700`扩展回归有内容模板普通敌人行为断言、未观察文案及缺字段错误。`20260907T145632721-45304`的窗口161项断言执行完毕，但因教程读取新增 `special_install` 行为缺少显示映射而门禁失败；保留红灯记录，没有改动这些敌人／模板／教程行为映射或跳过错误检测。
 - 最终卡牌／施法／状态窗口专项 `-UIOnly -UISuite rewards,casting,status`：81项通过，无引擎错误，记录 `build/checks/20260907T145818726-26840/`。不包含上述仍红灯的主页教程流程，不宣称其问题已解决。
-
 ### 2026-09-08 通用多阶段事件接口
-
-- 外部事件新增`start_stage/stages/cleanup_effects`结构，阶段只向前推进；`outcomes`、`install_random`和`tighten_random`在进入阶段时沿event随机域冻结为普通具体效果。运行时继续走原事件候选、版本复核、原子提交、压力、卡牌和装备工厂，没有事件ID分支。
-- `hold_special/restore_held`按精准特殊部位暂存并原样归还无连接的既有性玩具；暂存实例及冻结选项进入快照校验。初始阶段必须提供默认付费离开，非法循环、缺收尾、专用脚本op与没有下一阶段合法行动的方案均失败关闭。
-- 最终联合门禁`tools/check.ps1 -Suite events -UI -UISuite events`：785项规则断言与30项窗口断言通过，无引擎错误，记录`build/checks/20260907T153255956-32932/`。规则范围覆盖event_flow、curses、content、shoulder、torso_binding、action_copy与既有events；窗口案例实际点击三阶段、提交批量效果、进入共享结果并在离场时恢复原实例。界面没有识别事件ID或添加专用按钮。
+- 初始阶段必须提供默认付费离开，非法循环、缺收尾、专用脚本op与没有下一阶段合法行动的方案均失败关闭。
+- 最终联合门禁`tools/check.ps1 -Suite events -UI -UISuite events`：785项规则断言与30项窗口断言通过，无引擎错误，记录`build/checks/20260907T153255956-32932/`。
 - 存档分类`tools/check.ps1 -Suite persistence`：1688项规则断言通过，无引擎错误，记录`build/checks/20260907T153348604-51680/check-rules.log`；覆盖暂存中、冻结下一阶段、恢复后继续、损坏去向拒绝和既有装备／链接／特殊装备存档回归。
 - 模板与嵌套字段补强后，`tools/check.ps1 -Suite event_flow`通过30项，记录`build/checks/20260907T153555866-39344/check-rules.log`；`tools/check.ps1 -Suite content`通过477项，记录`build/checks/20260907T153610071-24168/check-rules.log`。实际`.disabled`模板会按启用后的格式解析编译，错误的嵌套effects与未知专用op均整包拒绝。
-
-
 ### 2026-09-08 魅魔的三局赌牌
-
-- 新事件`succubus_three_games`已通过内容包进入正式事件池，并以`Practice_succubus_three_games`进入独立练习；练习与塔路共用同一事件定义、候选、版本复核和原子事务。
-- 新事件`succubus_magic_pawnshop`已通过内容包进入正式事件池，并以`Practice_succubus_magic_pawnshop`进入独立练习。普通事件新增通用`allow_refuse`与`hide_when_unavailable`字段：本事件不生成离开候选；固定的中级无线乳夹跳蛋与中级无线后庭跳蛋必须同时可安装，“再加点料”才出现并原子结算，否则仅保留小额与大额交易。
-- 第一局从当前非诅咒永久卡牌生成押牌项，胜率2/3；胜利保牌并加1枚心形筹码，失败把所选实例改为「慌乱」。第二局从当前真实拘束具生成押注，胜负各半；胜利解锁并松一档，失败进入“2件初级2档绳索／1件上锁中级2档皮带／2处收到3档”三选一。前两局结束均可按现有筹码兑现。
-- 第三局先以演出文字表现椅子机关；肉棒位置现有性玩具的取下与装回只属于封闭演出，真实实例、编号、位置和剩余次数从头到尾不变。正式快感接口造成至少一次高潮，失败再造成一次并随机安装一件当前合法的中级性玩具，无合法位置时加入「敏感」。射精文案明确魔力储存在精液中并随射出的精液流失。
-- 新增的`selector`、`transform_card/remove_card/ease_restraint`、事件`counter＋when`和`special_install_random＋fallback`均为内容通用接口，没有按事件ID分支；冻结选项、所选实例、事件计数与暂存装备均进入快照校验。
+- 第一局从当前非诅咒永久卡牌生成押牌项，胜率2/3；胜利保牌并加1枚心形筹码，失败把所选实例改为「慌乱」。第二局从当前真实拘束具生成押注，胜负各半；胜利解锁并松一档，失败进入“2件初级2档绳索／1件上锁中级2档皮带／2处收到3档”三选一。
+- 正式快感接口造成至少一次高潮，失败再造成一次并随机安装一件当前合法的中级性玩具，无合法位置时加入「敏感」。
 - `tools/check.ps1 -Suite events -UI -UISuite events`：810项关联规则与35项窗口断言通过，记录`build/checks/20260907T161237633-48164/`；实际从练习菜单打开第一局并截图`build/ui-53-succubus-three-games-practice.png`。`tools/check.ps1 -Suite persistence`：1717项关联规则断言通过，记录`build/checks/20260907T160414865-51280/`。
-
 ### 2026-09-08 六类弱怪替换与后台强度
-
-- 绳索、皮带、胶带、扎带、口球、玩具箱加入第一幕六个单怪弱遭遇；旧锁／眼罩／封口带个体与原弱池替换，强池保持空，精英不改。`strength=1`仅保留在个体定义及内容包验证中，不进入GameView、战斗、图鉴或教程，不缩放生命或装备数值。
-- 常规材质怪共用一套合法精准位置抽取与安装工厂，初级2档施加、同类加固／补施加、准备、中级2档附着离场。口球两次准备后按口部容量1附着。玩具箱使用同一特殊装备资格／工厂，准备、佩戴、停顿循环；准备冻结、打断延期、目标占用后失败不换抽，击败取消未执行计划。
-- 首页六类练习、图鉴、教程、意图词条、行动结果和共享arena外形同步。新胶带／扎带／箱子是代码绘制的简易外形；没有新增图像生成或改写人物素材。
+- 玩具箱使用同一特殊装备资格／工厂，准备、佩戴、停顿循环；准备冻结、打断延期、目标占用后失败不换抽，击败取消未执行计划。
 - 规则主回归 `tools/check.ps1 -Suite enemies,equipment,persistence,core`：4678项通过，记录 `build/checks/20260907T152308984-32628/check-rules.log`。包含64组材质怪完整循环、准备中存取及打断、随机池复现、失败目标、箱子多循环／满位／后手存取、已损坏保存原子拒绝，以及关联装备与移动测试。
-- 窗口最终回归 `tools/check.ps1 -UIOnly -UISuite baseline,enemy_feedback,enemies,home`：446项通过，无引擎错误，记录 `build/checks/20260907T152548122-45884/`。包括真实主页与练习导航、三阶段箱子操作、拖牌、敌方反馈和完整路线。已查看 `build/ui-weak-toybox-prepare.png`：生命条保留，后台强度没有显示。
+- 窗口最终回归 `tools/check.ps1 -UIOnly -UISuite baseline,enemy_feedback,enemies,home`：446项通过，无引擎错误，记录 `build/checks/20260907T152548122-45884/`。已查看 `build/ui-weak-toybox-prepare.png`：生命条保留，后台强度没有显示。
 - 内容与地图补充回归 `tools/check.ps1 -Suite content,tower -UI -UISuite route,intent`：2642项规则断言、104项窗口断言通过，无引擎错误，记录 `build/checks/20260907T152719392-5460/`。包含强度非法值拒绝、图鉴只读、六个弱遭遇生成与正式地图进入。
-- 初次回归的旧测试假定敌人总在手腕安装、最终三档、浮游锁存在、所有普通怪自行离场。已更新为当前真实规则：双目标拖牌采用明确手腕夹具；锁跨房保留采用已上锁脚踝；跨房随机腿部装备变化须逐条匹配正式被动滑脱日志。长路线测试只降低警卫与玩具箱夹具生命，仍通过正式攻击、奖励、整备和移动，不以此声称平衡验证完成。
 - 同批检查发现反馈测试直接伪造第三阶段意图而漏掉准备记录，已改由正式计划生成；并行事件工作期间的一处match分支缩进导致编译失败，仅修正该缩进，事件功能属于另一批任务。本页记录最终关联门禁通过，不宣称全项目全量回归。
-
-
 ### 2026-09-08 日常测试范围与随机样本优化
-
-- 审计发现模块已按原始请求单次合并去重，未重复执行同名套件；主要额外工作来自相同场景的大批种子（弱怪64组循环、口球16组、怪池24张、地图201张）及定向规则误带完整窗口。未删除定向行为、边界、非法输入、回滚、打断与存档用例，也未修改游戏代码。
-- `suite_selection.SEED_SETS`集中管理四组日常／完整种子。日常普通怪／口球4个（0、1、3、15，胶带眼／普通／嘴分支均覆盖）、怪池4个、空强池2个、地图7个；`-Exhaustive`恢复原16／24／12／201样本，`all`自动启用完整样本。完整模式断言与既有种子保持不变；日常地图多样性要求7个样本各不相同，完整仍要求超过20种。
-- 新增 `-ListOnly`使用同一个分类解析器列出每个模块的直接／交叉选入原因，窗口也使用自身注册表；不执行测试、不打印PASS。定向规则加-UI必须显式给-UISuite，防止默认完整窗口。原单次关联、去重、动态加载、独立日志、引擎报错与超时门禁保留。
+- 未删除定向行为、边界、非法输入、回滚、打断与存档用例，也未修改游戏代码。
+- 完整模式断言与既有种子保持不变；日常地图多样性要求7个样本各不相同，完整仍要求超过20种。
+- 新增 `-ListOnly`使用同一个分类解析器列出每个模块的直接／交叉选入原因，窗口也使用自身注册表；不执行测试、不打印PASS。原单次关联、去重、动态加载、独立日志、引擎报错与超时门禁保留。
 - 同范围实测 `-Suite runner,enemies,tower -Exhaustive -VerifyRunner`：4666项规则通过、20.33秒；故意运行时错误（规则／窗口）和挂起超时均被正确拒绝。目录 `build/checks/20260907T153538073-44828/`。
-- 同范围日常实测 `-Suite runner,enemies,tower -UI -UISuite intent`：1650项规则通过、8.11秒；真实窗口14项通过、4.51秒。目录 `build/checks/20260907T153707514-6180/`。本机该次规则耗时减少约60%，不是跨机器或所有模块的性能保证。
+- 目录 `build/checks/20260907T153707514-6180/`。
 - 18项runner断言检查完整原种子集合、日常非空唯一子集、返回值不可污染配置、原因和范围一致，以及既有去重／未知分类拒绝。首次日常样本遗漏胶带嘴部，原断言报错后将种子7换成3，保留原分支断言，完整矩阵未改。
-- 列表模式联合规则／窗口验证 `20260907T153749228-27296/`；all列表确认exhaustive且未执行测试 `20260907T153751769-27296/`；未知分类列表正确失败 `20260907T153752688-27296/`；未指定窗口模块的定向-UI在启动引擎前拒绝。本批未运行全项目all，仅验证它的完整选入与模式选择，不能将列表输出当作全量回归。
-- 后续日常按实际改动合并分类一次执行；只有生成器、随机域、出场池和新随机分支改动才对相关分类加-Exhaustive。规则通过后的纯显示修改只跑对应窗口；修复失败后不重复已经无关的完整流程。用耗时和关键行为衡量检查价值，不为凑断言数添加镜像测试。
-
+- 列表模式联合规则／窗口验证 `20260907T153749228-27296/`；all列表确认exhaustive且未执行测试 `20260907T153751769-27296/`；未知分类列表正确失败 `20260907T153752688-27296/`；未指定窗口模块的定向-UI在启动引擎前拒绝。
+- 规则通过后的纯显示修改只跑对应窗口；修复失败后不重复已经无关的完整流程。用耗时和关键行为衡量检查价值，不为凑断言数添加镜像测试。
 ### 2026-09-08 漂浮锁与弱怪强度组队
-
-- 漂浮锁加入弱怪与练习，后台强度1；仅按“预告行动→上锁”循环，不安装、加固或自行离场。练习提供两件真实可上锁装备，正式锁操作复用原目标资格与结算。战斗中无目标的专门行为仍待用户补充，暂沿用原通用空行动。
-- 普通弱战在实际进入战斗时，根据当前装备筛选并随机抽取到总强度2；当前全部强度1，因此每组两只，允许同类重复。嘴部已占用排除口球，没有未上锁且可上锁的真实拘束具排除锁；其余材质怪与玩具箱读取现有安装资格。严格筛选全空时，仅保留口球和锁的排除，放宽其他筛选。不会预先算入同组敌人未来安装的装备。
-- 地图生成只保存weak_group计划，首次入场冻结enemy_members；恢复与预览不重抽。固定练习／精英及原强池行为不变。强度只参与后台组队，不在界面显示，也不缩放生命或装备属性。文档、模板、教程与图鉴同步。
-- 扩展关联门禁 `tools/check.ps1 -Suite enemies,content,tower -Exhaustive -UI -UISuite enemies,home,route`：4855项规则通过（20.29秒）、240项窗口通过（18.68秒），记录 `build/checks/20260907T160338290-38284/`。覆盖循环、打断与准备存取、目标失效后重选、击败取消、资格筛选、预算恰好填满、同类重复、兜底与冻结恢复。
+- 扩展关联门禁 `tools/check.ps1 -Suite enemies,content,tower -Exhaustive -UI -UISuite enemies,home,route`：4855项规则通过（20.29秒）、240项窗口通过（18.68秒），记录 `build/checks/20260907T160338290-38284/`。
 - 补入正式地图点击进入新组合的原生窗口案例后，`tools/check.ps1 -Suite enemies -UI -UISuite enemies`：1285项规则通过（8.15秒）、73项窗口通过（9.86秒），记录 `build/checks/20260907T160513357-48276/`。已查看 `build/ui-weak-budget-group.png`：两只敌人分别显示生命与意图，无后台强度文字；漂浮锁窗口截图 `build/ui-floating-lock.png`。
-- 初次新增测试曾持有原子提交前的旧字典引用，现改为提交后重新读取正式状态；“无可上锁目标”夹具的嘴部装备也明确上锁，避免错误排除合法锁目标。并行事件修改期间仅修正共享文件中的缩进编译问题，未借此改写事件功能。以上为相关分类验证，不宣称全项目全量回归。
-
+- 以上为相关分类验证，不宣称全项目全量回归。
 ### 2026-09-08 卡组一览卡牌墙
-
-卡组一览改为1480×780宽屏面板和六列卡牌网格。每个永久卡牌uid各显示一张，默认按费用排序，可按名称／获得顺序排列，提供费用过滤、名称搜索、空结果提示、悬停放大及完整详情、右键翻面与Esc返回。使用现有CardFace和统一遮罩／关闭机制，无规则、数值或存档修改。
-
-验证：tools/check.ps1 -UIOnly -UISuite interface，315项窗口断言通过，无引擎错误，记录build/checks/20260907T162348165-48356/。32牌测试检查重复实体牌、费用顺序、末行可滚达、搜索11张同名牌、费用冲突空态、恢复获得顺序与完整游戏快照不变。截图build/ui-deck-gallery.png、ui-deck-gallery-bottom.png及正常卡组ui-72-unified-drawer.png，已查看整体网格。
-
-首次检查修正空搜索的字符串匹配；关联旧拖放案例不再固定姿态耗1费，而读取正式候选，双装备选择也不再依赖敌人的随机部位，改为明确同紧度手腕夹具。关闭后的正式攻击、姿态和卡牌拖放回归保留并通过。
-
-
+验证：tools/check.ps1 -UIOnly -UISuite interface，315项窗口断言通过，无引擎错误，记录build/checks/20260907T162348165-48356/。截图build/ui-deck-gallery.png、ui-deck-gallery-bottom.png及正常卡组ui-72-unified-drawer.png，已查看整体网格。
 ### 2026-09-08 三档添加优先级与敌方链接施加
-
-- 共用施加顺序收敛为空手腕、空嘴部／手指、其余全部合法追加三档。先按来源模板过滤，最高档随机选择；绳索初始／最终池含link_rope，链接固定第三档，真实两端不免费补装。候选、怪池资格、事件随机批量与警卫使用相同优先级；链接施加复用原工厂、公开准备、目标复核、存档和结果反馈。
-- `tools/check.ps1 -Suite installation_priority,enemies,equipment,links,guard,events,persistence -Exhaustive -UI -UISuite enemies,intent`：5211项规则、92项窗口通过，44.45秒／12.06秒，记录 `build/checks/20260907T163700707-49372/`。截图 `build/ui-enemy-link-intent.png`。这份结果对应用户追加区域内链接规则之前的版本，后续链接扩展另记验证。
-- 新测试最初误把手腕与手指当相邻，修正为真实手腕—手掌连接，不放宽生产规则。关联回归发现事件练习被旧目录测试当作休息流程，已按真实event声明验证；高安全监室升三档时新生成的可锁肩带漏锁，补齐生成后的锁状态，同一终局检查已通过。未运行全项目all。
-
+- `tools/check.ps1 -Suite installation_priority,enemies,equipment,links,guard,events,persistence -Exhaustive -UI -UISuite enemies,intent`：5211项规则、92项窗口通过，44.45秒／12.06秒，记录 `build/checks/20260907T163700707-49372/`。截图 `build/ui-enemy-link-intent.png`。
 ### 2026-09-08 精准部位串联与截图缩减
-
-- 同区域不同子部位可两两连接，跨区域仅连接相邻边界，股绳保留手腕／大腿根例外。链接不占普通容量，两件具体物理拘束之间最多一条；各方向上限为该区域对应方向剩余子部位数、至少1。复合组件按真实接触位置与物理ID共享额度，不按覆盖部位重复扩容，也不生成同一复合根的内部普通链接。
-- 链接工厂、候选、敌方准备与目标复核、环境接触、部位显示、滑脱和存档共同读取contact_points。旧的仅有粗分区域的链接快照拒绝恢复，Demo不增迁移层。
+- 旧的仅有粗分区域的链接快照拒绝恢复，Demo不增迁移层。
 - `tools/check.ps1 -Suite links,installation_priority -Exhaustive`：1138项关联规则通过，15.30秒，记录 `build/checks/20260907T164851760-49508/`；包括区域三角串联、双向额度、精确配对、复合组件、容量不变、非法操作回滚和存档拒绝。
-- 最终 `tools/check.ps1 -Suite enemies,guard,persistence,rewards,environment_height -Exhaustive -UI -UISuite enemies,equipment_complete`：4520项规则、113项窗口通过，41.71秒／10.47秒，记录 `build/checks/20260907T165716733-46740/`。前次运行唯一失败是警卫夹具把小臂默认位置当作手腕相邻边界，现明确使用小臂中部；保留实际新增链接断言，未放宽规则。窗口继续验证真实操作与结果，本批未运行全项目all。
-- 窗口默认跳过截图帧等待、图像读回、PNG写入及保存断言；只有 `-Screenshots <文件名>` 明确选择的画面才保存。本轮日志为 `UI SCREENSHOTS: none`，没有新截图，不把历史PNG当作本次视觉验收。README与项目工作约定已同步。
-
+- 最终 `tools/check.ps1 -Suite enemies,guard,persistence,rewards,environment_height -Exhaustive -UI -UISuite enemies,equipment_complete`：4520项规则、113项窗口通过，41.71秒／10.47秒，记录 `build/checks/20260907T165716733-46740/`。前次运行唯一失败是警卫夹具把小臂默认位置当作手腕相邻边界，现明确使用小臂中部；保留实际新增链接断言，未放宽规则。
+- 窗口默认跳过截图帧等待、图像读回、PNG写入及保存断言；只有 `-Screenshots <文件名>` 明确选择的画面才保存。
 ### 2026-09-08 清理内部流程文案
-
-删除卡牌自由面的“不判失败”说明，魔法牌自由面不再弹施法成功率；翻面立即隐藏旧浮窗，不依赖浮起后鼠标是否仍落在卡框内。卡面注释、教程、练习描述、存档提示、姿态／移动提示、收押／终局说明与连续行动结束日志删除内部流程、实现状态及无意义的“不变”声明。费用、实际效果、失败消耗、条件与具体不可用原因保留；未改战斗或施法规则。
-
+删除卡牌自由面的“不判失败”说明，魔法牌自由面不再弹施法成功率；翻面立即隐藏旧浮窗，不依赖浮起后鼠标是否仍落在卡框内。费用、实际效果、失败消耗、条件与具体不可用原因保留；未改战斗或施法规则。
 验证：tools/check.ps1 -UIOnly -UISuite casting,interface，317项窗口断言通过，无引擎错误，记录build/checks/20260907T165718286-49288/。既有付费牌成功率及失败原因可见，新增验证实际右键翻到自由面后浮窗消失，界面关闭后的正式交互仍通过。
-
-关联规则门禁tools/check.ps1 -Suite casting,wall,prison,rewards在build/checks/20260907T165545400-31636/记录2579项，其中三项整局路线失败：ROUTE persistent enemy still requires legal real attack、ROUTE long run completes with one reward per fight east、ROUTE no repeat rewards or rooms including summit。没有将该门禁标记通过，也没有为本次文案清理修改战斗或路线规则。其余所选专项通过。
-
+关联规则门禁tools/check.ps1 -Suite casting,wall,prison,rewards在build/checks/20260907T165545400-31636/记录2579项，其中三项整局路线失败：ROUTE persistent enemy still requires legal real attack、ROUTE long run completes with one reward per fight east、ROUTE no repeat rewards or rooms including summit。
 ### 2026-09-08 手牌上限10张
-
-Balance.HAND_LIMIT统一为10；正常回合、卡牌效果及遗物抽牌共用_draw的空位检查。9张抽4张只抽1张，满手不抽走牌、不重洗弃牌、不推进随机或抽牌序号；释放空位后可重新抽至10张。教程和满手日志同步。10张手牌存档可恢复，11张拒绝且原状态保持。
-
+10张手牌存档可恢复，11张拒绝且原状态保持。
 tools/check.ps1 -Suite rewards,persistence：2182项关联规则断言通过，无引擎错误，记录build/checks/20260907T172012331-18784/。
-
 ### 2026-09-08 资源飘字与遗物触发反馈
-
-core/resource_feedback.gd记录成功事务中魔力、能量及四种准备资源的前后值，Game在扣费、事件记录和提交结束捕获；失败不返回反馈，临时记录不进入存档。遗物按稳定元数据标记来源，战后恢复按实际持有遗物逐件记录并保留原上限。ui/resource_feedback.gd独立于重建的layout，用约1.15秒缓慢飘字和显示值插值按序播放；魔力两处表与能量数值联动。刷新／奖励阶段保留队列，重开／主页清除，玩家实际资源与判定不等待动画。
-
+core/resource_feedback.gd记录成功事务中魔力、能量及四种准备资源的前后值，Game在扣费、事件记录和提交结束捕获；失败不返回反馈，临时记录不进入存档。
 tools/check.ps1 -Suite rewards -UI -UISuite rewards：825项关联规则及36项窗口检查通过，build/checks/20260907T172612098-46612/。新增案例：最后一敌1生命、60魔力火球击杀，收据严格保留60→50→60，实际进入奖励阶段，失败行动没有收据。随后加入刷新保留队列和主页清理，tools/check.ps1 -UIOnly -UISuite rewards -Screenshots ui-resource-feedback-spend.png：38项窗口检查通过，build/checks/20260907T172713961-33280/。已查看build/ui-resource-feedback-spend.png，人物头上魔力−10与左侧中间数值同时可见；动画结束回到60/100，完整游戏快照保持不变。
-
 ### 2026-09-08 当前能量即时显示
-
-按用户修正从资源反馈字段移除energy，同时删除动画对EnergyValue的写入；当前能量只由正常render读取提交后数值。魔力、其他准备资源与遗物反馈保留。窗口新增验证：普通火球出手后能量立即为2，魔力动画仍在播放，能量不在待播或活动队列。
-
-
 ### 2026-09-08 一团绳死亡分裂与练习
-
-- `rope_mass`作为强怪个体加入运行库、图鉴及首页独立练习。暂定48生命、后台强度3，准备→中级2档绳索类施加→同类加固循环，链接沿共享候选和安装工厂。强怪池仍未组合，预算4仅预留。
-- 击败分支取消原计划，以共用敌人实例工厂生成两只完整生命的现有rope；来源与出现回合保存，新实例本回合不行动、下回合按原弱怪行为行动。死亡分裂与只击败一个子体均不提前发奖，全部敌人离场才结算一次。没有增加半血判定；按用户要求移除半血反例测试，保留实际死亡、重复提交、存档、先后手衔接与奖励风险案例。
-- `tools/check.ps1 -Suite enemies,persistence,rewards -Exhaustive -UI -UISuite enemies`：4238项关联规则、76项窗口断言通过，30.66秒／8.85秒，记录 `build/checks/20260908T024149991-31272/`。窗口从真实练习菜单进入、攻击击败本体、检查两只新敌人的候选及分裂结果。默认 `UI SCREENSHOTS: none`；没有截图，也未运行全项目all。
-- 首次联合检查发现新增分裂词条缺少教程标题映射，已补齐共享教程名称后完成上述门禁。规则与存档相关检查保留原子拒绝和随机复现；本次没有新建战斗流程、专用攻击接口或第二套装备生成器。
-
-
+- `tools/check.ps1 -Suite enemies,persistence,rewards -Exhaustive -UI -UISuite enemies`：4238项关联规则、76项窗口断言通过，30.66秒／8.85秒，记录 `build/checks/20260908T024149991-31272/`。
+- 规则与存档相关检查保留原子拒绝和随机复现；本次没有新建战斗流程、专用攻击接口或第二套装备生成器。
 ### 2026-09-08 无效与重复测试审计
-
 - 扫描规则／窗口测试中的已删除机制、静态目录断言、重复场景及图像读回，并与实际行为入口核对；只清理确认多余的案例，不将所有否定断言视为无用。
-- 一团绳：删除人为调用其不会生成的leave动作再检查不分裂的案例，删除预留强池常量与空池的重复断言。实际死亡分裂、重复提交、分裂来源／回合存档、先后手衔接和单次奖励保留。
-- 警卫：删除把stage从1改到12、反复确认已删除蓄力／抢先／压力行为不存在的循环；Guard.build实际不读取stage。删除对应旧第三阶段投影及隐藏文案检查。普通计划打断／恢复仍由正式动作验证；未知敌方行动的存档拒绝归入persistence现有损坏输入矩阵，不再绑定已删除guard_charge名。
-- 目录与重复运行：删除固定弱怪名单／退休ID存在性检查、固定八卡六遗物计数。奖励采样仍检查每个当前配置奖励均实际抽到；修改怪池返回副本仍检查注册表不变。空强池已有library_cases的真实地图检查，删除mouth_cases另造多张地图的重复段及未再使用的empty_strong_pool种子组；其他随机样本数量不变。
+- 一团绳：删除人为调用其不会生成的leave动作再检查不分裂的案例，删除预留强池常量与空池的重复断言。
+- 普通计划打断／恢复仍由正式动作验证；未知敌方行动的存档拒绝归入persistence现有损坏输入矩阵，不再绑定已删除guard_charge名。
 - 监狱：删除已废弃终局框架工厂的否定案例，以及Demo不要求的旧终局档缺字段兼容案例；当前真实终局装备、容量、完整记录及损坏记录拒绝保留。
-- 窗口：删除人物像素计数与地图单点颜色阈值检查，不再在默认窗口流程读取整张画面。实际纹理加载、透明通道、等比布局、落地线、地图命中区域、拖动与真实导航保留。完整画面读回现在仅在明确选择的capture路径执行。
-- 验证：`tools/check.ps1 -Suite enemies,guard,intent,rewards,persistence,prison,runner -UI -UISuite hero_art,route`通过3382项关联规则与100项窗口断言，33.10秒／8.06秒；记录`build/checks/20260908T025157394-1156/`，窗口`UI SCREENSHOTS: none`。本批只改测试与说明，未改游戏规则；没有全项目回归，也不把不同分类／采样范围的耗时当作前后提速对比。
-
+- 验证：`tools/check.ps1 -Suite enemies,guard,intent,rewards,persistence,prison,runner -UI -UISuite hero_art,route`通过3382项关联规则与100项窗口断言，33.10秒／8.06秒；记录`build/checks/20260908T025157394-1156/`，窗口`UI SCREENSHOTS: none`。
 ### 2026-09-08 环境真实加成与三类伤害公式
-
-粗糙墙面从基础属性乘区移到伤害结尾，预览分别保存scaled_damage和environment_true；卡牌说明分列原类型伤害与墙面真实伤害，Game._formula用于候选及日志。普通滑脱三档免疫时原伤害为0，但保留满足条件的墙面2点；完全不可损伤和方法阻挡不开放。切割及被动滑脱不加墙面伤害。状态不再把墙面加进力量／灵巧，环境说明、教程与规则书同步。
-
-新增案例覆盖双件堆叠且上锁时差值恒为2、魔法滑脱乘区、三档普通滑脱正式出牌10→8、躺姿／离墙／被动无加成、无挣扎路线目标仍0、切割固定值不追加墙面。旧状态预期改为人物基础属性；旧抽牌三档免疫案例明确普通墙面，避免依赖现已能造成真实伤害的粗糙墙面。
-
-tools/check.ps1 -Suite wall,hand_assist,slip_motion,installed_tools,rewards -UI -UISuite wall,hand_assist,slip_motion：2775项关联规则、69项窗口断言通过，无引擎错误；记录build/checks/20260908T031644221-25812/。本次为daily关联种子采样，非全种子穷举。
-
-
+tools/check.ps1 -Suite wall,hand_assist,slip_motion,installed_tools,rewards -UI -UISuite wall,hand_assist,slip_motion：2775项关联规则、69项窗口断言通过，无引擎错误；记录build/checks/20260908T031644221-25812/。
 ### 2026-09-08 一堆绳六次行动、来源效果与半血分裂
-
-- 新增rope_heap正式精英遭遇、独立练习、代码绘制轮廓与图鉴。回合开始增生读取存活来源，在抽牌前施加；成组施加／加固使用既有具体位置、容量、来源池和工厂。公开目标保存，失效目标才替换。第六次操作全身添加只使用普通绳索／细绳，随后按最大生命一半分裂。
-- 共享父子生成入口支持继承生命；受击后先判断死亡，再对配置了阈值的敌人判断半血。取消未执行计划与持续来源，新子体本回合不行动。既有rope_mass死亡分裂不变，全部子体离场只发一次奖励。保存校验覆盖分裂基数与实际子体上限。
-- 新案例覆盖来源生效时点与消失、公开两处目标不重复、目标解除后的替换、加固不足的补位、1档直接升3档、49点未触发／48点触发、47点子体向上取整、直接击杀跳过分裂、第六次完整正式回合路线、全身施加不生成链接、子体行动时机、后续死亡分裂与单次奖励、存档继续和损坏继承上限原子拒绝。循环场景沿用enemy_cycle的16个种子，不增加重复随机域。
-- 验证命令：`tools/check.ps1 -Suite enemies,status,persistence,tower -Exhaustive -UI -UISuite enemies`。6393项关联规则与82项窗口断言通过，无引擎错误；规则44.69秒，窗口9.05秒。记录`build/checks/20260908T033256238-3796/`。完成enemy_cycle 16、enemy_pool 24、tower_graph 201个既有样本；未运行全项目all。窗口从正式练习菜单进入、结束回合、攻击分裂并核对真实目标与状态，`UI SCREENSHOTS: none`。
-- 首轮检查修正图鉴格式串的百分号转义，以及加固夹具误用默认皮带的问题。关联链接检查仍把整段伤害乘1.25且假定三档最终伤害为0，与本日已完成的粗糙墙面真实加成变更冲突；调整其断言为乘区伤害×1.25＋不变的环境加成，三档只检查乘区免疫，未修改游戏伤害规则。
-
-- 最后复核小数生命：大子体完整继承47.5，小子体各向上取整为24；保存校验使用相同规则。`tools/check.ps1 -Suite enemies,persistence -Exhaustive`再次通过4305项关联规则，无引擎错误，37.39秒，记录`build/checks/20260908T033752874-12464/`。这是生命数值边界修正，未重复已通过的窗口与塔路检查。
-
-
+- 新案例覆盖来源生效时点与消失、公开两处目标不重复、目标解除后的替换、加固不足的补位、1档直接升3档、49点未触发／48点触发、47点子体向上取整、直接击杀跳过分裂、第六次完整正式回合路线、全身施加不生成链接、子体行动时机、后续死亡分裂与单次奖励、存档继续和损坏继承上限原子拒绝。
+- 验证命令：`tools/check.ps1 -Suite enemies,status,persistence,tower -Exhaustive -UI -UISuite enemies`。6393项关联规则与82项窗口断言通过，无引擎错误；规则44.69秒，窗口9.05秒。记录`build/checks/20260908T033256238-3796/`。
+- 关联链接检查仍把整段伤害乘1.25且假定三档最终伤害为0，与本日已完成的粗糙墙面真实加成变更冲突；调整其断言为乘区伤害×1.25＋不变的环境加成，三档只检查乘区免疫，未修改游戏伤害规则。
+- `tools/check.ps1 -Suite enemies,persistence -Exhaustive`再次通过4305项关联规则，无引擎错误，37.39秒，记录`build/checks/20260908T033752874-12464/`。
 ### 2026-09-08 一团／一堆皮带变体与分组权重
-
-- 从一团绳／一堆绳配置派生皮带变体，保留全部生命、强度、行动、分裂时机与继承计算；只替换材质池、名称、轮廓和同材质子体。图鉴、准备意图、增生状态及行动日志改为读取实际材质，练习入口共用循环注册。
-- 新增mass_family／heap_family遭遇组，通过variants声明二选一。精英池只保留guard_solo与heap_family两个条目；修复Tower.generate把精英固定写成列表第一项的实际出场错误。进入组遭遇时仅抽一次材质并写回原room_encounters，之后显示与恢复不再选皮肤；强怪组已登记但仍不加入待定的强怪组合池。
-- 验证复用已有enemy_pool 24个种子，检查两种组内皮肤均实际生成、每次仅一次encounter随机消耗、查看不修改状态；tower_graph 201种子检查真实精英房可生成警卫及一堆X，原相邻层、禁止连续精英等约束继续通过。定向案例验证皮带准备施加、增生、完整六次行动、自动分裂、47.5生命继承、后续子体死亡分裂和存档；没有再复制绳索版全部阈值测试。
-- `tools/check.ps1 -Suite enemies,tower,persistence,status -Exhaustive -UI -UISuite enemies`：6537项关联规则与90项窗口断言通过，无引擎错误，52.62秒／9.77秒。记录`build/checks/20260908T035052000-1236/`。窗口从真实练习菜单进入皮带变体并操作结束回合、击败与子怪生成，截图默认关闭，未运行全项目all。
-
+- `tools/check.ps1 -Suite enemies,tower,persistence,status -Exhaustive -UI -UISuite enemies`：6537项关联规则与90项窗口断言通过，无引擎错误，52.62秒／9.77秒。记录`build/checks/20260908T035052000-1236/`。
 ### 2026-09-08 负面效果意图图标
-
-怪物负面效果预告改为紫色旋涡与金色星点组成的眩晕图标，悬停／键盘聚焦使用统一信息浮窗，正文固定“敌人将要对你施加某种负面效果”。IntentView统一识别已存在的负面效果字段和嵌套operations；预告不再投影其原文、数值与次数。普通与警卫均读取同一debuff行，其他意图保持原入口，实际结算与状态栏未改动。
-
-tools/check.ps1 -Suite intent -UI -UISuite intent -Screenshots ui-debuff-intent.png：12项规则、18项窗口断言通过，无引擎错误；记录build/checks/20260908T040033203-30924/。覆盖只读显示、原文不泄露、组合行动单图标、实际悬停文案、蒙眼关闭图标与旧浮窗、普通无负面效果时无图标。截图build/ui-debuff-intent.png。
-
-
+tools/check.ps1 -Suite intent -UI -UISuite intent -Screenshots ui-debuff-intent.png：12项规则、18项窗口断言通过，无引擎错误；记录build/checks/20260908T040033203-30924/。截图build/ui-debuff-intent.png。
 ### 2026-09-08 离场清位与连续缩放
-
-仅修改战场渲染：过滤gone实例后按存活数量重新排列，4只起使用3/数量比例缩放整组信息和命中区域；统一底部对齐。名称选择改为查找组内控件，伤害飘字把缩放后的目标坐标转换到布局坐标。未删除敌人状态或改动分裂、继承、行动与奖励规则。
-
-沿既有enemies窗口案例实际攻击一堆绳分裂，再击败一团绳产生四只敌人，验证两个旧本体均无显示槽和目标。用正式实例工厂补入视觉夹具，检查4／5／6／7只逐步缩小、目标互不重叠且不越视口、名称保留、可正确选择末尾目标和渲染不改状态。复用targeting窗口覆盖原点击／拖放路线。
-
+未删除敌人状态或改动分裂、继承、行动与奖励规则。
 `tools/check.ps1 -UIOnly -UISuite enemies,targeting`通过168项窗口断言，无引擎错误，11.48秒；记录`build/checks/20260908T040214941-24212/`。无规则改动，未重复规则全量；未截图。
-
-2026-09-08 持续增生意图漏接修复：rope_heap／belt_heap 的 turn_install 接入通用 debuff 图标，隐藏增生预告详情，保留生效后状态栏详情和普通施加意图。intent 定向检查通过18项规则、21项UI（含真实一堆绳练习悬停）；日志 build/checks/20260908T040545279-41608。
-
-2026-09-08 怪物意图全图标：删除普通怪／警卫常驻文字框，统一IntentView.icons分类合并与intent_icon绘制，撤下debuff专用控件。拘束、负面效果、原地行动、加固、锁、收押、离场及特性图标共用悬停接口。20项规则、166项UI检查通过（intent/enemies）；检查目录20260908T040928700-24368，目视复核一堆绳及双警卫两张截图。行动资格、费用、执行与状态效果不变。
-
+intent 定向检查通过18项规则、21项UI（含真实一堆绳练习悬停）；日志 build/checks/20260908T040545279-41608。
+20项规则、166项UI检查通过（intent/enemies）；检查目录20260908T040928700-24368，目视复核一堆绳及双警卫两张截图。
 2026-09-08 蓄力悬停精简为单句‘敌人正在蓄力’，空标题不渲染；真实一团绳练习悬停断言全文并验证状态不变。intent通过20项规则、27项UI；build/checks/20260908T041353143-16452。
-
-2026-09-08 全部意图悬停精简：统一短句注册表，去掉原始意图文字、术语正文、目标与重复标题拼接，同类合并不再追加段落。覆盖全部18种意图映射及真实悬停、蒙眼、状态不变；38项规则、27项UI通过，build/checks/20260908T041507525-1768。
-
-2026-09-08 意图接口去冗余：删除旧行投影、长文拼接、public_plan和重复递归has_debuff；直接从真实行动生成去重图标，保留隐藏／离场／打断／新子体／分裂／时限。game_view移除旧intent/status/intent_rows输出，墙面投影只计算一次。相关旧测试改查图标和实际状态，教程术语保留。发现并修复存档测试辅助函数将正式Game恢复成固定位置夹具的问题，现保持输入脚本类型。定向规则3355项通过（build/checks/20260908T042256588-43924）；意图／敌人／压力UI207项通过（build/checks/20260908T042225099-30852）。无布局变动，未截图。
-
-
+覆盖全部18种意图映射及真实悬停、蒙眼、状态不变；38项规则、27项UI通过，build/checks/20260908T041507525-1768。
+定向规则3355项通过（build/checks/20260908T042256588-43924）；意图／敌人／压力UI207项通过（build/checks/20260908T042225099-30852）。无布局变动，未截图。
 ### 2026-09-08 强怪组合入场抽取
-
-新增mass_weak与four_weak两个强池条目，复用原弱怪预算抽取器（预算1／4）、家族材质二选一及敌人实例工厂。组合在实际入场时选择，排除last_strong_group后冻结；恢复同时校验成员预算和指定家族，不能用同强度的错误组合替换。图鉴来源与普通房间说明同步更新。
-
-定向样本检查两组、两种一团材质、七类弱怪与同种重复实际可达；验证前三次普通战斗阈值、组合不连续、装备资格过滤、只读预览、保存后经过休息的下一组一致，以及缺成员／错组合／坏历史的原子拒绝。初跑续抽案例误用了固定距墙的测试夹具，修正为正式Game恢复后复测通过；未修改正式距墙逻辑。
-
-`tools/check.ps1 -Suite enemies,tower,persistence -Exhaustive -UI -UISuite enemies,route`通过6707项关联规则、227项窗口断言，无引擎错误；35.35秒／12.97秒。记录`build/checks/20260908T042345240-1212/`。窗口复用现有地图进入、怪物行动、分裂与多人缩放验证；未新增截图、未运行全项目all。
-
-2026-09-08 悬停框宽度自适应：移除固定面板宽度，按标题／正文最长行的实际字体宽度决定内容宽，最大326后换行，保留内边距与屏幕边界定位。短句／长文／真实悬停UI29项通过（20260908T063221417-31116），已查看ui-intent-fit.png确认短句无大片空白。
-
-2026-09-08 铜锁状态图：增加共用矢量铜锁控件，按真实locked切换开闭环；普通卡面与事件装备选择接入，移除lock_text及摘要锁状态文字，新增lockable只读资格。2334项规则、131项装备／事件UI通过；闭锁截图已复核，开闭状态有控件断言。规则日志20260908T065153658-8568，最终UI日志20260908T065332348-16500。
-
-2026-09-08 铜锁三态补齐：不可上锁显示铜锁叠红X，装备卡和事件展示统一接线。真实链接绳验证不可上锁图标，装备／事件UI133项通过；已复核ui-equipment-lock-cross.png，日志20260908T065512453-18896。
-
+定向样本检查两组、两种一团材质、七类弱怪与同种重复实际可达；验证前三次普通战斗阈值、组合不连续、装备资格过滤、只读预览、保存后经过休息的下一组一致，以及缺成员／错组合／坏历史的原子拒绝。
+`tools/check.ps1 -Suite enemies,tower,persistence -Exhaustive -UI -UISuite enemies,route`通过6707项关联规则、227项窗口断言，无引擎错误；35.35秒／12.97秒。记录`build/checks/20260908T042345240-1212/`。
+短句／长文／真实悬停UI29项通过（20260908T063221417-31116），已查看ui-intent-fit.png确认短句无大片空白。
+2334项规则、131项装备／事件UI通过；闭锁截图已复核，开闭状态有控件断言。规则日志20260908T065153658-8568，最终UI日志20260908T065332348-16500。
+真实链接绳验证不可上锁图标，装备／事件UI133项通过；已复核ui-equipment-lock-cross.png，日志20260908T065512453-18896。
 ### 2026-09-08 人形强怪奴隶贩子
-
-- 新增生命40、后台强度2的人形强怪“被魔法控制的奴隶贩子”，进入图鉴与`trader_solo`固定练习，未加入第一幕弱／强／精英／塔顶池。使用现有敌人实例、行动阶段、施加、替换和警卫收押入口，没有新增第二套安装或入狱流程。
-- 正式序列为1／2／3／4开场，再重复1／3／4两轮，第11次实际行动收押。无力化持续一个玩家行动回合，禁用普通体术、强力体术与踢击，火球及卡牌魔法继续按原施法条件判断。准备就绪保存在敌人实例，可叠层；每件成功施加或替换消耗一层并把实际紧度固定为3档，失败或打断不消耗。动作3先使用旧层，再获得新层。
-- 施加范围使用显式普通模板白名单，布带眼罩、链接绳、复合装备及特殊装备不进入。动作4优先中级马具口球、皮革眼罩或胶带眼罩，两处无解才在同一中级普通白名单内改选。所有未指定目标都在出手时选择，容量已满时只凭人形权限调用现有替换事务。
-- `tools/check.ps1 -Suite trader -Exhaustive -UI -UISuite trader,enemies,intent,status`通过67项规则与283项窗口断言，记录`build/checks/20260908T095315890-42684/`。随后运行关联门禁`tools/check.ps1 -Suite application,replacement,guard,casting,status,persistence,content,enemies,intent -Exhaustive -UI -UISuite trader,enemies,intent,status`，6283项规则与283项窗口断言通过，无引擎错误，记录`build/checks/20260908T095413690-43436/`。本批无截图，也未运行全项目`all`。
-
-2026-09-08 火球术悬停成功率：固定魔法攻击按自身施法配置投影概率，按钮共用自适应短句提示。真实悬停验证正常／0%失效状态、状态不变。casting规则1724项、UI14项通过；build/checks/20260908T100422987-29816。
-
-2026-09-08 一键解除入口：部位按有效整件manual候选高亮，装备二级卡直接显示一键解除按钮及费用，复用原事务。实际口球用例验证高亮、直接可见、上锁／零能量禁用、真实点击移除并扣1能量、解除后撤销高亮。414项规则、60项装备UI通过；ui-quick-release.png已复核，日志20260908T101106828-11404。
-
-2026-09-08 卡牌动画：新增瞬时card_feedback顺序记录与持久CardMotion表现层，共用卡面；初始／普通抽牌飞入、出牌先抬起再归堆、弃牌飞向弃牌堆、消耗缩小暖色淡出、洗牌三张牌背回流、保留闪光、剩余手牌补位。记录不保存；无动画专用游戏状态／命令。规则覆盖同UID弃后重抽、顺序、真实张数、失败无回放、消耗和保留；UI覆盖实际结束回合、消耗牌真实点击、跨render、完成后状态不变、重开清理与拖牌。1800项规则通过（20260908T102041581-21528），73项rewards/targeting UI通过（20260908T102136977-34784）。已查看ui-card-transfers.png。
-
-2026-09-08 抽牌逐张落位修正：待到达手牌隐藏，抽牌堆逐张飞出，落位才显示可操作卡；重绘不提前露牌，后续动画保留未完成抽牌。新增初始全隐藏／重绘／部分已到达／全部到达及状态不变断言。rewards/targeting UI78项通过（20260908T102428663-14512），ui-sequential-deal.png已复核。
-
-2026-09-08 基础攻击双形态：肘击／近身短打新数值与逐击，双臂共系数、双腿资格、横扫全体且无冷却；右键无状态变更，禁用时可切换，拖放携带form。补充basic_attack_cases归core与basic_attacks UI。core/enemies扩展种子检查4081项通过（20260908T104531844-34408）；basic_attacks/targeting/guard UI85项通过（20260908T104514398-34088），最后按钮字号调整后basic_attacks UI17项通过（20260908T104705315-29836），截图已复核。日常种子首次检查中另一个任务的TIMING双分支覆盖断言失败，本次未改其生成器或采样，扩展16种子覆盖通过。
-
+- 准备就绪保存在敌人实例，可叠层；每件成功施加或替换消耗一层并把实际紧度固定为3档，失败或打断不消耗。
+- `tools/check.ps1 -Suite trader -Exhaustive -UI -UISuite trader,enemies,intent,status`通过67项规则与283项窗口断言，记录`build/checks/20260908T095315890-42684/`。随后运行关联门禁`tools/check.ps1 -Suite application,replacement,guard,casting,status,persistence,content,enemies,intent -Exhaustive -UI -UISuite trader,enemies,intent,status`，6283项规则与283项窗口断言通过，无引擎错误，记录`build/checks/20260908T095413690-43436/`。
+casting规则1724项、UI14项通过；build/checks/20260908T100422987-29816。
+414项规则、60项装备UI通过；ui-quick-release.png已复核，日志20260908T101106828-11404。
+规则覆盖同UID弃后重抽、顺序、真实张数、失败无回放、消耗和保留；UI覆盖实际结束回合、消耗牌真实点击、跨render、完成后状态不变、重开清理与拖牌。1800项规则通过（20260908T102041581-21528），73项rewards/targeting UI通过（20260908T102136977-34784）。
+新增初始全隐藏／重绘／部分已到达／全部到达及状态不变断言。rewards/targeting UI78项通过（20260908T102428663-14512），ui-sequential-deal.png已复核。
+core/enemies扩展种子检查4081项通过（20260908T104531844-34408）；basic_attacks/targeting/guard UI85项通过（20260908T104514398-34088），最后按钮字号调整后basic_attacks UI17项通过（20260908T104705315-29836），截图已复核。日常种子首次检查中另一个任务的TIMING双分支覆盖断言失败，本次未改其生成器或采样，扩展16种子覆盖通过。
 ### 2026-09-08：主角可添加／加固空间耗尽时结束战斗
-- 用户最终口径：主角身上必须仍有当前场上存活敌人能合法添加内容物的位置或能继续加固的拘束具，战斗才继续。当前意图不作判断依据。
-- Application.can_apply与choose共用_choice_bands；EnemyPlans.application_spec共用实际数量、准备层数与替换权限，can_affect_equipment检查来源安装、加固和上锁能力。Game在行动完成、入场、回合边界统一复核，空间耗尽按非击败离场结算一次奖励；清除持续施加层数，保留装备。快照修订号5，无旧档适配。
-- tests/battle_saturation_cases.gd纳入core，覆盖无随机副作用、仅加固继续、满位结束、锁来源权限、多敌／已离场来源、拒绝命令不结算、入场与一次奖励。旧敌人循环案例同步最新结束规则；enemies窗口增加锁完最后目标后实际领奖场景。
+- 当前意图不作判断依据。
+- tests/battle_saturation_cases.gd纳入core，覆盖无随机副作用、仅加固继续、满位结束、锁来源权限、多敌／已离场来源、拒绝命令不结算、入场与一次奖励。
 - 已通过：core,enemies完整随机矩阵4130项规则及enemies窗口157项，日志build/checks/20260908T111654874-34600。检查期间其余任务开始修改data/enemies.gd及first_floor_enemy_pools.gd，后续guard,persistence扩展运行受新怪物／遭遇池与旧断言未同步影响，并遇既有daily随机样本覆盖不足；该扩展运行整体失败，不记为绿色。其guard117、persistence386、prison242项本身无失败，完整失败记录build/checks/20260908T111815008-42024。
-- 警卫窗口补验：首次运行达到180秒上限（build/checks/20260908T112011433-26556），增大运行上限后实际42.05秒完成，43项通过（build/checks/20260908T112334248-31944）；没有跳过收押或改变测试断言。敌人和警卫窗口合计200项通过。并行任务已开始接入新增怪物的weighted_moves与本次结束判定，综合怪池回归仍以其收尾记录为准。
+- 警卫窗口补验：首次运行达到180秒上限（build/checks/20260908T112011433-26556），增大运行上限后实际42.05秒完成，43项通过（build/checks/20260908T112334248-31944）；没有跳过收押或改变测试断言。
 
 ## 2026-09-08 杂乱拘束具、材质归类与双池出场
-
 域：装备与解除、界面。
-
-已接入42生命、后台强度2的`mixed_bundle`：首招散缚，之后按25／30／45权重及连续次数上限选择散缚、翻卷收紧、躁动膨胀。实际执行后记录动作历史，打断保留原招；狂躁永久增加施加数量，翻卷在施加后共用原加固入口。普通绳索、细绳和链接绳保留物理模板，在普通施加合法优先带内共用材质抽取权重，再选位置和款式。
-
-弱怪预算2可抽到单只，强池新增`mixed_pair`两只组合；原`four_weak`明确限制单体强度1，`mass_weak`仍为3＋1。两种练习、独立目标、美术轮廓、狂躁状态与图鉴来源同步。内容包弱怪强度允许1或2；新加权行为只走内置配置，没有额外开放JSON行为编辑接口。快照修订号6，同版本保存动作历史、加成及固定成员，旧版不迁移。
-
-先以`-ListOnly`查看相关范围，再执行`tools/check.ps1 -Suite application,enemies,tower,persistence,content -Exhaustive -UI -UISuite enemies,intent -TimeoutSeconds 240`。最终规则7709项通过，113.15秒；窗口191项通过，约65.42秒。完整随机样本：enemy_cycle 16/16、enemy_pool 24/24、tower_graph 201/201。日志位于`build/checks/20260908T113748293-11680/`。交叉分类由现有注册表合并，包含同期加入的basic_attacks与battle_saturation；未运行all，无截图。
-
+先以`-ListOnly`查看相关范围，再执行`tools/check.ps1 -Suite application,enemies,tower,persistence,content -Exhaustive -UI -UISuite enemies,intent -TimeoutSeconds 240`。日志位于`build/checks/20260908T113748293-11680/`。
 中途失败已处理：旧地图案例将弱池预算2写死为两只，改为实际强度；新增混合敌人的数量案例把加固3档产生的附属肩部件当成新施加整件，改为统计装备根。保留实际动作、费用、状态、随机稳定与存档检查，没有修改游戏规则迎合旧断言。
 
 ## 2026-09-08 人形强怪多面手与性玩具随机池
-
 域：装备与解除、界面。
-
-新增44生命、后台强度2的人形强怪`versatile`。第1次行动发呆，此后循环“安装一件初级2档性玩具→控制拘束具”：形成控制意图时在当前可成立的随机上锁一件与随机加固至多两件到3档之间等概率选择；只有一类可成立时直接选择，两类都不成立时改为安装性玩具。控制分支形成后保持不变，具体目标在出手时随机选择；打断和同版本读档保留已公开分支，目标随后消失时按现有行动规则落空。
-
-`SpecialEquipment.RANDOM_POOLS`成为敌人共用的明确随机表。初级池排除全部飞机杯和外置震动棒；中级池加入中级外置震动棒，仍排除全部飞机杯。多面手与漂浮玩具箱读取同一初级池，明确指定装备的事件和练习仍可使用池外成品。多面手进入强怪分类、图鉴、代码绘制人形轮廓和独立练习；当前没有用户指定的强怪组合，因此未加入第一幕随机强怪池。快照修订号升至7，不迁移旧档。
-
-先以`tools/check.ps1 -Suite enemies,special_equipment,content,persistence -Exhaustive -UI -UISuite enemies,intent,special_equipment -ListOnly`确认分类范围。日常敌人抽样在`build/checks/20260908T120854523-31836/`通过2155项规则；四个日常种子继续覆盖既有材质、施加档位和多面手控制分支。最终`tools/check.ps1 -Suite enemies,special_equipment,content,persistence -Exhaustive -TimeoutSeconds 240`通过6140项关联规则，完整执行enemy_cycle 16/16及enemy_pool 24/24，日志`build/checks/20260908T121333584-12508/check-rules.log`。`tools/check.ps1 -UIOnly -UISuite enemies,intent,special_equipment -TimeoutSeconds 180`通过243项窗口断言，日志`build/checks/20260908T121538951-15488/check-ui.log`。没有运行全项目`all`，也没有生成截图。
+先以`tools/check.ps1 -Suite enemies,special_equipment,content,persistence -Exhaustive -UI -UISuite enemies,intent,special_equipment -ListOnly`确认分类范围。日常敌人抽样在`build/checks/20260908T120854523-31836/`通过2155项规则；四个日常种子继续覆盖既有材质、施加档位和多面手控制分支。最终`tools/check.ps1 -Suite enemies,special_equipment,content,persistence -Exhaustive -TimeoutSeconds 240`通过6140项关联规则，完整执行enemy_cycle 16/16及enemy_pool 24/24，日志`build/checks/20260908T121333584-12508/check-rules.log`。`tools/check.ps1 -UIOnly -UISuite enemies,intent,special_equipment -TimeoutSeconds 180`通过243项窗口断言，日志`build/checks/20260908T121538951-15488/check-ui.log`。
 
 ## 2026-09-08 警卫更名与现行行动核对
-
 域：契约 `game-design.md`。
-
-原精英警卫更名为魅魔警卫，敌人名称、单／双人练习、塔顶名称、地图提示、收押后重试、反抗入口与教程相关名称同步；图鉴和行动日志沿原敌人名称读取。内部guard及遭遇ID、70生命、行动概率、装备池、收押时机和存档结构保持原值。本批尚未进行行动重设。
-
-docs/game-design.md第8.2节根据现行Guard、EnemyPlans及装备执行代码重新整理：普通操作次数与类别在预告时确定，目标在出手时选择；失去目标时空过，不保留旧文档中“临时补施加／预先指定具体目标”的描述。普通与复合池各半、中级2档、逐档加固及第11回合准备／第12回合收押均由现行代码核对。
-
 先以-ListOnly确认范围，再执行tools/check.ps1 -UIOnly -UISuite guard,tower_progression -TimeoutSeconds 240：87项窗口检查通过，包含43项警卫与44项塔顶流程；无截图。日志build/checks/20260908T122539793-34732/check-ui.log。只调整原有文字断言，不新增镜像测试、不重复规则全量。
 
 ## 2026-09-09 魅魔警卫捕缚重制
-
 域：`tests/consumable_cases.gd`、`ui/main.gd`。
-
-本批以独立`guard_bind`状态替换旧十回合／双区域满级收押条件。魅魔警卫开场固定施加手腕、口部和脚踝三件中级2档装备，准备一回合后建立50/100捕缚；之后循环双普通施加、捕缚＋10、复合施加。复合方案在出手时再次复核，无法安装或替换便改为至多两次3档加固。捕缚降到0后立即把仍存活警卫的下一步切到重新准备；达到100后立即把下一次敌方行动切到收押，不先执行旧循环意图。双警卫共享一条不可叠加进度。
-
-`RuleChangePackage`覆盖如下：
-
-- 状态与数值：新增独立捕缚进度0—100、初始50、固定推进10、敌人`bind_ready/cycle_step`；捕缚期间上身严密度最低1。敌人生命、战后奖励、入狱安全等级和监狱追加装备数值未改。
-- 候选与事务：所有真实挣扎／滑脱伤害牌增加捕缚目标，牌面基础、属性和蓄力全额结算；仅剩眼罩／口球时×2，环境固定加成明确为0。姿态只允许躺→坐→站，每次成功切换＋10；成功消耗能量的行动在同一正式提交中随机刺激一个特殊部位。魔法牌仍先结算原成功率，失败照常支付且不造成捕缚伤害。
-- 回合与固定点：捕缚增减、高潮及动作支付后统一复核警卫下一意图；开场冻结计划和打断标记不被状态同步重建。每次高潮使捕缚＋10，达到100只安排下一次警卫行动，不在当前事务中直接入狱。
-- 事件、界面与文案：新增捕缚施加、推进、受击、解除及随机刺激的结构化日志；玩家立绘下方、魔力条下方显示可拖放的独立粉红进度条，状态栏说明限制。练习、教程书、敌人图鉴、意图短句、即时反馈与两份设计文档同步；删除旧收押时限、旧准备收押和旧警卫蓄力的可见术语／图标入口。
-- 存档、迁移与随机：快照修订号升至8，校验捕缚来源、范围、警卫阶段和独立`capture_bind`随机域；按Demo约定不迁移旧版本存档。
-- 交互轴：覆盖单／双警卫、先后手、打断、普通／复合／特殊装备、空位与替换、卡牌连续段、普通与魔法滑脱、能量支付、快感倍率与高潮、姿态、环境隔离、战斗胜负／入狱、保存恢复、教程／图鉴／日志。墙距、探索、商店、遗物、牌堆构成和敌人出场池没有规则变化。
-
-最终关联门禁：`tools/check.ps1 -Import -Suite guard,pressure,status,casting,encyclopedia -TimeoutSeconds 300`通过导入及3968项规则断言，日志`build/checks/20260908T141329334-45348/`；`tools/check.ps1 -UIOnly -UISuite guard,status,interface -TimeoutSeconds 240`通过369项窗口断言，日志`build/checks/20260908T141509758-30508/`。移动即时反馈框后再以真实卡牌拖放重验guard窗口21项并生成`build/ui-35-guard-bind.png`，日志`build/checks/20260908T141932867-31364/`。未运行全项目`all`。
-
+- 魔法牌仍先结算原成功率，失败照常支付且不造成捕缚伤害。
+最终关联门禁：`tools/check.ps1 -Import -Suite guard,pressure,status,casting,encyclopedia -TimeoutSeconds 300`通过导入及3968项规则断言，日志`build/checks/20260908T141329334-45348/`；`tools/check.ps1 -UIOnly -UISuite guard,status,interface -TimeoutSeconds 240`通过369项窗口断言，日志`build/checks/20260908T141509758-30508/`。移动即时反馈框后再以真实卡牌拖放重验guard窗口21项并生成`build/ui-35-guard-bind.png`，日志`build/checks/20260908T141932867-31364/`。
 清理最后一个旧警卫蓄力校验分支后，`tools/check.ps1 -Import -Suite guard -TimeoutSeconds 240`再次通过导入及918项关联断言，日志`build/checks/20260908T142315503-11744/`。
-
 ### 2026-09-09：一次性药剂／卷轴与战后道具池
-- 已实现：魔力、活力、蓄势药剂；应变、节魔、定咒卷轴。物品定义共用FieldTools注册表，6件均1次，原小石片3次／锯条2次保持。8件独立战后池等权；开锁针／折返符不混入。
-- 掉率依据：https://slaythespire.wiki.gg/wiki/Potions （Slay the Spire 1，2026-09-09核对）。40%起，掉落－10个百分点，未掉落＋10个百分点，0—100%；独立item_drop随机域。战斗结束事务唯一抽取并收入道具栏，奖励页显示，满容量不丢失且继续使用原整备整理；保存概率、随机进度与本次结果，不适配旧档。当前仅第一幕，新局初始化；未来新增幕时需显式重置，逃狱重建不是换幕。
 - 规则验证：tests/consumable_cases.gd覆盖全部6件效果、嘴部减半与4/5取整边界、自由脚趾使用、双手／双脚趾受限拒绝、10张手牌截断及动画回执、实际施法付费／定咒只消费一次、定咒保存与战后清除、0/100概率边界、重复结束和预览不重抽、超量仍获道具、跳过牌奖励仍保留、64种子覆盖8种掉落及损坏概率原子拒绝。纳入consumables交叉分类，与casting/rewards/persistence/guard共同运行完整随机矩阵，7037项通过：build/checks/20260908T143238031-38704。
 - 初次回归发现3项旧路线／牢房夹具只整理固定数量物品，新掉落后仍超量；已改为通过正式item_discard和finish_pack完整整理，未删除容量门禁或跳过正式行动。
-- 窗口验证：consumables,rewards 58项通过（build/checks/20260908T143219316-22020）；最后统一“定咒”到增益分类并补真实过滤入口，status,consumables 41项通过（build/checks/20260908T143534862-36988）。检查实际直接使用、消耗与恢复、禁用原因、增益显示、奖励页道具名及原卡牌／资源动画。截图build/ui-consumable-items.png和build/ui-item-drop-reward.png已目视核对；未进行全项目all回归。
-- 同批文案：更新动态道具效果／资格／类别、定咒状态与施法预览、掉落日志和奖励页、通用道具自言自语；规则书第6.2节、内容模板F1及AGENTS同步。现有商城／休息专用供应池未增加新物品，未擅自制定价格。
-
+- 窗口验证：consumables,rewards 58项通过（build/checks/20260908T143219316-22020）；最后统一“定咒”到增益分类并补真实过滤入口，status,consumables 41项通过（build/checks/20260908T143534862-36988）。截图build/ui-consumable-items.png和build/ui-item-drop-reward.png已目视核对；未进行全项目all回归。
 ### 2026-09-09：装备详情显示徒手解除不可用原因
-- 修复ui/main.gd装备小卡片将所有invalid徒手候选隐藏的问题。有效一键解除保持卡面直接入口；详情显示其余正式候选和具体禁用原因，不在UI自行判断或放宽套体、外层、锁、触及及费用规则。
-- equipment_complete窗口新增双单腿套叠穿案例：最外膝上带允许一键且大腿高亮、内层带显示外层覆盖、零能量显示缺1能量、已锁目标显示先开锁。65项窗口断言通过，build/checks/20260908T144656252-40552。
-- 第一次窗口运行遇到另一并行修改中的equipment_application.gd局部变量result未定义；该文件随后由原修改任务修正，本批未改其施加规则。重跑无引擎错误。
-- 只读核对当时practice存档：prison、3能量、双臂等级2、手腕受限；各单腿套外带实际徒手原因均为手腕未自由。存档时间不保证对应用户截图时刻，不据此覆盖截图描述。
+- 65项窗口断言通过，build/checks/20260908T144656252-40552。
 
 ## 2026-09-09 巡视补装、外层替换与逐次登记
-
 域：监狱与收押、检查与测试。
-
-违规检查以本次基准清单缺失N个真实普通装备／组件／链接编号为依据，名额N＋2，中级三档普通件。先正常补空位，满位明确授权Application／Replacement处理外层；使用处罚前等级、紧度、锁和链接代价，复合必须凑齐同时覆盖的完整强度方案。完成补装后收紧原有幸存装备、没收道具并恢复消耗牌。每次完整检查，包括无违规，都按最终实际目标重建基准并显示记录件数；旧缺失、替换移除和新附带结构不会循环增加当前名额。特殊部位装备本批不接入。
-
-复用既有施加和替换入口，在同一批次保护已安装对象，防止满位重复替换新件、虚报数量。比较值仍由Replacement单点维护，覆盖组合先用必要强度下界过滤显然不可能的候选，完整链接和原子安装继续交由原替换预演复核。无新增玩家命令、规则模块或长期保护状态。检查报告和结构化事件包含缺失、计划、实际、替下、丢失链接、没收、消耗牌恢复和重新登记数；教程、两份规则说明、README与AGENTS已同步。快照修订号按新检查规则更新，不迁移旧档。
-
-规则案例沿prison、application原分类补充：N＋2与安全等级解耦、实装中级三档、检查结果保存／恢复一致、跨检查不累计旧损失、满位只替换一次、不足覆盖保留复合、完整覆盖整组替换、肩带损失强度比较、附带结构和基准更新。窗口沿原prison入口真实点击检查与接受，核对新计划数、实际数和重新登记文案；不额外创建截图测试。
-
-最终先以ListOnly确认范围，执行tools/check.ps1 -Suite prison,application,replacement,persistence -TimeoutSeconds 240，23个相关规则模块共3801项通过，110.11秒。日志：build/checks/20260908T145601738-46092/check-rules.log。使用现有日常随机样本enemy_cycle 4/16、enemy_pool 4/24，未运行all或完整随机矩阵。窗口tools/check.ps1 -UIOnly -UISuite prison -TimeoutSeconds 180通过98项，日志：build/checks/20260908T145311038-46200/check-ui.log；没有生成截图。窗口检查后仅补充共享比较值的必要下界过滤和后续检查计数案例，最终规则覆盖这些收尾变更。
-
-首次关联回归中，监狱及替换规则均通过，旧塔顶路线案例因警卫更名后仍匹配“双警卫”、随机掉落后只丢固定一件物品而失败。已将前者对齐现有“双魅魔警卫”文案，后者通过正式放弃道具动作整理至实际容量以内；未改路线、掉落或容量规则。最终tower_progression分类123项通过。
+最终先以ListOnly确认范围，执行tools/check.ps1 -Suite prison,application,replacement,persistence -TimeoutSeconds 240，23个相关规则模块共3801项通过，110.11秒。日志：build/checks/20260908T145601738-46092/check-rules.log。窗口tools/check.ps1 -UIOnly -UISuite prison -TimeoutSeconds 180通过98项，日志：build/checks/20260908T145311038-46200/check-ui.log；没有生成截图。
+首次关联回归中，监狱及替换规则均通过，旧塔顶路线案例因警卫更名后仍匹配“双警卫”、随机掉落后只丢固定一件物品而失败。
 
 ## 2026-09-09 警戒度控制入狱与巡视装备规格
-
 域：监狱与收押、装备与解除。
-
-入狱追加、独立配额链接及巡视补装共同读取`PRISON_SECURITY`：1级初级二档、2级中级二档、3级中级三档、4级高级二档、5级高级三档。3级起显式声明定制复合池；单件／整套各计一个新装名额，真实组件仍逐件登记。普通和复合先查合法空位，均无空位才在获授权的巡视处罚中尝试替换；同一阶段两池都有合法方案时各占一半。工厂继续控制等级、容量、结构、初始肩带紧度及真实链接。原装备处罚收紧在补装之后，新件保持当前规格。
-
-复用Application的来源声明和批次保护，删除Guard旧install_options、pick_install、add_intake_equipment抽装路径。Prison只组合声明与显示文本，UI读取投影；无新玩家命令、安装工厂、持久化池或兼容迁移。收押界面、巡视报告、状态栏和数据生成的教程表同步，快照只支持新修订。警卫战斗的原意图规格、特殊部位装备和第五级终局规则不改。
-
-案例沿原application、prison、shoulder和窗口分类补充或调整：五档实际入狱等级／紧度与附件例外、1—2级禁用复合、3—4级真实巡视补装、混合池可达、跨池先填空位、不可用池退回合法池、新装整套计数与批次保护、组件清单刷新、只读投影、同版本读档随机复现。新混合池用例最初误用两个不能共存的单手套，已改为合法的手套与腿套组合；没有放宽实际装备规则。另修正旧压力练习在战后随机道具超过容量时未先整理的测试步骤，使用正式放弃道具操作，不修改掉落或容量。
-
-先ListOnly确认范围，执行`tools/check.ps1 -Suite prison,application,guard,pressure,status,persistence -TimeoutSeconds 300`：29个相关模块、4413项全部通过，用时90.94秒。日志：`build/checks/20260908T152306164-5972/check-rules.log`。使用现有日常随机样本，不运行all，不增加截图。
-
-窗口执行`tools/check.ps1 -UIOnly -UISuite prison,guard -TimeoutSeconds 240`，123项通过；日志：`build/checks/20260908T152948476-2104/check-ui.log`。核对真实收押、各级追加规格文字、检查计划／实际／重新登记、卡牌开门、道具逃离和第五级终局。首轮旧成功用例只解除嘴部而未明确保证手指手势，随机入狱的新装备分布使其条件不足；已将开门／折返符成功夹具明确准备为所需手指自由，保留真实抽牌、点击与提交，实际使用资格未改变。最后仅调整此窗口夹具和文档，规则实现保持4413项通过时版本。
+先ListOnly确认范围，执行`tools/check.ps1 -Suite prison,application,guard,pressure,status,persistence -TimeoutSeconds 300`：29个相关模块、4413项全部通过，用时90.94秒。日志：`build/checks/20260908T152306164-5972/check-rules.log`。
+窗口执行`tools/check.ps1 -UIOnly -UISuite prison,guard -TimeoutSeconds 240`，123项通过；日志：`build/checks/20260908T152948476-2104/check-ui.log`。
 
 ## 2026-09-09 魅魔事件立绘
-
 域：`tests/event_cases.gd`。
-
-仅新增事件只读id、显示映射和原图资源；不改候选、随机、费用或存档。事件窗口测试补充非目标事件保持占位、目标事件使用指定原图和等比显示，既有布局、选择器、真实选择、结果页和过期版本测试继续执行。先ListOnly确认范围，执行 tools/check.ps1 -UIOnly -UISuite events -Import -Screenshots ui-event-portrait.png，83项通过；日志 build/checks/20260908T150707928-29956/check-ui.log。已人工查看 build/ui-event-portrait.png，立绘完整且未遮挡文字和选项。
-
-关联规则分类先ListOnly后执行 tools/check.ps1 -Suite events，1139项中1137项通过。两项失败为 tests/event_cases.gd:21 对 ominous_circle、small_circle 的行为注册检查：现有数据使用 sequence，断言白名单未包含该行为，与此次立绘及id投影无关，未修改该并行工作。日志 build/checks/20260908T150740529-46304/check-rules.log。未运行全项目all。
+先ListOnly确认范围，执行 tools/check.ps1 -UIOnly -UISuite events -Import -Screenshots ui-event-portrait.png，83项通过；日志 build/checks/20260908T150707928-29956/check-ui.log。已人工查看 build/ui-event-portrait.png，立绘完整且未遮挡文字和选项。
+关联规则分类先ListOnly后执行 tools/check.ps1 -Suite events，1139项中1137项通过。两项失败为 tests/event_cases.gd:21 对 ominous_circle、small_circle 的行为注册检查：现有数据使用 sequence，断言白名单未包含该行为，与此次立绘及id投影无关，未修改该并行工作。日志 build/checks/20260908T150740529-46304/check-rules.log。
 
 ## 2026-09-09 入狱性玩具清单与巡视充电
-
 域：监狱与收押、装备与解除。
-
-每次真实收押在普通拘束具与链接之后，另通过现有`Application`请求安装2件当前警戒度等级的性玩具，并保存实际新增编号及完整特殊装备基准。监狱池与敌人／事件通用池分开：常规种类保留同等级股绳，警戒度3级起加入同等级飞机杯；多面手与漂浮玩具箱的原名单不变。特殊装备继续遵守既有精准容量、同族唯一、复合占位、品质比较和替换事务，没有新增监狱专用实例工厂或绕过容量的安装接口。
-
-巡视分别比较普通清单与性玩具清单。普通缺N件仍补N＋2件并在补装后收紧幸存原件；性玩具缺N件补N＋1件。任一类缺失都会没收全部道具，两份清单都齐全时仍只没收已安装工具。每次接受完整检查，无论是否缺件，最后都把所有`duration>0`的在身特殊装备恢复至类型声明的满电量；永久零电量装备保持0。处罚、恢复消耗牌、充电、重建两份实际清单与结构化日志在同一正式事务中完成。快照新增两份特殊装备清单字段并提升集中修订号，不迁移旧档。
-
-测试覆盖五档收押池、固定2件、股绳保留、3级飞机杯开关、缺1补2、现有空电池和新装电池在处罚末充满、零电量装备不被改写、无违规检查不虚增装备、清单刷新、同版本结果页恢复，以及收押／检查的玩家可见数量和规则说明。专项规则命令`tools/check.ps1 -Suite prison,special_equipment,application,replacement,persistence,status,guard`通过4450项，日志`build/checks/20260908T155415521-29956/check-rules.log`。窗口命令`tools/check.ps1 -UIOnly -UISuite prison,guard`通过132项，日志`build/checks/20260908T160210049-43636/check-ui.log`，未生成截图。
-
-教程书和规则文案同步后，再执行`tools/check.ps1 -Suite content,prison -TimeoutSeconds 240`，1714项通过，日志`build/checks/20260908T161201898-12836/check-rules.log`；执行`tools/check.ps1 -UIOnly -UISuite interface,prison -TimeoutSeconds 180`，433项通过，日志`build/checks/20260908T161255645-40184/check-ui.log`。均使用日常随机样本，没有运行完整随机矩阵。
+专项规则命令`tools/check.ps1 -Suite prison,special_equipment,application,replacement,persistence,status,guard`通过4450项，日志`build/checks/20260908T155415521-29956/check-rules.log`。窗口命令`tools/check.ps1 -UIOnly -UISuite prison,guard`通过132项，日志`build/checks/20260908T160210049-43636/check-ui.log`，未生成截图。
+教程书和规则文案同步后，再执行`tools/check.ps1 -Suite content,prison -TimeoutSeconds 240`，1714项通过，日志`build/checks/20260908T161201898-12836/check-rules.log`；执行`tools/check.ps1 -UIOnly -UISuite interface,prison -TimeoutSeconds 180`，433项通过，日志`build/checks/20260908T161255645-40184/check-ui.log`。
 
 ## 2026-09-09 普通魔法牌「激发魔力」
-
 域：压力与快感、界面。
-
-1能量、零魔力费用、消耗；两面均通过既有嘴部施法流程，成功恢复15魔力并限制于角色mana_max。只在SPECS、CARD_TRAITS、文案与COMMON登记，复用self_faces.mana_gain、正式出牌和消耗区；无新增结算接口或存档字段。普通奖励、商店和图鉴沿共用卡池纳入。
-
 `tools/check.ps1 -Suite rewards -UI -UISuite casting`通过2920项关联规则与45项窗口断言。新增验证双面、零魔力、上限、失败消耗、费用不足和过期版本回滚，以及真实点击恢复和卡面标签；日志：`build/checks/20260909T083002632-48588/`。
 
 ## 2026-09-09 魔法牌施法部位与自动选路
-
 域：压力与快感、装备与解除。
-
-`casting.parts`合并原魔法手势枚举与单值施法部位；嘴部保留口部装备概率，手部要求同一只手的手掌和手指均自由，无部位要求仅按快感基础概率。多路径自动选最高成功率，预览、卡面、悬停、卡牌正式提交、双重解锁和牢门共享同一判定。魔力转换两面加入施法成功／失败，通用`fixed_mana_cost`保持原固定兑换费用及不参与折扣／返还。定咒不绕过身体资格；免费准备面和火球术的原规则保留。集中快照修订已提升，不适配旧档。
-
-卡面和图鉴显示所需部位；悬停显示选中部位和实际概率。常驻概率标明嘴部，避免与手部／无部位的卡牌概率混淆。教程和规则文档同步。更新旧双手条件断言，路线测试的既有持久敌人助手补入无人机／拘束盒，仍提交真实攻击与奖励，不改运行时敌人规则。
-
+魔力转换两面加入施法成功／失败，通用`fixed_mana_cost`保持原固定兑换费用及不参与折扣／返还。
+更新旧双手条件断言，路线测试的既有持久敌人助手补入无人机／拘束盒，仍提交真实攻击与奖励，不改运行时敌人规则。
 覆盖单侧可用、跨左右手不能拼接、全部路径不可用的原子拒绝、最高概率与配置顺序、嘴部回退实际开锁及续段只付费一次、四张无部位牌的双面概率、固定兑换成功／失败与定咒、费用和随机数、复合手部装备、牢门、卡面显示及禁用原因适配。
-
-最终关联规则命令 `tools/check.ps1 -Suite casting,composites -TimeoutSeconds 300` 通过3407项断言，日志 `build/checks/20260909T103604371-2172/check-rules.log`。施法窗口分类通过52项断言，日志 `build/checks/20260909T103317166-13956/check-ui.log`；卡面条件、实际路径切换和带禁用原因的文字高度均已检查。使用日常种子范围，未运行全项目回归。
+最终关联规则命令 `tools/check.ps1 -Suite casting,composites -TimeoutSeconds 300` 通过3407项断言，日志 `build/checks/20260909T103604371-2172/check-rules.log`。施法窗口分类通过52项断言，日志 `build/checks/20260909T103317166-13956/check-ui.log`；卡面条件、实际路径切换和带禁用原因的文字高度均已检查。
 
 ## 2026-09-09 双手施法与稀有遗物「施法动作教程」
-
 域：压力与快感、卡牌与奖励。
-
-默认手部条件改为双手的手掌和手指全部自由。新增稀有遗物casting_manual，沿原TYPES／REWARDS、MODIFIER_LIMITS和RelicEffects.gain接入图鉴、奖励、商店、持有列表及恢复。single_hand_cast为正时放宽为任意一只完整自由手，不跨左右拼接；常驻读取真实持有遗物，无新状态或触发计数。
-
-Game.hand_cast_reason为卡牌手部路径、免费准备、牢门与火球术手势加成的唯一资格检查。火球术保留嘴部基础施法，手部不满足时使用基础威力；火焰精通禁用手势加成仍优先。工具握持、挣脱辅助、口部概率、最高路径选择及费用不变。快照集中修订已提升，不适配旧档。卡牌备注、教程、规则书、遗物表和内容包字段文档同步。
-
-测试覆盖默认双手、单侧包裹、取得教程后的实际开锁及火球术伤害、掌部受限、左右不能拼接、定咒交互、火焰精通优先级、正式遗物池抽取、同版本保存恢复、双侧复合装备以及界面取得遗物后的即时可用性与描述。掌部反例使用现有自动选层工厂，避免在复合包裹同层构造非法装备。
-
-最终命令：tools/check.ps1 -Suite casting,rewards,composites -UI -UISuite casting -TimeoutSeconds 300。通过5324项关联规则断言、57项施法窗口断言；日志：build/checks/20260909T104507074-45700/。使用日常种子范围，未运行全项目回归。
+最终命令：tools/check.ps1 -Suite casting,rewards,composites -UI -UISuite casting -TimeoutSeconds 300。通过5324项关联规则断言、57项施法窗口断言；日志：build/checks/20260909T104507074-45700/。
 
 ## 2026-09-09 塔顶首领六缚、收束与临时诅咒
-
 域：战斗与敌人、界面。
-
-第一幕塔顶固定遭遇改为单只六缚。新增六区开场和七步循环；调教升温冻结`1＋当前收束层数`的性玩具安装与加固次数，结算后收束＋1。性玩具满位沿现有人形替换事务处理，同族等品质允许替换，批次保护不允许同次行动反复换掉刚装件。终局忽略替换机会，只在普通／复合均无新增空位且没有加固目标时预告收押。临时诅咒玩弄／玩弄+以真实卡牌UID加入本场牌堆，留手回合末分别增加5／8快感，胜利或收押时从全部牌区清除。塔路、图鉴、教程、意图、行动反馈、首领绘制与出口文案同步；快照修订提升，不迁移旧档。
-
-首轮规则专项发现六缚测试保存了事务提交前的敌人字典引用，正式原子提交后断言仍在读取旧对象；塔顶资源断言也漏算休息作为特殊战斗结束时触发的余烬护符。修正测试引用与既有触发预期后，日常随机专项通过3024项。首轮联合窗口中首页和敌人模块通过，塔顶流程失败是通用快速通关夹具未识别`six_bind`为持续敌人；加入该类型后单独塔顶窗口42项通过，没有更改正式战斗。
-
-最终执行`tools/check.ps1 -Suite enemies,replacement,curses,tower_progression,persistence,content -Exhaustive -TimeoutSeconds 600`，自动合并29个相关规则模块，完整覆盖enemy_cycle 16／16和enemy_pool 24／24种子，共7180项断言通过；日志`build/checks/20260909T113052835-46276/`。窗口执行`tools/check.ps1 -UIOnly -UISuite tower_progression -TimeoutSeconds 300`，42项通过；日志`build/checks/20260909T112943100-8032/`。此前同一批联合窗口的home 80项与enemies 182项已通过。按截图精简要求未生成截图，也未运行无关的全项目all。
+首轮规则专项发现六缚测试保存了事务提交前的敌人字典引用，正式原子提交后断言仍在读取旧对象；塔顶资源断言也漏算休息作为特殊战斗结束时触发的余烬护符。首轮联合窗口中首页和敌人模块通过，塔顶流程失败是通用快速通关夹具未识别`six_bind`为持续敌人；加入该类型后单独塔顶窗口42项通过，没有更改正式战斗。
+最终执行`tools/check.ps1 -Suite enemies,replacement,curses,tower_progression,persistence,content -Exhaustive -TimeoutSeconds 600`，自动合并29个相关规则模块，完整覆盖enemy_cycle 16／16和enemy_pool 24／24种子，共7180项断言通过；日志`build/checks/20260909T113052835-46276/`。窗口执行`tools/check.ps1 -UIOnly -UISuite tower_progression -TimeoutSeconds 300`，42项通过；日志`build/checks/20260909T112943100-8032/`。按截图精简要求未生成截图，也未运行无关的全项目all。
 
 ## 2026-09-09 缚疗修女与普通单件佩戴正文
-
 域：事件、装备与解除。
-
-- 新增地图事件与练习“缚疗修女”：恢复20魔力并原子安装两件初级2档普通单件、射精一次后通过现有卡牌选择器移除一张真实永久卡牌，或无惩罚离开。
-- 事件效果新增通用`mana_gain`，恢复量受现有`mana_max`限制；`install_random.allow_links=false`复用Application并仅过滤链接结构，不建立事件专用安装器。
 - 多阶段起始页可用一个无条件、无效果、直达结果页的作者选项替代默认收费拒绝；没有这类安全出口时仍拒绝`allow_refuse=false`内容。
-- `Equipment.WEAR_TEXTS`集中维护眼部、口部、脖颈、上肢、下肢、脚掌与脚趾的普通单件佩戴正文，事件结果按冻结后的真实部位和具体装备名调用；脚掌不再显示为“足部”。
-- 事件注册新增通用`pool`资格，塔路只从显式合格列表抽取，外部事件默认仍可入池，也可用`pool:false`保留为练习内容。早期占位的裁缝与机械锁匠事件按最新要求连同直接定义、专属钥匙阶段、可见文案和专属回归一起移除。
-- 联合执行`tools/check.ps1 -Suite equipment,events,event_flow,content,tower -UI -UISuite events -TimeoutSeconds 600`：规则5578项、事件窗口77项通过，记录`build/checks/20260909T134124947-51860/`。另执行`tools/check.ps1 -Suite persistence -TimeoutSeconds 600`：关联规则4560项通过，记录`build/checks/20260909T134312208-30556/`。两次均未请求或生成截图。
+- 联合执行`tools/check.ps1 -Suite equipment,events,event_flow,content,tower -UI -UISuite events -TimeoutSeconds 600`：规则5578项、事件窗口77项通过，记录`build/checks/20260909T134124947-51860/`。另执行`tools/check.ps1 -Suite persistence -TimeoutSeconds 600`：关联规则4560项通过，记录`build/checks/20260909T134312208-30556/`。
 
 ## 2026-09-10 拘束具堆里的微光
-
 域：装备与解除、界面。
-
-- 新增正式地图事件与独立练习。被眼罩、口球及多层拘束具捕缚的扶她冒险者没有对白、示意或主动配合；正文只从主角观察与行动出发，也不重复强调全员成年这一既定背景。
-- 玩家尝试从其腰侧皮包取得遗物。第一次成功率25%，失败后逐次提高10%，第九次必定成功；每次尝试无论成败均冻结并原子新增一件初级2档普通单件，排除链接绳、复合与性玩具。装备来自周围数量充足的活化拘束具，不从被困者身上转移。
-- 每一阶段均可无代价离开并保留此前新增装备；没有合法单件位置时只保留离开。成功真实获得一件未持有随机遗物，失败进入下一阶段，结果继续复用真实装备名与身体部位佩戴正文。
-- 执行`tools/check.ps1 -Suite content,event_flow,events,tower -Exhaustive -UI -UISuite events -TimeoutSeconds 600`：完整随机矩阵规则7795项、事件窗口82项通过，记录`build/checks/20260909T141800897-51928/`。未请求或生成截图。
+- 第一次成功率25%，失败后逐次提高10%，第九次必定成功；每次尝试无论成败均冻结并原子新增一件初级2档普通单件，排除链接绳、复合与性玩具。
+- 成功真实获得一件未持有随机遗物，失败进入下一阶段，结果继续复用真实装备名与身体部位佩戴正文。
+- 执行`tools/check.ps1 -Suite content,event_flow,events,tower -Exhaustive -UI -UISuite events -TimeoutSeconds 600`：完整随机矩阵规则7795项、事件窗口82项通过，记录`build/checks/20260909T141800897-51928/`。
 
 ## 2026-09-10 魅纹师的空房、淫纹与针匣
-
 域：事件、界面。
-
-- 新增正式地图事件和练习“魅纹师的空房”。【回火】在通用二级选择窗口中选满两件普通拘束具后原子解除；任一冻结实例在提交前失效则整项拒绝，不会只解除另一件。【翻查】获得指定事件稀有遗物“魅纹师的针匣”与永久诅咒“淫纹”；【离开】不改变角色状态。可选拘束具不足两件或已经持有针匣时，隐藏无法完整执行的对应选项。
-- 普通事件选择器新增通用`count=1—4`及拘束具`include_special`过滤，冻结状态、只读投影、快照和事件窗口均支持多目标数组；新增通用`remove_restraints`效果，先复核全部目标再统一解除。事件界面仍只显示少量主选项，多目标选择留在二级窗口，没有事件专用命令、判断或随机域。
-- 淫纹不可打出且不自带保留；只在实际手牌中生效。每次正式行动实际花费至少1能量且成功提交后，每张淫纹追加4快感；一次行动无论花费几点只触发一次，零费、拒绝与事务回滚均不触发，多张相加并继续经过敏感倍率。针匣为稀有、事件限定遗物，不进入通用奖励池；战斗、牢房、休息与整备的每个玩家回合开始统一额外抽1张牌。
-- 联合门禁`tools/check.ps1 -Suite persistence -TimeoutSeconds 300`自动覆盖22个相关规则模块，4752项通过，记录`build/checks/20260909T153818833-54760/`；`tools/check.ps1 -Suite events,status,tower -TimeoutSeconds 300`自动覆盖20个相关模块，4038项通过，记录`build/checks/20260909T154033488-51848/`。事件窗口`tools/check.ps1 -UIOnly -UISuite events -TimeoutSeconds 240`通过91项，记录`build/checks/20260909T153140710-9744/`。均使用日常随机样本，未运行全项目回归，也未请求或生成截图。
-- 关联回归暴露并修正两处既有测试／校验脆弱点：候选列表不再以数组首项猜事件或连续行动，改按结构化类型筛选；未领取的冻结战斗遗物可正常保存，领取后才要求出现在持有列表。新增未领取遗物的存档往返案例。
+- 【回火】在通用二级选择窗口中选满两件普通拘束具后原子解除；任一冻结实例在提交前失效则整项拒绝，不会只解除另一件。
+- 每次正式行动实际花费至少1能量且成功提交后，每张淫纹追加4快感；一次行动无论花费几点只触发一次，零费、拒绝与事务回滚均不触发，多张相加并继续经过敏感倍率。
+- 联合门禁`tools/check.ps1 -Suite persistence -TimeoutSeconds 300`自动覆盖22个相关规则模块，4752项通过，记录`build/checks/20260909T153818833-54760/`；`tools/check.ps1 -Suite events,status,tower -TimeoutSeconds 300`自动覆盖20个相关模块，4038项通过，记录`build/checks/20260909T154033488-51848/`。事件窗口`tools/check.ps1 -UIOnly -UISuite events -TimeoutSeconds 240`通过91项，记录`build/checks/20260909T153140710-9744/`。
 
 ## 2026-09-10 漂浮皮带群与事件战斗返回
-
 域：事件、战斗与敌人。
-
-2026-09-11修订：下列首版记录中的“无整备”已被最新要求替代。事件战斗胜利仍先返回指定结果、发放指定奖励；结果按钮改为“开始整备”，显示当前整备回合数。通过原leave候选完成事件收尾后，消费prepare_pending并进入共用整备，基础3回合及沙漏等修正均生效。非战斗事件仍直接结束。
-
-新增事件流程案例覆盖默认／沙漏回合数、开场抽牌／能量／遗物与蓄力来源、结果与整备起点快照、损坏标记和过期提交拒绝、自然完成／提前结束及奖励不重复。event_flow/rewards关联18类规则6173项通过（build/checks/20260910T162934759-66092/check-rules.log）。窗口先修正测试中的横扫右键切换步骤，最终events完整窗口170项通过，无引擎错误（build/checks/20260910T163316133-66204/）；验证正式战斗结果、按钮文案、整备手牌／结束回合及提前结束。不涉及布局美术，本批无截图。
-
-- 新增正式地图事件和练习“漂浮皮带群”，且不提供离开选项。【硬闯】进入三只初级漂浮皮带组成的指定战斗，必须全部击败；胜利后直接返回事件成功结果并获得稀有事件遗物“软化扣环”，不生成普通卡牌、道具或遗物奖励，也不进入战后整备。【接受灌注】恢复角色25魔力但不超过上限，并获得永久诅咒“淫纹”；皮带临时束缚只属于本段演出，结束后不新增拘束具。
-- 普通事件选择新增通用`encounter`声明，保存遭遇、必须击败、胜利效果、胜利正文与结果状态。运行时通过`room_event.battle`冻结返回信息，完整复用正式敌人实例、卡牌行动、回合结算与战斗遗物生命周期；胜利效果再次复核后原子提交。界面只按正式阶段切换事件页与战斗页，没有事件ID专用分支。
-- “软化扣环”不进入普通遗物奖励池；持有后，上锁拘束具受到的力量挣扎伤害倍率由0.5提高至0.75，滑脱与开锁不变。事件战斗计入遭遇与胜利数量；`requires_defeat=true`时，装备空间耗尽不能替代击败敌人。
-- 先后执行事件流程专项、内容／事件／塔专项及事件窗口专项：234项、3706项和105项全部通过，记录分别为`build/checks/20260909T161941804-41816/`、`build/checks/20260909T162005277-51656/`、`build/checks/20260909T162117909-16260/`。最终执行`tools/check.ps1 -Suite content,events,event_flow,tower,rewards,equipment -TimeoutSeconds 300`，自动覆盖30个相关规则模块，共6026项通过，记录`build/checks/20260909T162320276-38960/`。均使用日常随机样本，未运行全项目回归，也未请求或生成截图。
+新增事件流程案例覆盖默认／沙漏回合数、开场抽牌／能量／遗物与蓄力来源、结果与整备起点快照、损坏标记和过期提交拒绝、自然完成／提前结束及奖励不重复。event_flow/rewards关联18类规则6173项通过（build/checks/20260910T162934759-66092/check-rules.log）。窗口先修正测试中的横扫右键切换步骤，最终events完整窗口170项通过，无引擎错误（build/checks/20260910T163316133-66204/）；验证正式战斗结果、按钮文案、整备手牌／结束回合及提前结束。
+- 先后执行事件流程专项、内容／事件／塔专项及事件窗口专项：234项、3706项和105项全部通过，记录分别为`build/checks/20260909T161941804-41816/`、`build/checks/20260909T162005277-51656/`、`build/checks/20260909T162117909-16260/`。最终执行`tools/check.ps1 -Suite content,events,event_flow,tower,rewards,equipment -TimeoutSeconds 300`，自动覆盖30个相关规则模块，共6026项通过，记录`build/checks/20260909T162320276-38960/`。
 
 ## 2026-09-10 女药师的试饮摊
-
 域：事件、装备与解除。
-
-- 新增正式地图事件与独立练习“女药师的试饮摊”，且不提供额外离开项。原参考事件中的香蕉、甜甜圈和盒子不进入成品正文，三项改为塔民女药师售卖的魔力补剂、解缚溶剂与魅魔特调。
-- 【魔力补剂】沿通用`mana_gain`恢复角色25魔力且不超过上限。【解缚溶剂】通过共享二级拘束具窗口选择一件普通拘束具并完全解除，没有目标时不显示。【魅魔特调】正文明确喝下粉色媚药，沿普通事件遗物池获得一件进入事件时已经冻结的随机遗物，同时用通用`card`效果获得永久诅咒“敏感”；遗物池用尽时隐藏完整选项。
 - `remove_restraints`仍是唯一完全解除事务；本批只把单选冻结结果规范成单元素目标数组，使其与2—4件多选继续共用逐目标复核、原子提交和失败回滚，没有增加事件专用拆除、遗物或诅咒分支。
-- 事件流程专项`tools/check.ps1 -Suite event_flow -TimeoutSeconds 300`通过242项，记录`build/checks/20260909T163629028-33576/`。事件窗口专项`tools/check.ps1 -UIOnly -UISuite events -TimeoutSeconds 240`通过120项，记录`build/checks/20260909T163638824-38624/`。最终合并门禁`tools/check.ps1 -Suite content,events,event_flow,tower,rewards,equipment -TimeoutSeconds 300`覆盖30个相关规则模块，共6038项通过，记录`build/checks/20260909T163719327-36956/`。均使用日常随机样本，未运行全项目回归，也未请求或生成截图。
+- 事件流程专项`tools/check.ps1 -Suite event_flow -TimeoutSeconds 300`通过242项，记录`build/checks/20260909T163629028-33576/`。事件窗口专项`tools/check.ps1 -UIOnly -UISuite events -TimeoutSeconds 240`通过120项，记录`build/checks/20260909T163638824-38624/`。最终合并门禁`tools/check.ps1 -Suite content,events,event_flow,tower,rewards,equipment -TimeoutSeconds 300`覆盖30个相关规则模块，共6038项通过，记录`build/checks/20260909T163719327-36956/`。
 
 ## 2026-09-10 废弃储物室与通用事件道具奖励
-
 域：事件、卡牌与奖励。
-
-- 新增正式地图事件和练习“废弃储物室”。事件为纯探索补给，不含拘束或性描写；搜索时分别从三种药剂、三种卷轴和两种普通工具中冻结一件，结果恰好为药剂、卷轴、工具各一件。
-- 普通事件新增通用`item_rewards:[{id,pool}]`字段，沿事件随机域冻结每组结果并保存至`room_event.loot`。搜索后进入既有战斗结算战利品界面，但只显示三行事件道具；每行单独领取并在提交时复核随身容量，满位就地灰置并显示具体原因。继续会放弃剩余行并直接完成房间，不生成卡牌、遗物或普通掉落，不进入整备或整理道具。
-- 奖励窗口通过稳定分组ID匹配同类别的多行候选；原战斗卡牌、单件道具与遗物行仍沿既有字段和按钮工作。快照验证覆盖搜索前的冻结分组、领取页及单行领取状态，查看、读档和界面刷新均不重抽。
-- `tools/check.ps1 -Suite event_flow -TimeoutSeconds 300`通过266项，记录`build/checks/20260909T165040314-46084/`；事件窗口专项通过128项，记录`build/checks/20260909T165050297-41316/`。最终规则门禁`tools/check.ps1 -Suite content,events,event_flow,tower,rewards -TimeoutSeconds 300`覆盖24个相关模块、4602项通过，记录`build/checks/20260909T165202833-41128/`；联合窗口`tools/check.ps1 -UIOnly -UISuite events,rewards -TimeoutSeconds 300`通过204项，记录`build/checks/20260909T165400587-36476/`。均使用日常随机样本，未运行全项目回归，也未请求或生成截图。
+- `tools/check.ps1 -Suite event_flow -TimeoutSeconds 300`通过266项，记录`build/checks/20260909T165040314-46084/`；事件窗口专项通过128项，记录`build/checks/20260909T165050297-41316/`。最终规则门禁`tools/check.ps1 -Suite content,events,event_flow,tower,rewards -TimeoutSeconds 300`覆盖24个相关模块、4602项通过，记录`build/checks/20260909T165202833-41128/`；联合窗口`tools/check.ps1 -UIOnly -UISuite events,rewards -TimeoutSeconds 300`通过204项，记录`build/checks/20260909T165400587-36476/`。
 
 ## 2026-09-10 三局赌牌性玩具演出
-
 域：事件、装备与解除。
-
-- 第三局“解下原有性玩具”与结算后“重新戴回原处”分别写入阶段正文，不再在选项说明中显示“实际装备状态不会改变”的系统解释。事件不声明`hold_special`或`restore_held`，原装备实例、位置和状态从头到尾保持不变；失败分支新增一件性玩具的既有正式效果不受影响。
+- 事件不声明`hold_special`或`restore_held`，原装备实例、位置和状态从头到尾保持不变；失败分支新增一件性玩具的既有正式效果不受影响。
 
 ## 2026-09-10 缚梦客房与最大魔力事件效果
-
 域：压力与快感、事件。
-
-- 新增正式地图事件和练习“缚梦客房”，只有两个选择且没有额外离开项。【睡到自然醒】恢复至当前魔力上限，并原子佩戴三件中级1档普通单件拘束具；生成明确排除链接绳，任一件无法找到合法位置时整项不生成。【拔走床芯】永久失去8点最大魔力，当前魔力超出新上限时同步压低，并获得进入事件时冻结的随机遗物。
-- 新增可跨事件使用的`mana_restore_full`与`mana_max_loss`效果，覆盖内容字段校验、执行前后说明、原子回滚、结果正文和快照验证；最大魔力合法下限调整为1。普通事件同步开放既有`install_random`生成器，只在进房时冻结具体装备；不含生成器的普通固定效果仍保留候选阶段的动态不可用原因。
-- 专项`tools/check.ps1 -Suite content,event_flow -TimeoutSeconds 300`通过913项，记录`build/checks/20260909T172011840-54144/`。事件窗口`tools/check.ps1 -UIOnly -UISuite events -TimeoutSeconds 240`通过137项，记录`build/checks/20260909T172027055-47760/`。最终联合门禁`tools/check.ps1 -Suite content,events,event_flow,tower,rewards,persistence -TimeoutSeconds 300`覆盖29个相关模块，共5831项通过，记录`build/checks/20260909T172109761-53264/`。均使用日常随机样本，未运行全项目回归，也未请求或生成截图。
+- 新增可跨事件使用的`mana_restore_full`与`mana_max_loss`效果，覆盖内容字段校验、执行前后说明、原子回滚、结果正文和快照验证；最大魔力合法下限调整为1。
+- 专项`tools/check.ps1 -Suite content,event_flow -TimeoutSeconds 300`通过913项，记录`build/checks/20260909T172011840-54144/`。事件窗口`tools/check.ps1 -UIOnly -UISuite events -TimeoutSeconds 240`通过137项，记录`build/checks/20260909T172027055-47760/`。最终联合门禁`tools/check.ps1 -Suite content,events,event_flow,tower,rewards,persistence -TimeoutSeconds 300`覆盖29个相关模块，共5831项通过，记录`build/checks/20260909T172109761-53264/`。
 
 ## 2026-09-10 神秘女人的雕像
-
 域：事件、界面。
-
-新增正式事件与练习入口。场景固定为神秘性感女人的蓝石雕像，浅盘中央固定飞机杯；玩家主动插入肉棒并高潮一次，之后才进入共用删牌二级窗口。性交结果正文只写雕像、飞机杯、射精和精液中储存的魔力被吸收，不把卡牌或卡组写成世界内道具。第二项在进阶段时把30—60的随机整数冻结为现有`flask_mana_gain`，查看和候选探测不重抽，提交后给出准确资源反馈且不消耗手动存入次数；第三项无代价离开。
-
-新增作者层通用`random_amount`，仅可包装`mana_loss/mana_gain/flask_mana_gain/pressure`，校验0—100整数上下限并在冻结后彻底展开，运行选项和快照仍只保存原有定值效果。错误上下限和不支持的包装效果均由内容编译拒绝。事件没有专用结算分支，也没有新增随机域或截图。
-
+错误上下限和不支持的包装效果均由内容编译拒绝。
 - `tools/check.ps1 -Suite content,event_flow -TimeoutSeconds 300`：939项通过。
 - `tools/check.ps1 -UIOnly -UISuite events -TimeoutSeconds 240`：151项通过。
 - `tools/check.ps1 -Suite content,events,event_flow,tower -TimeoutSeconds 300`：4010项通过。
 
 ## 2026-09-10 迷宫测绘队
-
 域：装备与解除、界面。
-
-新增正式事件与练习入口，并加入正常高塔事件池。【独自探险】使用现有`flask_mana_gain`向贴身魔瓶增加100魔力，同时沿普通事件作者生成器冻结并原子安装两件中级2档普通单件拘束具；排除链接绳，无法完整安装时不显示整项选择。【结伴而行】增加30魔瓶魔力且不改变装备。两个分支均不建立金币或生命资源，也不占用手动存入次数；结果页显示明确成功标记，独自分支逐件追加实际装备的通用佩戴正文。无新增接口、随机域、存档字段或截图。
-
 - `tools/check.ps1 -Suite content,event_flow,tower -TimeoutSeconds 300`：3365项通过。
 - `tools/check.ps1 -UIOnly -UISuite events -TimeoutSeconds 240`：159项通过。
 
 ## 2026-09-10 接连挣动改为滑脱顺延
-
 域：装备与解除、检查与测试。
-
-- 数据：chain改为4点基础×3次滑脱，带顺延；2费罕见、自由面蓄力1与抽2、正常弃置保持原设定。共享follow_through校验允许strain/slip，无牌名分支、存档字段、随机域或独立行动新增。
-- 文案：卡面、词条、规则书伤害分类及卡牌框架同步。旧版本记录中接连挣动两段挣扎与手动续段的描述由本次修订替代。
-- 回归：follow_through新增滑脱实际次数／公式／3档免疫／层级阻挡／优先次序／提前结束／单次扣费与弃置；casting窗口真实拖放验证。旧手动续段与保存恢复用例改用逐层抽离，继续检查选择冻结、无重复扣费、原子拒绝及延迟遗物触发。
+- 旧手动续段与保存恢复用例改用逐层抽离，继续检查选择冻结、无重复扣费、原子拒绝及延迟遗物触发。
 - 验证：`build/checks/20260909T195554335-54280/`的rewards及交叉分类4546条规则断言通过；同批窗口casting 142条、rewards 179条通过。`20260909T195318304-52252`中hand_assist 154条、persistence 486条通过；该初次批次的旧续段测试筛选错误已修正并在4546条规则门禁复验。
 - 存档窗口恢复事件选牌的旧用例未打开现有二级窗口，已复用Event UI原生点击辅助打开并选择真实卡牌，额外断言卡组只减少一张；无游戏逻辑改动。最终`build/checks/20260909T200056695-51652/`定向persistence窗口61条通过。所有最终相关分类无断言／引擎错误，未生成截图。
 
 ## 2026-09-10 强欲之壶
-
 域：检查与测试、卡牌与奖励。
-
-- 数据、文案与卡池：pot_of_greed，1费普通技能，双面抽2，正常弃置；共用self_faces与draw效果，无新逻辑分支、状态或存档迁移。普通奖励／商店／图鉴沿COMMON自动接入。
-- 测试：card_expansion检查双面实际抽2、费用、零魔力与身体受限仍可用、普通池及相同双面、过期／缺能量原子拒绝、满手只抽到10；casting窗口验证原生点击两面及抽牌后真实手牌。interface统一验证新SVG覆盖与两种卡宽。
+- 测试：card_expansion检查双面实际抽2、费用、零魔力与身体受限仍可用、普通池及相同双面、过期／缺能量原子拒绝、满手只抽到10；casting窗口验证原生点击两面及抽牌后真实手牌。
 - 验证通过：`build/checks/20260910T034929357-61072/`，导入完成；rewards及交叉分类完整随机矩阵6753条规则断言通过，casting、interface窗口557条断言通过（含两面原生点击抽牌及全卡插图／布局检查）。无引擎错误，未生成截图。
 
 ## 2026-09-10 翘腿无视
-
 域：界面、装备与解除。
-
-- 1费普通技能，拘束面8点滑脱并抽1；自由面费用－1、抽1，腿部整体level≤1。普通卡池、独立SVG、卡面、详情与明确阻止原因同步。
-- 复用hit_effects/free_effects/draw；通用自由面减费与整体等级上限通过定义校验。统一energy_cost供正式候选与face_costs投影，界面翻面读显示费用，不在界面计算规则。无新状态、迁移或随机域。
 - crossed_legs_cases归入rewards，覆盖实际伤害／抽牌、3档免疫仍抽、整体等级边界、0费可用、条件变动提交复核、缺能量／坏定义拒绝；casting窗口真实拖放两面、1／0费用与等级原因；interface覆盖全卡图与布局。
 - 验证通过：`build/checks/20260910T042011685-56556/`。导入完成；rewards、casting及交叉分类完整随机矩阵8310条断言通过；casting、interface窗口580条断言通过。覆盖原生拖放、翻面费用、等级阻止原因和全卡插图／布局，无引擎错误，未生成截图。
 
 ## 2026-09-10 蓄势待发
-
 域：`core/action_copy.gd`、`data/action_copy.json`。
-
-- 1费／基础10魔力的普通嘴部魔法，两面消耗指定另一张手牌并获得1蓄力。本牌正常弃置，成功才消耗目标。普通卡池、独立SVG、卡面、目标提示与实际结果日志同步。
-- 通用self_faces.exhaust_hand生成正式card候选hand_uid；复用人物目标选择UI、共用卡面、施法、牌区和消耗动画。不新增中间运行状态、随机域或存档字段。
 - ready_to_strike_cases归入rewards并由casting交叉覆盖：双面实际费用／消耗、同名实体、不可消耗本牌、目标失效与过期提交、失败留两牌、嘴部阻挡、临时魔力付款、消耗区快照、同面不触发复放；casting UI检查原生点击、取消、指定实体和真实结算。
 - 验证通过：`build/checks/20260910T043751978-28776/`，导入完成；rewards、casting及交叉分类完整随机矩阵8296条断言通过；casting、interface窗口592条断言通过。包含原生选牌／取消、两面实际施法、消耗目标实体及全卡插图／布局，无引擎错误，未生成截图。
 # 2026-09-10：人物付费行动、快感／堵嘴与施法失败对白
-
-- `core/action_copy.gd`只从已提交payload、行动前后快感、真实口部装备与正式施法结果生成稳定cue；`data/action_copy.json`补齐卡牌四类、非卡牌付费行动、三档快感、清晰／含混说话及卡牌／火球失败正文。完全堵嘴共用一条纯鼻音，事件与零费来源不扩张新机制。
-- 加入新系统前的`hero.attack`、`hero.card.bound/free`、`hero.pose`、`hero.calm`、`hero.end`、`hero.item`、`hero.event`与`hero.default`正文和生成分支均已删除。旧存档中的这些cue会被投影静默忽略，不会回退成占位对白；零费结束回合及未纳入新分类的普通操作也不再弹出人物对白。
+- `core/action_copy.gd`只从已提交payload、行动前后快感、真实口部装备与正式施法结果生成稳定cue；`data/action_copy.json`补齐卡牌四类、非卡牌付费行动、三档快感、清晰／含混说话及卡牌／火球失败正文。
 - 最终规则门禁`tools/check.ps1 -Suite action_copy,casting -TimeoutSeconds 300`通过4071项断言，记录`build/checks/20260910T093623320-46932/`。最终窗口门禁`tools/check.ps1 -UIOnly -UISuite action_copy,casting -TimeoutSeconds 300`通过227项断言，记录`build/checks/20260910T094033775-39812/`；未生成截图。覆盖稳定文案键完整性、卡牌分类、快感边界、普通口球含混、胶带／假阳具口球完全堵嘴、真实卡牌与固定火球失败差分、付费攻击实际组合、旧cue静默清理以及投影不修改规则状态。
 
 ## 2026-09-10 高潮不再自动打开角色状态窗
-
 域：压力与快感、界面。
-
-- 正式行动令快感达到100时，界面沿原抽屉互斥流程关闭已有信息面板，但不再把`show_pressure`重新设为开启；高潮中断画面及“继续 · 高潮后缓一缓”保留，顶部状态按钮在之后仍可由玩家主动使用。
 - 本批只修改界面显隐与对应真实窗口断言，不改变快感累计、高潮次数、魔力损失、下一回合能量惩罚、候选或存档。`tools/check.ps1 -UIOnly -UISuite pressure -TimeoutSeconds 300`通过49项窗口断言，记录`build/checks/20260910T104515157-54396/`；未生成截图。
 
 ## 2026-09-10 高潮第二人称旁白与对白分栏
-
 域：压力与快感、界面。
-
-- 每次正式高潮在原机械日志中保存稳定`climax_copy`旁白cue与`hero_copy`对白cue。旁白全部采用第二人称，只在高潮中断期间替换原手牌区；角色实际发出的声音继续进入既有人物对话框，不进入状态窗口或行动日志。
-- 文案按普通高潮、同回合连续高潮及射精前魔力不足20选择稳定差分；对白再区分清晰、含混堵嘴与完全堵嘴，完全堵嘴共用鼻音。低魔力正文将魔力明确写作储存在精液中并随射精流失，不把两者并列成不同液体。旧存档中只有机械高潮记录时使用普通第二人称旁白，不借用更早的行动台词。
 - `tools/check.ps1 -Suite action_copy,pressure -TimeoutSeconds 300`覆盖11个关联规则模块并通过3645项断言，记录`build/checks/20260910T105149254-54208/`。`tools/check.ps1 -UIOnly -UISuite action_copy,pressure -TimeoutSeconds 300`通过77项窗口断言，记录`build/checks/20260910T105225902-53924/`；验证真实拖牌高潮后的手牌区旁白、人物对话框、无自动状态窗及唯一继续入口，未生成截图。
 
 ## 2026-09-10 事件抵达抽取与每局去重
-
 域：事件、塔路与地图。
-
-- 规则边界：本局每个正式事件ID最多出现一次；生成塔图及出发／预览不选事件，最后一步抵达时才从原event随机域抽取未见ID，记录与房间同时冻结。拒绝或离开不返池。正式新游戏、出狱重开与Demo继续均清空记录；本局读档保留，指定练习独立。
-- 状态／存档：新增event_seen；未抵达房间不含event字段，池耗尽保存空ID并标记可前进的空房间，不补发奖励。Snapshot修订34，无旧档迁移；校验未知／重复ID与房间重复分配。费用、位移、回合、敌人、装备及奖励规则保持原实现，未增加随机域或通用配置接口。
-- 玩家文案：未揭晓房间保持“事件”，说明“抵达后发现事件。”；耗尽显示“空房间”及“房间里没有新的发现，可以继续前进。”。原事件正文和结果沿既有定义，未更改。
-- 案例：event_draw_cases并入events，覆盖正式出发／抵达、预览只读、抵达前后存读档、事件排除、耗尽和新局重置；内容包事件接入检查改为抵达抽取。同步修正既有敌人注册列表及工具说明改动后失效的旧断言，不改对应玩法。events关联tower／persistence，按分类合并执行。
-- 窗口：events分类162项通过，真实点击出发和旅行后打开事件；日志build/checks/20260910T095349496-24100/check-ui.log。无布局改动，不截图。
+- 拒绝或离开不返池。
+- 同步修正既有敌人注册列表及工具说明改动后失效的旧断言，不改对应玩法。
+- 窗口：events分类162项通过，真实点击出发和旅行后打开事件；日志build/checks/20260910T095349496-24100/check-ui.log。
 - 规则门禁：tools/check.ps1 -Suite events,tower,persistence -TimeoutSeconds 360，通过7847项断言，退出0、无引擎错误；日志build/checks/20260910T095218436-48280/check-rules.log。
 
 ## 2026-09-10 火球术基础次数调整
-
 域：`data/basic_attacks.gd`。
-
-- 将data/basic_attacks.gd的uses_per_turn由3改为2；玩家每回合基础可用2次，炫火自由面仍额外＋1，生效后3次。死灰复燃继续清零已用次数并恢复当前上限，敌人／装备目标共用、失败计次与回合刷新沿原实现。
-- 同步炫火能力说明、卡牌框架、游戏设计及AGENTS旧数值；费用、伤害、施法条件、随机和存档结构不变。复用现有flame_flourish／rekindle规则与casting窗口用例修改边界，不新增镜像测试或截图。
+- 死灰复燃继续清零已用次数并恢复当前上限，敌人／装备目标共用、失败计次与回合刷新沿原实现。
 - basic_attacks,rewards分类合并5927项中只有原charge_cases把玩家行动摘要误列为不可变状态失败；摘要是实际切换结果，修正断言排除summary后，完整status分类及关联检查3606项全部通过（build/checks/20260910T100740650-11924/check-rules.log）。其余分类此前通过，日志build/checks/20260910T100425883-45808/check-rules.log。
-- basic_attacks窗口23项、casting窗口201项通过；日志build/checks/20260910T100542370-51376/check-ui.log。旧姿势用例以三次火球耗尽能量，现改为两能量夹具并实际施放两次，复核耗尽后的起身条件。
+- basic_attacks窗口23项、casting窗口201项通过；日志build/checks/20260910T100542370-51376/check-ui.log。
 - interface窗口复跑453项通过，退出0且无引擎错误；日志build/checks/20260910T100917899-46364/check-ui.log。
 
 ## 2026-09-10 henshin解除捕缚
-
 域：装备与解除、检查与测试。
-
-拘束面的release_all沿正式成功施法分支调用CaptureBind.clear_bind，清空全部捕缚来源与共用进度；原装备移除流程、费用、消耗及自由面倍率不变。卡面及框架文档同步。新增捕缚下双面使用案例，验证仅解除面清空、只读捕缚隐藏、警卫回到准备意图。首轮测试夹具遗漏警卫已完成开场的stage，已修正；复验casting关联分类4039项断言仅剩3项ROUTE路线失败，新增henshin案例及所属rewards的1620项均通过。规则日志build/checks/20260910T104727233-56704/check-rules.log；完整casting窗口201项通过，日志build/checks/20260910T104651715-33796/check-ui.log。路线失败保留记录，不宣称整批门禁通过。
+首轮测试夹具遗漏警卫已完成开场的stage，已修正；复验casting关联分类4039项断言仅剩3项ROUTE路线失败，新增henshin案例及所属rewards的1620项均通过。规则日志build/checks/20260910T104727233-56704/check-rules.log；完整casting窗口201项通过，日志build/checks/20260910T104651715-33796/check-ui.log。路线失败保留记录，不宣称整批门禁通过。
 
 ## 2026-09-10 加固额度可用于上锁
-
 域：装备与解除、检查与测试。
-
-Game._reinforcement_locks统一判断3档、可上锁、未上锁；_reinforce_equipment优先完成一次锁定，否则沿原紧度／附加结构刷新。EnemyPlans目标与材料筛选保留原范围并纳入上锁，累计budget每次仍只扣1，不重复锁定；通用事件tighten共享执行与结果文案，指定tighten_to不扩大其明确目标。通过现有锁状态投影复用铜锁图标、伤害减免和解除限制，无新增存档字段。新增reinforcement_lock_cases并入enemies，验证2→3再锁、3档内耐久不回复、满耐久已锁与不可上锁反例、正式回合执行及过期拒绝。肩带旧断言同步新规则，同时保持不补回复合肩带。首轮夹具场景ID写错及旧肩带断言失败已修正；完整enemies/events关联分类5501项规则断言及enemies窗口196项断言全部通过，无引擎错误。日志：build/checks/20260910T105820879-13660/。
+新增reinforcement_lock_cases并入enemies，验证2→3再锁、3档内耐久不回复、满耐久已锁与不可上锁反例、正式回合执行及过期拒绝。肩带旧断言同步新规则，同时保持不补回复合肩带。首轮夹具场景ID写错及旧肩带断言失败已修正；完整enemies/events关联分类5501项规则断言及enemies窗口196项断言全部通过，无引擎错误。日志：build/checks/20260910T105820879-13660/。
 
 ## 2026-09-10 加固上锁恢复耐久（补正）
-
 域：装备与解除、存档。
-
-按用户补正，上锁属于一次正常加固：3档上锁分支将本体耐久恢复至maximum并调用原_refresh_equipment，保留普通加固的躯干固缚／肩带刷新；不额外占加固额度。日志、词条和规则文档同步。reinforcement_lock_cases中的3档受损样本断言改为恢复满耐久；既有加固及肩带、躯干交叉分类完整复验通过5529项断言，无引擎错误（build/checks/20260910T110408889-62276/check-rules.log）。本条替代上一批“不回复耐久”的设计。
+reinforcement_lock_cases中的3档受损样本断言改为恢复满耐久；既有加固及肩带、躯干交叉分类完整复验通过5529项断言，无引擎错误（build/checks/20260910T110408889-62276/check-rules.log）。
 
 ## 2026-09-10 冰心诀与魔血
-
 域：界面、检查与测试。
-
-- 新增普通ice_heart：玩家回合末固定降低3快感，最低0；稀有magic_blood：现有力量＋2，玩家回合开始增加5快感。均登记一般REWARDS、品质、完整说明及共享RelicIcon本地SVG（冰蓝书卷／金边暗红魔法血滴）。图鉴、商店、宝箱及奖励沿现有注册流程读取。
-- 规则直接接Pressure.tick的turn_start／turn_end，由RelicEffects读取两个明确数值hook；限定COMBAT_PHASES与active场次，其他行动时机不触发。增长复用Pressure.gain，保留手牌倍率、绿色小鸟及上限结算；降低不套增长倍率，不撤销之前已发生的惩罚。无新状态、存档字段、随机域或特殊事件分支。
-- pressure_relic_cases归入rewards，既有分类关联覆盖pressure、属性、特殊战斗、内容与持久化。通过真实回合覆盖4种场次、低于3的边界、力量与伤害、达到上限、保护、存读档、只读与拒绝原子性；图标和悬停在rewards窗口原流程验证。未增加截图。
-- Import及rewards,pressure合并分类完成6834项规则断言，退出0、无引擎错误；日志build/checks/20260910T110553546-34164/check-rules.log。窗口初次检查中，伤害预期误放在敌方施加装备之后，已将力量预览检查移到结束回合前，保留真实回合触发检查。
-
-- rewards窗口复跑191项全部通过，退出0、无引擎错误；日志build/checks/20260910T110848695-58044/check-ui.log。两件遗物共享图标／悬停和真实快感变化已验证。
+- 通过真实回合覆盖4种场次、低于3的边界、力量与伤害、达到上限、保护、存读档、只读与拒绝原子性；图标和悬停在rewards窗口原流程验证。
+- Import及rewards,pressure合并分类完成6834项规则断言，退出0、无引擎错误；日志build/checks/20260910T110553546-34164/check-rules.log。
+- rewards窗口复跑191项全部通过，退出0、无引擎错误；日志build/checks/20260910T110848695-58044/check-ui.log。
 
 ## 2026-09-10 遗物图鉴小图
-
 域：卡牌与奖励、装备与解除。
-
-图鉴遗物列表使用RelicIcon.ART的40宽缩略图，详情复用RelicIcon显示112×112插画，不伪造局内计数器；切换条目清除旧卡牌悬浮说明，防止遮住遗物正文。无规则或存档变化。home完整窗口97项断言通过，稀有筛选、实际纹理、只读浏览均已验证。截图build/ui-encyclopedia-relics.png人工检查通过；最终日志build/checks/20260910T110949767-59448/。
+home完整窗口97项断言通过，稀有筛选、实际纹理、只读浏览均已验证。截图build/ui-encyclopedia-relics.png人工检查通过；最终日志build/checks/20260910T110949767-59448/。
 
 ## 2026-09-10 主页提示删除
-
 域：界面、检查与测试。
-
-删除主页底部的‘开始新游戏将替换塔路进度。’标签及其空条件分支，继续／新游戏／存档行为不变。已先ListOnly核对home范围，完整home窗口检查通过96项断言，退出0且无引擎错误：build/checks/20260910T111759886-49956/check-ui.log。纯文案删除，无截图。
+已先ListOnly核对home范围，完整home窗口检查通过96项断言，退出0且无引擎错误：build/checks/20260910T111759886-49956/check-ui.log。
 
 ## 2026-09-10 分辨率列表至4K
-
 域：界面、架构与接口。
-
-取消DisplaySettings.choices按显示器尺寸过滤，720p至3840×2160固定预设均可选；合法自定义窗口尺寸最多保留至4K，异常存储值仍回退预设。全屏继续采用显示器原生尺寸，窗口与无边框选择及显示偏好持久化保持原接口。display完整窗口19项断言通过，覆盖小屏仍列出1440p/4K、选择4K、重新读取4K偏好及原模式切换；日志build/checks/20260910T112507804-37408/。
+display完整窗口19项断言通过，覆盖小屏仍列出1440p/4K、选择4K、重新读取4K偏好及原模式切换；日志build/checks/20260910T112507804-37408/。
 
 ## 2026-09-10 删除神秘药剂、精简遗物说明、重制余烬晶石
-
 域：卡牌与奖励、检查与测试。
-
-- 删除神秘药剂定义、奖励池及图标引用和SVG，现有注册式图鉴自动同步。能力说明保留必要数值／触发条件，删除力量和灵巧通用解释、重复特殊战斗范围、封顶及既有规则说明；图鉴不再追加同样的获取途径。玩法范围不变。
-- 晶石复用遗物触发与tick记录：paid_cast／turn／guarantee一次机会；施法前读取并显示100%，正式付费后使用，仍收取全额费用。身体条件阻止、候选过期与资源不足不使用机会；临时魔力及固定费用兑换计入。免费复放不消费，定咒同时存在时先用晶石并保留卷轴。读取／读档不刷新机会，普通和三类特殊战斗复用正式回合。
-- 原晶石返还用例替换为ember_crystal_cases，覆盖付费首发、第二发、下回合刷新、读档、身体条件、临时魔力、卷轴、固定兑换及四种场次；通用重命名遗物仍验证按配置生效。原神秘药剂拾取测试改用红烧鱼香茄子，继续验证上限和重复拾取。日志检查同步为成功保证来源。
-- 初跑发现免费复放没有mana字段，已先按replay判断排除；既有复放全分类再次验证。两个新场次夹具重复开场抽牌造成11张手牌，已按既有夹具方式清手后给测试牌。原说明断言同步为精简后的效果，不要求重复规则文字。
-- home,rewards窗口290项通过，日志build/checks/20260910T112200375-41248/check-ui.log，退出0且无引擎错误。检查图鉴与实际施法100%／付费／回合刷新，不截图。
+- 原说明断言同步为精简后的效果，不要求重复规则文字。
+- home,rewards窗口290项通过，日志build/checks/20260910T112200375-41248/check-ui.log，退出0且无引擎错误。
 - rewards,casting,content及关联分类复跑7429项全部通过，退出0、无引擎错误；日志build/checks/20260910T112402172-32684/check-rules.log。
 
 ## 2026-09-10 传送符
-
 域：监狱与收押、检查与测试。
-
-折返符更名为传送符，稳定ID return_seal保留，category为scroll。正式新游戏抵达塔底时获得1张，1次使用后消失；不额外加入掉落、商店或牢房发现池，练习场继续原配置。手指或脚趾任一侧自由即可使用，复用所有卷轴的共用身体条件；触手朋友可绕过该限制。原有1—4级牢房行动回合、背包容量及监狱出发点去向不变。存读场景起点不会重复发放。按原规则被收押仍没收随身道具，没有新增传送符免没收特例。
-
 传送符验证：prison/consumables关联分类4255项规则断言、home/prison/consumables窗口269项断言全部通过，无引擎错误；日志build/checks/20260910T113512009-54100/。
 
 ## 2026-09-10 回合区与主动投降
-
 域：界面、检查与测试。
-
-结束回合155×90并使用24字号，姿势控制行高48／按钮44，红色投降155×44。第一次点击只修改当前版本的界面确认，第二次走正式surrender候选；其他正式行动／重开取消确认。新增规则案例验证普通入狱、5级终局、过期拒绝、场景起点和入狱后不可重复；窗口原生点击验证两次确认、布局尺寸与直接入狱。规则prison关联分类3528项断言通过；截图build/ui-surrender-confirm.png检查通过，prison完整窗口142项断言通过，无引擎错误。日志build/checks/20260910T133445517-13700/。
+新增规则案例验证普通入狱、5级终局、过期拒绝、场景起点和入狱后不可重复；窗口原生点击验证两次确认、布局尺寸与直接入狱。规则prison关联分类3528项断言通过；截图build/ui-surrender-confirm.png检查通过，prison完整窗口142项断言通过，无引擎错误。日志build/checks/20260910T133445517-13700/。
 
 ## 2026-09-10 主角显示名
-
 域：界面、检查与测试。
-
-主角显示名由希凛改为魔法少女，统一更新人物对白、行动日志署名及默认回退。无规则变更，不适配旧存档历史文字。action_copy完整分类60项规则、29项窗口断言通过；日志build/checks/20260910T134904133-65504/。
+action_copy完整分类60项规则、29项窗口断言通过；日志build/checks/20260910T134904133-65504/。

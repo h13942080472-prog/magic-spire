@@ -1,6 +1,6 @@
 # 内容创作指南（内容包、生成规则与模板）
 
-本文件说明“现在如何生成、扩展时必须遵守什么、哪些能力尚未实现”，并保留各家族的设计表模板。规则数值见 `./game-design.md`，装备结构见 `./equipment-design.md`，卡牌见 `./cards.md`，逐怪数值见 `./enemies-first-floor.md`，监狱来源见 `./prison.md`。执行接口（唯一入口、事务、存档、随机、窗口检查）见 `.zcode/skills/spire-architecture/SKILL.md` 与 `.zcode/skills/repo-ops/SKILL.md`。
+本文件说明“现在如何生成、扩展时必须遵守什么、哪些能力尚未实现”，并保留各家族的设计表模板。规则数值见 `./game-design.md`，装备结构见 `./equipment-design.md`，卡牌见 `./cards.md`，逐怪数值见 `./enemies-first-floor.md`，监狱来源见 `./prison.md`。执行接口（唯一入口、事务、存档、随机、窗口检查）见 `skills/spire-architecture/SKILL.md` 与 `skills/repo-ops/SKILL.md`。
 
 ## 1. 两条创作路径
 
@@ -329,4 +329,4 @@ start_node 与 nodes：每个节点的 allow_refuse / unavailable / relic_gate /
 - 复合与链接的局部解除与残留、特殊装备的逐件损伤与混合到期、瞬时与持续效果都有清理。
 - 可用／不可用原因、精确位置、耐久／紧度、费用、真实结果与教程解释完整；术语详情放教程，决策必需数值就近显示。
 - 新内容复用目标框、部位详情、状态栏、行动日志与已安装工具入口；同一物理目标跨子部位去重显示，但不合并真实实例。
-- 新增用例登记到 `tests/test_game.gd`／`tests/ui_smoke.gd`，交叉范围登记 `tests/suite_selection.gd`；不另起测试框架。流程夹具降低生命不能冒充正常难度试玩。检查命令按受影响分类运行，见 `.zcode/skills/repo-ops/SKILL.md`。
+- 新增用例登记到 `tests/test_game.gd`／`tests/ui_smoke.gd`，交叉范围登记 `tests/suite_selection.gd`；不另起测试框架。流程夹具降低生命不能冒充正常难度试玩。检查命令按受影响分类运行，见 `skills/repo-ops/SKILL.md`。

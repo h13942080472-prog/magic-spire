@@ -48,7 +48,7 @@ static func installation_plan(g, type: String, x: int, randomize: bool=false) ->
    return [first.duplicate(true),second.duplicate(true)]
  return []
 
-# §3.1 item 5: both leaves read through one scope; speculation swaps state, so the identity
+# docs/spec/equipment-query-seam.md「作用域进出点（冻结名单）」: both leaves read through one scope; speculation swaps state, so the identity
 # check in _equipment_read_active() bypasses the batch by itself.
 static func tighten_targets(g) -> Array:
  var previous=g._begin_equipment_read()

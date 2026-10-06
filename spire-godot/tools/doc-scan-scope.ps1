@@ -5,7 +5,9 @@
 # current rules means adding its root here, not a second list in a consumer.
 #
 # Rule-class = documents that state what currently holds: docs/spec, docs/design, docs/guide,
-# root AGENTS.md and the project skills' markdown.
+# root AGENTS.md and the project skills' markdown. Skill bodies live under root skills/; the
+# .zcode/skills/ files are ZCode discovery stubs, kept in scope so a stub that stops resolving to
+# its body turns red instead of rotting silently.
 #
 # Excluded, with reasons:
 #  - docs/record/**: append-only records. Every verification entry churns them, so guarding them
@@ -13,7 +15,7 @@
 #    docs/record/proposals/** is inside this tree and is excluded for the same reason (unlanded
 #    proposals are not current rules).
 #  - docs/history/**: read-only archive of superseded decisions; not current instruction.
-$RuleDocumentDirectoryRoots = @('docs/spec', 'docs/design', 'docs/guide', '.zcode/skills')
+$RuleDocumentDirectoryRoots = @('docs/spec', 'docs/design', 'docs/guide', 'skills', '.zcode/skills')
 $RuleDocumentFilePaths = @('AGENTS.md')
 
 function Get-RuleDocFiles {

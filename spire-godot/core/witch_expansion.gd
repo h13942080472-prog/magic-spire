@@ -131,7 +131,7 @@ static func resolve(g, p: Dictionary) -> void:
   var log_args={"type":p.type,"free":p.free}
   g._emit("event",g.CopyRouter.text(g,{"kind":"witch.card_log","args":log_args,"fallback":card_log_detail(g,log_args)}),{"witch_card":action})
 
-# R6（docs/ondemand-copy.md §11.5）：巫女卡牌事件日志文案的 builder，正文留在本模块。
+# R6（docs/ondemand-copy.md「文案路由（收口阶段）」）：巫女卡牌事件日志文案的 builder，正文留在本模块。
 static func card_log_detail(g, args: Dictionary) -> String:
  return g.B.CARD_NAMES[String(args.get("type",""))]+"："+g.Cards.face_text(g,String(args.get("type","")),bool(args.get("free",false)))
 

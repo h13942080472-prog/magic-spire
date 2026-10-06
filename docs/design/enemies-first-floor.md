@@ -271,4 +271,4 @@ DemoExit.health_multiplier → Enemies.barrier_limit → 伤害结算／剩余�
 - `core/puppet_enemy.gd`：玩偶师的玩偶转移、准备与嘲讽。
 - `core/iron_man.gd`：铁男循环、强化、捕缚装备、耗能刺激与随行单位联动。
 - `core/game.gd`：共用随机施加、特殊装备资格／安装与正式敌方回合执行；`core/snapshot.gd` 冻结计划的结构校验与恢复；`core/intent_view.gd`、`data/glossary.gd`、`ui/combat_feedback.gd` 负责意图、解释与实际结果展示。
-- 检查命令见 `.zcode/skills/repo-ops/SKILL.md`；验证结论见 `docs/record/verification.md`。
+- 检查命令见 `skills/repo-ops/SKILL.md`；验证结论见 `docs/record/verification.md`。

@@ -41,4 +41,4 @@
 
 ## 5. 检查入口
 
-键盘规则与窗口用例：`tools/check.ps1 -UIOnly -UISuite keyboard`；显示、普通导航、主页和事件窗口分别复用 display／interface／home／events 分类，触屏复用 touch 分类。默认不截图，键位页代表性截图按 `-Screenshots ui-key-bindings.png` 显式生成。命令细则见 `.zcode/skills/repo-ops/SKILL.md`。
+键盘规则与窗口用例：`tools/check.ps1 -UIOnly -UISuite keyboard`；显示、普通导航、主页和事件窗口分别复用 display／interface／home／events 分类，触屏复用 touch 分类。默认不截图，键位页代表性截图按 `-Screenshots ui-key-bindings.png` 显式生成。命令细则见 `skills/repo-ops/SKILL.md`。

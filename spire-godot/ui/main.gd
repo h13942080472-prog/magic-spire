@@ -58,10 +58,10 @@ var localization=preload("res://ui/localization.gd").new()
 
 var game_factory=Game
 var game=Game.new()
-# 指令路由（docs/spec/candidate-removal.md §3.1 N1）：前端唯一指令入口，分类后交 _submit 执行段。
+# 指令路由（docs/spec/candidate-removal.md「接口」指令路由）：前端唯一指令入口，分类后交 _submit 执行段。
 var command_router=CommandRouter.new(self)
 var view: Dictionary
-# Read-only display diagnostics (docs/ondemand-copy.md §3): one entry per (point, key, view version),
+# Read-only display diagnostics (docs/ondemand-copy.md「显示侧取用 helper」): one entry per (point, key, view version),
 # cleared when ui.view is replaced. Never rendered, logged, saved or counted.
 var projection_misses: Array=[]
 var layout: Control
@@ -373,7 +373,7 @@ func _resume_snapshot(snapshot: Dictionary, drawings: Dictionary={}) -> bool:
 
 func _quick_sl() -> void:
  if view.demo_finished: return
- # docs/save-fixed-points.md §1：恢复不是进度固定点；磁盘仍持有上一次固定点内容。
+ # docs/save-fixed-points.md「域」：恢复不是进度固定点；磁盘仍持有上一次固定点内容。
  _resume_snapshot(game.restart_snapshot(),map_drawings)
 
 func _save_unavailable(message: String) -> void:
@@ -1568,7 +1568,7 @@ func _posture_controls() -> void:
   candidate_buttons[display_key(c.payload)]=btn
  _posture_key=_posture_presentation_key()
 
-# 显示边界的唯一卡面取用点（docs/ondemand-copy.md §3）：命中投影即用，未命中经 §1.4 单条入口补算并记录。
+# 显示边界的唯一卡面取用点（docs/ondemand-copy.md「显示侧取用 helper」）：命中投影即用，未命中经「只读入口」的 Game.live_card_text 补算并记录。
 func card_entry(type: String, uid: String="") -> Dictionary:
  var texts=view.get("card_texts",{})
  var instances=view.get("card_instances",{})
@@ -1592,10 +1592,10 @@ func card_face_name(type: String, uid: String, free: bool) -> String:
 func display_key(payload: Dictionary) -> String:
  return game.shape_key(payload)
 
-# 候选详情的唯一取用点（docs/ondemand-copy.md §3）：命中即用，缺失时经 §2 只读入口按 payload 补算并记录。
+# 候选详情的唯一取用点（docs/ondemand-copy.md「显示侧取用 helper」）：命中即用，缺失时经「只读入口」的 Game.candidate_detail 按 payload 补算并记录。
 func detail_of(candidate: Dictionary) -> String:
  if candidate.has("detail"): return candidate.detail
- # B3（docs/ondemand-copy.md §1.5）：card 目标候选组本来就不带 detail，现算是正常路径，不记缺失；
+ # B3（docs/ondemand-copy.md「按需的候选详情」）：card 目标候选组本来就不带 detail，现算是正常路径，不记缺失；
  # 其余组缺 detail 才是意外，留具名记录而不是静默空白。
  if String(candidate.payload.get("kind",""))!="card":
   _record_projection_miss("detail_of",String(candidate.get("id","")))
@@ -1696,7 +1696,7 @@ func _card(card: Dictionary, rect: Rect2, fn: Callable, rotation_value: float=0,
 # Catalog, shop and deck use the hand face with no gameplay drag or hover displacement.
 func _display_card(type: String, parent: Node, fn: Callable=Callable(), key: String="", dimensions: Vector2=Vector2(226,290), physical_uid: String="", live_state: bool=true, source: Dictionary={}) -> Button:
  var data=preload("res://data/encyclopedia.gd").card(type)
- # 全量入口的条目（docs/ondemand-copy.md §1.3）：非显示集合来源的卡面在这里合并，视图不再带它们的文案。
+ # 全量入口的条目（docs/ondemand-copy.md「只读入口」Game.live_card_text_set）：非显示集合来源的卡面在这里合并，视图不再带它们的文案。
  # 身份键在合并之后写入，避免被来源行的 uid／physical_uid 覆盖（卡面翻转共用同一个键）。
  if not source.is_empty(): data.merge(source,true)
  data.uid="display_"+key+"_"+type
@@ -3380,7 +3380,7 @@ func _submit_dirty(before: Dictionary, succeeded: bool, absent: Dictionary) -> A
  return dirty
 
 func _submit(cmd: Dictionary, takeover: bool=false) -> void:
- # 提交执行段（docs/spec/candidate-removal.md §3.1 M-III 的 UI 侧落点）：只由指令路由调用。
+ # 提交执行段（docs/spec/candidate-removal.md「接口」提交入口的 UI 侧落点）：只由指令路由调用。
  if _takeover_locked() and not takeover: return
  var previous_keys=_submit_presentation_keys() if not show_home and not is_instance_valid(enemy_feedback) and String(view.get("phase",""))=="battle" else {}
  var previous_absent={}
@@ -3407,7 +3407,7 @@ func _submit(cmd: Dictionary, takeover: bool=false) -> void:
  if result.ok:
   preload("res://ui/shell/body_sidebar.gd").expand_applied(self,previous,updated)
   if payload.get("witch_action",false) and not payload.get("charge_action",false): attack_forms[payload.get("type","")]=0
-  # docs/save-fixed-points.md §2／§5.1：只有提交结果带非空 checkpoint 才写盘；
+  # docs/save-fixed-points.md「接口」：只有提交结果带非空 checkpoint 才写盘；
   # 不比较内容、不读快照，其余提交一律不写。
   if String(result.get("checkpoint",""))!="": _save_progress()
   if kind=="demo_continue": _reset_interface(updated)
