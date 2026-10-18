@@ -1,11 +1,30 @@
-# present 邻接表的完整性下限（未落地）
+# present 邻接表的完整性下限（已落地）
 
-状态：**未落地**。2026-10-02 实现者评估后登记为后续项；本片（`worker/adjacency-gate`）改为在表头与
-`.zcode/skills/spire-docs/SKILL.md` 第五类写死覆盖边界，由评审负责新增与整行删除。
+状态：**已落地（2026-10-19）**。2026-10-02 实现者评估后登记为后续项；2026-10-18 规划者按命名族下限
+（`plan.md` A 档）设计并经协调者裁定，2026-10-19 实现。落点＝`spire-godot/tests/architecture_cases.gd`
+的五条判据（`present_adjacency_rows_are_complete`／`present_section_dispatch_is_total`／
+`present_pipeline_routines_are_registered`／`present_full_render_fallback_is_pinned`／
+`present_adjacency_symbol_floor_is_pinned`）、`spire-godot/ui/main.gd::PRESENT_ADJACENCY` 补 11 个管线条目
+（9 个 `_*_key_hit`＋2 个 `_unload_*_section`，14 条边，符号 97→108）、`spire-godot/tests/mutations.json`
+的 5 条突变证据与表头／`skills/spire-docs/SKILL.md` 第五类的规范描述。
 域：`spire-godot/ui/main.gd::PRESENT_ADJACENCY` 及其机械判据
-`spire-godot/tests/architecture_cases.gd::present_adjacency_graph_is_pinned`。
+`spire-godot/tests/architecture_cases.gd::present_adjacency_graph_is_pinned` 与本片的五条完整性判据。
 
-## 缺口
+## 落地口径
+
+- 管线条目＝冻结的命名形状（`PRESENT_PIPELINE_SHAPES`／`PRESENT_PIPELINE_EXACT` 常量，单一声明）：
+  节重建、present 内同步、构建入口、节键、节键命中探针、节拆卸、节级全量谓词，以及 `render`／
+  `_present_needs_full_render`。新增落在形状内的例程必须入表，否则 `present_pipeline_routines_are_registered` 红。
+- 符号下限＝`PRESENT_SYMBOL_FLOOR=108`，只许增；下调须同批写明理由。
+- 本片只改声明表与表头注释，零运行行为变化；`section_read_sets_are_pinned` 的冻结读集实跑零移动。
+
+## 残差（仍靠评审）
+
+- 任意命名的非形状辅助（例如 `_apply_new_stage`）；带名字的屏／抽屉构建器；外部符号（`header.configure`、
+  `layout.*`、`configure_enemy`、`EquipmentPortrait.configure`、`CardFace.separate_keywords`）内部完整性。
+- 结构性判据不证明调用顺序；顺序与读集由 `section_read_sets_are_pinned` 与运行期窗口套件承担。
+
+## 缺口（落地前登记，保留原证据）
 
 判据只校验**已声明**的边，不保证每个管线条目都已登记：
 

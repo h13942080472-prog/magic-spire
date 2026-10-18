@@ -224,10 +224,29 @@ static func content_pack_root_has_no_build_feature_branch(t) -> void:
 #  1. every declared edge has a direct call in its parent body;
 #  2. a table symbol a registered parent calls directly is declared;
 #  3. no dead entry: no phantom symbol, no orphan or unreachable row.
+# The completeness floor added below is a separate group of criteria: every table symbol has a
+# row, PRESENT_SECTIONS matches the present() dispatch arms, every pipeline-shaped routine is a
+# row, the full-render fallback stays declared, and the symbol count stays at or above the
+# frozen floor. The table header and skills/spire-docs/SKILL.md describe the same contract.
 # Parent bodies are read from ui/main.gd, except the external owners declared below (the only
 # cross-file parent body read is header.configure, for its header._presentation_key child).
 const PRESENT_SOURCE="res://ui/main.gd"
 const PRESENT_ROOT="present"
+# Pipeline naming shapes: the single mechanical declaration of which routine names must be rows.
+# These are shapes, not a function-name roster; the prose lives in the table header.
+const PRESENT_PIPELINE_SHAPES=[
+ "^_refresh_[a-z0-9_]+_section$",
+ "^_sync_[a-z0-9_]+$",
+ "^_build_[a-z0-9_]+$",
+ "^[a-z0-9_]+_presentation_key$",
+ "^_[a-z0-9_]+_key_hit$",
+ "^_unload_[a-z0-9_]+_section$",
+ "^_[a-z0-9_]+_need_full$",
+]
+const PRESENT_PIPELINE_EXACT=["render","_present_needs_full_render"]
+# Frozen lower bound for the table symbol count (keys and children). It only goes up; lowering it
+# requires an explicit same-batch reason in the commit message.
+const PRESENT_SYMBOL_FLOOR=108
 # External boundary symbols: owner prefix (dotted symbol) or bare name -> source file.
 const PRESENT_EXTERNAL_OWNERS={
  "header":"res://ui/shell/header.gd",
@@ -390,6 +409,163 @@ static func present_adjacency_graph_is_pinned(t) -> void:
   for child in table[parent]:
    if not present_symbol_resolves(String(child),main_bodies,external): phantom.append(String(parent)+" -> "+String(child))
  t.check(phantom.is_empty(),"ARCH present_adjacency_graph_is_pinned: every table symbol resolves to a declared function: "+str(phantom))
+
+static func present_symbol_set(table: Dictionary) -> Array:
+ var symbols=[]
+ for parent in table:
+  if String(parent) not in symbols: symbols.append(String(parent))
+  for child in table[parent]:
+   if String(child) not in symbols: symbols.append(String(child))
+ return symbols
+
+# The sections declared by ui/main.gd::PRESENT_SECTIONS (entry order preserved).
+static func present_sections() -> Array:
+ var source=present_source_text(PRESENT_SOURCE)
+ var start=source.find("const PRESENT_SECTIONS")
+ if start<0: return []
+ var equals=source.find("=",start)
+ if equals<0: return []
+ var open=source.find("[",equals)
+ var close=source.find("]",open)
+ if open<0 or close<0: return []
+ var sections=[]
+ var item=RegEx.new()
+ item.compile("\"([^\"]+)\"")
+ for hit in item.search_all(source.substr(open,close-open+1)): sections.append(hit.get_string(1))
+ return sections
+
+# Normalized arm target: header.configure, layout.body_sidebar or a bare local routine. Any other
+# arm body (e.g. `pass`) yields an empty target so the caller marks the section red.
+static func present_arm_target(line: String) -> String:
+ if line.begins_with("layout.get_node(\"GameHeader\").configure("): return "header.configure"
+ var member=RegEx.new()
+ member.compile("^layout\\.([A-Za-z_][A-Za-z0-9_]*)\\s*\\(")
+ var hit=member.search(line)
+ if hit!=null: return "layout."+hit.get_string(1)
+ var bare=RegEx.new()
+ bare.compile("^([A-Za-z_][A-Za-z0-9_]*)\\s*\\(")
+ hit=bare.search(line)
+ if hit!=null: return hit.get_string(1)
+ return ""
+
+# Section -> normalized arm target from the present() body. A repeated arm is kept as a
+# "<duplicate>" target so the caller can name it in the failure sample.
+static func present_dispatch_arms(body: String) -> Dictionary:
+ var arms={}
+ var seen={}
+ var declaration=RegEx.new()
+ declaration.compile("^(\\s*)(?:if|elif)\\s+section\\s*==\\s*\"([^\"]+)\"\\s*:\\s*$")
+ var lines=body.split("\n")
+ for index in range(lines.size()):
+  var hit=declaration.search(String(lines[index]))
+  if hit==null: continue
+  var indent=hit.get_string(1).length()
+  var section=hit.get_string(2)
+  var target=""
+  for next in range(index+1,lines.size()):
+   var line=String(lines[next])
+   var stripped=line.strip_edges()
+   if stripped=="" or stripped.begins_with("#"): continue
+   var line_indent=line.length()-line.strip_edges(true,false).length()
+   if line_indent<=indent: break
+   target=present_arm_target(stripped)
+   break
+  if seen.has(section):
+   arms[section]="<duplicate>"
+  else:
+   seen[section]=true
+   arms[section]=target
+ return arms
+
+# C1: every symbol named anywhere in the table (key or child) has its own row.
+static func present_adjacency_rows_are_complete(t) -> void:
+ var table=present_adjacency_table()
+ t.check(not table.is_empty(),"ARCH present_adjacency_rows_are_complete: ui/main.gd::PRESENT_ADJACENCY is readable")
+ if table.is_empty(): return
+ var missing=[]
+ for symbol in present_symbol_set(table):
+  if not table.has(symbol): missing.append(String(symbol))
+ t.check(missing.is_empty(),"ARCH present_adjacency_rows_are_complete: every table symbol has its own row: "+str(missing.slice(0,4)))
+
+# C2: PRESENT_SECTIONS and the present() dispatch arms are one-to-one (page excepted).
+static func present_section_dispatch_is_total(t) -> void:
+ var table=present_adjacency_table()
+ var sections=present_sections()
+ var body=String(present_function_bodies(PRESENT_SOURCE).get("present",""))
+ t.check(not table.is_empty() and not sections.is_empty() and body!="","ARCH present_section_dispatch_is_total: the table, PRESENT_SECTIONS and the present() body are readable")
+ if table.is_empty() or sections.is_empty() or body=="": return
+ var arms=present_dispatch_arms(body)
+ var unknown=[]
+ var duplicate=[]
+ for section in arms:
+  if String(section) not in sections: unknown.append(String(section))
+  if String(arms[section])=="<duplicate>": duplicate.append(String(section))
+ t.check(unknown.is_empty(),"ARCH present_section_dispatch_is_total: every arm routes a declared section: "+str(unknown.slice(0,4)))
+ t.check(duplicate.is_empty(),"ARCH present_section_dispatch_is_total: no section has more than one arm: "+str(duplicate.slice(0,4)))
+ var declared=[]
+ for child in table.get(PRESENT_ROOT,[]): declared.append(String(child))
+ var broken=[]
+ for section in sections:
+  if String(section)=="page":
+   if arms.has(section): broken.append("page -> "+String(arms[section]))
+   continue
+  if not arms.has(section):
+   broken.append(String(section)+" -> <missing>")
+   continue
+  var target=String(arms[section])
+  if target=="" or target=="<duplicate>" or target not in declared: broken.append(String(section)+" -> "+target)
+ t.check(broken.is_empty(),"ARCH present_section_dispatch_is_total: every section except page has one arm whose normalized target is declared on the present row: "+str(broken.slice(0,4)))
+
+# C3: every ui/main.gd routine matching a frozen pipeline shape is a table row (and therefore,
+# by present_adjacency_graph_is_pinned's reachability check, reachable from present).
+static func present_pipeline_routines_are_registered(t) -> void:
+ var table=present_adjacency_table()
+ var bodies=present_function_bodies(PRESENT_SOURCE)
+ t.check(not table.is_empty() and not bodies.is_empty(),"ARCH present_pipeline_routines_are_registered: the table and ui/main.gd function bodies are readable")
+ if table.is_empty() or bodies.is_empty(): return
+ var shapes=[]
+ var broken_shapes=[]
+ for pattern in PRESENT_PIPELINE_SHAPES:
+  var regex=RegEx.new()
+  if regex.compile(String(pattern))!=OK: broken_shapes.append(String(pattern))
+  else: shapes.append(regex)
+ t.check(broken_shapes.is_empty(),"ARCH present_pipeline_routines_are_registered: every frozen pipeline shape compiles: "+str(broken_shapes))
+ var unregistered=[]
+ for name in bodies:
+  var matched=String(name) in PRESENT_PIPELINE_EXACT
+  if not matched:
+   for regex in shapes:
+    if regex.search(String(name))!=null:
+     matched=true
+     break
+  if matched and not table.has(String(name)): unregistered.append(String(name))
+ t.check(unregistered.is_empty(),"ARCH present_pipeline_routines_are_registered: every pipeline-shaped routine is a table row: "+str(unregistered.slice(0,4)))
+
+# C4: present declares and directly calls both the predicate and the full render fallback.
+static func present_full_render_fallback_is_pinned(t) -> void:
+ var table=present_adjacency_table()
+ var body=String(present_function_bodies(PRESENT_SOURCE).get("present",""))
+ t.check(not table.is_empty() and body!="","ARCH present_full_render_fallback_is_pinned: the table and the present() body are readable")
+ if table.is_empty() or body=="": return
+ var declared=[]
+ for child in table.get(PRESENT_ROOT,[]): declared.append(String(child))
+ var broken=[]
+ for name in ["_present_needs_full_render","render"]:
+  if name not in declared: broken.append(name+" is not declared on the present row")
+  if not table.has(name): broken.append(name+" has no row")
+  elif not present_called(body,name): broken.append(name+" is not called directly by present()")
+ t.check(broken.is_empty(),"ARCH present_full_render_fallback_is_pinned: the full-render fallback stays declared, owned and called: "+str(broken.slice(0,4)))
+
+# C5: the table symbol count never falls below the frozen floor (catches row+edge deletion and
+# whole-table emptying, which C1 alone cannot see).
+static func present_adjacency_symbol_floor_is_pinned(t) -> void:
+ var table=present_adjacency_table()
+ t.check(not table.is_empty(),"ARCH present_adjacency_symbol_floor_is_pinned: ui/main.gd::PRESENT_ADJACENCY is readable")
+ if table.is_empty(): return
+ var symbols=present_symbol_set(table)
+ var arms=present_dispatch_arms(String(present_function_bodies(PRESENT_SOURCE).get("present","")))
+ print("PRESENT ADJACENCY rows=%d symbols=%d arms=%d" % [table.size(),symbols.size(),arms.size()])
+ t.check(symbols.size()>=PRESENT_SYMBOL_FLOOR,"ARCH present_adjacency_symbol_floor_is_pinned: the table symbol count stays at or above the frozen floor "+str(PRESENT_SYMBOL_FLOOR)+": symbols="+str(symbols.size()))
 
 # docs/spec/event-pipeline.md「依赖规范」: nodes and options are reachable only through
 # definition／node／node_ids; legacy keys return empty instead of raising.
@@ -919,6 +1095,11 @@ static func run(t) -> void:
  event_dependency_edges_pinned(t)
  content_pack_root_has_no_build_feature_branch(t)
  present_adjacency_graph_is_pinned(t)
+ present_adjacency_rows_are_complete(t)
+ present_section_dispatch_is_total(t)
+ present_pipeline_routines_are_registered(t)
+ present_full_render_fallback_is_pinned(t)
+ present_adjacency_symbol_floor_is_pinned(t)
  transition_write_sites_are_pinned(t)
  save_checkpoint_kinds_are_pinned(t)
  event_condition_kinds_share_one_declaration(t)

@@ -630,14 +630,24 @@ const PHASE_OPEN_DEMAND={
 #    `_style`/`_bar`/`_scroll`/`_text`), frame chrome (`layout.begin_frame`/
 #    `layout.end_frame`/`_localize_controls`), and domain routines reached only by
 #    unregistered parents remain outside the table.
-#  - Coverage boundary (reviewer's responsibility, not guarded): the checks verify the edges
-#    that ARE declared, not that every present-pipeline routine IS declared. Adding a new
-#    section or stage routine without registering it, deleting a whole row, or emptying the
-#    table to `{"present":[]}` all leave the guard green. No completeness floor is added
-#    because "every declared `ui/main.gd` function a registered parent calls must be a table
-#    row or child" would flag ~80 local routines (render alone calls ~20) beyond the
-#    non-admitted names above - a large, churn-prone hand list. New declarations and whole-row
-#    removals are reviewed by hand (`.zcode/skills/spire-docs/SKILL.md`, fifth category).
+#  - Completeness floor (tests/architecture_cases.gd::present_adjacency_rows_are_complete /
+#    present_section_dispatch_is_total / present_pipeline_routines_are_registered /
+#    present_full_render_fallback_is_pinned / present_adjacency_symbol_floor_is_pinned):
+#    every symbol anywhere in this table has its own row; every section in PRESENT_SECTIONS
+#    except `page` has exactly one dispatch arm in the present dispatcher and each arm target is
+#    declared on the `present` row; every ui/main.gd routine whose name matches a pipeline shape
+#    is a table row reachable from `present`; `present` declares and directly calls both
+#    `_present_needs_full_render` and `render`; the symbol count (keys and children) stays at
+#    or above the frozen floor. Pipeline naming shapes (the mechanical source is the constants
+#    in architecture_cases.gd; this list is the prose description): section rebuild
+#    `_refresh_*_section`, present sync `_sync_*`, build entry `_build_*`, section key
+#    `*_presentation_key`, section key-hit probe `_*_key_hit`, section unload
+#    `_unload_*_section`, section full-fallback predicate `_*_need_full`, and the exact names
+#    `render` and `_present_needs_full_render`. Arbitrarily named helpers that match no shape
+#    (e.g. `_apply_new_stage`), externally named screen/drawer builders, and external symbol
+#    internals remain the reviewer's responsibility. These structural checks do not prove the
+#    call order or the read sets; read sets stay pinned by
+#    tests/architecture_cases.gd::section_read_sets_are_pinned.
 # Declared present adjacency (direct calls, stable symbols only): present routes to
 # _present_needs_full_render (predicate), render (full fallback), header.configure
 # (["header"] local), _relic_row (["relics"] local), _hand (["hand"] local; it also
@@ -744,15 +754,20 @@ const PRESENT_ADJACENCY={
  "_sync_card_faces":[],
  "_sync_drag_versions":[],
  "_hand_presentation_key":["_hand_card_key"],
- "_build_action_rail":["_action_presentation_key","render","_label","_place"],
+ "_build_action_rail":["_action_presentation_key","_action_key_hit","render","_label","_place"],
  "_action_presentation_key":[],
- "_refresh_posture_section":["_posture_presentation_key","_wall_controls","_posture_controls"],
+ "_action_key_hit":[],
+ "_refresh_posture_section":["_posture_presentation_key","_posture_key_hit","_unload_posture_section","_wall_controls","_posture_controls"],
  "_wall_controls":["_place","display_key"],
  "_posture_controls":["_posture_presentation_key","_place","display_key"],
  "_posture_presentation_key":[],
- "_refresh_resource_section":["_resource_presentation_key","_build_resource_bar","_sync_hero_stage_meters"],
+ "_posture_key_hit":["display_key"],
+ "_unload_posture_section":[],
+ "_refresh_resource_section":["_resource_presentation_key","_resource_key_hit","_unload_resource_section","_build_resource_bar","_sync_hero_stage_meters"],
  "_build_resource_bar":["_resource_presentation_key","_guard_bind_drop_target","_resource_meter","_label","_place","display_key"],
  "_resource_presentation_key":[],
+ "_resource_key_hit":["display_key"],
+ "_unload_resource_section":["_unload_resource_direct"],
  "_sync_hero_stage_meters":["_stage_control","_resource_meter","_sync_stage_meter","_meter_value_text","_guard_bind_drop_target","_unload_resource_direct","_hero_casting_text","_label","_place"],
  "_sync_stage_meter":["_stage_control","_resource_meter","_meter_value_text"],
  "_hero_casting_text":[],
@@ -762,25 +777,31 @@ const PRESENT_ADJACENCY={
  "_guard_bind_drop_target":["_actor_drop_area"],
  "_actor_drop_area":["_place"],
  "_unload_resource_direct":[],
- "_refresh_log_section":["_log_presentation_key","_log_drawer"],
+ "_refresh_log_section":["_log_presentation_key","_log_key_hit","_log_drawer"],
  "_log_drawer":["_log_presentation_key","_label"],
  "_log_presentation_key":[],
- "_refresh_body_details_section":["_body_details_presentation_key","_body_details","_selecting_hand"],
+ "_log_key_hit":[],
+ "_refresh_body_details_section":["_body_details_presentation_key","_body_details_key_hit","_body_details","_selecting_hand"],
  "_body_details":["_body_details_presentation_key","render","_label"],
  "_body_details_presentation_key":[],
- "_refresh_picker_section":["_picker_presentation_key","_hand_target_picker"],
+ "_body_details_key_hit":[],
+ "_refresh_picker_section":["_picker_presentation_key","_picker_key_hit","_hand_target_picker"],
  "_hand_target_picker":["_picker_presentation_key","render","_label","_clear_player_picker"],
  "_picker_presentation_key":[],
- "_refresh_speech_section":["_speech_presentation_key","_speech_bubble"],
+ "_picker_key_hit":[],
+ "_refresh_speech_section":["_speech_presentation_key","_speech_key_hit","_speech_bubble"],
  "_speech_bubble":["_speech_presentation_key","_ignore_mouse","_label","_place"],
  "_speech_presentation_key":[],
- "_refresh_notice_section":["_notice_presentation_key","_show_term","_hide_term"],
+ "_speech_key_hit":[],
+ "_refresh_notice_section":["_notice_presentation_key","_notice_key_hit","_show_term","_hide_term"],
  "_notice_presentation_key":[],
+ "_notice_key_hit":[],
  "_show_term":["_ignore_mouse","_label","_hide_term"],
- "_refresh_drawer_section":["_drawer_presentation_key","_menu_drawer","_items_drawer"],
+ "_refresh_drawer_section":["_drawer_presentation_key","_drawer_key_hit","_menu_drawer","_items_drawer"],
  "_menu_drawer":[],
  "_items_drawer":["_label"],
  "_drawer_presentation_key":[],
+ "_drawer_key_hit":[],
  "layout.body_sidebar":[],
  "render":["_hand","_refresh_notice_section","_sync_card_faces","_sync_drag_versions","_place","_selecting_hand","_hide_term"],
  "_climax_narration":["_label"],

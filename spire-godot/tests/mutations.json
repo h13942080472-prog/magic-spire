@@ -463,6 +463,36 @@
       "find": "func command_issue(cmd: Dictionary) -> String:",
       "replace": "func command_issue(cmd: Dictionary) -> String:\n var _probe_whole_state=state.duplicate(true)",
       "suite": "architecture"
+    },
+    "present_adjacency_rows_are_complete": {
+      "file": "ui/main.gd",
+      "find": " \"_enemy_hp_text\":[],\n \"_sync_enemy_select\"",
+      "replace": " \"_sync_enemy_select\"",
+      "suite": "architecture"
+    },
+    "present_section_dispatch_is_total": {
+      "file": "ui/main.gd",
+      "find": "  elif section==\"relics\":\n   _relic_row()",
+      "replace": "  elif section==\"relics\":\n   pass",
+      "suite": "architecture"
+    },
+    "present_pipeline_routines_are_registered": {
+      "file": "ui/main.gd",
+      "find": "func _sync_stage_meter(id: String",
+      "replace": "func _sync_mutation_probe_stage() -> void:\n pass\n\nfunc _sync_stage_meter(id: String",
+      "suite": "architecture"
+    },
+    "present_full_render_fallback_is_pinned": {
+      "file": "ui/main.gd",
+      "find": "\"_present_needs_full_render\",\"render\",\"header.configure\"",
+      "replace": "\"_present_needs_full_render\",\"header.configure\"",
+      "suite": "architecture"
+    },
+    "present_adjacency_symbol_floor_is_pinned": {
+      "file": "ui/main.gd",
+      "find": " \"_refresh_drawer_section\":[\"_drawer_presentation_key\",\"_drawer_key_hit\",\"_menu_drawer\",\"_items_drawer\"],\n \"_menu_drawer\":[],\n",
+      "replace": " \"_refresh_drawer_section\":[\"_drawer_presentation_key\",\"_drawer_key_hit\",\"_items_drawer\"],\n",
+      "suite": "architecture"
     }
   }
 }

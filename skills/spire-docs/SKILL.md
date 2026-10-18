@@ -38,12 +38,18 @@ description: >-
   **管线／邻接表**（第五类）。
 - **管线／邻接表**：声明"某入口按哪些边到达哪些子例程"的表，改实现路径、改节／例程名或改边时，
   必须在**同一批**改动里同步该表，否则表与实现漂移而无人可查。现有三张：
-  - `spire-godot/ui/main.gd::PRESENT_ADJACENCY`（present 管线声明表）：入表口径见其表头注释，判据＝
-    `spire-godot/tests/architecture_cases.gd::present_adjacency_graph_is_pinned`（三条：声明边必须有直调、
-    表内符号被已登记父函数直调必须登记、无死项）。该判据只校验**已声明**的边，不保证每个管线条目都已登记：
-    新增节／舞台例程不入表、删整行、乃至把整表掏空为 `{"present":[]}` 都不会变红，**由评审负责**；
-    不设完整性下限（"已登记父在 `ui/main.gd` 里的每个直调都须入表或成子"会牵出约 80 个本地例程，
-    多为随实现频繁变动的构建／域例程，属第二份易漂移手工清单）。每个被声明的符号（含仅作子出现的叶）都必须在表内有自己的行。
+  - `spire-godot/ui/main.gd::PRESENT_ADJACENCY`（present 管线声明表）：入表口径见其表头注释。完整性下限＝五条判据
+    （`spire-godot/tests/architecture_cases.gd::present_adjacency_rows_are_complete`／
+    `::present_section_dispatch_is_total`／`::present_pipeline_routines_are_registered`／
+    `::present_full_render_fallback_is_pinned`／`::present_adjacency_symbol_floor_is_pinned`）：
+    表内每个符号都有自己的行；`PRESENT_SECTIONS` 除 `page` 外与 `present()` 的臂一一对应；命中冻结命名形状
+    （节重建 `_refresh_*_section`、present 内同步 `_sync_*`、构建入口 `_build_*`、节键 `*_presentation_key`、
+    节键命中探针 `_*_key_hit`、节拆卸 `_unload_*_section`、节级全量谓词 `_*_need_full`，以及精确名 `render`／
+    `_present_needs_full_render`）的例程必须入表；`present` 必须声明并直调 `_present_needs_full_render` 与
+    `render`；符号数不低于冻结下限（只许增）。命名形状的机械真源是判据常量，本段只是规范描述，不复制
+    函数名清单。既有三条边判据（`::present_adjacency_graph_is_pinned`）继续校验已声明的边、直调与死项。
+    仍靠评审的残差：任意命名的非形状辅助（如 `_apply_new_stage`）、带名字的屏／抽屉构建器、外部符号内部
+    完整性；结构性判据也不证明调用顺序——顺序读集由 `::section_read_sets_are_pinned` 与运行期窗口套件承担。
   - `docs/spec/candidate-removal.md` 的管线表（邻接表，第 1 节现状图与第 2 节目标图）：跨文件锚点、
     含历史行与未落地行，**无整表机械判据**；其机读子集＝
     `spire-godot/tests/architecture_cases.gd::PIPELINE_LOOKUP_EDGES`（检查入口
