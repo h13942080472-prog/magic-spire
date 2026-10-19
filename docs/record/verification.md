@@ -3029,3 +3029,11 @@ Windows 验证导出 `pr45-validation-20260918` 与 `check-package.ps1 -WitchBal
 - 文档面：`tools/check-docs.ps1` 单跑 → exit 0，`DOCS PASS: 47 rule-class document(s), 2724 reference(s) checked, allowlist 3 entrie(s)`。
 - 四态：**已测**＝architecture／architecture,runner／5 条突变（RED＋逐字节还原＋identity `head=0e3aba7 dirty=0`＋无 RESIDUE）／两份生成物 verify／check-docs（运行号如上）；**失败**＝无；**未验证**＝`-Suite all -UI -UISuite all` 里程碑、UI 窗口套件、recipe、打包与双平台、`-Changed` 路由、空表反例本轮未重做（上节已测，非本档范围）、独立审查与验收（非加固职能）；**被跳过**＝无；**假设**＝无。
 - 本节只追加本文件一节、单独提交（docs-only）；仅本地 `.git`，未推送、未 tag、未改版本号、未开 PR、未打包。
+
+### 2026-10-19｜P7 独立审查与验收登记（协调者落账）
+
+- 域：本节；对象 `e5723b2..38e6d8f`（实现 `e4dd123`、记录 `0e3aba7`、加固 `38e6d8f`；枝 `worker/p7-floor`）。
+- **独立审查**（`dsp-20261019T140237Z-7606`，只读、未跑引擎）：**VERDICT PASS，零 [应修]**。逐项核对：改动面仅 8 个授权文件、禁止面零改动、`ui/main.gd` 无逻辑行（表为纯声明）；表实为 108 行/符号、11 行/14 边全在场；形状表与 `design.md` 冻结表逐字一致且只在判据常量一处；C1–C5 按契约实现并注册；五条突变锚唯一、RED 均落在具名判据、`known_gaps` 未增；两份生成物只动指纹行；文档与全部运行号载体在案。六条 [存疑] 留案（C4 与旧断言部分重叠、C3 可达性依赖 3b、C2 仅识别规范臂形态且不钉节→例程身份、形状字符类对非 snake_case 及 `_build_*`／`_sync_*` 边界、表解析折叠重复键、C5 可被补偿），不构成应修。
+- **验收一轮**（`dsp-20261019T141339Z-52f9`）：自跑 architecture PASS **120932**（run `20261019T141441089-6088`，status=passed，before==after，`rows=108 symbols=108 arms=14`）；五条突变 **5/5 具名 RED＋逐字节还原**（run `20261019T142120218-24224`，identity `head=38e6d8f dirty=0`，无 RESIDUE）；两份生成物 verify 零漂移；check-docs PASS（47/2724/3）；**独立复做整表掏空反例**：临时替换为 `{"present":[]}` → FAIL 6/120932（红集＝C2／C3／C4／C5＋`section_read_sets_are_pinned`＋`state_read_sites_are_pinned`，C1 保持绿，与设计一致）→ 逐字节还原（sha256 回到 `ac53effc…`、树净）→ 同命令复跑 PASS 120932（run `20261019T145608667-40796`）。C-PA-1..10 逐条满足；**总判定＝验收通过**。
+- 未跑（如实，不作通过）：全量里程碑／UI 窗口套件／recipe／打包与双平台／`-Changed`（授权面外；本片无窗口与产物面）。
+- P7「present 邻接表完整性下限」切片闭合：提案状态已改为已落地（`0e3aba7` 批内）。
