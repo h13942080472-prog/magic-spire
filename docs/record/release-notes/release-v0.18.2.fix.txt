@@ -3,6 +3,6 @@
 2.加入种子标识、本局回顾与反馈存档附件相关改进。
 3.修复反馈存档能力探针的重定向处理，更新新指令契约对应的旧校验。
 4.同步审查规范与 GPL-3.0-only 许可；第三方素材授权范围不变。
+5.修复手牌内容标签回插崩溃，收口事实查询与按需投影，增加检查路由、状态读者和管线完整性校验。
 
-本次已生成 Windows 安装包与 Android 本地自签测试包；Android 包为自签、不能覆盖安装正式签名版本，详见包内说明。
-验证范围与未验证项见 docs/record/pr11-integration-preparation-2026-09-28.md 及 docs/record/verification.md（现行卷）。
+本次为源码同步，未生成安装包；验证范围与未验证项见 docs/record/pr11-integration-preparation-2026-09-28.md。

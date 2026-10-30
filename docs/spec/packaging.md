@@ -9,7 +9,7 @@
 
 ## v0.18.2.fix 修复与维护版
 
-当前 project.godot 及两平台预设统一为 0.18.2.fix；版本读取接受原有两段／三段数字及可选的 `.fix` 后缀。Windows 文件版本保持数字格式 0.18.2.0，Android 显示版本为 0.18.2.fix，安装版本暂为14；下次发布新 APK 前须递增安装版本并保留原签名。两平台随包版本说明均读取 [本版说明](../record/release-notes/release-v0.18.2.fix.txt)，Android 附 [Android 说明](../record/release-notes/release-android-v0.18.2.fix.txt) 及基础操作教学。历史标签和安装包不覆盖。
+当前 project.godot 及两平台预设统一为 0.18.2.fix；版本读取接受原有两段／三段数字及可选的 `.fix` 后缀。Windows 文件版本保持数字格式 0.18.2.0，Android 显示版本为 0.18.2.fix，安装版本为15；发布新 APK 时须保留原发布签名，后续安装版本继续递增。两平台随包版本说明均读取 [本版说明](../record/release-notes/release-v0.18.2.fix.txt)，Android 附 [Android 说明](../record/release-notes/release-android-v0.18.2.fix.txt) 及基础操作教学。历史标签和安装包不覆盖。
 
 交付普通 Windows ZIP、Android APK及含说明与许可的 Android ZIP；本地另交付仅含完整 PC 目录的双层加密7z。内外两层均使用用户指定密码并加密文件名；双层包不上传 GitHub。两层实际解压后核对文件 SHA256，确认内层不含安卓包；密码不写入游戏或签名配置。
 

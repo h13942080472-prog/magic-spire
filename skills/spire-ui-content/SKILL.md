@@ -12,6 +12,7 @@ description: >-
 - 抽屉、二级说明与模态复用共享入口；遮罩关闭不得把点击穿透成背后行动。
 - 拖牌按真实身体部位展开目标、提交前不付费；锁定或无效目标保留具体原因，不自动改牌面效果。
 - 状态、卡面、日志、对白与旁白各用对应投影；不重复规则说明，不删玩家决策所需的费用、概率与限制。
+- 前端文字表达遵循 `docs/guide/action-copy-guide.md`「前端文字表达」，人审删除过度防御化与过度描写，保留玩家决策所需事实。
 - 文案按 wear_style 与人物／附魔物自行动作区分；对白只写实际发声，旁白第二人称（见 docs/guide/action-copy-guide.md）。
 - 语言与译文只经 ui/localization.gd 在显示边界处理；显示偏好独立保存，不改候选、存档或随机（见 docs/guide/localization.md）。
 - 立绘与差分统一由 ui/equipment_portrait.gd 组合，读真实覆盖与占位；马眼棒差分只在「任意平板锁＋内置导尿管或独立马眼棒」时显示；只读映射不改装备效果（见 docs/design/cursed-plate-lock.md）。
