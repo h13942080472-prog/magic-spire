@@ -4286,3 +4286,15 @@ flowchart LR
 - **验收一轮**（`dsp-20261019T141339Z-52f9`）：自跑 architecture PASS **120932**（run `20261019T141441089-6088`，status=passed，before==after，`rows=108 symbols=108 arms=14`）；五条突变 **5/5 具名 RED＋逐字节还原**（run `20261019T142120218-24224`，identity `head=38e6d8f dirty=0`，无 RESIDUE）；两份生成物 verify 零漂移；check-docs PASS（47/2724/3）；**独立复做整表掏空反例**：临时替换为 `{"present":[]}` → FAIL 6/120932（红集＝C2／C3／C4／C5＋`section_read_sets_are_pinned`＋`state_read_sites_are_pinned`，C1 保持绿，与设计一致）→ 逐字节还原（sha256 回到 `ac53effc…`、树净）→ 同命令复跑 PASS 120932（run `20261019T145608667-40796`）。C-PA-1..10 逐条满足；**总判定＝验收通过**。
 - 未跑（如实，不作通过）：全量里程碑／UI 窗口套件／recipe／打包与双平台／`-Changed`（授权面外；本片无窗口与产物面）。
 - P7「present 邻接表完整性下限」切片闭合：提案状态已改为已落地（`0e3aba7` 批内）。
+
+
+## 2026-10-30｜PR #14／#15 集成与前端文案指导
+
+- 范围：以 PR #15 的 `b4f19ab907481736c7c4047eb78c0ea501e88bd7` 接入事实查询、按需投影、检查路由、状态读者表与呈现邻接表；`008e5054f9ef549fdbfa921fb3ce6af1d163696e`（PR #14）是其祖先，手牌内容标签回插修复一并接入。保留用户当前 AGENTS 规则、原验证册全文与本机发布签名约定，项目技能正文归入 `skills/`，移除作者机器路径与重复审查流程。公开版本仍为 `0.18.2.fix`；本批只同步源码，不打包、不打标签、不创建 Release。
+- 新指导：玩家可见文字禁止过度防御化与过度描写；根 AGENTS 和界面技能指向 `docs/guide/action-copy-guide.md` 的“前端文字表达”。保留费用、概率、限制、失败原因、必要提醒、人物语气与必要场景信息；不改变正式运行时校验。
+- 干净候选：`7d9aed966ee87ccf858f887e95aae237eae0a969`，准备分支 `codex/pr15-integration-20261030`；验证指纹 `1C4B6685A1D08EC495179A28344BB2915CAEA64CB4387AFCD7279DF0DC64D018`。`20261030T094940904-24348`：architecture／runner 共 122664 断言通过；recipe 为 seed=7、60 提交／60 步、stop=cap、194 断言、exit=0；15 项测试器负例与路由探针通过，summary=passed、before==after。文档门禁 47 份／2761 引用通过。
+- 全分类尝试 `20261030T095535320-52288`：已完成的 33 个规则分类共 14501 断言通过，完整随机采样；normal_play 在 seed=20260906 的高装备量流程中长时间无新进度，人工停止任务所属引擎，整轮 exit=-1、summary=failed、该分类未完成，不能称完整回归通过。通过分类保留证据，不重复运行。
+- 耗时对照：保留第 950 步检查点，独立分段驱动定位至第 969 步 battle/end 的 dispatch 未返回。旧主线 `6ac813ff3eb767b9f202ffa9cae2ea92c88f36d8` 加载相同输入亦停在同点，45 秒到界后终止。输入校验和：检查点 `eb42eda2a23d840ecd13871453ce82d45ac62e5406109e6c534f78e281dd270b`，驱动 `2c68b5e578db9007a29b4b87d53fba29e4bfeede0f1ce737d4e4b0e3ed4514d0`；证据在准备树与对照树的 `spire-godot/build/pr15-prep-20261030/`。仅证明旧源码也存在同点长耗时，未确认最终根因，未改变游戏规则或删除失败判据。
+- 续跑 `20261030T100829774-2508`：剩余 16 个规则分类共 15030 断言通过；敌人行动循环 16／16、敌池 24／24、塔图 201／201 种子覆盖。连同首轮，共 51／52 规则分类通过；未完成项为上述 headless normal_play。
+- 记录守恒：`check-record-conservation.ps1 -Base origin/main` 对三卷原文、标识、标题／日期／域及失败标记的差集全为 0；现行卷仅追加 PR 的 45 个新章节。独立只读审查沿用 `review_pr15_integration`（Astra low），运行时边界、政策适配和本地冲突合并无阻断发现。
+- UI 全分类证据：`20261030T100829774-2508` 达到 1500 秒执行时限，summary=failed，但 41 分类／7033 断言已完成；只用 `-RerunFailed` 续跑六个未完成分类，`20261030T103618411-30556` 为 997 断言、exit0、summary=passed。两轮 before==after，且与上述候选指纹相同；合计 47／47 UI 分类、8030 断言通过。UI normal_play（seed=7）945 断言通过并到达出狱路线地图；不与未完成的 headless normal_play（seed=20260906）混同。桌面触屏事件模拟不等于安卓真机验收。
