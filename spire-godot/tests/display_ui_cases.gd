@@ -2950,7 +2950,7 @@ const EXTERNAL_READ_OWNERS={
 # Interaction callbacks resolve through architecture_cases.gd::SECTION_BODIES via f_main_owners:
 # there is no second ownership table (C-F-2 fix G1: static and runtime owners share one declaration).
 # Full-screen only groups are not fed back into the local demand declaration.
-const PAGE_READ_GROUPS=["chain","demo_exit","event","flow","item","prison","reward","route","service","service_flow","service_refresh","service_release","service_remove"]
+const PAGE_READ_GROUPS=["chain","demo_exit","event","flow","item","prison","rest_service","reward","route","service","service_flow","service_refresh","service_release","service_remove"]
 static var _read_session={}
 static var _read_coverage={}
 
@@ -3335,6 +3335,11 @@ static func present_demand_recorder(t) -> void:
  var reward_fixture=Cases.r1_build("battle",0)
  reward_fixture._finish_battle()
  extras.append(["reward",reward_fixture])
+ var rest_choice_fixture=Cases.r1_build("battle",0)
+ rest_choice_fixture.state.room="rest"
+ rest_choice_fixture._start_rest()
+ t.check(rest_choice_fixture.state.phase=="rest_choice","F3 present_demand_recorder rest setup: a non-practice rest entry exposes the reward choice page")
+ extras.append(["rest_choice",rest_choice_fixture])
  var demo_fixture=Cases.r1_build("battle",0)
  demo_fixture.room_data(demo_fixture.state.room).kind="exit"
  demo_fixture.state.phase="cleared"

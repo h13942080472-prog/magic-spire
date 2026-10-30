@@ -4298,3 +4298,13 @@ flowchart LR
 - 续跑 `20261030T100829774-2508`：剩余 16 个规则分类共 15030 断言通过；敌人行动循环 16／16、敌池 24／24、塔图 201／201 种子覆盖。连同首轮，共 51／52 规则分类通过；未完成项为上述 headless normal_play。
 - 记录守恒：`check-record-conservation.ps1 -Base origin/main` 对三卷原文、标识、标题／日期／域及失败标记的差集全为 0；现行卷仅追加 PR 的 45 个新章节。独立只读审查沿用 `review_pr15_integration`（Astra low），运行时边界、政策适配和本地冲突合并无阻断发现。
 - UI 全分类证据：`20261030T100829774-2508` 达到 1500 秒执行时限，summary=failed，但 41 分类／7033 断言已完成；只用 `-RerunFailed` 续跑六个未完成分类，`20261030T103618411-30556` 为 997 断言、exit0、summary=passed。两轮 before==after，且与上述候选指纹相同；合计 47／47 UI 分类、8030 断言通过。UI normal_play（seed=7）945 断言通过并到达出狱路线地图；不与未完成的 headless normal_play（seed=20260906）混同。桌面触屏事件模拟不等于安卓真机验收。
+
+
+## 2026-10-30｜PR 集成补检：休息选择页读组声明
+
+- 主工作区在 `20261030T104257979-51440` 期间并行加入附魔改动，整轮 source_changed，不作为冻结通过证据。原 121 项在途输入按备份／三方合并结果在隔离树恢复，非记录源码逐文件对应并发前的哈希清单，未复制附魔在途变更，也未回退主工作区的并行改动。
+- 稳定复现 `20261030T104803346-35712`：本地融合快照的 display／basic_attacks／card_interaction 共 1650 断言通过；recipe 虽完成 60 提交，但在休息选择页触发 F3 `undeclared-group=rest_service`，exit1，整轮 failed 且 before==after。已有正式页面需求包含该组，缺口位于检查器的独立 `PAGE_READ_GROUPS`，不是游戏规则缺失。
+- 修正 `tests/display_ui_cases.gd::PAGE_READ_GROUPS`，补入 `rest_service`；`present_demand_recorder` 沿现有夹具、正式休息入口和实际页面渲染，显式覆盖非练习的 rest_choice，并断言阶段前提。独立全组 oracle 与原判据保持，`tests/check_index.json` 用官方生成器同步。
+- 新夹具配旧声明的针对性负例：`20261030T105352364-49584` display 1324 断言，唯一错误为真实 `reward_screen::row` 读取触发的 F3 漏组，before==after。补声明后的干净候选 `20261030T105636230-52404`：runner 1732、display 1324 断言通过，exit0、summary=passed、before==after。
+- 本地融合快照的同配方复验 `20261030T105915207-52456`：seed=7、60 提交／60 步、stop=cap，实际经过 rest_choice／rest／treasure，155 断言、exit0、summary=passed、before==after。与反例相比只改显示校验及其派生索引，复用上述三个 UI 分类的未受影响交互证据；并行附魔功能不在本批验收内。
+- 同一独立审查者 `review_pr15_integration`（Astra low）核对实际差异、非练习阶段前提与具名反例，无阻断意见。其余通过分类沿用同日记录的有效证据；旧 headless 长流程耗时、本地 K4／G6 基线失配保持登记，未宣称完整回归全绿。公开版本与发布边界不变。
