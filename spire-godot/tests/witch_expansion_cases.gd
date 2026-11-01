@@ -132,7 +132,8 @@ static func _training(t) -> void:
  for count in [0,6,7,13,14,20,21,27,28,34,35]:
   for free in [false,true]:
    var g=fresh();g.state.equipment.clear()
-   var target=g._install_template("belt","wrist",24.0,24.0,true,"fixture",3,0)
+   # A real durable target keeps hit-count coverage independent of leather bonuses.
+   var target=g._install_template("handcuffs","wrist",999.0,999.0,true,"fixture",1,0)
    var type=g.Character.Expansion.TRAINING[mini(5,count/7)]
    var card=Give.give(g,type);card.practice_plays=count
    for permanent in g.state.deck:
@@ -146,6 +147,7 @@ static func _training(t) -> void:
    var expected=g.Cards.Rules.SPECS[type].hits
    var hits=g.state.logs.filter(func(row):return row.data.has("base") and row.data.has("action_result"))
    t.check(hits.size()==expected and hits.all(func(row):return row.data.base==g.Cards.Rules.SPECS[type].base),"WITCH training keeps separate base damage per hit "+str([count,free]))
+   t.check(not g._equipment(target.id).is_empty(),"WITCH training hit-count fixture survives every segment "+str([count,free]))
    t.check(g.state.card_chain.is_empty() and g.state.energy==before.energy-(0 if count>=35 else 1),"WITCH training pays once and completes every segment "+str([count,free]))
    var saved=g.export_snapshot()
    t.check(Game.new(42).restore_snapshot(saved).ok,"WITCH training evolution restores consistently "+str([count,free]))

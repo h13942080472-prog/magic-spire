@@ -8,9 +8,10 @@ static func run(t) -> void:
   var card=t.hand_card(plain,type)
   var action=t.find_action(plain,"card",{"uid":card.uid,"target":equipment.id,"free":false})
   var durability=equipment.durability;var energy=plain.state.energy
-  var expected=plain.escape_preview(equipment,type,6).damage
+  var expected=plain.escape_preview(equipment,type,6).damage*(1.5 if type=="slip" else 1.0)
   t.check(action.valid and action.payload.preview.base==6 and plain.dispatch(plain.command(action.payload,plain.state.version),plain.state.version).ok,"BASIC six-point escape card submits its formal candidate: "+type)
-  t.check(is_equal_approx(plain._equipment(equipment.id).durability,durability-expected) and plain.state.energy==energy-1 and plain._card(card.uid).is_empty(),"BASIC actual damage uses six while retaining one-energy cost and normal card movement: "+type)
+  var remaining=plain._equipment(equipment.id)
+  t.check((remaining.is_empty() if expected>=durability else not remaining.is_empty() and is_equal_approx(remaining.durability,durability-expected)) and plain.state.energy==energy-1 and plain._card(card.uid).is_empty(),"BASIC actual damage uses six with cleanup at zero, one-energy cost and normal card movement: "+type)
  var g=Game.new(42)
  var original=g.Cards.Rules.SPECS.duplicate(true)
  var excluded=g.Relics.REWARDS.filter(func(id):return id!="graduate_certificate")
@@ -25,6 +26,10 @@ static func run(t) -> void:
   g.RelicEffects.gain(g,"graduate_certificate")
   var enhanced=g.Cards.target_payload(g,type,"wrist",target).preview
   var expected_preview=g.escape_preview(target,type,10);expected_preview.face_value=10.0
+  if type=="slip":
+   # Card-only leather bonus is applied after the raw escape factors.
+   for key in ["damage","scaled_damage","environment_true"]: expected_preview[key]*=1.5
+   expected_preview.material_factor=1.5
   t.check(enhanced==expected_preview and enhanced.damage>old.damage,"DIPLOMA card base increases before all existing escape factors: "+type)
   t.check(g.escape_preview(target,type,5)==ordinary and g.Cards.face_text(g,type,true)==free_text,"DIPLOMA leaves passive/raw escape and free face unchanged: "+type)
   g.state.card_buffs.append("henshin_free")

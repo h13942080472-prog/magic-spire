@@ -254,8 +254,9 @@ static func run(t) -> void:
  card=t.hand_card(g,"strain")
  var c=t.find_action(g,"card",{"uid":card.uid,"slot":"wrist","target":belt})
  var damage=c.payload.preview.damage
+ var durability_before=g._equipment(belt).durability
  t.check(t.action(g,"card",{"uid":card.uid,"slot":"wrist","target":belt}).ok and g.state.pressure==90,"PRESSURE strain source triggers once after real damage")
- t.check(is_equal_approx(g._equipment(belt).durability,12.8-damage),"PRESSURE does not alter escape damage")
+ t.check(is_equal_approx(g._equipment(belt).durability,durability_before-damage),"PRESSURE does not alter escape damage")
  card=t.hand_card(g,"strain")
  t.check(t.action(g,"card",{"uid":card.uid,"slot":"wrist","target":belt}).ok and g.state.overloaded and g.state.pressure==10 and g.state.mana==80,"PRESSURE second strain immediately overloads with remainder")
  var climax_view=g.get_view()
