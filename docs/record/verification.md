@@ -4679,3 +4679,22 @@ flowchart LR
 - 剩余4条未通过项：`prefix_branch_tables_are_frozen` 的equipment_spell／relic_rows摘要漂移；`baseline_diff_is_declared` 两条历史字段／记录差异；`behavior_baseline_equivalence` 一条行为快照差异。保留冻结表与断言，本轮未对所有历史差异逐项裁定，不将其笼统视为可忽略误报，也不宣称架构全绿。
 - 界面与配方 `20261101T115738489-37320`：enchantments29、card_interaction64、enemy_feedback115、hero_art72、enemies286，共566断言通过；recipe163断言通过，seed7、60提交／60步、stop=cap、exit0，经过rest_choice／rest／treasure等阶段。summary=passed；此轮与修后规则轮before==after均为 `17C9BF30617D41C66D4C04B1498414D938F37090476BFE20D7C763C21352192C`。前轮本地化通过证据复用期间仅改变架构测试和派生索引。`tools/check-content.ps1` 校验12个内容包通过，日志在 `spire-godot/build/new-content-20261101-content.log`；各门禁的文档49份／2905引用通过。
 - 独立只读审查 `review_new_content_20261101`（gpt-6-astra low，新会话）核对新增功能的提交通道、增量状态、回滚与表现生命周期，并复核本批最小修复和负例／正例证据，无本批阻塞发现。装备音效既有8个文件的证据哈希与当前源码一致；本批未修改玩法实现。最小差异格式检查通过。仅更新本地资源、校验与记录；未做全项目回归、完整随机矩阵、人工混音试听或安卓真机，未打包、提交、推送或发布。
+
+
+## 2026-11-01｜v0.18.3 发布构建与回归收尾
+
+- 域：版本、两平台导出、测试夹具及发布证据。用户要求发布当前内容为0.18.3，沿用普通PC ZIP／Android APK及ZIP；本地双层7z仅含PC且不上传。project.godot、两平台预设与随包说明统一0.18.3；Windows文件版本0.18.3.0，Android versionCode16。运行内容提交 `c8882cc`，测试修复提交 `cc707db`；本次后续仅更新发布记录，没有改动已导出运行实现。保留未跟踪的Profile B零字节占位文件，未入库或入包。
+- 验证树 `G:/CodexProjects/tmp/magic-release-0183-20261101`，打包树 `G:/CodexProjects/tmp/magic-package-0183-20261101`。Godot4.7.2.stable.official.ed1daf0bf。首次导入 `20261101T141710724-41276` 因字体尚未完成导入失败，未执行规则；第二次正式导入通过。打包树首次导入误扫描build内SDK，后续一次重复导入已停止；补build/.gdignore后串行正式导入通过。首次Windows命令因PACKS_ROOT匹配式不符在修改／导出前退出，修正命令后成功；上述失败均留日志，不算通过。
+- 按用户“不用试玩”要求，本轮选择全部54规则分类中除normal_play外的53类，完整随机样本；未重跑完整UI、recipe、人工试玩或安卓真机。此前专项UI／recipe结果不冒充本版重新执行。初轮 `20261101T142212187-46756`：7348断言，5条训练旧预期失败及1个遗物测试运行时错误，失败后其余分类未执行；summary=failed，before==after=`5B693E993D351A54C5A000D2BB391881C71C3DE7D8D8BBA21751CFD323AC56CB`。
+- 测试维护：训练多段用正式手铐耐久目标避免被皮革倍率提前打空，保留每段基值、完整段数及新增目标存活断言；毕业证实际伤害在零耐久时验证移除，不再读取已移除对象；皮革滑脱按卡牌层现行1.5倍率精确构造预期；压力用提交前真实耐久替代过期12.8常量，保留正式提交、压力与伤害一致性判据。没有修改游戏数值或生产结算，没有删除失败断言。check_index由正式生成器更新。
+- 续跑 `20261101T142809636-48528`：149100断言、19失败，原未执行分类全部完成；summary=failed，before==after=`6B4FB3F621A6EAAC72D65F1429BC06C08EAB95DC78F9CD37CCFBA5A5BD637CAA`。修正剩余遗物／压力预期，并核对主检出与验证树的679个差异文件均只含CRLF/LF表示差异（含导入元数据），恢复主检出原始字节后重生成检查索引，未修改指纹门禁契约。恢复清单 `spire-godot/build/release-0183-byte-restoration.json` 留在验证树。
+- 最终受影响范围 `20261101T144037699-50132`：relics1935、runner1843、pressure1423通过，architecture121149中4失败；总126350断言、exit1、summary=failed、无未执行分类，before==after=`848D65671BCE450BB64EEB4E1C756E25FCE449B797E91006FC7CAE05070F25A2`。状态读者表换行指纹失败消除。三轮文档门禁49份／2905引用通过。按每分类末次结果汇总53类共153771断言，48类通过、5类15项未通过；这是多轮复验汇总，不是一次全绿回归。
+- 保留失败：architecture4项（prefix_branch_tables_are_frozen、K4 baseline_diff_is_declared两项、G6 behavior_baseline_equivalence）；shoulder1项（右肩滑脱波及耐久）；rewards4项（普通／魔法滑脱蓄力、多段目标、抽牌）；events2项（rope_master／rope_assistant新visual未列旧白名单）；core4项（两种长流程配方停在event阶段及房间／奖励计数）。未重冻历史基线，未笼统判定全部为误报。规则日志与逐分类矩阵保留，包内和公开Release说明列明失败与未验证范围。
+- 打包编号 `release-20261101-0183`：Windows按契约临时切PACKS_ROOT=adjacent，导出后原字节恢复；Android保持res://。两平台导出前后运行源指纹稳定，各926项输入与初轮验证树原始哈希一致（Windows仅契约转换）；与主检出232项文本差异仅CRLF/LF，规范化后内容一致，不宣称原始字节相同。对照证据在主检出 `spire-godot/build/release-0183-20261101/package-source-comparison.json`。
+- 成品检查：Windows EXE独立启动及PCK探针 `package-check-20261101T142951329` 通过；Android APK主机资源探针 `android-probe-20261101T142709470` 通过。包名org.magic.spire、versionCode16、minSdk24／targetSdk36、ARM64／ARMv7、Startup authority修正、16KB对齐及签名通过；签名证书SHA256沿用v0.18.2的 `9da2962a178eec7a6be1bb45c77c37372c0f18c2f2efe313e3f8aad07cdd0608`。打包树 `build/release-0183-content-final.log`：12份内容包通过。APK主机探针不等于安卓安装、触控、混音、性能或真机启动验收。
+- 最终本地产物 `outputs/release-v0.18.3-20261101-final`。两份ZIP实际解压后逐文件SHA256一致；双层7z内外均加密文件名、实际两次解密后与完整PC目录25文件一致，外层只含内层7z，无APK；Android ZIP含12文件。验证说明加入分发副本并更新manifest，原EXE／PCK／APK未修改。双层包及LOCAL_SHA256SUMS只本地保留；公开资产为Windows ZIP、Android ZIP、APK、验证说明和SHA256SUMS。
+- 成品SHA256：`spire-v0.18.3-windows64.zip` = `5472811b2893d54a6dff465426dfd1ff4215072a2d15a9a304e27b58d24dc8f0`。
+- 成品SHA256：`spire-v0.18.3-android.zip` = `db7ef9575e1748c35a964afe5323a8659c10375495d51e160a32f8c0ab8a1c1e`。
+- 成品SHA256：`spire-v0.18.3.apk` = `6b4dfb4b97455220a632ac1b34d3571d213b9d55db1cf5339136a00e8aa25e43`。
+- 成品SHA256：`spire-v0.18.3-pc-密码冰红茶.7z` = `8deced7ba6ab7d3976d59b4293086772ac093ab4d1c31add6c90870786b702b4`。
+- 独立只读审查 review_release_0183（gpt-6-astra low，新会话）复核版本／发布边界、最小测试修复、最后门禁摘要及失败披露，无本批新增阻塞；未重新跑引擎。主检出保留 `build/release-0183-20261101/validation-matrix.json`、`distribution-verification.json` 及归档往返证据。源码／标签及公开附件的发布入口为 [GitHub v0.18.3](https://github.com/h13942080472-prog/magic-spire/releases/tag/v0.18.3)，本条登记已完成的本地构建与校验，远端上传核验另保留在同目录GitHub结果文件。
