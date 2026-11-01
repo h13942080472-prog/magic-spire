@@ -1,4 +1,5 @@
 extends RefCounted
+const RestraintValue=preload("res://data/restraint_value.gd")
 
 const Game=preload("res://tests/game_fixture.gd")
 const N=preload("res://data/enemies.gd")
@@ -39,7 +40,7 @@ static func run(t) -> void:
   var plan=g._plan(enemy)
   t.check(plan.kind==expected[stage-1] and not plan.has("target") and not plan.has("slot"),"TRADER untargeted plan at action "+str(stage))
   if stage in [3,6,9]: t.check(plan.get("ready_gain",0)==1,"TRADER readiness gain at action "+str(stage))
- t.check(spec.opening[0].count==2 and spec.opening[0].grade==1 and spec.opening[0].tier==2 and "mouth_band" not in spec.opening[0].templates,"TRADER opening applies two initial restraints without a ball gag")
+ t.check(spec.opening[0].count==2 and spec.opening[0].profiles==RestraintValue.profiles(3) and "mouth_band" not in spec.opening[0].templates,"TRADER opening applies two initial restraints without a ball gag")
  t.check(spec.opening[3].preferred_slots==["mouth","eyes"] and spec.opening[3].variants=={"mouth_band":0},"TRADER fourth action prefers the medium harness gag or eye cover")
  t.check(spec.opening.all(func(plan):return not plan.get("templates",[]).has("eye_cloth") and not plan.get("fallback_templates",[]).has("eye_cloth")),"TRADER removed cloth blindfold is absent from every pool")
 
@@ -48,7 +49,7 @@ static func run(t) -> void:
  var id=enemy.id
  t.check(t.action(g,"end").ok,"TRADER first real action commits")
  var first=sourced(g,id)
- t.check(first.size()==2 and first.all(func(item):return item.grade==1 and g.tier(item.durability,item.maximum)==2 and item.template!="mouth_band"),"TRADER first action installs two initial tier-two pieces")
+ t.check(first.size()==2 and first.all(func(item):return item.grade+g.tier(item.durability,item.maximum)==3 and item.template!="mouth_band"),"TRADER first action installs two value-three pieces")
  t.check(t.action(g,"end").ok and g.state.weakness_turns==1,"TRADER second real action applies one player turn of weakness")
  for type in ["strike","heavy","kick"]:
   var candidate=t.find_action(g,"attack",{"type":type,"enemy":id})
@@ -58,7 +59,7 @@ static func run(t) -> void:
  t.check(t.action(g,"end").ok and g.state.weakness_turns==0,"TRADER weakness expires after the affected player turn")
  enemy=trader(g)
  var third=sourced(g,id).filter(func(item):return item.id not in before_ids)
- t.check(third.size()==1 and third[0].grade==2 and g.tier(third[0].durability,third[0].maximum)==2 and enemy.ready_layers==1,"TRADER third action applies medium tier two then gains readiness")
+ t.check(third.size()==1 and third[0].grade+g.tier(third[0].durability,third[0].maximum)==4 and enemy.ready_layers==1,"TRADER third action applies value four then gains readiness")
  before_ids=sourced(g,id).map(func(item):return item.id)
  t.check(t.action(g,"end").ok,"TRADER fourth real action commits")
  enemy=trader(g)

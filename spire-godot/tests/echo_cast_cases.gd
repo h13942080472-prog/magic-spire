@@ -38,8 +38,9 @@ static func run(t) -> void:
  t.check(result.ok and range(g.state.enemies.size()).all(func(i):return is_equal_approx(g.state.enemies[i].hp,before.enemies[i].hp-2*c.payload.damage)),"ECHO area spell repeats once on each original enemy")
  # Excluded equal faces and free faces leave the next-bound-card effect intact.
  g=game();Cards.play(t,g,"echo_cast",false)
- for type in ["mana_invocation","rekindle","wildfire_descent","pleasure_conversion"]:
+ for type in ["mana_invocation","rekindle","wildfire_descent"]:
   t.check(not g.Cards.Rules.distinct_faces(type),"ECHO equal mechanical faces excluded: "+type)
+ t.check(g.Cards.Rules.distinct_faces("pleasure_conversion"),"ECHO energy and temporary-mana conversion are distinct faces")
  t.check(Cards.play(t,g,"mana_invocation",false).ok and g.state.charge==0 and "echo_cast_bound" in g.state.card_buffs,"ECHO same-face spell neither repeats nor consumes")
  t.check(Cards.play(t,g,"strain",true).ok and "echo_cast_bound" in g.state.card_buffs,"ECHO free face does not consume bound replay")
  g.state.temporary_mana=0

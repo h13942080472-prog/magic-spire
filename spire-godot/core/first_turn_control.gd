@@ -120,9 +120,9 @@ static func view(g, facts: Array) -> Dictionary:
 static func validate(g) -> String:
  if not g.state.combat.has("first_turn_control"): return ""
  var d=g.state.combat.first_turn_control
- if not g.Snapshot.fields(d,"seen:z phase:s tick:i mode:i stage:i remaining:i cursor:i attempted:z"): return "首回合接管记录不完整。"
- if "doubao" not in g.state.relics or d.phase not in g.RelicEffects.COMBAT_PHASES or d.phase not in d.seen or d.seen.any(func(p):return p not in g.RelicEffects.COMBAT_PHASES or d.seen.count(p)!=1): return "首回合接管阶段不正确。"
- if d.mode<0 or d.mode>=g.Relics.FIRST_TURN_MODES.size() or d.stage<0 or d.stage>6 or d.remaining< -1 or d.remaining>3 or d.tick<0 or d.tick>g.state.tick or d.cursor<0: return "首回合接管进度不正确。"
- if d.mode==1 and d.stage!=6: return "首回合接管进度不正确。"
- if d.attempted.any(func(token):return d.attempted.count(token)!=1): return "首回合接管手牌记录不正确。"
+ if not g.Snapshot.fields(d,"seen:z phase:s tick:i mode:i stage:i remaining:i cursor:i attempted:z"): return "首回合接管记录缺损。"
+ if "doubao" not in g.state.relics or d.phase not in g.RelicEffects.COMBAT_PHASES or d.phase not in d.seen or d.seen.any(func(p):return p not in g.RelicEffects.COMBAT_PHASES or d.seen.count(p)!=1): return "首回合接管阶段有误。"
+ if d.mode<0 or d.mode>=g.Relics.FIRST_TURN_MODES.size() or d.stage<0 or d.stage>6 or d.remaining< -1 or d.remaining>3 or d.tick<0 or d.tick>g.state.tick or d.cursor<0: return "首回合接管进度有误。"
+ if d.mode==1 and d.stage!=6: return "首回合接管进度有误。"
+ if d.attempted.any(func(token):return d.attempted.count(token)!=1): return "首回合接管手牌记录有误。"
  return ""

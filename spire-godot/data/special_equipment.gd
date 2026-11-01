@@ -1,4 +1,5 @@
 extends RefCounted
+const RestraintValue=preload("res://data/restraint_value.gd")
 
 const BATTERY_TURNS={1:6,2:9,3:12}
 
@@ -55,15 +56,15 @@ const CUP_FAMILIES=["glans_cup","full_cup","urethral_full_cup","forced_milking_c
 # event authors never have to invent a generic "sex toy was equipped" sentence.
 const WEAR_TEXTS={
  "nipple_clamp":"指尖捏住两侧乳头，将「{name}」的夹口分别扣紧。两枚震动夹咬住乳头，开关亮起后便贴着乳肉持续颤动。",
- "nipple_ring":"两侧乳头被揉得挺起，「{name}」逐一套上乳尖，在根部紧紧收住。震动沿着硅胶环贴上乳头，怎么扭动身体也甩不下来。",
+ "nipple_ring":"两侧乳头被揉得挺起，「{name}」逐一套上乳尖，在根部紧紧收住。震动沿着硅胶环贴上乳头，随身体扭动仍牢牢固定。",
  "shaft_ring":"「{name}」被撑开后缓缓套过龟头，一直推到柱身中段。硅胶环贴着肉棒收紧，启动后便隔着表皮持续震动。",
- "corona_ring":"「{name}」沿着龟头慢慢套下，在冠沟处紧紧收住。震动环贴着最敏感的一圈不断颤动，每次肉棒跳动都会被它重新磨过。",
+ "corona_ring":"「{name}」沿着龟头慢慢套下，在冠沟处紧紧收住。震动环贴着最敏感的一圈持续颤动，每次肉棒跳动都会被它重新磨过。",
  "urethral_rod":"马眼被指尖轻轻分开，涂过润滑的「{name}」随即缓缓送进尿道。细密颗粒贴着内壁一路没入，肉棒正面显出清楚的棒身轮廓，只有拉环留在马眼外面。",
  "vaginal_egg":"双腿被分开后，涂过润滑的「{name}」抵住小穴，一点点推入深处。跳蛋整个滑进穴内，开关亮起时，震动立刻从体内扩散开来。",
  "anal_egg":"臀肉被分开，涂满润滑的「{name}」抵住后庭，缓缓挤过收紧的入口。跳蛋整个没入体内，启动后的震动随即贴着后庭深处一阵阵传开。",
  "external_wand":"「{name}」的圆头贴住小穴外侧，固定带从胯下绕过腰臀逐一扣紧。按摩棒被牢牢压在原处，启动后持续隔着湿润的缝隙震动。",
  "crotch_rope":"「{name}」从腰后绕来，绳股贴着胯下穿过双穴之间，再向上收紧打结。粗糙的绳身嵌在小穴外侧，身体稍一活动便会被来回磨过。",
- "glans_cup":"「{name}」罩住龟头与冠沟，柔软内衬贴着敏感处合拢，外侧固定带随即扣紧。杯体启动后便裹住龟头持续抽送，不给肉棒从里面滑出的机会。",
+ "glans_cup":"「{name}」罩住龟头与冠沟，柔软内衬贴着敏感处合拢，外侧固定带随即扣紧。杯体启动后便裹住龟头持续抽送，将肉棒牢牢固定在里面。",
  "full_cup":"「{name}」从龟头一路套到根部，将柱身、龟头和冠沟全部包进湿软内腔。外壳在根部扣紧，启动后整段肉棒都被内衬反复套弄。",
  "urethral_full_cup":"内置马眼棒先被缓缓送进尿道，「{name}」随后从龟头一直套到根部。杯体扣紧后，尿道内的颗粒与包住肉棒的湿软内衬同时开始动作。",
  "forced_milking_cup":"「{name}」套住整根肉棒，皮革固定带绕过腰臀逐条扣紧，将杯体牢牢锁在胯间。机关启动后，湿软内腔便沿着柱身持续抽送，无法靠夹腿或后退将它甩开。"}
@@ -77,7 +78,7 @@ const STIMULATION_TEXTS={
  "shaft_ring":"硅胶环箍在柱身中段，肉棒每次跳动都会重新蹭过震动的环身。",
  "corona_ring":"震动环紧贴冠沟，沿着龟头下方最敏感的一圈持续摩擦。",
  "urethral_rod":"马眼棒插在尿道内，棒身的凸粒隔着肉棒正面清楚鼓起；肉棒一有动作，尿道内壁与外侧突起便会同时受到摩擦。",
- "vaginal_egg":"跳蛋完全没入小穴，震动紧贴穴内软肉不断传开。",
+ "vaginal_egg":"跳蛋完全没入小穴，震动紧贴穴内软肉持续传开。",
  "anal_egg":"跳蛋塞在后庭深处，震动贴着收紧的内壁持续扩散。",
  "external_wand":"固定带把按摩棒的圆头牢牢压在小穴外侧，身体稍一挪动，震动便会贴着湿润的缝隙来回摩擦。",
  "crotch_rope":"绳股紧贴胯下，从小穴与后庭之间勒过；每次行动都会带动绳身来回摩擦小穴，后庭只被绳索贴住。",
@@ -141,7 +142,7 @@ static var TYPES={
  "full_cup_high":_type("高级全包榨精杯","full_cup",6,14,BATTERY_TURNS[3],["special_2_a","special_2_b","special_2_c"],"硅胶与塑料","完整包覆柱身、龟头和冠沟。"),
  "urethral_full_cup_medium":_type("中级马眼全包榨精杯","urethral_full_cup",6,14,BATTERY_TURNS[2],["special_2_a","special_2_b","special_2_c","special_2_d"],"硅胶与塑料","全包榨精杯内整合中级马眼组件。"),
  "urethral_full_cup_high":_type("高级马眼全包榨精杯","urethral_full_cup",8,18,BATTERY_TURNS[3],["special_2_a","special_2_b","special_2_c","special_2_d"],"硅胶与塑料","全包榨精杯内整合高级马眼组件。"),
- "forced_milking_cup_high":_type("高级强制榨精飞机杯","forced_milking_cup",8,16,0,["special_2_a","special_2_b","special_2_c"],"硅胶、塑料与皮革","由固定结构持续驱动，不受电池回合限制。")}
+ "forced_milking_cup_high":_type("高级强制榨精飞机杯","forced_milking_cup",8,16,0,["special_2_a","special_2_b","special_2_c"],"硅胶、塑料与皮革","由固定结构持续驱动。")}
 
 static func _add_chastity_types() -> void:
  if TYPES.has("negative_plate_lock_medium"): return
@@ -152,7 +153,7 @@ static func _add_chastity_types() -> void:
  TYPES.cursed_plate_lock.name="诅咒平板锁"
  TYPES.cursed_plate_lock.duration=0
  TYPES.cursed_plate_lock.relic_only=true
- TYPES.cursed_plate_lock.detail="高级、紧度3档。默认跳蛋每场只在前6回合生效，高潮保留系数最高10；抖M专用版保持原本的无限效果。获得专属钥匙前不能开锁或解除；击败下一个Boss后自动取下整件。"
+ TYPES.cursed_plate_lock.detail="高级、紧度3档。默认跳蛋每场只在前6回合生效，高潮保留系数最高10；抖M专用版持续生效。解除需要专属钥匙；击败下一个Boss后自动取下整件。"
  TYPES.cursed_plate_lock.wear_text="诅咒平板锁已佩戴并上锁。"
  TYPES.chastity_reinforcement_medium=_reinforcement_type("中级平板锁加固带","平板锁")
  TYPES.chastity_reinforcement_high=_reinforcement_type("高级平板锁加固带","平板锁")
@@ -344,10 +345,10 @@ static func method_reason(item: Dictionary, method: String) -> String:
  if allows(item,method): return ""
  if is_chastity(item) and method=="strain": return CURSED_PLATE_REASON if is_cursed_plate(item) else "平板锁仍上锁，先开锁才能挣扎取下。"
  if TYPES.get(item.get("type",""),{}).get("family","") in ["vaginal_egg","anal_egg"]:
-  return item.name+"不能用挣脱牌处理，只能在双臂和双手完全自由后直接取出。"
+  return item.name+"双臂和双手完全自由后，可直接取出。"
  if method=="hook" and "hook" in DESIGNS.get(item.get("type",""),{}).get("environments",[]):
-  return "挂钩只能为挣脱牌提供环境条件，不能直接降低这件装备的耐久。"
- return item.name+"不支持这种解除方法。"
+  return "挂钩为挣脱牌提供环境条件，需出牌削减耐久。"
+ return item.name+"请选择适用的解除方法。"
 
 static func environment_contact(g, item: Dictionary, environment: String) -> bool:
  if environment=="sharp": return g.state.items.any(func(tool):return tool.uses>0 and tool_reason(g,item,tool)=="")
@@ -382,10 +383,10 @@ static func manual_reason(g, item: Dictionary) -> String:
  return ""
 
 static func tool_reason(g, item: Dictionary, tool: Dictionary) -> String:
- if not g.Tools.is_fixed(g,tool): return item.name+"不能直接用随身工具切除；尖锐物只作为挣脱牌的借力环境。"
- if g.Tools.TYPES[tool.type].get("environment_class","")!="sharp" or "sharp" not in DESIGNS[item.type].environments or tool.type not in DESIGNS[item.type].tools: return item.name+"不能借助这件工具。"
+ if not g.Tools.is_fixed(g,tool): return item.name+"需要借助尖锐环境使用挣脱牌。"
+ if g.Tools.TYPES[tool.type].get("environment_class","")!="sharp" or "sharp" not in DESIGNS[item.type].environments or tool.type not in DESIGNS[item.type].tools: return item.name+"请选择适用工具。"
  if not g.Tools.assisted(g) and not g.wall_contact(): return "需要先靠到墙边，才能使用已安装的工具。"
- return "" if mounted_contact(g,item,tool) else "当前姿势下，"+location_name(item)+"碰不到这里的工具。"
+ return "" if mounted_contact(g,item,tool) else "当前姿势下，"+location_name(item)+"请调整姿势，使目标触及工具。"
 
 static func slots() -> Array:
  return SLOT_NAMES.keys()
@@ -415,14 +416,14 @@ static func effective_gain(g, item: Dictionary, timing: String) -> float:
 
 static func climax_slip_damage(item: Dictionary, tightness: int) -> float:
  var base=float(TYPES.get(item.get("type",""),{}).get("climax_slip_base",0.0))
- return maxf(0.0,base-tightness-int(item.get("grade",0)))
+ return maxf(0.0,base-RestraintValue.from_profile(int(item.get("grade",0)),tightness))
 
 static func climax_slip_rule(type: String) -> String:
  var base=float(TYPES.get(type,{}).get("climax_slip_base",0.0))
  return "" if base<=0 else "每次高潮：受到%s－当前紧度档位－装备等级的固定滑脱伤害。" % str(base).trim_suffix(".0")
 
 static func _number(value: float) -> String:
- if value>0.0 and value<0.005: return "不足0.01"
+ if value>0.0 and value<0.005: return "小于0.01"
  var text="%.2f" % value
  return text.trim_suffix("0").trim_suffix("0").trim_suffix(".") if text.contains(".") else text
 
@@ -430,8 +431,8 @@ static func _stimulus_sentence(item: Dictionary) -> String:
  if is_chastity(item):
   var spec=TYPES[item.type]
   return "平板锁紧压着肉棒，使肉棒无法正常勃起"+("；内置导尿管贴在尿道中" if catheter(item) else "")+("，无线跳蛋同时在锁内震动。" if spec.get("integrated_vibrator",false) else "。")
- if is_chastity_reinforcement(item): return "加固带把平板锁紧紧固定在胯间，自身不产生额外快感。"
- if is_cup_reinforcement(item): return "固定带把全包榨精杯牢牢固定在腰胯间，自身不产生额外快感。"
+ if is_chastity_reinforcement(item): return "加固带把平板锁紧紧固定在胯间，仅提供固定效果。"
+ if is_cup_reinforcement(item): return "固定带把全包榨精杯牢牢固定在腰胯间，仅提供固定效果。"
  return STIMULATION_TEXTS.get(TYPES[item.type].family,TYPES[item.type].detail)
 
 static func _stimulus_formula(item: Dictionary, timing: String, multiplier: float) -> String:
@@ -451,7 +452,7 @@ static func stimulation_text(item: Dictionary, multiplier: float=1.0, tightness:
  var spec=TYPES[item.type]
  var lines=[_stimulus_sentence(item)]
  if is_chastity(item):
-  var sum=int(item.grade)+maxi(0,tightness)
+  var sum=RestraintValue.from_profile(item.grade,maxi(0,tightness))
   lines.append("当前快感上限＋%d；锁外来源快感×%s。" % [sum*5,_number(1.0+0.05*sum)])
  if spec.energy_gain>0:
   if spec.duration>0 and item.remaining<=0: lines.append("消耗能量行动：电量耗尽＝0快感。")
@@ -467,7 +468,7 @@ static func stimulation_text(item: Dictionary, multiplier: float=1.0, tightness:
    lines.append("回合开始：电量耗尽＝0快感；装备仍留在原位。")
   else:
    lines.append("回合开始："+_stimulus_formula(item,"turn_start",multiplier)+"。")
-   if is_cursed_plate(item): lines.append("抖M专用版：内置无线跳蛋不受回合限制。")
+   if is_cursed_plate(item): lines.append("抖M专用版：内置无线跳蛋持续生效。")
    elif spec.duration>0: lines.append("电量剩余%d回合。" % item.remaining)
    else: lines.append("无电量限制，佩戴期间持续生效。")
  var climax_rule=climax_slip_rule(item.type)
@@ -477,7 +478,7 @@ static func stimulation_text(item: Dictionary, multiplier: float=1.0, tightness:
  if is_chastity(item):
   var factor=int(context.get("climax_factor",3));var masochist=bool(context.get("masochist",false))
   var shown_factor=factor if masochist else mini(factor,CHASTITY_CLIMAX_FACTOR_LIMIT)
-  var sum=int(item.grade)+maxi(0,tightness)
+  var sum=RestraintValue.from_profile(item.grade,maxi(0,tightness))
   lines.append("高潮后保留快感：（品质%d＋紧度%d）×当前系数%d＝%d。" % [int(item.grade),maxi(0,tightness),shown_factor,sum*shown_factor])
   lines.append("每次佩戴平板锁高潮，系数永久＋1"+("，没有上限。" if masochist else "，最高10。"))
  return "\n".join(lines)
@@ -486,9 +487,9 @@ static func description(item: Dictionary, multiplier: float=1.0, tightness: int=
  if protected and is_reinforcement(item): return _stimulus_sentence(item)+"\n无法提前解除；获得专属钥匙后随主体一并取下。"
  var lines=[stimulation_text(item,multiplier,tightness,protected,context)]
  if is_chastity(item):
-  if not is_cursed_plate(item): lines.append("佩戴时自动上锁；仍上锁且带有加固带时不能滑脱。开锁后受到任意正数挣扎或滑脱伤害便会整件解除，无视加固带。")
+  if not is_cursed_plate(item): lines.append("佩戴时自动上锁；滑脱需先开锁或解除加固带。开锁后受到任意正数挣扎或滑脱伤害即整件解除，无视加固带。")
   else: lines.append("无法提前开锁或解除；击败下一个Boss后自动取下整件。")
- elif is_reinforced_cup(item): lines.append("紧度达到3档时自动附加同品质固定带；固定带存在时不能滑脱杯体，挣扎仍可直接破坏杯体。固定带只接受切割伤害，杯体解除时一并取下。")
+ elif is_reinforced_cup(item): lines.append("紧度达到3档时自动附加同品质固定带；滑脱需先切断固定带，也可通过挣扎破坏杯体。固定带只接受切割伤害，杯体解除时一并取下。")
  elif is_reinforcement(item): lines.append("只接受已安装切割类道具造成的伤害；所属主体解除时一并取下。")
  elif allows(item,"manual"): lines.append("双臂、双腕和双手完全自由时，可花费1能量直接取出。")
  return "\n".join(lines)
@@ -498,44 +499,44 @@ static func wear_text(type: String) -> String:
 
 static func validate(items, legacy_cups: bool=false) -> String:
  ensure_catalog()
- if not items is Array: return "性玩具列表不完整。"
+ if not items is Array: return "性玩具列表缺损。"
  var used=[]
  var families=[]
  var counts={}
  for item in items:
-  if not item is Dictionary or not item.get("type") is String or not TYPES.has(item.type) or not item.get("slot") is String or not item.get("remaining") is int: return "性玩具类型、位置或电量不正确。"
+  if not item is Dictionary or not item.get("type") is String or not TYPES.has(item.type) or not item.get("slot") is String or not item.get("remaining") is int: return "性玩具类型、位置或电量有误。"
   for key in INSTANCE_FIELDS:
    if not item.has(key): return "性玩具实例缺少必要属性。"
   for key in item:
-   if key not in INSTANCE_FIELDS and key not in OPTIONAL_INSTANCE_FIELDS: return "性玩具实例包含未定义属性。"
+   if key not in INSTANCE_FIELDS and key not in OPTIONAL_INSTANCE_FIELDS: return "性玩具实例包含额外属性。"
   var spec=DESIGNS[item.type]
   var family=TYPES[item.type].family
   var climax_base=TYPES[item.type].get("climax_slip_base",0.0)
-  if (family=="urethral_rod")!=(climax_base==CLIMAX_SLIP_BASE): return "马眼棒的高潮滑脱规则不正确。"
-  if not item.get("id") is String or not item.id.begins_with("special_") or item.id in used: return "性玩具编号重复或不正确。"
+  if (family=="urethral_rod")!=(climax_base==CLIMAX_SLIP_BASE): return "马眼棒的高潮滑脱规则有误。"
+  if not item.get("id") is String or not item.id.begins_with("special_") or item.id in used: return "性玩具编号重复或有误。"
   var wear_family=family if legacy_cups else exclusive_family(item.type)
-  if wear_family in families: return "同一种性玩具不能重复佩戴。"
-  if item.slot!=spec.slots[0] or item.coverage!=spec.slots or item.contact_slots!=spec.slots or item.get("template")!="special" or item.get("name")!=TYPES[item.type].name or item.get("grade")!=spec.grade or item.get("maximum")!=spec.maximum or (is_chastity(item) and not item.get("locked") is bool) or (not is_chastity(item) and item.get("locked")!=false) or item.get("layer")!=0 or item.get("material")!=spec.material or item.get("variant")!=0: return "性玩具的品质、位置或固定类型不正确。"
-  if not item.get("owner_id") is String: return "性玩具所属关系不正确。"
+  if wear_family in families: return "同一种性玩具限佩戴1件。"
+  if item.slot!=spec.slots[0] or item.coverage!=spec.slots or item.contact_slots!=spec.slots or item.get("template")!="special" or item.get("name")!=TYPES[item.type].name or item.get("grade")!=spec.grade or item.get("maximum")!=spec.maximum or (is_chastity(item) and not item.get("locked") is bool) or (not is_chastity(item) and item.get("locked")!=false) or item.get("layer")!=0 or item.get("material")!=spec.material or item.get("variant")!=0: return "性玩具的品质、位置或固定类型有误。"
+  if not item.get("owner_id") is String: return "性玩具所属关系有误。"
   if is_reinforcement(item):
    var owners=items.filter(func(owner):return reinforcement_matches(item,owner) and owner.grade==item.grade)
-   if owners.size()!=1 or item.locked or item.owner_id=="" or item.durability<=0 or item.durability>item.maximum: return "固定带缺少对应主体或状态不正确。"
-  elif item.owner_id!="": return "普通性玩具不能附属于其他装备。"
+   if owners.size()!=1 or item.locked or item.owner_id=="" or item.durability<=0 or item.durability>item.maximum: return "固定带缺少对应主体或状态有误。"
+  elif item.owner_id!="": return "普通性玩具需要独立佩戴。"
   if supports_reinforcement(item) and not item.has("reinforcement_state"): return "固定带状态记录缺失。"
-  if item.has("reinforcement_state") and (not item.reinforcement_state is String or not supports_reinforcement(item) or item.reinforcement_state not in ["none","active","removed"]): return "固定带状态记录不正确。"
-  if typeof(item.get("durability")) not in [TYPE_INT,TYPE_FLOAT] or not is_finite(item.durability) or item.durability<=0 or item.durability>spec.maximum: return "性玩具耐久不正确。"
+  if item.has("reinforcement_state") and (not item.reinforcement_state is String or not supports_reinforcement(item) or item.reinforcement_state not in ["none","active","removed"]): return "固定带状态记录有误。"
+  if typeof(item.get("durability")) not in [TYPE_INT,TYPE_FLOAT] or not is_finite(item.durability) or item.durability<=0 or item.durability>spec.maximum: return "性玩具耐久有误。"
   for covered in spec.slots: counts[covered]=counts.get(covered,0)+int(spec.capacity_cost)
   var duration=TYPES[item.type].duration
-  if item.remaining<0 or item.remaining>duration or (duration==0 and item.remaining!=0): return "性玩具剩余电量不正确。"
+  if item.remaining<0 or item.remaining>duration or (duration==0 and item.remaining!=0): return "性玩具剩余电量有误。"
   used.append(item.id);families.append(wear_family)
  var locks=items.filter(func(item):return is_chastity(item))
  if locks.size()>1: return "同一时间只能佩戴一件平板锁。"
  for owner in items.filter(supports_reinforcement):
   var straps=items.filter(func(item):return reinforcement_matches(item,owner))
   var status=owner.reinforcement_state
-  if status=="none" and (not straps.is_empty() or owner.durability/owner.maximum>0.80000001): return "未附带固定带的主体状态不正确。"
+  if status=="none" and (not straps.is_empty() or owner.durability/owner.maximum>0.80000001): return "主体的固定带缺省状态有误。"
   if status=="active" and straps.size()!=1: return "主体记录的固定带缺失或重复。"
-  if status=="removed" and not straps.is_empty(): return "已经切断的固定带不能残留。"
+  if status=="removed" and not straps.is_empty(): return "已切断的固定带需要清除。"
  for slot in counts:
   if counts[slot]>capacity(slot): return slot_name(slot)+"的性玩具超出容量。"
  return ""

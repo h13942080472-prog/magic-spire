@@ -1,13 +1,16 @@
 extends RefCounted
+const RestraintValue=preload("res://data/restraint_value.gd")
 const Equipment=preload("res://data/equipment.gd")
 const B=preload("res://data/balance.gd")
 const SIX_CYCLE_LENGTH=8
 
 # Intent declarations hold scope and costs, not targets. Concrete choices happen on execution.
-static func application(templates: Array, grade: int=1, tightness: int=2, count: int=1, final: bool=false) -> Dictionary:
+static func application(templates: Array, grade: int=1, tightness: int=2, count: int=1, final: bool=false, restraint_value: int=0) -> Dictionary:
  if final:
   grade=B.ENEMY_DEPARTURE_GRADE;tightness=B.ENEMY_DEPARTURE_TIER
- return {"kind":"apply","pool":"ordinary","templates":templates.duplicate(),"grade":grade,"tier":tightness,"count":count,"locked":false,"final":final,"replace":false,"text":"施加拘束具"+("，随后离场" if final else ""),"delayed":false}
+ var plan={"kind":"apply","pool":"ordinary","templates":templates.duplicate(),"grade":grade,"tier":tightness,"count":count,"locked":false,"final":final,"replace":false,"text":"施加拘束具"+("，随后离场" if final else ""),"delayed":false}
+ if restraint_value!=0: plan.profiles=RestraintValue.profiles(restraint_value)
+ return plan
 
 static func special_application(g, e: Dictionary) -> Dictionary:
  return {"kind":"apply","pool":"special","templates":g.Enemies.TYPES[e.type].special_pool.duplicate(),"grade":1,"tier":2,"count":1,"locked":false,"final":false,"replace":false,"text":"佩戴特殊装备","delayed":false}
@@ -17,7 +20,8 @@ static func installation_intents(g, e: Dictionary) -> Array:
  if spec.has("weighted_moves"): return spec.weighted_moves.values().filter(func(m):return m.plan.kind=="apply").map(func(m):return m.plan.duplicate(true))
  match spec.behavior:
   "lock": return [spec.chastity_departure.duplicate(true)] if g.state.chastity_locks_enabled else []
-  "six_bind": return [six_ordinary(spec,2,2,1,true),six_composite(2,2,true),six_special(spec,1,1,true),six_special(spec,2,1,true)]
+  "six_bind": return [six_ordinary(spec,2,2,1,true,4),six_composite(2,2,true),six_special(spec,1,1,true),six_special(spec,2,1,true)]
+  "rope_master","rope_assistant": return [g.RopeArt.spec(2,2)]
   "iron_man": return g.IronMan.installation_intents(g,e)
   "iron_drone": return []
   "puppeteer":
@@ -27,10 +31,10 @@ static func installation_intents(g, e: Dictionary) -> Array:
   "puppet": return [g.Puppets.ordinary(g)]+e.get("puppet_prepared",{}).values().duplicate(true)
   "sequence": return spec.repeat_cycle.filter(func(p):return p.kind=="apply").duplicate(true)
   "humanoid": return spec.opening.filter(func(p):return p.kind=="apply").duplicate(true)
-  "drone": return [application(spec.install_pool,1,1,2)]
-  "binding_box": return [application(spec.install_pool,2,g.Enemies.encounter_member(g.state,e.type).get("application_tier",2),2)]+carried_intents(g,e)
+  "drone": return [application(spec.install_pool,1,1,2,false,2)]
+  "binding_box": return [application(spec.install_pool,2,g.Enemies.encounter_member(g.state,e.type).get("application_tier",2),2,false,RestraintValue.from_profile(2,g.Enemies.encounter_member(g.state,e.type).get("application_tier",2)))]+carried_intents(g,e)
   "guard":
-   var ordinary=application(g.Guard.ordinary_templates(),2)
+   var ordinary=application(g.Guard.ordinary_templates(),2,2,1,false,4)
    ordinary.replace=true
    ordinary.shoulders=true
    var composite={"kind":"apply","pool":"composite","grade":2,"tier":2,"count":1,"replace":true,"locked":false,"final":false,"text":"施加复合拘束具","delayed":false}
@@ -39,8 +43,8 @@ static func installation_intents(g, e: Dictionary) -> Array:
   "attachment": return [application(spec.attachment_pool,1,2,1,true)]
   "restraint":
    if spec.has("cycle"):
-    return [application(spec.install_pool,spec.get("install_grade",2),2,spec.get("install_count",2 if spec.cycle.has("install_pair") else 1))]
-   return [application(spec.install_pool,1),application(spec.final_pool,2,2,1,true)]
+    return [application(spec.install_pool,spec.get("install_grade",2),2,spec.get("install_count",2 if spec.cycle.has("install_pair") else 1),false,RestraintValue.from_profile(spec.get("install_grade",2),2))]
+   return [application(spec.install_pool,1,2,1,false,spec.get("install_restraint_value",0)),application(spec.final_pool,2,2,1,true,spec.get("departure_restraint_value",0))]
  return []
 
 static func fallback_install(g, e: Dictionary) -> Dictionary:
@@ -61,9 +65,9 @@ static func can_affect_equipment(g, e: Dictionary) -> bool:
  if locks and not targets(g,e,"lock").is_empty(): return true
  var plans=installation_intents(g,e)
  # Include passive and burst specifications without adding them to reinforcement fallback.
- if definition.has("turn_install_effect"): plans.append(application(definition.install_pool,1))
- if definition.has("capture_pool"): plans.append(application(definition.capture_pool,2))
- if "split_burst" in cycle: plans.append(application(definition.final_pool,2,3))
+ if definition.has("turn_install_effect"): plans.append(application(definition.install_pool,1,2,1,false,3))
+ if definition.has("capture_pool"): plans.append(application(definition.capture_pool,2,2,1,false,4))
+ if "split_burst" in cycle: plans.append(application(definition.final_pool,2,3,1,false,5))
  for p in declared:
   if p.kind=="apply" and p not in plans: plans.append(p.duplicate(true))
  for plan in plans:
@@ -93,7 +97,15 @@ static func application_spec(g, e: Dictionary, intent: Dictionary) -> Dictionary
  var spec=intent.duplicate(true)
  spec.count+=e.get("application_bonus",0)
  var definition=g.Enemies.TYPES[e.type]
+ # The source rank limits every ordinary action and passive, even in strong encounters.
+ # Final attachment retains its declared profiles; never downgrade forbidden equipment.
+ if e.type in g.Enemies.Library.CLASSIFICATIONS.weak and not spec.get("final",false):
+  spec.profiles=spec.get("profiles",[{"grade":spec.get("grade",2),"tier":spec.get("tier",2)}]).filter(func(profile):return profile.grade==1)
+  if spec.pool=="special": spec.templates=spec.templates.filter(func(type):return g.SpecialEquipment.DESIGNS[type].grade==1)
  spec.replace=(spec.get("replace",false) and definition.get("humanoid",false)) or (spec.pool=="composite" and definition.get("mechanical",false))
+ if spec.pool=="ordinary" and (definition.get("humanoid",false) or definition.get("mechanical",false)):
+  for template in Equipment.SHACKLES:
+   if template not in spec.templates: spec.templates.append(template)
  spec.ready_layers=e.get("ready_layers",0)
  return spec
 
@@ -118,8 +130,8 @@ static func versatile_control(g, e: Dictionary) -> Dictionary:
   return fallback
  return options[g._random_index("enemy",options.size())]
 
-static func six_ordinary(spec: Dictionary, grade: int, tightness: int, count: int=1, replace: bool=false) -> Dictionary:
- var plan=application(spec.install_pool,grade,tightness,count)
+static func six_ordinary(spec: Dictionary, grade: int, tightness: int, count: int=1, replace: bool=false, restraint_value: int=0) -> Dictionary:
+ var plan=application(spec.install_pool,grade,tightness,count,false,restraint_value if restraint_value!=0 else RestraintValue.from_profile(grade,tightness))
  plan.replace=replace
  return plan
 
@@ -147,7 +159,7 @@ static func six_plan(g, e: Dictionary) -> Dictionary:
  match (e.stage-3)%SIX_CYCLE_LENGTH:
   0,3: return {"kind":"six_tease","text":"戏弄封缚","delayed":false}
   1:
-   var plan=six_ordinary(g.Enemies.TYPES[e.type],2,2,2,true)
+   var plan=six_ordinary(g.Enemies.TYPES[e.type],2,2,2,true,4)
    plan.tighten_missing=true;plan.text="双重束缚"
    return plan
   2,5:
@@ -155,13 +167,14 @@ static func six_plan(g, e: Dictionary) -> Dictionary:
    return {"kind":"six_tune","text":"调教升温","delayed":false,"count":1+int(e.constriction),"grade":1 if completed_cycles==0 else 2}
   4: return {"kind":"six_composite","text":"复合束装","delayed":false}
   6: return {"kind":"six_finale","text":"六缚齐收","delayed":false}
-  _: return {"kind":"idle","text":"六缚暂不行动。","delayed":false}
+  _: return {"kind":"idle","text":"六缚本次休息。","delayed":false}
 
 static func lock_departure_pending(g, e: Dictionary) -> bool:
  return not e.gone and g.state.chastity_locks_enabled and g.Enemies.TYPES[e.type].has("chastity_departure") and targets(g,e,"lock").is_empty()
 
 static func build(g, e: Dictionary) -> Dictionary:
  var spec=g.Enemies.TYPES[e.type]
+ if spec.behavior in ["rope_master","rope_assistant"]: return g.RopeArt.plan(g,e)
  if spec.get("humanoid",false) and g.CaptureBind.kind(g,e)=="" and long_battle_limit(g):
   return {"kind":"capture","text":"准备逮捕","delayed":false}
  if spec.behavior=="six_bind" and g.state.overload_total>=e.next_climax_capture:
@@ -169,13 +182,14 @@ static func build(g, e: Dictionary) -> Dictionary:
  if can_arrest(g,e) and not has_equipment_space(g): return {"kind":"capture","text":"执行逮捕","delayed":false}
  if spec.behavior=="guard": return g.Guard.build(g,e)
  if spec.behavior=="six_bind": return six_plan(g,e)
+ if spec.behavior in ["rope_master","rope_assistant"]: return g.RopeArt.plan(g,e)
  if spec.behavior=="iron_man": return g.IronMan.plan(g,e)
  if spec.behavior in ["iron_drone","drone","binding_box"]:
   var required=g.CaptureBind.required_intent(g,e)
   if required!="": return {"kind":required,"text":{"capture":"执行收押","bind_apply":"施加捕缚 · 初始%s/100" % g.number(g.CaptureBind.initial_value(g,e)),"bind_prepare":"准备捕缚"}[required],"delayed":false}
  if spec.behavior=="iron_drone": return {"kind":"idle","text":"维持捕缚 · 每累计%d能量触发" % g.CaptureBind.energy_threshold(g,"iron_drone"),"delayed":false}
  if spec.behavior=="puppeteer": return g.Puppets.plan(e)
- if spec.behavior=="puppet": return {"kind":"idle","text":"玩偶不会行动","delayed":false}
+ if spec.behavior=="puppet": return {"kind":"idle","text":"玩偶由玩偶师操纵","delayed":false}
  if spec.has("weighted_moves"):
   var move="scatter"
   if e.stage>1:
@@ -196,7 +210,7 @@ static func build(g, e: Dictionary) -> Dictionary:
     0:
      if not targets(g,e,"tighten").is_empty() and g._random_index("enemy",2)==1:
       return {"kind":"tighten_budget","budget":member.get("reinforce_budget",4) if box else 2,"text":"收紧皮革拘束具 · 累计%d档" % member.get("reinforce_budget",4) if box else "收紧胶带 · 累计2档","delayed":false}
-     return application(spec.install_pool,2 if box else 1,member.get("application_tier",2) if box else 1,2)
+     return application(spec.install_pool,2 if box else 1,member.get("application_tier",2) if box else 1,2,false,RestraintValue.from_profile(2,member.get("application_tier",2)) if box else 2)
     1: return {"kind":"charge" if box else "bind_gain","text":"准备施加复合装备" if box else "捕缚进度＋10","delayed":false}
     _:
      if box: return {"kind":"bind_gain" if e.carried_indices.is_empty() else "carried_apply","text":"捕缚进度＋%s" % g.number(g.CaptureBind.gain_amount(g,e)) if e.carried_indices.is_empty() else "施加一件盒内复合装备","delayed":false}
@@ -233,7 +247,7 @@ static func build(g, e: Dictionary) -> Dictionary:
      if plan.kind=="tighten": plan.random_target=true;plan.text="收紧"
      else: plan.text="甩缚"
      return plan
-    var plan=application(spec.install_pool,1,2,2);plan.text="甩缚"
+    var plan=application(spec.install_pool,1,2,2,false,3);plan.text="甩缚"
     return plan
    "prepare": return {"kind":"charge","text":"准备施加","delayed":false}
    "install_pair": return batch(g,e,2,2,2,false,spec.install_pool)
@@ -241,12 +255,12 @@ static func build(g, e: Dictionary) -> Dictionary:
    "prepare_burst": return {"kind":"charge","text":"蓄力","delayed":false}
    "split_burst": return {"kind":"split_burst","text":"全身施加并分裂","delayed":false}
    "prepare_install": return {"kind":"charge","text":"准备施加拘束具","delayed":false}
-   "install_prepared": return application(spec.install_pool,spec.install_grade)
+   "install_prepared": return application(spec.install_pool,spec.install_grade,2,1,false,RestraintValue.from_profile(spec.install_grade,2))
    "tighten": return reinforce(g,e)
- if e.stage==1: return application(spec.install_pool)
+ if e.stage==1: return application(spec.install_pool,1,2,1,false,spec.get("install_restraint_value",0))
  if e.stage==2: return reinforce(g,e)
  if e.stage==3: return {"kind":"charge","text":"准备附着","delayed":false}
- return application(spec.final_pool,2,2,1,true)
+ return application(spec.final_pool,2,2,1,true,spec.get("departure_restraint_value",0))
 
 static func end_turn(g, e: Dictionary) -> void:
  if g.state.phase!="battle" or e.gone or e.get("ritual",0)<=0: return
@@ -264,7 +278,7 @@ static func tick_install(g, timing: String) -> void:
   if e.gone or e.get("turn_install_layers",0)<=0: continue
   var spec=g.Enemies.TYPES[e.type]
   if spec.turn_install_effect.timing!=timing: continue
-  g._enemy_operation(e,application(spec.install_pool,1,2,e.turn_install_layers))
+  g._enemy_operation(e,application(spec.install_pool,1,2,e.turn_install_layers,false,3))
 
 static func targets(g, e: Dictionary, kind: String, required_slots: Array=[]) -> Array:
  # docs/spec/equipment-query-seam.md「作用域进出点（冻结名单）」: one read scope per call; the enemy plan only reads equipment.
@@ -275,7 +289,7 @@ static func targets(g, e: Dictionary, kind: String, required_slots: Array=[]) ->
   choices=choices.filter(func(x):return Equipment.coverage(x).any(func(slot):return slot in required_slots))
  var definition=g.Enemies.TYPES[e.type]
  if kind=="tighten" and definition.has("reinforce_material"):
-  choices=choices.filter(func(x):return x.material==definition.reinforce_material and (g.tier(x.durability,x.maximum)<3 or g._reinforcement_locks(x)))
+  choices=choices.filter(func(x):return x.material==definition.reinforce_material and (g.equipment_tier(x)<3 or g._reinforcement_locks(x)))
  if kind=="tighten" and g.Enemies.behavior(e.type) in ["restraint","drone"]: choices=choices.filter(func(x):return x.template in g.Enemies.TYPES[e.type].install_pool)
  choices.sort_custom(func(a,b):
   var own_a=1 if a.source==e.id else 0
@@ -313,9 +327,9 @@ static func batch_choice(g, e: Dictionary, grade: int, tightness: int, tighten: 
   if pieces.is_empty(): return {}
   var target=pieces[g._random_index("enemy",pieces.size())]
   return {"kind":"tighten","target":target.id,"tier":tightness,"text":"加固拘束具","delayed":false}
- var choices=g.EquipmentOffers.preferred(g,g.EquipmentOffers.for_pool(g,grade,pool).filter(func(p):return not positions(g,p).any(func(point):return point in used)))
- if choices.is_empty(): return {}
- return g._install_choice(choices[g._random_index("enemy",choices.size())],e.id,grade,tightness)
+ var spec=application(pool,grade,tightness,1,false,RestraintValue.from_profile(grade,tightness))
+ spec.excluded_points=used.duplicate()
+ return g.Application.choose(g,application_spec(g,e,spec),e.id)
 
 static func batch(_g, _e: Dictionary, count: int, grade: int, tightness: int, tighten: bool, pool: Array) -> Dictionary:
  return {"kind":"equipment_batch","count":count,"grade":grade,"tier":tightness,"tighten":tighten,"templates":pool.duplicate(),"operations":[],"delayed":false,"text":"加固拘束具" if tighten else "施加拘束具"}
@@ -362,9 +376,9 @@ static func carried_application(g, e: Dictionary) -> Dictionary:
 static func carried_reason(g, e: Dictionary) -> String:
  var definition=g.Enemies.TYPES[e.type]
  if not definition.has("carried_composites"): return "" if not e.has("carried_indices") else "该敌人没有备用复合装备。"
- if not e.get("carried_indices") is Array: return "敌人的备用装备清单不完整。"
+ if not e.get("carried_indices") is Array: return "敌人的备用装备清单缺损。"
  var seen=[]
  for index in e.carried_indices:
-  if not index is int or index<0 or index>=definition.carried_composites.size() or index in seen: return "敌人的备用装备清单不合法。"
+  if not index is int or index<0 or index>=definition.carried_composites.size() or index in seen: return "敌人的备用装备清单有误。"
   seen.append(index)
  return ""

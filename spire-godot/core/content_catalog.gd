@@ -46,7 +46,7 @@ static func read_directory(path: String) -> Dictionary:
 
 static func _read(path: String, result: Dictionary, depth: int) -> void:
  if depth>8:
-  result.errors.append(path+": 文件夹嵌套不能超过8层。");return
+  result.errors.append(path+": 文件夹嵌套上限8层。");return
  var folder=DirAccess.open(path)
  if folder==null:
   result.errors.append(path+": 无法读取文件夹。");return
@@ -55,12 +55,12 @@ static func _read(path: String, result: Dictionary, depth: int) -> void:
   if file.get_extension().to_lower()!="json": continue
   var full=path.path_join(file)
   if result.documents.size()>=256:
-   result.errors.append(full+": 内容文件不能超过256个。");return
+   result.errors.append(full+": 内容文件上限256个。");return
   var input=FileAccess.open(full,FileAccess.READ)
   if input==null:
    result.errors.append(full+": 无法读取文件。");continue
   if input.get_length()>1048576:
-   result.errors.append(full+": 单个文件不能超过1MB。");continue
+   result.errors.append(full+": 单个文件上限1MB。");continue
   var parser=JSON.new()
   if parser.parse(input.get_as_text())!=OK:
    result.errors.append(full+": 第%d行：%s" % [parser.get_error_line(),parser.get_error_message()]);continue
@@ -75,7 +75,7 @@ static func shape(value, required: String, optional: String="") -> String:
  for key in fields:
   if not value.has(key): return "缺少字段 "+key+"。"
  for key in value:
-  if key not in allowed: return "不支持字段 "+str(key)+"。"
+  if key not in allowed: return "字段待支持："+str(key)+"。"
  return ""
 
 static func number(value, low: float, high: float, integer: bool=false) -> bool:
@@ -127,12 +127,12 @@ static func _definition(g, e: Dictionary, data: Dictionary) -> String:
   optional="cleanup_effects pool"
  var issue=shape(e,required,optional)
  if issue!="": return issue
- if not words(e.name,60): return "name 需要1—60字的普通文本，不能包含富文本标签。"
+ if not words(e.name,60): return "name 需要1—60字的纯文本。"
  match e.kind:
   "restraint":
    if e.base_template not in BASES: return "base_template 只支持普通绳索、细绳、皮带、细皮带、胶带、扎带。"
    var spec=data.restraint[e.base_template].duplicate(true)
-   if not subset(e.slots,spec.slots): return "slots 必须是基础模板支持的部位，且不能重复。"
+   if not subset(e.slots,spec.slots): return "slots 必须是基础模板支持的部位，每个部位限填写一次。"
    if not e.enemy_sources is Array or e.enemy_sources.is_empty() or not e.enemy_sources.all(func(id):return identifier(id)): return "enemy_sources 需要至少一个敌人模板 id。"
    spec.name=e.name;spec.slots=e.slots.duplicate();spec.base_template=e.base_template;data.restraint[e.id]=spec
   "special_equipment":
@@ -146,7 +146,7 @@ static func _definition(g, e: Dictionary, data: Dictionary) -> String:
     if issue!="": return "design: "+issue
     spec.merge(e.design,true)
    if not number(spec.grade,1,3,true) or not number(spec.maximum,1,1000) or not number(spec.ratio,0.01,1) or not number(spec.damage_factor,0.01,10): return "design 的等级1—3、耐久1—1000、初始比例0.01—1、伤害倍率0.01—10。"
-   if not subset(spec.slots,g.SpecialEquipment.slots()) or not subset(spec.methods,["strain","slip","magic_slip","lower","manual"]) or not subset(spec.tools,["shard","saw"],true) or not subset(spec.environments,g.SpecialEquipment.ALL_ENVIRONMENTS,true): return "design 部位或解除方法不受支持，或数组有重复项。"
+   if not subset(spec.slots,g.SpecialEquipment.slots()) or not subset(spec.methods,["strain","slip","magic_slip","lower","manual"]) or not subset(spec.tools,["shard","saw"],true) or not subset(spec.environments,g.SpecialEquipment.ALL_ENVIRONMENTS,true): return "design 部位或解除方法超出支持范围，或数组有重复项。"
    issue=shape(e.acquisition,"name intro label slot")
    if issue!="": return "acquisition: "+issue
    if not words(e.acquisition.name,60) or not words(e.acquisition.intro) or not words(e.acquisition.label,80) or e.acquisition.slot not in spec.slots: return "acquisition 需要事件名称、介绍、选项文案和允许安装的 slot。"
@@ -173,7 +173,7 @@ static func _definition(g, e: Dictionary, data: Dictionary) -> String:
     if issue!="": return issue
    if (e.modifiers.is_empty() and not e.has("trigger") and not e.has("card_base_bonuses") and not e.has("pickup_cards") and not e.get("collectible",false)) or not words(e.detail): return "遗物需要说明和至少一种已支持的加成或触发效果。"
    for key in e.modifiers:
-    if not number(e.modifiers[key],1,g.Relics.MODIFIER_LIMITS[key],key!="battle_mana"): return "modifiers."+key+" 数值超出范围或不是整数。"
+    if not number(e.modifiers[key],1,g.Relics.MODIFIER_LIMITS[key],key!="battle_mana"): return "modifiers."+key+" 数值超出范围或需改为整数。"
    data.relic[e.id]={"rarity":e.rarity,"name":e.name,"detail":e.detail,"modifiers":e.modifiers.duplicate()}
    if e.has("pickup_cards"): data.relic[e.id].pickup_cards=e.pickup_cards.duplicate()
    if e.has("collectible"): data.relic[e.id].collectible=e.collectible
@@ -195,11 +195,11 @@ static func _definition(g, e: Dictionary, data: Dictionary) -> String:
     if issue!="": return "trigger: "+issue
     data.relic[e.id].trigger=trigger
   "enemy":
-   if e.base_enemy not in ENEMY_BASES or not number(e.hp,1,1000,true) or not number(e.order,0,1000,true): return "base_enemy 不受支持，或 hp/order 不是范围内的整数。"
+   if e.base_enemy not in ENEMY_BASES or not number(e.hp,1,1000,true) or not number(e.order,0,1000,true): return "base_enemy 超出支持范围，或 hp/order 需改为范围内的整数。"
    issue=shape(e.encounter,"rank grade")
    if issue!="": return "encounter: "+issue
    if e.encounter.rank not in ["weak","strong"] or not number(e.encounter.grade,1,2,true): return "encounter 只支持 weak/strong，装备等级为1或2。"
-   if not number(e.strength,1,1000,true) or (e.encounter.rank=="weak" and e.strength>g.Enemies.FirstFloor.WEAK_STRENGTH): return "strength 必须是正整数，弱怪不能超过弱怪池总强度预算。"
+   if not number(e.strength,1,1000,true) or (e.encounter.rank=="weak" and e.strength>g.Enemies.FirstFloor.WEAK_STRENGTH): return "strength 必须是正整数，弱怪需要在弱怪池总强度预算内。"
    var spec=data.enemy[e.base_enemy].duplicate(true)
    spec.name=e.name;spec.hp=int(e.hp);spec.order=int(e.order);spec.strength=int(e.strength);data.enemy[e.id]=spec
    var encounter_id=e.id+"_encounter"
@@ -207,7 +207,7 @@ static func _definition(g, e: Dictionary, data: Dictionary) -> String:
    data.encounters[encounter_id]={"group":"弱怪" if e.encounter.rank=="weak" else "强怪","rank":e.encounter.rank,"members":[{"type":e.id,"grade":int(e.encounter.grade)}]}
    data.pools[e.encounter.rank].append(encounter_id)
   "event":
-   if not words(e.intro): return "事件介绍不能为空或过长。"
+   if not words(e.intro): return "事件介绍长度需在允许范围内。"
    if not e.get("pool",true) is bool: return "事件 pool 必须为布尔值。"
    if not identifier(e.get("start_node")): return "事件必须填写 start_node。"
    if not e.nodes is Array or e.nodes.is_empty() or e.nodes.size()>12: return "事件需要1—12个节点。"
@@ -232,8 +232,8 @@ static func _item_rewards(groups, g) -> String:
  var ids=[]
  for group in groups:
   var issue=shape(group,"id pool","")
-  if issue!="" or not identifier(group.get("id")) or group.id in ids: return "奖励分组需要互不重复的稳定 id。"
-  if not group.pool is Array or group.pool.is_empty() or group.pool.size()>12 or group.pool.any(func(type):return not type is String or not g.Tools.TYPES.has(type) or group.pool.count(type)!=1): return "奖励分组必须引用1—12件互不重复的现有道具。"
+  if issue!="" or not identifier(group.get("id")) or group.id in ids: return "奖励分组需要各自独立的稳定 id。"
+  if not group.pool is Array or group.pool.is_empty() or group.pool.size()>12 or group.pool.any(func(type):return not type is String or not g.Tools.TYPES.has(type) or group.pool.count(type)!=1): return "奖励分组必须引用1—12件现有道具，每种道具限一次。"
   ids.append(group.id)
  return ""
 
@@ -241,10 +241,10 @@ static func _encounter(spec, g, data: Dictionary) -> String:
  if not spec is Dictionary: return "encounter 需要对象。"
  var issue=shape(spec,"id requires_defeat victory_effects victory_report result_status")
  if issue!="": return issue
- if not spec.id is String or not data.encounters.has(spec.id): return "战斗遭遇不存在。"
+ if not spec.id is String or not data.encounters.has(spec.id): return "战斗遭遇缺失。"
  if not spec.requires_defeat is bool: return "requires_defeat 必须是布尔值。"
  if not spec.victory_effects is Array or spec.victory_effects.is_empty() or spec.victory_effects.size()>8: return "victory_effects 需要1—8个效果。"
- if not words(spec.victory_report) or spec.result_status not in g.Events.RESULT_STATUSES: return "胜利结果文案或结果标记不正确。"
+ if not words(spec.victory_report) or spec.result_status not in g.Events.RESULT_STATUSES: return "胜利结果文案或结果标记有误。"
  for effect in spec.victory_effects:
   issue=_effect(g,effect,data,false)
   if issue!="": return "victory_effects: "+issue
@@ -262,11 +262,11 @@ static func _event_references(g, e: Dictionary, data: Dictionary) -> String:
   if not identifier(stage.id) or stage.id in seen_ids: return "节点 id 无效或重复。"
   seen_ids.append(stage.id)
   if single and stage.id!="choice": return "单节点事件的节点 id 必须为 choice。"
-  if single and (stage.has("title") or stage.has("intro")): return "单节点事件不得填写 title 或 intro。"
+  if single and (stage.has("title") or stage.has("intro")): return "单节点事件需要省略 title 和 intro。"
   if not single and stage.id in ["choice","reward","result","battle","loot","keys"]: return "节点 id 使用了保留字："+stage.id
-  if not single and (not words(stage.title,60) or not words(stage.intro)): return "节点标题或介绍不正确。"
+  if not single and (not words(stage.title,60) or not words(stage.intro)): return "节点标题或介绍有误。"
   if not stage.allow_refuse is bool: return "节点必须填写 allow_refuse 布尔值。"
-  if stage.unavailable not in ["hide","disable"] or stage.relic_gate not in ["pool","claimed"] or stage.random_freeze not in ["generators","always"] or stage.outcome_draw not in ["option","selection"] or stage.frozen_form not in ["in_place","staged"] or stage.empty_node not in ["allow","fail"]: return "节点的声明取值不正确。"
+  if stage.unavailable not in ["hide","disable"] or stage.relic_gate not in ["pool","claimed"] or stage.random_freeze not in ["generators","always"] or stage.outcome_draw not in ["option","selection"] or stage.frozen_form not in ["in_place","staged"] or stage.empty_node not in ["allow","fail"]: return "节点的声明取值有误。"
   if not stage.choices is Array or stage.choices.is_empty() or stage.choices.size()>6: return "节点需要1—6个选项。"
  if event.start_node not in stage_ids: return "start_node 必须引用已有节点。"
  var start=g.Events.node(event,event.start_node)
@@ -285,7 +285,7 @@ static func _event_references(g, e: Dictionary, data: Dictionary) -> String:
    if choice.get("result_status","neutral") not in g.Events.RESULT_STATUSES: return "选项 result_status 必须为 neutral、success 或 failure。"
    if choice.has("show_pressure_sources") and not choice.show_pressure_sources is bool: return "show_pressure_sources 必须为布尔值。"
    if choice.has("hide_when_unavailable") and not choice.hide_when_unavailable is bool: return "hide_when_unavailable 必须为布尔值。"
-   if choice.has("availability") and choice.has("conditions"): return "选项不能同时填写 availability 与 conditions。"
+   if choice.has("availability") and choice.has("conditions"): return "availability 与 conditions 请择一填写。"
    if choice.has("availability"):
     issue=_availability(g,choice.availability,data)
     if issue!="": return "nodes."+stage.id+"."+choice.get("id","")+".availability: "+issue
@@ -295,21 +295,21 @@ static func _event_references(g, e: Dictionary, data: Dictionary) -> String:
      issue=g.Events.condition_issue(g,entry,data)
      if issue!="": return "nodes."+stage.id+"."+choice.get("id","")+".conditions: "+issue
    if choice.has("unavailable") and choice.unavailable not in ["hide","disable"]: return "选项 unavailable 只支持 hide 或 disable。"
-   if choice.has("unavailable") and choice.has("hide_when_unavailable"): return "选项不能同时填写 unavailable 与 hide_when_unavailable。"
-   if not identifier(choice.id) or choice.id in choice_ids or not words(choice.label,80) or choice.reward not in ["none","common","uncommon","rare","relic"]: return "选项 id、文案或奖励不正确。"
+   if choice.has("unavailable") and choice.has("hide_when_unavailable"): return "unavailable 与 hide_when_unavailable 请择一填写。"
+   if not identifier(choice.id) or choice.id in choice_ids or not words(choice.label,80) or choice.reward not in ["none","common","uncommon","rare","relic"]: return "选项 id、文案或奖励有误。"
    choice_ids.append(choice.id)
-   if choice.has("recipe") and choice.has("effects"): return "选项不能同时填写 recipe 与 effects。"
+   if choice.has("recipe") and choice.has("effects"): return "recipe 与 effects 请择一填写。"
    if not choice.has("recipe") and not choice.has("effects") and not choice.has("outcomes"): return "选项至少需要 effects、recipe 或 outcomes。"
-   if choice.has("recipe") and (not choice.recipe is String or choice.recipe not in ["free_basic","tighten_or_medium","locked_assembly"]): return "选项使用了未知 recipe。"
+   if choice.has("recipe") and (not choice.recipe is String or choice.recipe not in ["free_basic","tighten_or_medium","locked_assembly"]): return "选项使用的 recipe 待支持。"
    if choice.has("effects") and (not choice.effects is Array or choice.effects.size()>12): return "选项 effects 最多12项。"
-   if choice.get("reward","none")!="none" and not _next_ends_event(choice.get("next","result")): return "带奖励的选项必须结束事件，不能在领奖后继续下一阶段。"
+   if choice.get("reward","none")!="none" and not _next_ends_event(choice.get("next","result")): return "带奖励的选项必须结束事件。"
    issue=_flow_next(choice.get("next","result"),stage_index,stage_ids,e.id,data)
    if issue!="": return "nodes."+stage.id+"."+choice.id+": "+issue
-   if choice.has("report") and not words(choice.report): return "选项结果文案不正确。"
+   if choice.has("report") and not words(choice.report): return "选项结果文案有误。"
    if choice.has("report_variants"):
     issue=_copy_variants(choice.report_variants,data,1200)
     if issue!="": return "nodes."+stage.id+"."+choice.id+".report_variants: "+issue
-   if choice.has("detail") and not (choice.detail is String and (choice.detail=="" or words(choice.detail))): return "选项预告文案不正确。"
+   if choice.has("detail") and not (choice.detail is String and (choice.detail=="" or words(choice.detail))): return "选项预告文案有误。"
    if choice.has("selector"):
     issue=_selector(choice.selector,true)
     if issue!="": return "选项选择器："+issue
@@ -324,11 +324,11 @@ static func _event_references(g, e: Dictionary, data: Dictionary) -> String:
     for key in ["equals","minimum","maximum"]:
      if choice.when.has(key) and not number(choice.when[key],0,100,true): return "选项条件计数必须是0—100整数。"
    if choice.has("encounter"):
-    if choice.reward!="none": return "事件战斗使用胜利效果发放奖励，不能再叠加普通 reward。"
+    if choice.reward!="none": return "事件战斗需使用胜利效果发放奖励，并省略普通 reward。"
     issue=_encounter(choice.encounter,g,data)
     if issue!="": return "nodes."+stage.id+"."+choice.id+".encounter: "+issue
    if choice.has("item_rewards"):
-    if choice.reward!="none" or choice.has("encounter") or choice.has("selector"): return "道具奖励不能叠加卡牌／遗物奖励、战斗或目标选择器。"
+    if choice.reward!="none" or choice.has("encounter") or choice.has("selector"): return "道具奖励需要作为独立奖励发放。"
     issue=_item_rewards(choice.item_rewards,g)
     if issue!="": return "nodes."+stage.id+"."+choice.id+".item_rewards: "+issue
    var shown_pressure_effects=[]
@@ -340,17 +340,17 @@ static func _event_references(g, e: Dictionary, data: Dictionary) -> String:
      if effect.key in held_keys: return "同一个暂存 key 只能建立一次。"
      held_keys.append(effect.key)
    if choice.has("outcomes"):
-    if not choice.outcomes is Array or choice.outcomes.size()<2 or choice.outcomes.size()>8 or not words(choice.get("detail","")): return "随机结果需要2—8项，并提供不泄露实际结果的 detail。"
+    if not choice.outcomes is Array or choice.outcomes.size()<2 or choice.outcomes.size()>8 or not words(choice.get("detail","")): return "随机结果需要2—8项，detail 仅可描述结果范围。"
     for outcome in choice.outcomes:
      issue=shape(outcome,"weight effects","next reward report report_variants result_status")
-     if issue!="" or not number(outcome.weight,1,10000,true) or not outcome.effects is Array or outcome.effects.size()>12: return "随机结果的权重或效果列表不正确。"
+     if issue!="" or not number(outcome.weight,1,10000,true) or not outcome.effects is Array or outcome.effects.size()>12: return "随机结果的权重或效果列表有误。"
      if outcome.get("result_status","neutral") not in g.Events.RESULT_STATUSES: return "随机结果 result_status 必须为 neutral、success 或 failure。"
-     if outcome.get("reward",choice.reward) not in ["none","common","uncommon","rare","relic"]: return "随机结果奖励不受支持。"
+     if outcome.get("reward",choice.reward) not in ["none","common","uncommon","rare","relic"]: return "随机结果奖励超出支持范围。"
      var next=outcome.get("next",choice.get("next","result"))
      issue=_flow_next(next,stage_index,stage_ids,e.id,data)
      if issue!="": return "随机结果："+issue
      if outcome.get("reward",choice.reward)!="none" and not _next_ends_event(next): return "带奖励的随机结果目前必须结束事件。"
-     if outcome.has("report") and not words(outcome.report): return "随机结果文案不正确。"
+     if outcome.has("report") and not words(outcome.report): return "随机结果文案有误。"
      if outcome.has("report_variants"):
       issue=_copy_variants(outcome.report_variants,data,1200)
       if issue!="": return "随机结果 report_variants: "+issue
@@ -363,7 +363,7 @@ static func _event_references(g, e: Dictionary, data: Dictionary) -> String:
        held_keys.append(effect.key)
    if choice.get("show_pressure_sources",false) and (shown_pressure_effects.is_empty() or shown_pressure_effects.any(func(effect):return not effect.has("source"))): return "show_pressure_sources 需要至少一个带 source 的快感效果。"
  for cleanup in event.get("cleanup_effects",[]):
-  if cleanup.key not in held_keys: return "cleanup_effects 引用了从未建立的暂存 key。"
+  if cleanup.key not in held_keys: return "cleanup_effects 的暂存 key 需先建立。"
  for key in held_keys:
   if not event.get("cleanup_effects",[]).any(func(effect):return effect.key==key): return "暂存装备必须在 cleanup_effects 中原样归还。"
  # docs/spec/event-pipeline.md「事件链」(A33): a jump keeps the source holds, so a hold key has to stay unique along the whole
@@ -429,13 +429,13 @@ static func _flow_next(next, current: int, stage_ids: Array, event_id: String, d
   var issue=shape(next,"event node")
   if issue!="": return "跨事件跳转需要 event 与 node。"
   if not next.event is String or not next.node is String: return "跨事件跳转需要 event 与 node。"
-  if next.event==event_id: return "跨事件跳转不能引用事件自身。"
-  if not data.get("event",{}).has(next.event): return "跨事件跳转引用了尚未登记的事件。"
+  if next.event==event_id: return "跨事件跳转需要引用其他事件。"
+  if not data.get("event",{}).has(next.event): return "跨事件跳转引用了待登记的事件。"
   var targets=data.event[next.event].get("nodes",[]).map(func(entry):return str(entry.get("id","")))
-  if next.node not in targets: return "跨事件跳转引用了不存在的节点。"
+  if next.node not in targets: return "跨事件跳转引用了缺失的节点。"
   return ""
  if not next is String or (next!="result" and next not in stage_ids): return "next 必须引用后续阶段或 result。"
- if next!="result" and stage_ids.find(next)<=current: return "多阶段事件不能倒退或形成循环。"
+ if next!="result" and stage_ids.find(next)<=current: return "多阶段事件需要单向前进。"
  return ""
 
 static func _has_free_exit(stage: Dictionary) -> bool:
@@ -472,14 +472,14 @@ static func _copy_variants(variants, data: Dictionary, maximum: int) -> String:
   if not variant.when is Dictionary: return "when 需要条件对象。"
   issue=shape(variant.when,"kind value")
   if issue!="": return issue
-  if variant.when.kind!="equipped_special_family": return "尚未支持这种文案条件。"
-  if not variant.when.value is String or variant.when.value in seen: return "特殊装备族条件必须有效且不能重复。"
+  if variant.when.kind!="equipped_special_family": return "待支持这种文案条件。"
+  if not variant.when.value is String or variant.when.value in seen: return "特殊装备族条件必须有效且各自独立。"
   var known=false
   for type in data.special_equipment.values():
    if type.get("family","")==variant.when.value:
     known=true
     break
-  if not known: return "文案条件引用了不存在的特殊装备族。"
+  if not known: return "文案条件引用了缺失的特殊装备族。"
   if not words(variant.text,maximum): return "条件文案为空或过长。"
   seen.append(variant.when.value)
  return ""
@@ -492,7 +492,7 @@ static func _effect(g, e, data: Dictionary, generators: bool=false) -> String:
   fields.tighten_random="count to_tier"
   fields.special_install_random="types"
   fields.random_amount="effect minimum maximum"
- if not fields.has(e.op): return "尚未支持效果 "+e.op+"。"
+ if not fields.has(e.op): return "待支持效果 "+e.op+"。"
  var optional="templates" if e.op=="tighten_random" else ("source source_variants" if e.op=="pressure" else ("name" if e.op in ["transform_card","remove_card","remove_restraints","ease_restraint"] else ""))
  if e.op in ["install","assembly","special_install"]: optional="replace"+(" wear_style" if e.op=="install" else "")
  if e.op=="install_random": optional="replace allow_links wear_style"
@@ -504,16 +504,16 @@ static func _effect(g, e, data: Dictionary, generators: bool=false) -> String:
  if e.has("wear_style") and (not e.wear_style is String or e.wear_style not in g.Equipment.WEAR_STYLES): return "wear_style 必须是 assisted 或 animated。"
  match e.op:
   "install":
-   if not e.template is String or not data.restraint.has(e.template): return "装备 template 不存在。"
+   if not e.template is String or not data.restraint.has(e.template): return "装备 template 缺失。"
    var spec=data.restraint[e.template]
-   if e.slot not in spec.slots or not number(e.grade,spec.get("min_grade",1),3,true) or not number(e.tier,1,3,true) or not e.locked is bool or (e.locked and not spec.lock): return "装备部位、等级、紧度或锁不符合模板。"
+   if e.slot not in spec.slots or not number(e.grade,spec.get("min_grade",1),3,true) or not number(e.tier,1,3,true) or not e.locked is bool or (e.locked and not spec.lock): return "装备部位、等级、紧度或锁偏离模板。"
    e.grade=int(e.grade);e.tier=int(e.tier)
   "special_install":
-   if not e.type is String or not data.special_equipment.has(e.type) or e.slot not in data.designs[e.type].slots: return "性玩具或安装部位不存在。"
+   if not e.type is String or not data.special_equipment.has(e.type) or e.slot not in data.designs[e.type].slots: return "性玩具或安装部位缺失。"
   "assembly":
    if not e.family is String or not e.variant is String or not e.straps is String or not e.part is String: return "复合装备需要有效的类型、款式、肩带和上锁组件。"
    var spec=g.Composites.spec(e.family,e.variant,e.straps)
-   if spec.is_empty() or not spec.parts.has(e.part) or not data.restraint[spec.parts[e.part].template].lock: return "复合装备结构或上锁组件不正确。"
+   if spec.is_empty() or not spec.parts.has(e.part) or not data.restraint[spec.parts[e.part].template].lock: return "复合装备结构或上锁组件有误。"
    if e.name!=spec.name or e.coverage!=spec.coverage or e.part_name!=spec.name+" · "+spec.parts[e.part].label: return "复合装备说明必须对应实际名称、覆盖部位和上锁组件。"
   "mana_loss","mana_gain","flask_mana_gain","pressure":
    if not number(e.amount,0,100): return "amount 必须是0—100的有限数值。"
@@ -523,7 +523,7 @@ static func _effect(g, e, data: Dictionary, generators: bool=false) -> String:
     if variant_issue!="": return "pressure.source_variants: "+variant_issue
   "random_amount":
    if e.effect not in ["mana_loss","mana_gain","flask_mana_gain","pressure"]: return "随机数值只支持现有的魔力、魔瓶魔力或快感效果。"
-   if not number(e.minimum,0,100,true) or not number(e.maximum,0,100,true) or e.minimum>e.maximum: return "随机数值上下限必须是0—100的整数，且下限不能高于上限。"
+   if not number(e.minimum,0,100,true) or not number(e.maximum,0,100,true) or e.minimum>e.maximum: return "随机数值上下限必须是0—100的整数，且下限≤上限。"
    if e.has("source") and (e.effect!="pressure" or not words(e.source,120)): return "只有随机快感效果可以填写普通来源文字。"
    e.minimum=int(e.minimum);e.maximum=int(e.maximum)
   "mana_restore_full": pass
@@ -531,11 +531,11 @@ static func _effect(g, e, data: Dictionary, generators: bool=false) -> String:
    if not number(e.amount,1,100,true): return "最大魔力降低值必须是1—100的整数。"
    e.amount=int(e.amount)
   "card":
-   if not e.type is String or not g.B.CARD_NAMES.has(e.type): return "卡牌 type 不存在。"
+   if not e.type is String or not g.B.CARD_NAMES.has(e.type): return "卡牌 type 缺失。"
   "tool":
-   if not e.type is String or not g.Tools.TYPES.has(e.type): return "道具 type 不存在。"
+   if not e.type is String or not g.Tools.TYPES.has(e.type): return "道具 type 缺失。"
   "relic":
-   if not e.type is String or not data.relic.has(e.type): return "遗物 type 不存在。"
+   if not e.type is String or not data.relic.has(e.type): return "遗物 type 缺失。"
   "transform_card":
    if e.target!="$selected" or not e.type is String or not g.B.CARD_NAMES.has(e.type): return "换牌效果需要使用选择器目标和有效卡牌 type。"
   "remove_card":
@@ -547,23 +547,23 @@ static func _effect(g, e, data: Dictionary, generators: bool=false) -> String:
   "counter":
    if not identifier(e.key) or not number(e.amount,-100,100,true) or e.amount==0: return "事件计数需要有效 key 和非零整数变化量。"
   "install_random":
-   if not subset(e.templates,data.restraint.keys()) or not number(e.count,1,4,true) or not number(e.grade,1,3,true) or not number(e.tier,1,3,true) or not e.locked is bool or (e.has("allow_links") and not e.allow_links is bool): return "随机安装的模板、数量、等级、紧度、锁或链接范围不正确。"
+   if not subset(e.templates,data.restraint.keys()) or not number(e.count,1,4,true) or not number(e.grade,1,3,true) or not number(e.tier,1,3,true) or not e.locked is bool or (e.has("allow_links") and not e.allow_links is bool): return "随机安装的模板、数量、等级、紧度、锁或链接范围有误。"
    for template in e.templates:
     var spec=data.restraint[template]
-    if e.grade<spec.get("min_grade",1) or (e.locked and not spec.lock): return "随机安装包含不支持该等级或锁的模板。"
+    if e.grade<spec.get("min_grade",1) or (e.locked and not spec.lock): return "请使用支持指定等级与锁的随机安装模板。"
    e.count=int(e.count);e.grade=int(e.grade);e.tier=int(e.tier)
   "tighten_random":
    var extra=shape(e,"op count to_tier","templates")
-   if extra!="" or not number(e.count,1,4,true) or not number(e.to_tier,2,3,true) or (e.has("templates") and not subset(e.templates,data.restraint.keys(),true)): return "随机收紧的数量、目标档位或模板过滤不正确。"
+   if extra!="" or not number(e.count,1,4,true) or not number(e.to_tier,2,3,true) or (e.has("templates") and not subset(e.templates,data.restraint.keys(),true)): return "随机收紧的数量、目标档位或模板过滤有误。"
    e.count=int(e.count);e.to_tier=int(e.to_tier)
   "special_install_random":
    var fallback_effects=e.get("fallback",[])
-   if not subset(e.types,data.special_equipment.keys()) or not fallback_effects is Array or fallback_effects.size()>4: return "随机性玩具池或无合法位置时的后备效果不正确。"
+   if not subset(e.types,data.special_equipment.keys()) or not fallback_effects is Array or fallback_effects.size()>4: return "随机性玩具池或无合法位置时的后备效果有误。"
    for fallback in fallback_effects:
     var fallback_issue=_effect(g,fallback,data,false)
     if fallback_issue!="": return "随机性玩具后备效果："+fallback_issue
   "hold_special":
-   if not identifier(e.key) or not subset(e.slots,g.SpecialEquipment.slots()): return "暂存 key 或性玩具位置不正确。"
+   if not identifier(e.key) or not subset(e.slots,g.SpecialEquipment.slots()): return "暂存 key 或性玩具位置有误。"
   "restore_held":
    if not identifier(e.key): return "归还暂存装备需要有效 key。"
  return ""

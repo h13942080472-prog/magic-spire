@@ -20,7 +20,7 @@ static func profile(g, target: Dictionary) -> Dictionary:
  return result
 
 static func hint() -> String:
- return "行动完成后，各适用部位随机滑脱一件最外层装备；同一件只处理一次，不额外消耗资源。"
+ return "行动完成后，各适用部位免费随机滑脱一件最外层装备；同一件只处理一次。"
 
 # Called only inside the owning action transaction, before entering a new room.
 static func apply(g, trigger: String) -> void:

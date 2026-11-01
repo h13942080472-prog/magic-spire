@@ -14,7 +14,7 @@ static func run(t) -> void:
  exit_fixture(g)
  var a=preload("res://tests/link_cases.gd").at(g,"thigh_root")
  var b=preload("res://tests/link_cases.gd").at(g,"mid_thigh")
- g._install_link(a.id,b.id,8,"fixture")
+ g._install_link(a.id,b.id,4.8,"fixture")
  g._install_assembly("arm","long","fixture",2,2)
  g._install_special("crotch_rope_low","special_3_a")
  g.state.mana_max=150.0;g.state.mana=13.0

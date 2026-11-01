@@ -35,6 +35,8 @@ func _process(_delta: float) -> void:
 
 func enqueue(events: Array, before: Dictionary) -> void:
  if events.is_empty(): return
+ if host.display_settings.reduced_card_motion:
+  clear();return
  events=events.duplicate(true)
  for uid in pending_draws:
   if host.card_buttons.has(uid) and not events.any(func(event):return event.uid==uid and event.kind=="draw"):
@@ -79,6 +81,8 @@ func enqueue(events: Array, before: Dictionary) -> void:
   tween.tween_property(ghost,"modulate:a",1.0,0.04)
   if event.kind.begins_with("play"):
    tween.tween_property(ghost,"position",Vector2(740,390),0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+   tween.tween_property(ghost,"self_modulate",Color("c9fff3") if ghost.effect_free else Color("ffe1a2"),0.09)
+   tween.tween_property(ghost,"self_modulate",Color.WHITE,0.08)
   tween.set_parallel(true)
   tween.tween_property(ghost,"position",end-ghost.pivot_offset,0.42).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
   tween.tween_property(ghost,"scale",Vector2.ONE*(1.0 if draws else 0.18),0.42)

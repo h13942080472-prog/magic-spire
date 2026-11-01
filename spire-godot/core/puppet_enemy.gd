@@ -77,7 +77,7 @@ static func barrier_trigger(g, master: Dictionary, damage_group: Dictionary) -> 
  g._emit("event",master.name+"的护身屏障触发，玩偶普通反击容量上限%s→%s。" % [before,maximum],{"puppet_capacity":{"enemy":doll.id,"owner":master.id,"before":before,"maximum":maximum,"remaining":doll.puppet_stock}})
 
 static func ordinary(g) -> Dictionary:
- var request=g.EnemyPlans.application(g.Enemies.TYPES.puppet.install_pool,1,2)
+ var request=g.EnemyPlans.application(g.Enemies.TYPES.puppet.install_pool,1,2,1,false,3)
  request.replace=true;request.shoulders=true
  return request
 
@@ -119,9 +119,9 @@ static func dismiss(g, master: Dictionary) -> void:
   g._emit("event",master.name+"倒下，失去操纵的玩偶也随之散落。",{"puppet_dismissed":doll.id})
 
 static func description(g, doll: Dictionary) -> String:
- var text="生命不会低于1，溢出伤害转给玩偶师，再受其护身屏障限制。"
+ var text="生命最低为1，溢出伤害转给玩偶师，再受其护身屏障限制。"
  if doll.get("puppet_awakened",false): text+="单体攻击必须选择玩偶；每次受到正数伤害消耗1次普通反击，尝试施加一件初级2档拘束具，多段逐段触发。"
- text+="普通反击剩余%d/%d次，用尽后停止；发动即消耗，未能佩戴也不返还。每次缝补容量上限增加%d并补满；额外装束不消耗此容量。" % [doll.puppet_stock,capacity(g,doll),g.Enemies.TYPES[doll.type].capacity_per_mend]
+ text+="普通反击剩余%d/%d次，用尽后停止；发动即扣次数。每次缝补容量上限增加%d并补满；额外装束单独计次。" % [doll.puppet_stock,capacity(g,doll),g.Enemies.TYPES[doll.type].capacity_per_mend]
  for prepared in doll.get("puppet_prepared",{}).values(): text+="下一次攻击额外施加"+prepared_name(g,prepared)+"。"
  return text
 
@@ -129,28 +129,28 @@ static func validate(g, enemies: Array, health_scale: float=1.0) -> String:
  var owners=[]
  for doll in enemies:
   if g.Enemies.TYPES[doll.type].has("damage_cap"):
-   if not g.Snapshot.fields(doll,"barrier_damage:n") or doll.barrier_damage<0 or doll.barrier_damage>g.Enemies.barrier_limit(doll,health_scale): return "护身屏障的本回合伤害记录不正确。"
+   if not g.Snapshot.fields(doll,"barrier_damage:n") or doll.barrier_damage<0 or doll.barrier_damage>g.Enemies.barrier_limit(doll,health_scale): return "护身屏障的本回合伤害记录有误。"
   var is_doll=g.Enemies.TYPES[doll.type].behavior=="puppet"
   if not is_doll:
    for key in ["puppet_owner","puppet_awakened","puppet_prepared","puppet_mends","puppet_stock","puppet_capacity_lost"]:
-    if doll.has(key): return "该敌人不应保存玩偶记录。"
+    if doll.has(key): return "该敌人的玩偶记录应为空。"
    continue
-  if not g.Snapshot.fields(doll,"puppet_owner:s puppet_awakened:b puppet_prepared:d puppet_mends:i puppet_stock:i"): return "玩偶记录不完整。"
+  if not g.Snapshot.fields(doll,"puppet_owner:s puppet_awakened:b puppet_prepared:d puppet_mends:i puppet_stock:i"): return "玩偶记录缺损。"
   var masters=enemies.filter(func(e):return e.id==doll.puppet_owner and g.Enemies.TYPES[e.type].behavior=="puppeteer")
-  if masters.size()!=1 or doll.puppet_owner in owners: return "玩偶的操纵者或召唤数量不正确。"
+  if masters.size()!=1 or doll.puppet_owner in owners: return "玩偶的操纵者或召唤数量有误。"
   owners.append(doll.puppet_owner)
   var bonus=doll.get("puppet_security_bonus",0.0)
-  if not (bonus is float or bonus is int) or not is_finite(float(bonus)) or bonus<0 or bonus>120: return "玩偶的安全等级生命加成不正确。"
+  if not (bonus is float or bonus is int) or not is_finite(float(bonus)) or bonus<0 or bonus>120: return "玩偶的安全等级生命加成有误。"
   var spec=g.Enemies.TYPES[doll.type]
   var capacity_lost=doll.get("puppet_capacity_lost",0)
-  if not capacity_lost is int or capacity_lost<0 or capacity_lost>spec.reaction_capacity+spec.capacity_per_mend*doll.puppet_mends: return "玩偶的普通反击容量扣减记录不正确。"
-  if doll.puppet_mends<0 or doll.max_hp!=spec.hp*health_scale+bonus+spec.health_per_mend*doll.puppet_mends: return "玩偶的缝补生命上限不正确。"
-  if doll.puppet_stock<0 or doll.puppet_stock>capacity(g,doll): return "玩偶的普通反击余量不正确。"
-  if not doll.gone and (masters[0].gone or doll.hp<1): return "玩偶的保护或操纵者状态不正确。"
-  if doll.gone and (doll.puppet_awakened or not doll.puppet_prepared.is_empty()): return "离场玩偶不能保留生效装束。"
+  if not capacity_lost is int or capacity_lost<0 or capacity_lost>spec.reaction_capacity+spec.capacity_per_mend*doll.puppet_mends: return "玩偶的普通反击容量扣减记录有误。"
+  if doll.puppet_mends<0 or doll.max_hp!=spec.hp*health_scale+bonus+spec.health_per_mend*doll.puppet_mends: return "玩偶的缝补生命上限有误。"
+  if doll.puppet_stock<0 or doll.puppet_stock>capacity(g,doll): return "玩偶的普通反击余量有误。"
+  if not doll.gone and (masters[0].gone or doll.hp<1): return "玩偶的保护或操纵者状态有误。"
+  if doll.gone and (doll.puppet_awakened or not doll.puppet_prepared.is_empty()): return "离场玩偶的生效装束需要清空。"
   for pool in doll.puppet_prepared:
    var p=doll.puppet_prepared[pool]
-   if pool not in ["special","composite"] or not g.Snapshot.intent(p,g) or p.kind!="apply" or p.pool!=pool or p.grade!=2 or p.tier!=(3 if pool=="special" else 2) or p.count!=1 or not p.get("replace",false) or p.templates.size()!=1: return "玩偶准备的装备规格不正确。"
-   if pool=="special" and p.templates[0] not in g.Enemies.TYPES[masters[0].type].special_pool: return "玩偶准备的特殊装备不在中级池中。"
-   if pool=="composite" and (not p.templates[0] is Dictionary or p.templates[0] not in g.EquipmentOffers.assembly_specs()): return "玩偶准备的复合装备不存在。"
+   if pool not in ["special","composite"] or not g.Snapshot.intent(p,g) or p.kind!="apply" or p.pool!=pool or p.grade!=2 or p.tier!=(3 if pool=="special" else 2) or p.count!=1 or not p.get("replace",false) or p.templates.size()!=1: return "玩偶准备的装备规格有误。"
+   if pool=="special" and p.templates[0] not in g.Enemies.TYPES[masters[0].type].special_pool: return "玩偶准备的特殊装备需要来自中级池。"
+   if pool=="composite" and (not p.templates[0] is Dictionary or p.templates[0] not in g.EquipmentOffers.assembly_specs()): return "玩偶准备的复合装备缺失。"
  return ""

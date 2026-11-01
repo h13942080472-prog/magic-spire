@@ -102,7 +102,7 @@ static func transfer_during_feedback(t) -> void:
  presenter.set_process(false)
  t.check(await t.click("reward",{"type":"skip"}) and ui.view.phase=="prepare" and ui.view.mana==50,"FLASK UI reward continuation preserves the paid balance")
  t.check(await t.click("finish_prepare") and ui.view.phase=="map" and ui.view.mana==60,"FLASK UI formal preparation completion produces the relic recovery")
- t.check(not ui.view.mana_flask.limited and ui.find_child("FlaskDepositUses",true,false)==null and ui.find_child("FlaskWithdrawUses",true,false)==null and ui.find_child("FlaskDeposit",true,false).tooltip_text.contains("不限次数"),"FLASK UI outside battle hides limited-use indicators and explains unlimited transfers")
+ t.check(not ui.view.mana_flask.limited and ui.find_child("FlaskDepositUses",true,false)==null and ui.find_child("FlaskWithdrawUses",true,false)==null and ui.find_child("FlaskDeposit",true,false).tooltip_text.contains("可反复操作"),"FLASK UI outside battle hides limited-use indicators and explains unlimited transfers")
  var count=presenter.pending.size()+(0 if presenter.active.is_empty() else 1)
  t.check(count>=2 and presenter.pending.any(func(event):return event.source!=""),"FLASK UI interruption fixture includes payment and relic recovery")
  await Pointer.press(t,ui.find_child("FlaskDeposit",true,false));await t.frames()

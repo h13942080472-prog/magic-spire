@@ -49,6 +49,6 @@ func refresh() -> void:
   results.add_child(body)
   results.add_child(HSeparator.new())
  caption.text=("全部分类" if category=="" else Book.CATEGORIES[category])+" · %d条" % count
- if count==0: results.add_child(host._label("没有匹配条目，试试其他关键词。",17,host.MUTED))
+ if count==0: results.add_child(host._label("匹配结果：0项。请尝试其他关键词。",17,host.MUTED))
  for id in categories: categories[id].modulate=host.CYAN if id==category else Color.WHITE
  scroll.scroll_vertical=0

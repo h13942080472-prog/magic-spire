@@ -13,17 +13,16 @@ func _ready() -> void:
  character.select(1 if ui.selected_character=="witch" else 0)
  character.add_theme_font_size_override("font_size",18)
  ui._place(character,Rect2(1030,140,365,36),self)
- var character_hint=ui._label("",18,ui.CYAN);character_hint.name="CharacterDescription"
- ui._place(character_hint,Rect2(150,505,690,140),self)
- var refresh_character=func(): character_hint.text="分部位施法预备 · 每部位每回合释放1次\n精神集中强化魔法，2层施法预备可抵挡对应部位的拘束。魔力／快感上限75，初始魔瓶50魔力。\n11张初始牌 · 独立卡池 · 固定站立立绘" if ui.selected_character=="witch" else "原角色的基础动作、卡牌与规则保持不变。"
- character.item_selected.connect(func(index):ui.selected_character="witch" if index==1 else "original";refresh_character.call())
- refresh_character.call()
+ character.item_selected.connect(func(index):ui.selected_character="witch" if index==1 else "original")
  var title=ui._label(ui._text("ui.home.title","紧缚尖塔"),96,ui.GOLD);title.name="HomeTitle"
  ui._place(title,Rect2(145,330,720,140),self)
+ var language=ui._language_selector()
+ language.add_theme_font_size_override("font_size",18)
+ ui._place(language,Rect2(145,475,365,42),self)
  var disclaimer=ui._label(ui._text("ui.home.disclaimer","免责声明：本游戏为爱发电，免费发布。\n如果你花钱购买了本游戏，说明你上当了。"),14,Color("858585"))
  disclaimer.name="HomeDisclaimer";disclaimer.mouse_filter=Control.MOUSE_FILTER_IGNORE
  ui._place(disclaimer,Rect2(100,825,850,50),self)
- var entry=ui.save_summaries.get("tower",{"available":false,"text":"尚无塔路进度"})
+ var entry=ui.save_summaries.get("tower",{"available":false,"text":"开始塔路冒险"})
  var resume_text=ui._text("ui.home.continue_practice","继续练习") if ui.session_started and ui.view.practice else ui._text("ui.home.continue","继续游戏")
  var resume=ui._button(resume_text,ui._home_continue,ui.CYAN)
  resume.name="HomeContinue";resume.disabled=(not ui.session_started and not entry.available) or (ui.session_started and ui.view.demo_finished)
@@ -39,6 +38,10 @@ func _ready() -> void:
   var button=buttons[i];button.name=names[i]
   button.add_theme_font_size_override("font_size",20 if i<2 else 17)
   ui._place(button,Rect2(1030,185+i*62,365,54),self)
+ start.size.x=226
+ var seeded=ui._button(ui._text("ui.seed.open","种子开局"),func():ui._open_drawer("show_settings","seed"),ui.CYAN)
+ seeded.name="HomeSeedGame";seeded.add_theme_font_size_override("font_size",17)
+ ui._place(seeded,Rect2(1266,247,129,54),self)
  var progress=(ui.view.room_name+" · "+("练习进度" if ui.view.practice else "当前进度")) if ui.session_started else entry.text
  if not ui.session_started and not ui.saves.has_files("tower"): progress="首次来到尖塔？从「开始新游戏」出发。"
  if ui.save_failed: progress=ui.save_notice
@@ -52,7 +55,7 @@ func _ready() -> void:
  fixed.name="HomeFixedPortrait";fixed.toggle_mode=true
  fixed.button_pressed=ui.display_settings.fixed_hero_portrait
  fixed.text="扶她出去 · "+("开" if fixed.button_pressed else "关")
- fixed.tooltip_text="开启后，装备与战斗立绘固定为初始站姿，不显示差分。"
+ fixed.tooltip_text="装备与战斗立绘固定为初始站姿。"
  ui._place(fixed,Rect2(1030,697,365,48),self)
  var chastity=ui._button("",func():pass,ui.GOLD);chastity.name="HomeChastityLocks";chastity.toggle_mode=true
  var down=ui._button("▼",func():pass,ui.MUTED);down.name="HomeChastityChanceDown"
@@ -84,10 +87,10 @@ func _ready() -> void:
   custom.set_pressed_no_signal(ui.display_settings.cursed_plate_start)
   masochist.disabled=chastity.disabled or not chastity.button_pressed
   masochist.set_pressed_no_signal(ui.display_settings.cursed_plate_masochist_mode)
-  custom_hint.text="角色2不使用这些开局选项" if witch else ui.localization.display("开启贞操锁池后可选" if custom.disabled else "仅新局生效")
+  custom_hint.text="魔法少女开局选项" if witch else ui.localization.display("开启贞操锁池后可选" if custom.disabled else "仅新局生效")
   custom.tooltip_text=ui.localization.display("新局以「诅咒平板锁」替换「余烬护符」，保留前三项开局选择和直接出发。")
-  masochist.tooltip_text=ui.localization.display("诅咒平板锁的跳蛋不受6回合限制，高潮后快感保留系数也没有上限。")
-  chastity.tooltip_text=ui.localization.display("概率为5%～100%，每次调整5%。开启后，随机施加性玩具时按该概率选择可佩戴的平板锁；没有合法锁时概率归还普通性玩具。漂浮锁无目标离场前固定尝试附加中级平板锁，不受该概率影响。")
+  masochist.tooltip_text=ui.localization.display("诅咒平板锁的跳蛋持续生效，高潮后快感保留系数可持续增长。")
+  chastity.tooltip_text=ui.localization.display("随机施加性玩具时选择平板锁的概率。范围5%～100%，每次调整5%；锁具位置已满时改选普通性玩具。")
  refresh_chastity.call()
  character.item_selected.connect(func(_index):refresh_chastity.call())
  fixed.toggled.connect(func(enabled):

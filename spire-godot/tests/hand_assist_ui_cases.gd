@@ -15,7 +15,7 @@ static func run(t) -> void:
  var uid=ui.view.hand.filter(func(c):return c.type=="strain")[0].uid
  if ui.card_faces.get(uid,false): await t.flip(uid)
  var candidate=Queries.find(ui.view,"card",{"uid":uid,"target":target.id,"free":false})
- t.check(ui.detail_of(candidate).contains("＋0.5") and ui.detail_of(candidate).contains("手掌不能使用"),"ASSIST UI candidate explains half palm assistance")
+ t.check(ui.detail_of(candidate).contains("＋0.5") and ui.detail_of(candidate).contains("手掌受限"),"ASSIST UI candidate explains half palm assistance")
  var energy=ui.view.energy
  await t.start_drag(uid,"ankle")
  await t.capture("ui-115-half-hand-assistance.png")

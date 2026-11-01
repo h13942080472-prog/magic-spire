@@ -148,7 +148,7 @@ static func sidebar_drag(t) -> void:
  var point=t.card_point(card.uid)
  await t.move_mouse(point);await t.mouse_button(point,MOUSE_BUTTON_LEFT,true);await t.move_mouse(point+Vector2(0,-42),true)
  point=sidebar.get_global_rect().get_center();await t.move_mouse(point,true)
- t.check(is_instance_valid(ui.term_popup) and t.visible_text(ui.term_popup).contains("这张牌不能处理捕缚"),"GUARD invalid sidebar drag explains the actual incompatible target")
+ t.check(is_instance_valid(ui.term_popup) and t.visible_text(ui.term_popup).contains("请选择可削减捕缚的卡牌"),"GUARD invalid sidebar drag explains the actual incompatible target")
  await t.mouse_button(point,MOUSE_BUTTON_LEFT,false)
  t.check(ui.game.export_snapshot()==frozen,"GUARD invalid sidebar drop does not use card or resources")
  var data={"card_uid":card.uid,"free":false,"version":ui.view.version-1}

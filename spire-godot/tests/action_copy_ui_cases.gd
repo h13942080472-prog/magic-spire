@@ -4,7 +4,7 @@ const Events=preload("res://tests/event_ui_cases.gd")
 static func run(t) -> void:
  var ui=t.ui
  ui.restart(42);await t.frames()
- t.check(ui.find_child("HeroSpeech",true,false)==null and ui.find_child("OpenActionLog",true,false)==null,"COPY UI no scene log entry or untriggered speech")
+ t.check(ui.find_child("HeroSpeech",true,false)==null and ui.find_child("OpenBattleLog",true,false)!=null,"COPY UI live history entry is available without untriggered speech")
  var hero=ui.find_child("HeroArt",true,false)
  t.check(hero.get_rect().is_equal_approx(ui.HERO_STAGE_RECT) and hero.get_rect().end.y<553,"COPY UI hero remains in its display area above action bar")
  var foe=ui.view.enemies[0].id
@@ -88,4 +88,4 @@ static func concise_log(t) -> void:
  var text=t.visible_text(ui.find_child("InformationDrawer",true,false))
  var formatted=ui.game.ActionCopy.number(choice.mana_payment.mana)
  t.check(ui.game._magic_failed and text.contains("施法失败") and text.contains("%s魔力" % formatted) and text.contains("消耗%d能量" % choice.cost) and ui.game.state.energy==before.energy-choice.cost,"LOG UI real failed first fireball displays failure and both exact-source costs")
- t.check(not text.contains("未产生法术效果") and not text.contains("不退回") and not text.contains("卡牌留在手中") and is_equal_approx(ui.game.state.mana,before.mana-choice.mana_payment.mana*(1.0-ui.game.B.CAST_FAILURE_REFUND)),"LOG UI failure preserves exact mana after the current failure refund and never invents a card")
+ t.check(not text.contains("未产生法术效果") and not text.contains("不退回") and not text.contains("卡牌留在手中") and is_equal_approx(ui.game.state.mana,before.mana-choice.mana_payment.mana+floorf(choice.mana_payment.mana*ui.game.B.CAST_FAILURE_REFUND)),"LOG UI failure preserves exact mana after the current failure refund and never invents a card")

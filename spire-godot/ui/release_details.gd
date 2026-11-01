@@ -26,7 +26,8 @@ static func equipment_header(ui, parent: Node, e: Dictionary, location: String, 
  badge.autowrap_mode=TextServer.AUTOWRAP_OFF;heading.add_child(badge)
  text.add_child(ui._label(location+" · "+e.material_name,12,ui.MUTED))
  var state=HBoxContainer.new();text.add_child(state)
- var label=ui._label("无耐久" if e.get("lock_only",false) else "耐久 %s / %s · 紧度%d档" % [ui.game.number(e.durability),ui.game.number(e.maximum),e.tier],13,accent)
+ var meter="耐久 %s / %s · " % [ui.game.number(e.durability),ui.game.number(e.maximum)]+("无紧度" if e.get("no_tightness",false) else "紧度%d档" % e.tier)
+ var label=ui._label("无耐久" if e.get("lock_only",false) else meter,13,accent)
  label.size_flags_horizontal=Control.SIZE_EXPAND_FILL;state.add_child(label)
  ui._equipment_lock(state,e.locked,e.id,e.lockable)
  if not e.get("lock_only",false):

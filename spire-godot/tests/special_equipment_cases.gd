@@ -358,7 +358,7 @@ static func cup_reinforcements(t) -> void:
  cup=g._install_special("full_cup_medium","special_2_a",2)
  var forged=g._install_special("nipple_ring_medium","special_1_a",2)
  forged.type="cup_reinforcement_medium";forged.name=D.TYPES.cup_reinforcement_medium.name;forged.slot="special_2_a";forged.coverage=D.DESIGNS.cup_reinforcement_medium.slots.duplicate();forged.contact_slots=forged.coverage.duplicate();forged.grade=2;forged.maximum=16;forged.durability=16;forged.remaining=0;forged.material="leather";forged.owner_id=cup.id
- t.check(g.validate().contains("未附带固定带"),"CUP BAND low-tightness owner cannot gain a forged component through snapshot data")
+ t.check(g.validate().contains("固定带缺省状态"),"CUP BAND low-tightness owner cannot gain a forged component through snapshot data")
  cup.erase("reinforcement_state")
  t.check(g.validate().contains("固定带状态记录缺失"),"CUP BAND current snapshot cannot drop the owner state to reopen the legacy path")
  g=Game.new(42)

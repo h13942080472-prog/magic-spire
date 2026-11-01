@@ -889,10 +889,10 @@ static func event_single_evaluation_entry(t) -> void:
 static func per_click_damaged_rows() -> Array:
  return [
   {"check":"Consumables.validate_buffs","reason":"同一部位的药剂效果重复。"},
-  {"check":"Binding.state_issue","reason":"连接式固缚耐久不正确。"},
-  {"check":"SpecialEquipment.validate","reason":"同一种性玩具不能重复佩戴。"},
-  {"check":"Cards.validate","reason":"本回合力量加值不正确。"},
-  {"check":"RelicEffects.validate","reason":"累计进度对应的遗物未持有。"},
+  {"check":"Binding.state_issue","reason":"连接式固缚耐久有误。"},
+  {"check":"SpecialEquipment.validate","reason":"同一种性玩具限佩戴1件。"},
+  {"check":"Cards.validate","reason":"本回合力量加值有误。"},
+  {"check":"RelicEffects.validate","reason":"累计进度需对应已持有遗物。"},
  ]
 
 # 五份坏状态各只破坏一道检查，且记录结构保持完整（重复作用位置／越界耐久／重复家族／负数回合加值／
@@ -976,7 +976,7 @@ static func per_click_checks_are_debug_only(t) -> void:
   t.check(on_game.export_snapshot()==on_before,"PERCLICK per_click_checks_are_debug_only: switch on, the early rejection leaves the snapshot byte-identical "+row.check)
   var off_before=off_game.export_snapshot()
   var off_result=off_game.dispatch(cmd,int(off_game.state.version))
-  t.check(not off_result.ok and String(off_result.error)=="行动未提交："+str(row.reason),"PERCLICK per_click_checks_are_debug_only: switch off, the dispatch-tail aggregate refuses the same damaged state "+row.check+": "+str(off_result))
+  t.check(not off_result.ok and String(off_result.error)=="行动失败："+str(row.reason),"PERCLICK per_click_checks_are_debug_only: switch off, the dispatch-tail aggregate refuses the same damaged state "+row.check+": "+str(off_result))
   t.check(off_game.export_snapshot()==off_before,"PERCLICK per_click_checks_are_debug_only: switch off, the tail rejection rolls back byte-for-byte "+row.check)
   t.check(off_game.debug_check_failures.is_empty(),"PERCLICK per_click_checks_are_debug_only: switch off, a skipped check writes no diagnostics "+row.check+": "+str(off_game.debug_check_failures))
  # G-PC-3：只被聚合校验抓住的坏状态在两种开关下都走尾部拒绝（开关不影响聚合兜底）。
@@ -987,7 +987,7 @@ static func per_click_checks_are_debug_only(t) -> void:
   tail.state.wall_distance=7
   var tail_before=tail.export_snapshot()
   var tail_result=tail.dispatch(per_click_legal_command(tail),int(tail.state.version))
-  t.check(not tail_result.ok and String(tail_result.error)=="行动未提交：距墙距离必须是0至4的整数。" and tail.export_snapshot()==tail_before,"PERCLICK per_click_checks_are_debug_only: switch "+label+", the dispatch-tail aggregate still refuses an aggregate-only damaged state and rolls back: "+str(tail_result))
+  t.check(not tail_result.ok and String(tail_result.error)=="行动失败：距墙距离必须是0至4的整数。" and tail.export_snapshot()==tail_before,"PERCLICK per_click_checks_are_debug_only: switch "+label+", the dispatch-tail aggregate still refuses an aggregate-only damaged state and rolls back: "+str(tail_result))
  # G-PC-6 的 F4 面（逐条）：版本新鲜度、写档前／读档后的聚合校验在两种开关下逐字相同。
  for mode in [true,false]:
   var label="on" if mode else "off"
@@ -1000,12 +1000,12 @@ static func per_click_checks_are_debug_only(t) -> void:
   t.check(save_game.Snapshot.check(save_game.export_snapshot(),save_game)=="","PERCLICK per_click_checks_are_debug_only: switch "+label+", the save fixture passes the field check so only the aggregate can refuse it")
   var store=Store.new("res://build/per-click-checks-"+label+"-"+str(Time.get_ticks_usec()))
   var written=store.write_game(save_game)
-  t.check(not written.ok and String(written.error)=="保存失败：本回合力量加值不正确。","PERCLICK per_click_checks_are_debug_only: switch "+label+", writing keeps the pre-save aggregate validation: "+str(written))
+  t.check(not written.ok and String(written.error)=="保存失败：本回合力量加值有误。","PERCLICK per_click_checks_are_debug_only: switch "+label+", writing keeps the pre-save aggregate validation: "+str(written))
   t.check(not FileAccess.file_exists(store.path(save_game.state.save_slot)),"PERCLICK per_click_checks_are_debug_only: switch "+label+", a refused write leaves no file behind")
   var loaded=Game.new(42)
   loaded.set_debug_checks_enabled(mode)
   var restored=loaded.restore_snapshot(save_game.export_snapshot())
-  t.check(not restored.ok and String(restored.error)=="无法继续这份存档：本回合力量加值不正确。","PERCLICK per_click_checks_are_debug_only: switch "+label+", loading keeps the post-load aggregate validation: "+str(restored))
+  t.check(not restored.ok and String(restored.error)=="无法继续这份存档：本回合力量加值有误。","PERCLICK per_click_checks_are_debug_only: switch "+label+", loading keeps the post-load aggregate validation: "+str(restored))
   var clean=Game.new(42)
   clean.set_debug_checks_enabled(mode)
   t.check(clean.restore_snapshot(Game.new(42).export_snapshot()).ok,"PERCLICK per_click_checks_are_debug_only: switch "+label+", a valid snapshot still loads")
@@ -1014,7 +1014,7 @@ static func per_click_checks_are_debug_only(t) -> void:
   replacement._install_special("shaft_ring_low","special_2_a")
   replacement.state.special_equipment[0].remaining=-1
   var forced=replacement.IronMan.Replacement.force_special(replacement,"corona_ring_low",1,"per-click-probe")
-  t.check(not forced.ok and String(forced.reason)=="替换后的特殊装备结构不合法。","PERCLICK per_click_checks_are_debug_only: switch "+label+", the replacement structural recheck is not gated: "+str(forced))
+  t.check(not forced.ok and String(forced.reason)=="替换后的特殊装备结构有误。","PERCLICK per_click_checks_are_debug_only: switch "+label+", the replacement structural recheck is not gated: "+str(forced))
   var event_game=Game.new(42)
   event_game.set_debug_checks_enabled(mode)
   event_game._install_special("shaft_ring_low","special_2_a")
@@ -1026,8 +1026,8 @@ static func per_click_checks_are_debug_only(t) -> void:
    held_twin.id="special_9_z"
    event_game.state.special_equipment.append(held_twin)
    var put_back=event_game.Events.apply_effects(event_game,[{"op":"restore_held","key":"pending"}],event_game.state.room_event.refs,false)
-   t.check(put_back=="无法原样装回暂存装备：同一种性玩具不能重复佩戴。","PERCLICK per_click_checks_are_debug_only: switch "+label+", the event rule use of SpecialEquipment.validate is not gated: "+put_back)
-   t.check(event_game.validate()=="事件暂存装备不合法：同一种性玩具不能重复佩戴。","PERCLICK per_click_checks_are_debug_only: switch "+label+", the aggregate event validation keeps running: "+event_game.validate())
+   t.check(put_back=="无法原样装回暂存装备：同一种性玩具限佩戴1件。","PERCLICK per_click_checks_are_debug_only: switch "+label+", the event rule use of SpecialEquipment.validate is not gated: "+put_back)
+   t.check(event_game.validate()=="事件暂存装备有误：同一种性玩具限佩戴1件。","PERCLICK per_click_checks_are_debug_only: switch "+label+", the aggregate event validation keeps running: "+event_game.validate())
  # G-PC-5：探针整状态一半随开关，效果可行性一半在两种开关下都保留。
  for mode in [true,false]:
   var label="on" if mode else "off"
@@ -1038,7 +1038,7 @@ static func per_click_checks_are_debug_only(t) -> void:
   var state_half=values.Events.probe_result(values,[],{})
   t.check(String(state_half.gate)==("validate_failed" if mode else ""),"PERCLICK per_click_checks_are_debug_only: switch "+label+", the probe's whole-state half follows the switch: "+str(state_half))
   if mode:
-   t.check(String(state_half.reason)=="事件计数记录不正确。","PERCLICK per_click_checks_are_debug_only: switch on, the probe half reports the aggregate reason: "+str(state_half))
+   t.check(String(state_half.reason)=="事件计数记录有误。","PERCLICK per_click_checks_are_debug_only: switch on, the probe half reports the aggregate reason: "+str(state_half))
    t.check(values.debug_check_failures.any(func(row):return str(row.check)=="Game.validate" and str(row.location)=="room_events.probe_result"),"PERCLICK per_click_checks_are_debug_only: switch on, the probe's failing whole-state half writes its diagnostic: "+str(values.debug_check_failures))
   else:
    t.check(values.debug_check_failures.is_empty(),"PERCLICK per_click_checks_are_debug_only: switch off, the skipped probe half writes no diagnostics: "+str(values.debug_check_failures))
@@ -1046,7 +1046,7 @@ static func per_click_checks_are_debug_only(t) -> void:
   effects.set_debug_checks_enabled(mode)
   EventCases.arrive(effects,"binding_cleric")
   var effects_half=effects.Events.probe_result(effects,[{"op":"mana_loss","amount":99999}],{})
-  t.check(String(effects_half.gate)=="probe_failed" and str(effects_half.reason)=="剩余魔力不足以支付已公开的费用。","PERCLICK per_click_checks_are_debug_only: switch "+label+", the probe's effects half stays a rule judgement: "+str(effects_half))
+  t.check(String(effects_half.gate)=="probe_failed" and str(effects_half.reason)=="需要足额魔力支付所示费用。","PERCLICK per_click_checks_are_debug_only: switch "+label+", the probe's effects half stays a rule judgement: "+str(effects_half))
 
 # G-PC-7：诊断只活在实例上——不进 state（含玩家可见日志）、不进存档、不进 View、不进拒绝结果。
 # push_warning 是唯一过程输出（"DEBUG CHECK" 前缀只可能出现在引擎告警里）。
@@ -1548,7 +1548,7 @@ static func has_targets_at_parity(t) -> void:
  var root=link_g._install_assembly("leg","upper","fixture",2,2)
  var body=root.components.filter(func(e):return e.part=="body")[0]
  var band=link_g._install_template("rope",link_g.Links.point_slot("below_knee"),8,10,false,"fixture",1,-1,0,"below_knee")
- var rope=link_g._install_link(body.id,band.id,8,"fixture",1,[],["thigh","calf"],["above_knee","below_knee"])
+ var rope=link_g._install_link(body.id,band.id,4.8,"fixture",1,[],["thigh","calf"],["above_knee","below_knee"])
  t.check(not rope.is_empty(),"has_targets_at_parity: live link fixture")
  _check_has_targets_at_modes(t,link_g,"live link","thigh")
  var link_only=TargetWalkCountingGame.new(42)
@@ -1556,7 +1556,7 @@ static func has_targets_at_parity(t) -> void:
  var only_root=link_only._install_assembly("leg","upper","fixture",2,2)
  var only_body=only_root.components.filter(func(e):return e.part=="body")[0]
  var only_band=link_only._install_template("rope",link_only.Links.point_slot("below_knee"),8,10,false,"fixture",1,-1,0,"below_knee")
- var only_rope=link_only._install_link(only_body.id,only_band.id,8,"fixture",1,[],["thigh","calf"],["above_knee","below_knee"])
+ var only_rope=link_only._install_link(only_body.id,only_band.id,4.8,"fixture",1,[],["thigh","calf"],["above_knee","below_knee"])
  t.check(not only_rope.is_empty(),"has_targets_at_parity: link-only fixture")
  for slot in ["thigh","calf"]:
   for e in link_only.equipment_at(slot): e.durability=0
@@ -1615,7 +1615,7 @@ static func has_targets_at_parity(t) -> void:
  var crotch_g=TargetWalkCountingGame.new(42)
  _clear_gear(crotch_g)
  var crotch=crotch_g._install_special("crotch_rope_low","special_3_a")
- var crotch_link=crotch_g._install_link(crotch.id,crotch_g.add_fixture("wrist",8).id,8,"fixture")
+ var crotch_link=crotch_g._install_link(crotch.id,crotch_g.add_fixture("wrist",8).id,4.8,"fixture")
  t.check(not crotch.is_empty() and not crotch_link.is_empty(),"has_targets_at_parity: crotch link fixture")
  _check_has_targets_at_modes(t,crotch_g,"crotch link","wrist")
  t.check(crotch_g.has_targets_at("special_3_a") and (ids_for(crotch_g.state.special_equipment).has(crotch.id) or ids_for(crotch_g.links_at("special_3_a")).has(crotch_link.id)),"has_targets_at_parity: special slot from special_equipment or links_at")
@@ -2218,9 +2218,9 @@ const R1_BASELINE={
  "prepare:26":{"rows_verdicts":"7d5172a58e1d157d12f858bf076c4555","view":"7fc74ecf66ea0b03ee6ef56d89c61d45","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"ac79ad945997d2be6911626e0a7af398","rng":"6466fd9d067695dfae7e509914f46446","record":"19af8460542440aa9daf85810012dfe2"},
  "prepare:44":{"rows_verdicts":"f4cd97a736dfeb28659f1a39fe37be16","view":"75eaa97b00bad2eba8683d36760c5606","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"301d505530d6bb304fd9ccec23f99f0f","rng":"ee7475a559e2df34597d8af1a5faf748","record":"3a3306f254ba8ecbc89ed1df4959c90a"},
  "prison:0":{"rows_verdicts":"dad9bd2cbe21b0962de7bc47c490287f","view":"682cc4c3be2baf1e423e184a47a8202b","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"243652b42d36a11b64a10806cc045956","rng":"c2ac01a230cee954c7f8af2f9320abd5","record":"56e1c4f7e3bd34642d9275f13a566629"},
- "prison:12":{"rows_verdicts":"9e1405cbec45c720cae6fc3ecc883ef7","view":"433a9b89c0e5ea2bdedd48d28ef472fa","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"姿态必须依次经过坐姿，不能直接跨越。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"459628f527d12c367a827b19f27f03ba","rng":"c2ac01a230cee954c7f8af2f9320abd5","record":"c499bb613311c32e08be76affb5c92ae"},
- "prison:26":{"rows_verdicts":"9c28aac2d94f44ae9f848a0d386e9b3b","view":"649b085814a6478e5bb16816db90d183","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"姿态必须依次经过坐姿，不能直接跨越。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"d53f72b58f580160887a72cc1ced3bd9","rng":"c2ac01a230cee954c7f8af2f9320abd5","record":"d812c759711e3c5c185d7e174cf7ea60"},
- "prison:44":{"rows_verdicts":"baf64cc9644fe759ebdf8d8115e3dcc5","view":"11b46e6be1dadb832d4d60a64fe5c420","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"姿态必须依次经过坐姿，不能直接跨越。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"2dfc3408c3ae6554634760160e31d1d8","rng":"c2ac01a230cee954c7f8af2f9320abd5","record":"98bbb26eae5eb1ccfab0b12b20f0f521"},
+ "prison:12":{"rows_verdicts":"9e1405cbec45c720cae6fc3ecc883ef7","view":"433a9b89c0e5ea2bdedd48d28ef472fa","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"站姿与躺姿之间需先经过坐姿。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"459628f527d12c367a827b19f27f03ba","rng":"c2ac01a230cee954c7f8af2f9320abd5","record":"c499bb613311c32e08be76affb5c92ae"},
+ "prison:26":{"rows_verdicts":"9c28aac2d94f44ae9f848a0d386e9b3b","view":"649b085814a6478e5bb16816db90d183","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"站姿与躺姿之间需先经过坐姿。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"d53f72b58f580160887a72cc1ced3bd9","rng":"c2ac01a230cee954c7f8af2f9320abd5","record":"d812c759711e3c5c185d7e174cf7ea60"},
+ "prison:44":{"rows_verdicts":"baf64cc9644fe759ebdf8d8115e3dcc5","view":"11b46e6be1dadb832d4d60a64fe5c420","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"站姿与躺姿之间需先经过坐姿。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"2dfc3408c3ae6554634760160e31d1d8","rng":"c2ac01a230cee954c7f8af2f9320abd5","record":"98bbb26eae5eb1ccfab0b12b20f0f521"},
  "rest:0":{"rows_verdicts":"10adfad99c876ae2c41ef8bb672ab87d","view":"e6343a15027daabccb0b88cd609b24af","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"06d9621d27e89b558e5302c62738bba7","rng":"696657cdcc914fe3b6ce575b02d4a695","record":"b122e6783d6903ca6d37b3c93cf21609"},
  "rest:12":{"rows_verdicts":"d130f92fbba25c6f8dca35f7f9112cf3","view":"ee9a33f39a28178c9eb15db3e089b737","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"15d4c0c5f7f9f325c3b6497a41e31bbb","rng":"696657cdcc914fe3b6ce575b02d4a695","record":"d64b444e352471ac9dac5fe97078860b"},
  "rest:26":{"rows_verdicts":"152227659247381af3fe41aeee7d8ab6","view":"fbf1773fa2d292dccee41dcb74a25326","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"7a3cdf6e13641854d5080096106499d1","rng":"1d20f6070f294fadc1355c7c231c0b82","record":"7b4586dffe44e1e353bee3b6cebff6e5"},
@@ -2670,7 +2670,7 @@ const COMMAND_KINDS={
  "wall_move":"battle","manual":"battle","hook":"battle","end":"flow","calm":"battle","surrender":"flow",
  "item_use":"item","item_install":"item","item_retrieve":"item","item_discard":"item",
  "finish_prepare":"flow","finish_rest":"flow","finish_pack":"flow","retain":"flow","retain_skip":"flow",
- "rest_rare":"rest","rest_card":"rest","rest_flask":"rest","rest_begin":"rest",
+ "rest_rare":"rest","rest_card":"rest","rest_flask":"rest","rest_begin":"rest","enchant":"rest",
  "service":"shop","event":"event","prison":"prison","depart":"route","travel_step":"route",
  "reward":"reward","reward_skip":"reward","relic_bundle":"reward","departure":"departure",
  "flask":"relic","relic_toggle":"relic","relic_discharge":"relic","relic_control_done":"relic",
@@ -2745,7 +2745,7 @@ static func instruction_route_table_is_total(t) -> void:
   if not routes.has(kind): missing.append(kind)
  for kind in routes:
   if not COMMAND_KINDS.has(kind): extra.append(kind)
- t.check(missing.is_empty() and extra.is_empty() and routes.size()==COMMAND_KINDS.size(),"G2 instruction_route_table_is_total: the table holds exactly the 39 declared kinds: missing="+str(missing)+" extra="+str(extra)+" size="+str(routes.size()))
+ t.check(missing.is_empty() and extra.is_empty() and routes.size()==COMMAND_KINDS.size(),"G2 instruction_route_table_is_total: the table holds exactly the declared kinds: missing="+str(missing)+" extra="+str(extra)+" size="+str(routes.size()))
  # 1b) 夹具域列与真源 ROUTES 逐条相等（夹具守卫：防域列再次漂移而无人察觉）。
  var drifted=[]
  for kind in COMMAND_KINDS:
@@ -2842,6 +2842,7 @@ const FROZEN_TABLE_SOURCES={
  "retain":"_retain_kind_facts",
  "retain_skip":"_retain_kind_facts",
  "rest_rare":"_rest_choice_kind_facts",
+ "enchant":"_rest_choice_kind_facts",
  "rest_card":"_rest_choice_kind_facts",
  "rest_flask":"_rest_choice_kind_facts",
  "rest_begin":"_rest_choice_kind_facts",
@@ -2962,14 +2963,14 @@ static func pipeline_lookup_default_arm(body: String) -> String:
  return body.substr(at)
 
 # C1（plan §3 契约 1；docs/spec/fact-lookup-dependencies.md「自检清单」）：登记表与 COMMAND_KEYS 逐条相等
-# （39／39，missing／extra 双向），form 显式，table 形 source 与 point 形 keys／build／member 都是 g 上
+# （40／40，missing／extra 双向），form 显式，table 形 source 与 point 形 keys／build／member 都是 g 上
 # 存在的方法名；POINT_KINDS 声明与登记形态一致（S1 空集，S2／S3 起增项）。
 static func command_registry_is_total(t) -> void:
  var g=GameCore.new(42)
  var missing=command_registry_missing(GameCore.COMMAND_KEYS.keys())
  var extra=command_registry_extra()
- t.check(missing.is_empty() and extra.is_empty(),"command_registry_is_total: kinds() equals COMMAND_KEYS (39/39) missing="+str(missing)+" extra="+str(extra))
- t.check(CommandRegistry.kinds().size()==39,"command_registry_is_total: the registry declares exactly 39 kinds have="+str(CommandRegistry.kinds().size()))
+ t.check(missing.is_empty() and extra.is_empty(),"command_registry_is_total: kinds() equals COMMAND_KEYS (40/40) missing="+str(missing)+" extra="+str(extra))
+ t.check(CommandRegistry.kinds().size()==40,"command_registry_is_total: the registry declares exactly 40 kinds have="+str(CommandRegistry.kinds().size()))
  var bad_form=[]
  var bad_source=[]
  var bad_point=[]
@@ -3389,14 +3390,14 @@ const E_DEMAND_PROFILES=[
 ]
 # 成功结果键面（E-6；字面表，含顺序）。S5 的旧键面 S5_SUBMIT_KEYS_AFTER 与其自证常量保留不动（历史冻结，
 # tests/architecture_cases.gd::submit_key_face_rebaseline_self_proof 常驻核）。
-const E_SUBMIT_KEYS=["ok","version","resource_feedback","card_feedback","music_feedback","checkpoint","spell_failed","fact","phase","overloaded"]
+const E_SUBMIT_KEYS=["ok","version","resource_feedback","card_feedback","music_feedback","sound_feedback","checkpoint","spell_failed","fact","phase","overloaded"]
 # 战斗相位词表（测试内字面期望）：guarded 过载态＝state.overloaded ∧ phase ∈ 本表（core/game.gd::dispatch 的
 # overloaded 必须与它同值——这条期望不取自实现）。
 const E_COMBAT_PHASES=["battle","prepare","rest","prison"]
 # C-E-7 的声明差异集（G-2 第 2 步；逐 cell 逐字段一条原因）：原因只有一类——已声明的新增键 ⇒ submit_keys
 # （＝result.keys() 摘要）变更 ⇒ 由它派生的 <record> 摘要随之变更。表外任何差异＝红（尤其 view／facts_text／
 # view_display_facts 任一移动）。
-const E_SUBMIT_KEYS_REASON="已声明的新增键：dispatch 成功结果追加 phase／overloaded（K7；C-E-6）⇒ submit_keys 变更 ⇒ 派生 <record> 变更"
+const E_SUBMIT_KEYS_REASON="已声明的新增键：dispatch 成功结果追加 phase／overloaded（K7；C-E-6）及提交音效收据 sound_feedback ⇒ submit_keys 变更 ⇒ 派生 <record> 变更"
 const E_DECLARED_DIFF={
  "battle:0":{"record":E_SUBMIT_KEYS_REASON},
  "battle:12":{"record":E_SUBMIT_KEYS_REASON},
@@ -4462,7 +4463,7 @@ static func fact_lookup_all_kinds(t) -> void:
   if int(presence.get(kind,0))==0 and kind not in TABLE_KIND_TAKEOVER_ONLY: empty.append(kind)
  t.check(empty.is_empty(),"fact_lookup_all_kinds: every kind except the takeover-only one appears in the table matrix (missing fixtures): "+str(empty))
  var batch_gaps=batch_kind_sources().keys().filter(func(kind):return not presence.has(kind) and kind not in TABLE_KIND_TAKEOVER_ONLY)
- t.check(batch_gaps.is_empty(),"fact_lookup_all_kinds: every one of the 23 rebased kinds is exercised by the matrix: "+str(batch_gaps))
+ t.check(batch_gaps.is_empty(),"fact_lookup_all_kinds: every one of the 24 domain-routed kinds is exercised by the matrix: "+str(batch_gaps))
  t.check(presence.size()>=38,"fact_lookup_all_kinds: the fixture matrix exercises every kind but the takeover-only one have="+str(presence.size()))
  # ②跨夹具成员语料（抓过宽臂）：每个夹具 × 每个 kind 用「来自别的分支」的语料向量探测至多 CROSS_FIXTURE_PROBES_PER_KIND 条，
  # 断言「接受 ⟺ 是表成员」。语料条数与探测数逐项打印，不静默截断。
@@ -4571,7 +4572,7 @@ static func domain_arm_guards_call_phase_branch(t) -> void:
 # 指回自己的域臂（少改／多改都红）。FROZEN_TABLE_SOURCES 的 23 项同批 rebase（old→new 见其注释）。
 # B 批审查条目 2（归 C 批）加固：kinds=37／arms=16 由打印改为断言；文本扫描扩到被调 helper（白名单双向
 # 核对：臂体新调一个本地函数而没进表 ＝ 未扫描的间接调用，即红；改名致 helper 体提取为空 ＝ 红）。
-const POINT_SOURCE_TABLE_KINDS=37
+const POINT_SOURCE_TABLE_KINDS=38
 const POINT_SOURCE_DOMAIN_ARMS=16
 const POINT_SOURCE_ARMS_TOTAL=25
 const TABLE_ARM_HELPERS=["_fact","_fact_source_domain","_item","_phase_action_tail","_phase_branch","_phase_facts","_route_facts","_status_toggle_facts","_unit_rest_choice","_unit_reward","_unit_travel_step","command_domain_ready","flow_facts","hook_facts","item_action_block","item_action_facts","item_discard_facts","manual_facts","posture_facts","retain_facts","surrender_fact","wall_move_facts"]
@@ -4599,7 +4600,7 @@ static func point_sources_are_kind_limited(t) -> void:
  t.check(not item_use_body.strip_edges().is_empty() and item_use_body.find("_fact_source(")<0,"point_sources_are_kind_limited: the item_use arm keeps no whole-table residual")
  var batch=batch_kind_sources()
  var arms=table_arm_sources()
- t.check(batch.size()==23,"point_sources_are_kind_limited: the 23 rebased kinds stay on their domain arms have="+str(batch.size()))
+ t.check(batch.size()==24,"point_sources_are_kind_limited: the 24 domain-routed kinds stay on their domain arms have="+str(batch.size()))
  t.check(table_kinds().size()==POINT_SOURCE_TABLE_KINDS and BATCH_ARM_SOURCES.size()==POINT_SOURCE_DOMAIN_ARMS and arms.size()==POINT_SOURCE_ARMS_TOTAL,"point_sources_are_kind_limited: the table-kind count, the domain-arm set and the total arm set keep their frozen sizes: kinds="+str(table_kinds().size())+" domain_arms="+str(BATCH_ARM_SOURCES.size())+" arms="+str(arms.size())+" want="+str([POINT_SOURCE_TABLE_KINDS,POINT_SOURCE_DOMAIN_ARMS,POINT_SOURCE_ARMS_TOTAL]))
  var bodies={}
  var missing_helpers=[]
@@ -4787,7 +4788,7 @@ static func point_query_builds_no_table(t) -> void:
  t.check(problems.is_empty(),"point_query_builds_no_table: one command_fact answers from the kind arm without building the table or its units (the only declared phase-unit exemption is exactly one build): "+str(problems.slice(0,6)))
  t.check(compared>0 and rows_seen>=compared,"point_query_builds_no_table: the fixture matrix answered every distinct table row of every kind have="+str(compared)+" rows="+str(rows_seen))
  var covered=hits.keys().filter(func(kind):return batch_kind_sources().has(kind))
- t.check(covered.size()>=POINT_LOOKUP_COVERAGE_FLOOR,"point_query_builds_no_table: at least "+str(POINT_LOOKUP_COVERAGE_FLOOR)+" of the 23 rebased kinds hit a non-empty row have="+str(covered.size())+" "+str(covered))
+ t.check(covered.size()>=POINT_LOOKUP_COVERAGE_FLOOR,"point_query_builds_no_table: at least "+str(POINT_LOOKUP_COVERAGE_FLOOR)+" of the 24 domain-routed kinds hit a non-empty row have="+str(covered.size())+" "+str(covered))
  var stale_exempt=POINT_LOOKUP_PHASE_UNIT_EXEMPT.keys().filter(func(kind):return not exempt_hits.has(kind))
  t.check(stale_exempt.is_empty(),"point_query_builds_no_table: the declared phase-unit exemption is observed in the matrix (an unused exemption is red): "+str(stale_exempt))
  # 接管期声明豁免：select 标注的那一步仍经 TAKEOVER_SOURCE 的整表扫描一次（与改动前相同）；relic_control_done
@@ -4804,13 +4805,10 @@ static func point_query_builds_no_table(t) -> void:
  t.check(takeover.command_facts_calls==1 and takeover.fact_source_calls==1,"point_query_builds_no_table: the takeover exemption is exactly one declared whole-table build: command_facts="+str(takeover.command_facts_calls)+" fact_source="+str(takeover.fact_source_calls))
  print("POINT QUERY NO TABLE fixtures=%d rows=%d distinct_answered=%d rebased_covered=%d phase_unit_exempt=%s takeover_builds=1" % [fixtures.size(),rows_seen,compared,covered.size(),str(exempt_hits.keys())])
 
-# 缺口 1（A 批审查归 B 批）：冻结矩阵扩到前缀/分支态。26 cell 不含前缀态（relic_bundle／departure／
-# domain_blocked）与 rest_choice／reward／travel／map／cleared／pack 等分支，前缀零移动此前只有 build/ 的
-# 差分探针能证（仓库内不可重放）。本判据把 branch_sweep_states() 的每个状态逐条冻结成行面摘要：
-# 期望侧＝B 批动工前实测值（写在测试内，不取自实现）；状态集合与规模双向核对（缺一个／多一个都红）。
-# 出处自证（B 批审查条目 3）：下表在本批动工前的 core/game.gd 字节上实测，其 sha256 见
-# PREFIX_BRANCH_TABLE_SOURCE_SHA256；复核者按同一 sha256 的源码重跑 branch_sweep_states() 即可重算。
-const PREFIX_BRANCH_TABLE_SOURCE_SHA256="1AFA055BFB84119B6B8BA34B46C67C62BDBF6ADB9E77BDF9B7F1F2A71B8DE76A"
+# Freeze branch identity, command shape, availability, and presentation reasons.
+# The 2026-10-30 copy refresh compares all 63 states with the pre-change source;
+# only reason/detail strings differ. Evidence is recorded in docs/record/verification.md.
+const PREFIX_BRANCH_TABLE_SOURCE_SHA256="D802A3D062F23BA915943AF75AA0524CD434E443FA72E27747F095D9BAFB5EC9"
 # 状态数（字面）：branch_sweep_states() 与下表都必须恰为这个数——「删一态＋同步删基线」在此红。
 const PREFIX_BRANCH_TABLE_STATE_COUNT=63
 const PREFIX_BRANCH_TABLE_BASELINE={
@@ -4818,9 +4816,9 @@ const PREFIX_BRANCH_TABLE_BASELINE={
  "sweep:departure|relic_bundle":["relic_bundle","9","db85dae4e279769ca6bbe9a1daa3a82d"],
  "sweep:departure|departure":["departure","8","0a2f9d0dde945abd70b6d831f6e00ea0"],
  "sweep:departure|domain_blocked":["departure","8","0a2f9d0dde945abd70b6d831f6e00ea0"],
- "sweep:rest_choice|plain":["rest_choice","8","98abf02bd8fdb98609908f6b14442e6a"],
+ "sweep:rest_choice|plain":["rest_choice","8","89575a0a85aae62335e2c9e104ce3c12"],
  "sweep:rest_choice|relic_bundle":["relic_bundle","9","db85dae4e279769ca6bbe9a1daa3a82d"],
- "sweep:rest_choice|departure":["rest_choice","8","98abf02bd8fdb98609908f6b14442e6a"],
+ "sweep:rest_choice|departure":["rest_choice","8","89575a0a85aae62335e2c9e104ce3c12"],
  "sweep:rest_choice|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
  "sweep:reward|plain":["reward","7","14c4306fcbef8a2e93b2ed5bf401432d"],
  "sweep:reward|relic_bundle":["relic_bundle","9","db85dae4e279769ca6bbe9a1daa3a82d"],
@@ -4830,9 +4828,9 @@ const PREFIX_BRANCH_TABLE_BASELINE={
  "sweep:map|relic_bundle":["relic_bundle","9","db85dae4e279769ca6bbe9a1daa3a82d"],
  "sweep:map|departure":["map","8","a507c6c80ccbb62052b1371922fb8f1e"],
  "sweep:map|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
- "sweep:travel|plain":["travel","7","be781114facff18ea4f28a93ba56746c"],
+ "sweep:travel|plain":["travel","7","9ad5d6e7271d424ddecc846ba5807c91"],
  "sweep:travel|relic_bundle":["relic_bundle","9","db85dae4e279769ca6bbe9a1daa3a82d"],
- "sweep:travel|departure":["travel","7","be781114facff18ea4f28a93ba56746c"],
+ "sweep:travel|departure":["travel","7","9ad5d6e7271d424ddecc846ba5807c91"],
  "sweep:travel|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
  "sweep:cleared|plain":["cleared","2","d87610942815b24e6660de917451defe"],
  "sweep:cleared|relic_bundle":["relic_bundle","7","e09edecb14b88418e58a6d14523ac0b8"],
@@ -4854,27 +4852,28 @@ const PREFIX_BRANCH_TABLE_BASELINE={
  "sweep:inspection|relic_bundle":["relic_bundle","9","db85dae4e279769ca6bbe9a1daa3a82d"],
  "sweep:inspection|departure":["captured_inspection","8","c170407313358f9de4c81f218f34267c"],
  "sweep:inspection|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
- "sweep:battle|plain":["action_tail","93","d96ae17e030d62e74c18a203fd4d320e"],
+ "sweep:battle|plain":["action_tail","93","eda2a09ed3f0f6bc7af0e4d1188fa9ec"],
  "sweep:battle|relic_bundle":["relic_bundle","8","609bfddb170311c1bb37d8b7048e22ac"],
- "sweep:battle|departure":["action_tail","93","d96ae17e030d62e74c18a203fd4d320e"],
+ "sweep:battle|departure":["action_tail","93","eda2a09ed3f0f6bc7af0e4d1188fa9ec"],
  "sweep:battle|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
- "sweep:prepare|plain":["action_tail","77","b07f66d574b1dba809c46d5fb9584cb1"],
+ "sweep:prepare|plain":["action_tail","77","833631fa6c50ad5e7c4581502aca2f31"],
  "sweep:prepare|relic_bundle":["relic_bundle","9","db85dae4e279769ca6bbe9a1daa3a82d"],
- "sweep:prepare|departure":["action_tail","77","b07f66d574b1dba809c46d5fb9584cb1"],
+ "sweep:prepare|departure":["action_tail","77","833631fa6c50ad5e7c4581502aca2f31"],
  "sweep:prepare|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
- "sweep:rest|plain":["action_tail","77","3d12980be9bc26285e3042ca3afe2b63"],
+ "sweep:rest|plain":["action_tail","77","e3601a017e9673a1a2703b1a3dca969b"],
  "sweep:rest|relic_bundle":["relic_bundle","9","db85dae4e279769ca6bbe9a1daa3a82d"],
- "sweep:rest|departure":["action_tail","77","3d12980be9bc26285e3042ca3afe2b63"],
+ "sweep:rest|departure":["action_tail","77","e3601a017e9673a1a2703b1a3dca969b"],
  "sweep:rest|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
  "flag:overload_climax":["overload_climax","6","63ef64aa6bfbda1da4da1baeb6a906da"],
  "flag:pending_retain":["pending_retain","12","690c89746a256c4edb8faec68cc3a51e"],
- "flag:equipment_spell":["action_tail","117","3083d4f26a695223cb874ce9ac0489bd"],
- "flag:hook":["action_tail","83","c394592c05218962ab1cdc265694e160"],
+ "flag:equipment_spell":["action_tail","117","7de0ef3efb871b5c522be14be87f4dc9"],
+ "flag:hook":["action_tail","83","9af4265cf8bad6ad92717e0a7697aa43"],
  "flag:demo_exit":["cleared","4","0df86713c77f877b4564e49107737275"],
  "flag:card_chain":["card_chain","7","682afed1b5f48406d4122b3d0218375a"],
- "flag:rest_card":["rest_choice","11","91a85d569516914243cea1d080feee90"],
+ # The 11 original rows are preserved; this fixture adds 30 card/affix pairs and two refresh payments.
+ "flag:rest_card":["rest_choice","43","b1ce12d2620026b620e9b9c2a36c1e91"],
  "flag:reward_skip":["reward","9","c5658346f0bba2c8e302c725e3f2ebb1"],
- "flag:relic_rows":["action_tail","107","ed5f98fb08d19501e8b2976317cb26ea"],
+ "flag:relic_rows":["action_tail","107","3472cae8c38b097967241beb9c2aba38"],
  "flag:relic_bundle_equipped":["relic_bundle","8","e7dccde4536f9d304e05b8c58ef03857"],
  "flag:departure_equipped":["departure","8","0a2f9d0dde945abd70b6d831f6e00ea0"],
 }
@@ -4898,6 +4897,10 @@ static func prefix_branch_tables_are_frozen(t) -> void:
   var g=entry.game
   var rows=g.command_facts()
   var have=[g._phase_branch(),str(rows.size()),prefix_branch_table_face(g)]
+  if label=="flag:rest_card":
+   var original=rows.filter(func(row):return row.payload.kind!="enchant")
+   var digest=r1_digest(JSON.stringify(original.map(func(row):return [String(row.get("key","")),bool(row.get("valid",false)),String(row.get("reason","")),String(row.get("group","")),row.get("payload",{})])))
+   t.check(original.size()==11 and digest=="91a85d569516914243cea1d080feee90","ENCHANT original rest-choice rows preserve their pre-service frozen face")
   var want=PREFIX_BRANCH_TABLE_BASELINE[label]
   compared+=1
   if JSON.stringify(have)!=JSON.stringify(want): moved.append(label+" have="+JSON.stringify(have)+" want="+JSON.stringify(want))
@@ -6157,7 +6160,7 @@ static func card_facts_consumes_has_targets_at(t) -> void:
  var only_root=link_only._install_assembly("leg","upper","fixture",2,2)
  var only_body=only_root.components.filter(func(e):return e.part=="body")[0]
  var only_band=link_only._install_template("rope",link_only.Links.point_slot("below_knee"),8,10,false,"fixture",1,-1,0,"below_knee")
- var only_rope=link_only._install_link(only_body.id,only_band.id,8,"fixture",1,[],["thigh","calf"],["above_knee","below_knee"])
+ var only_rope=link_only._install_link(only_body.id,only_band.id,4.8,"fixture",1,[],["thigh","calf"],["above_knee","below_knee"])
  t.check(not only_rope.is_empty(),"card_facts_consumes_has_targets_at: live link fixture")
  for slot in ["thigh","calf"]:
   for e in link_only.equipment_at(slot): e.durability=0
@@ -6530,6 +6533,7 @@ const COMMAND_KEY_SETS={
  "retain":["uid"],
  "retain_skip":[],
  "rest_rare":[],
+ "enchant":["op","enchantment","uid","payment"],
  "rest_card":["type"],
  "rest_flask":[],
  "rest_begin":[],

@@ -122,7 +122,7 @@ static func execute(g, p: Dictionary) -> String:
  match entry.id:
   "remove":
    var old=g.Cards.remove_permanent(g,p.uid)
-   if old=="": return "所选卡牌已经不在卡组中。"
+   if old=="": return "所选卡牌已离开卡组。"
    result="移除了「%s」。" % g.B.CARD_NAMES[old]
   "transform":
    var type=entry.changes[p.uid]
@@ -168,40 +168,40 @@ static func panel(g, facts: Array) -> Dictionary:
 
 static func validate(g, s: Dictionary) -> String:
  var d=s.get("departure")
- if not d is Dictionary: return "开局选择记录不完整。"
+ if not d is Dictionary: return "开局选择记录缺损。"
  if d.is_empty(): return "开局选择记录缺失。" if s.phase=="departure" else ""
  var custom=d.get("cursed_plate_start",false)
- if not custom is bool: return "定制开局记录不正确。"
- if custom and s.phase=="departure" and (not s.chastity_locks_enabled or "cursed_plate_lock" not in s.relics or "ember" in s.relics): return "定制开局遗物记录不正确。"
+ if not custom is bool: return "定制开局记录有误。"
+ if custom and s.phase=="departure" and (not s.chastity_locks_enabled or "cursed_plate_lock" not in s.relics or "ember" in s.relics): return "定制开局遗物记录有误。"
  var count=option_count(g,custom,s.get("character_id","original"))
- if not g.Snapshot.fields(d,"options:a stage:s selected:s capacity_bonus:i result:s") or d.options.size() not in ([4,5] if count==5 else [count]) or d.stage not in ["choose","card","done"] or d.capacity_bonus not in [0,1]: return "开局选择记录不正确。"
+ if not g.Snapshot.fields(d,"options:a stage:s selected:s capacity_bonus:i result:s") or d.options.size() not in ([4,5] if count==5 else [count]) or d.stage not in ["choose","card","done"] or d.capacity_bonus not in [0,1]: return "开局选择记录有误。"
  for i in range(d.options.size()):
   var e=d.options[i]
-  if not g.Snapshot.fields(e,"id:s cards:z changes:d relics:z potion:s curse:s") or e.id not in Data.GROUPS[i]: return "开局选项分类不正确。"
+  if not g.Snapshot.fields(e,"id:s cards:z changes:d relics:z potion:s curse:s") or e.id not in Data.GROUPS[i]: return "开局选项分类有误。"
   if e.id in ["uncommon","rare_card"]:
    var pool=g.Cards.Rules.UNCOMMON if e.id=="uncommon" else g.Cards.Rules.RARE
-   if e.cards.size()!=3 or not e.cards.all(func(id):return g.Character.reward_member(g,id,s.get("character_id","original")) and id in g.Character.pool(g,pool,s.get("character_id","original"))) or e.cards[0]==e.cards[1] or e.cards[0]==e.cards[2] or e.cards[1]==e.cards[2]: return "开局奖励牌不正确。"
-  elif not e.cards.is_empty(): return "开局选项不应含有奖励牌。"
+   if e.cards.size()!=3 or not e.cards.all(func(id):return g.Character.reward_member(g,id,s.get("character_id","original")) and id in g.Character.pool(g,pool,s.get("character_id","original"))) or e.cards[0]==e.cards[1] or e.cards[0]==e.cards[2] or e.cards[1]==e.cards[2]: return "开局奖励牌有误。"
+  elif not e.cards.is_empty(): return "该开局选项需要空奖励牌列表。"
   if e.id=="transform":
    if e.changes.is_empty(): return "变化结果缺失。"
    for uid in e.changes:
-    if not uid is String or not g.Character.reward_member(g,e.changes[uid],s.get("character_id","original")) or e.changes[uid] not in g.Character.pool(g,g.Cards.Rules.COMMON+g.Cards.Rules.UNCOMMON,s.get("character_id","original")): return "变化结果不正确。"
-  elif not e.changes.is_empty(): return "开局选项不应含有变化结果。"
+    if not uid is String or not g.Character.reward_member(g,e.changes[uid],s.get("character_id","original")) or e.changes[uid] not in g.Character.pool(g,g.Cards.Rules.COMMON+g.Cards.Rules.UNCOMMON,s.get("character_id","original")): return "变化结果有误。"
+  elif not e.changes.is_empty(): return "该开局选项需要空变化结果。"
   var tiers=Data.RELIC_TIERS.get(e.id,[])
   var fixed=Data.FIXED_RELICS.get(e.id,[])
-  if e.relics.size()!=tiers.size()+fixed.size(): return "开局遗物数量不正确。"
-  if not fixed.is_empty() and e.relics!=fixed: return "开局遗物品质不正确。"
+  if e.relics.size()!=tiers.size()+fixed.size(): return "开局遗物数量有误。"
+  if not fixed.is_empty() and e.relics!=fixed: return "开局遗物品质有误。"
   for j in range(tiers.size()):
-   if e.relics[j] not in g.Relics.TYPES or e.relics[j] not in s.relic_seen or g.Relics.TYPES[e.relics[j]].rarity!=tiers[j]: return "开局遗物品质不正确。"
+   if e.relics[j] not in g.Relics.TYPES or e.relics[j] not in s.relic_seen or g.Relics.TYPES[e.relics[j]].rarity!=tiers[j]: return "开局遗物品质有误。"
   if e.id=="potion":
-   if e.potion not in g.Tools.TYPES or g.Tools.TYPES[e.potion].get("category","")!="potion": return "开局药剂不正确。"
-  elif e.potion!="": return "开局选项不应含有药剂。"
+   if e.potion not in g.Tools.TYPES or g.Tools.TYPES[e.potion].get("category","")!="potion": return "开局药剂有误。"
+  elif e.potion!="": return "该开局选项需要空药剂列表。"
   if e.id=="curse":
-   if e.curse not in g.Cards.Rules.SPECS or g.Cards.Rules.SPECS[e.curse].card_type!="curse": return "开局诅咒不正确。"
-  elif e.curse!="": return "开局选项不应含有诅咒。"
+   if e.curse not in g.Cards.Rules.SPECS or g.Cards.Rules.SPECS[e.curse].card_type!="curse": return "开局诅咒有误。"
+  elif e.curse!="": return "该开局选项需要空诅咒列表。"
  var ids=d.options.map(func(e):return e.id)
- if d.stage=="choose" and (d.selected!="" or d.capacity_bonus!=0): return "尚未选择开局奖励。"
- if d.stage=="card" and (d.selected not in ids or d.selected not in Data.PICKERS or d.capacity_bonus!=0): return "开局选牌记录不正确。"
- if d.stage=="done" and d.selected not in ids+["skip"]: return "开局领取记录不正确。"
- if d.capacity_bonus!=(1 if d.stage=="done" and d.selected=="potion" else 0): return "开局道具容量记录不正确。"
+ if d.stage=="choose" and (d.selected!="" or d.capacity_bonus!=0): return "请选择开局奖励。"
+ if d.stage=="card" and (d.selected not in ids or d.selected not in Data.PICKERS or d.capacity_bonus!=0): return "开局选牌记录有误。"
+ if d.stage=="done" and d.selected not in ids+["skip"]: return "开局领取记录有误。"
+ if d.capacity_bonus!=(1 if d.stage=="done" and d.selected=="potion" else 0): return "开局道具容量记录有误。"
  return ""

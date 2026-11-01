@@ -8,7 +8,7 @@ static func body_group_item(t) -> void:
  ui.selected_item=id;ui.render();ui._open_drawer("show_items");await t.frames()
  var state=ui.game.export_snapshot()
  t.check(ui.view.items.filter(func(item):return item.id==id)[0].target_groups.size()==14,"OIL UI projects all fourteen sidebar groups including empty ones")
- t.check(t.visible_text(ui.layout).contains("润滑油") and t.visible_text(ui.layout).contains("不受口部减效影响") and t.visible_text(ui.layout).contains("剩余3次"),"OIL UI shows charges and physical/mouth exemptions")
+ t.check(t.visible_text(ui.layout).contains("润滑油") and t.visible_text(ui.layout).contains("口部受限时仍保留完整效果") and t.visible_text(ui.layout).contains("剩余3次"),"OIL UI shows charges and physical/mouth exemptions")
  await t.capture("ui-lubricant-groups.png")
  await preload("res://tests/interface_ui_cases.gd").press(t,"ToolSlot_hands");await t.frames()
  t.check(ui.game.state.version==state.version+1 and ui.game._item(id).uses==2 and ui.game.state.body_buffs==[{"type":"lubricant_potion","group":"hands"}],"OIL UI single body-group click submits once without equipment selection")
@@ -66,7 +66,7 @@ static func noncombat_recovery(t) -> void:
  ui.game._gain_tool("mana_potion");var id=ui.game.state.items.back().id
  ui.selected_item=id;ui.render();ui._open_drawer("show_items");await t.frames()
  await preload("res://tests/interface_ui_cases.gd").press(t,"ItemHelpToggle");await t.frames()
- t.check(t.visible_text(ui.layout).contains("非战斗与探索阶段不受身体和姿势限制") and t.visible_text(ui.layout).contains("恢复10魔力"),"RECOVERY UI reward-page potion explains exemption and reduced amount")
+ t.check(t.visible_text(ui.layout).contains("战斗与探索之外，无视身体和姿势限制") and t.visible_text(ui.layout).contains("恢复10魔力"),"RECOVERY UI reward-page potion explains exemption and reduced amount")
  var tick=ui.game.state.tick
  t.check(await t.click("item_use",{"item":id}) and ui.game.state.mana==50 and ui.game._item(id).is_empty() and ui.game.state.phase=="reward" and ui.game.state.tick==tick,"RECOVERY UI uses potion immediately without leaving rewards")
  ui._close_drawers();ui.render();await t.frames()

@@ -5,7 +5,7 @@ signal locale_changed(locale: String)
 const DEFAULT_LOCALE="zh_CN"
 const LOCALES=["zh_CN","en_US","ja_JP"]
 const DIRECTORY="res://assets/localization"
-const DISPLAY_ERROR="文字暂时无法显示。"
+const DISPLAY_ERROR="文字加载失败。"
 const MAX_BYTES=4*1024*1024
 const MAX_DISPLAY_ENTRIES=512
 const MAX_DISPLAY_CHARACTERS=65536

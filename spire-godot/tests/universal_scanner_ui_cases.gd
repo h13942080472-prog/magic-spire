@@ -42,7 +42,7 @@ static func run(t) -> void:
  for zone in ["deck"]+ui.game.Cards.ZONES: ui.game.state[zone]=[]
  ui.game._gain_card("endless_war_goddess");ui.game.RelicEffects.gain(ui.game,Cases.TYPE)
  ui.render();await t.frames()
- t.check(ui.find_child("DeckBrowser",true,false).cards.is_empty() and t.visible_text(ui.find_child("RelicBundleRewards",true,false)).contains("没有可复制"),"SCANNER UI explains an all-ineligible deck")
+ t.check(ui.find_child("DeckBrowser",true,false).cards.is_empty() and t.visible_text(ui.find_child("RelicBundleRewards",true,false)).contains("可复制卡牌：0张"),"SCANNER UI explains an all-ineligible deck")
  await Pointer.press(t,ui.find_child("BundleContinue",true,false))
  t.check(ui.game.state.relic_bundle.is_empty() and ui.game.state.deck.size()==1,"SCANNER UI actual skip returns without copying an ineligible card")
  ui.restart(42);await t.frames()

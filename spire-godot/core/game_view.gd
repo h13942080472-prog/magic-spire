@@ -50,7 +50,7 @@ static func battle_rewards(g, facts: Array) -> Array:
   rows.append({"id":"","category":"relic","symbol":g.state.boss_relic_options[0],"name":"选择一件Boss遗物","subtitle":"三选一","detail":"从本次Boss遗物奖励中选择一件。","claimed":claimed.has("relic"),"available":true,"reason":"","choices":g.Relics.view(g.state.boss_relic_options)})
   if claimed.has("relic"): rows.back().subtitle="已跳过" if claimed.relic=="skip" else "已获得「"+g.Relics.TYPES[claimed.relic].name+"」"
  if g.state.battle_flask_drop>0:
-  rows.append({"id":"","category":"flask","symbol":"mana_potion","name":"%d 魔瓶魔力" % g.state.battle_flask_drop,"subtitle":("出口守卫奖励" if g.Prison.is_exit_battle(g) else "Boss奖励")+" · 存入贴身魔瓶","detail":"领取后，贴身魔瓶获得%d魔力，不占用存入次数。" % g.state.battle_flask_drop,"claimed":claimed.has("flask"),"available":true,"reason":""})
+  rows.append({"id":"","category":"flask","symbol":"mana_potion","name":"%d 魔瓶魔力" % g.state.battle_flask_drop,"subtitle":("出口守卫奖励" if g.Prison.is_exit_battle(g) else "Boss奖励")+" · 存入贴身魔瓶","detail":"领取后，贴身魔瓶获得%d魔力，存入次数保留。" % g.state.battle_flask_drop,"claimed":claimed.has("flask"),"available":true,"reason":""})
  return rows
 
 static func reward_panel(g, facts: Array) -> Dictionary:
@@ -68,9 +68,9 @@ static func reward_panel(g, facts: Array) -> Dictionary:
    exits=facts.filter(func(c):return c.payload.kind=="reward" and c.payload.type=="skip")
   "rest_choice":
    panel.active=true;panel.title="休息奖励"
-   panel.destination="任选一项 · 当前可休息%d回合" % g.state.rest_left
-   panel.continue_label="跳过 · 休息%d回合  ›" % g.state.rest_left
-   choices=facts.filter(func(c):return c.payload.kind in ["rest_card","rest_rare","rest_flask"])
+   panel.destination="剩余%d回合" % g.state.rest_left
+   panel.continue_label="开始休息 · %d回合  ›" % g.state.rest_left
+   choices=facts.filter(func(c):return c.payload.kind in ["rest_card","rest_rare","rest_flask","enchant"])
    exits=facts.filter(func(c):return c.payload.kind=="rest_begin")
    var row=reward_card_row(g.Cards.Rules.RARITIES.uncommon+"卡%d选1" % g.state.rest_cards.size(),"花费%d回合 · 选择1张加入卡组" % g.B.REST_CARD_TURNS.uncommon)
    row.id="uncommon";row.action_kind="rest_card";row.hide_skip=true
@@ -80,6 +80,9 @@ static func reward_panel(g, facts: Array) -> Dictionary:
    rare.detail="随机获得1张稀有卡，花费%d回合休息时间。" % g.B.REST_CARD_TURNS.rare
    panel.rows.append(rare)
    panel.rows.append({"id":"flask","category":"item","symbol":"mana_potion","name":"魔瓶补充%d魔力" % g.B.REST_FLASK_MANA,"subtitle":"花费%d回合 · 存入贴身魔瓶" % g.B.REST_FLASK_TURNS,"detail":"补充%d魔瓶魔力，花费%d回合休息时间。" % [g.B.REST_FLASK_MANA,g.B.REST_FLASK_TURNS],"claimed":false,"available":true,"reason":"","action_kind":"rest_flask","direct":true,"hide_skip":true,"action_label":"补充  ›"})
+   panel.enchantments=g.Enchantments.panel(g,facts)
+   for service in panel.rows: service.claimed=g.room_data(g.state.room).get("rest_reward_used",false)
+   panel.rows.append({"id":"enchant","category":"enchant","action_label":"选择  ›","claimed_label":"✓ 已附魔","symbol":"enchant","name":"附魔","subtitle":"普通2回合 · 稀有4回合","detail":"为一张卡牌附魔。","claimed":panel.enchantments.used,"available":true,"reason":"","action_kind":"enchant","hide_skip":true})
   "event":
    if g.state.room_event.get("stage","")!="reward": return panel
    panel.active=true;panel.title="事件奖励";panel.destination="选取一张卡牌，或跳过本次奖励。";panel.continue_label="跳过奖励  ›"
@@ -87,7 +90,7 @@ static func reward_panel(g, facts: Array) -> Dictionary:
    exits=facts.filter(func(c):return c.payload.kind=="event" and c.payload.action=="reward" and c.payload.type=="skip")
    panel.rows=[reward_card_row("选择一张卡牌","加入你的卡组")]
   "treasure":
-   panel.active=true;panel.title="宝箱奖励";panel.destination="未领取的奖励可以直接跳过。";panel.continue_label="继续  ›"
+   panel.active=true;panel.title="宝箱奖励";panel.destination="可以跳过剩余奖励。";panel.continue_label="继续  ›"
    choices=facts.filter(func(c):return c.payload.kind=="service" and c.payload.op=="take")
    exits=facts.filter(func(c):return c.payload.kind=="service" and c.payload.op=="leave")
    var stock=g.room_data(g.state.room).stock
@@ -101,7 +104,7 @@ static func reward_panel(g, facts: Array) -> Dictionary:
   if g.state.phase=="reward":
    matching=choices.filter(func(c):return c.payload.get("category","")==row.category and (row.id=="" or c.payload.get("reward_id","")==row.id))
   elif g.state.phase=="treasure": matching=choices.filter(func(c):return str(c.payload.index)==row.id)
-  elif g.state.phase=="rest_choice": matching=choices.filter(func(c):return c.payload.kind==row.action_kind)
+  elif g.state.phase=="rest_choice": matching=choices.filter(func(c):return c.payload.kind==row.action_kind and (c.payload.kind!="enchant" or c.payload.op=="apply"))
   row.action_keys=matching.map(func(c):return String(c.key))
   row.skipped=g.state.phase=="reward" and g.state.reward_claimed.get(row.category,"")=="skip"
   var skips=facts.filter(func(c):return c.payload.kind=="reward_skip" and c.payload.category==row.category)
@@ -133,15 +136,17 @@ static func equipment_entry(g, e: Dictionary, slot: String) -> Dictionary:
 static func _build_equipment_entry(g, e: Dictionary) -> Dictionary:
  var lock_only=Equipment.lock_only(e)
  var linked=e.template=="link_rope"
- var current_tier=g.tier(g._effective_ratio(e),1.0) if e.has("parent_id") else g.tier(e.durability,e.maximum)
+ var current_tier=0 if Equipment.is_shackle(e) else (g.tier(g._effective_ratio(e),1.0) if e.has("parent_id") else g.tier(e.durability,e.maximum))
  var card_status=[]
+ if Equipment.is_shackle(e): card_status.append("无紧度 · 固定减伤90% · 开锁即取下")
  var shoulder_text=g.Shoulders.text(g,e)
  if shoulder_text!="": card_status.append(shoulder_text)
  if e.has("shoulder_host"): card_status.append("连接至"+g._equipment_name(g._equipment(e.shoulder_host))+"。")
  var binding_text=g.Binding.text(g,e)
  if binding_text!="": card_status.append(binding_text)
- if e.has("parent_id"): card_status.append("依附于"+g._equipment_name(g._equipment(e.parent_id))+"。独立连接耐久；挣扎不受堆叠影响，滑脱仍受影响。")
+ if e.has("parent_id"): card_status.append("依附于"+g._equipment_name(g._equipment(e.parent_id))+"。独立连接耐久；挣扎无视堆叠减伤，滑脱仍受影响。")
  var description="%s · %s\n耐久度：%s/%s · 紧度：%s档" % [Equipment.GRADES[e.grade],Equipment.material_name(e),g.number(e.durability),g.number(e.maximum),current_tier]
+ if Equipment.is_shackle(e): description="%s\n耐久度：%s/%s · 无紧度\n固定减伤90%% · 开锁即取下" % [Equipment.material_name(e),g.number(e.durability),g.number(e.maximum)]
  description="位置："+Equipment.position_text(e)+"\n"+description
  if e.get("root_id","")!="" and not g.Composites.active(g._composite(e.root_id)):
   description+="\n遗留外带 · 套体已解除，这条外带仍然固定。"
@@ -149,7 +154,7 @@ static func _build_equipment_entry(g, e: Dictionary) -> Dictionary:
  var summary=description
  if lock_only:
   current_tier=0
-  description="位置：颈部\n无耐久 · 不计入拘束具件数\n佩戴时不能使用普通 henshin。\n"+Equipment.LOCK_ONLY_REASON
+  description="位置：颈部\n耐久：无 · 件数统计豁免\n普通 henshin 需先解除项圈。\n"+Equipment.LOCK_ONLY_REASON
   summary=description
   card_status.append("已上锁" if e.locked else "已开锁 · 双臂自由后可取下")
  if g.SpecialEquipment.is_special(e):
@@ -167,7 +172,7 @@ static func _build_equipment_entry(g, e: Dictionary) -> Dictionary:
    else: card_status.append(("电量剩余%d回合" % e.remaining) if spec.duration>0 and e.remaining>0 else ("电量耗尽" if spec.duration>0 else "持续生效"))
   if spec.energy_gain>0 and (spec.duration==0 or e.remaining>0): card_status.append("牵扯（消耗能量时）：快感＋%s" % g.number(g.SpecialEquipment.gain(e,"energy")*g.Pressure.gain_multiplier(g)))
  if "eyes" in Equipment.coverage(e):
-  description+="\n视觉受阻 · 意图不可见"
+  description+="\n视线受阻 · 意图隐藏"
   summary+="\n视觉受阻 · 无法观察敌人意图。"
  if linked:
   var ends: Array[String]=[]
@@ -176,7 +181,7 @@ static func _build_equipment_entry(g, e: Dictionary) -> Dictionary:
   for id in e.blocked_slip: blocked.append(g._equipment_name(g._equipment(id)))
   description+="\n连接："+" ↔ ".join(ends)
   if not blocked.is_empty(): description+="\n阻止滑脱："+"、".join(blocked)
-  summary+="\n同一条绳，两处共享耐久；不占部位容量。"
+  summary+="\n同一条绳，两处共享耐久；部位容量占用0。"
  elif not lock_only:
   var reason=g._slip_reason(e)
   if reason!="": description+="\n"+reason
@@ -187,7 +192,7 @@ static func _build_equipment_entry(g, e: Dictionary) -> Dictionary:
  elif e.template=="glove_strap":
   summary+="\n自身滑脱计算紧度：%s%%。" % g.number(g._effective_ratio(e)*100)
   description+="\n计算紧度：%s%%" % g.number(g._effective_ratio(e)*100)
- return {"id":e.id,"name":g._equipment_name(e),"image":preload("res://data/equipment_images.gd").path(e),"card_status":"\n".join(card_status),"lock_only":lock_only,"lockable":Equipment.allows(e,"lock") or g.SpecialEquipment.is_chastity(e),"tier":current_tier,"durability":e.durability,"maximum":e.maximum,"ratio":e.durability/e.maximum,"locked":e.locked,"linked":linked,
+ return {"id":e.id,"name":g._equipment_name(e),"image":preload("res://data/equipment_images.gd").path(e),"card_status":"\n".join(card_status),"lock_only":lock_only,"no_tightness":Equipment.is_shackle(e),"lockable":Equipment.allows(e,"lock") or g.SpecialEquipment.is_chastity(e),"tier":current_tier,"durability":e.durability,"maximum":e.maximum,"ratio":e.durability/e.maximum,"locked":e.locked,"linked":linked,
   "root_id":e.get("root_id",""),"part":e.get("part",""),"position_text":Equipment.position_text(e),"sort_order":Equipment.anatomical_order(e),"material_name":Equipment.material_name(e),"methods":Equipment.method_text(e),"description":description,"summary":summary}
 
 # Read-only projection. All gameplay changes remain in game.gd.
@@ -204,7 +209,10 @@ static func build(g, demand: Array = []) -> Dictionary:
   var release=ReleaseView.preview(g,fact)
   if not release.is_empty(): fact.release_preview=release
  var physical_pieces=g.physical_pieces()
- var body_coverage={"points":[],"materials":portrait_materials(g,physical_pieces)}
+ var material_pieces=physical_pieces+state.links
+ var material_points=restraint_material_points(material_pieces)
+ var body_coverage={"points":[],"materials":portrait_materials(g,physical_pieces),"material_points":material_points}
+ if physical_pieces.any(func(piece):return piece.get("template","")==g.RopeArt.HOGTIE and piece.get("durability",0)>0): body_coverage.special_pose="hogtie"
  for e in physical_pieces:
   for point in Equipment.physical_points(e):
    if not point in body_coverage.points: body_coverage.points.append(point)
@@ -224,7 +232,7 @@ static func build(g, demand: Array = []) -> Dictionary:
   for e in projected.values():
    var key=e.root_id if e.root_id!="" else e.id
    if not grouped.has(key):
-    var group={"name":(g._composite(e.root_id).name+(" · 遗留外带" if not g.Composites.active(g._composite(e.root_id)) else "")) if e.root_id!="" else ("链接绳 · 不占部位容量" if e.linked else ""),"components":[]}
+    var group={"name":(g._composite(e.root_id).name+(" · 遗留外带" if not g.Composites.active(g._composite(e.root_id)) else "")) if e.root_id!="" else ("链接绳 · 容量占用0" if e.linked else ""),"components":[]}
     groups.append(group); grouped[key]=group
    grouped[key].components.append(e)
   bodies.append({"id":slot,"name":B.SLOT_NAMES[slot],"occupied":not entries.is_empty(),"count":entries.size(),"capacity":g._capacity(slot),"capacity_used":g.capacity_used(slot),"equipment":entries,"links":links,"targets":projected,"groups":groups})
@@ -235,14 +243,14 @@ static func build(g, demand: Array = []) -> Dictionary:
   info[1]=faces.bound
   info[2]=faces.free
   var bound=info[1]
-  hand.append({"uid":card.uid,"type":card.type,"name":B.CARD_NAMES[card.type],"cost":"—" if B.CARD_TRAITS.get(card.type,{}).get("unplayable",false) else g.Cards.Rules.energy_label(card.type),"tag":info[0],"bound":bound,"free":info[2],"note":info[3],"retained":B.CARD_TRAITS.get(card.type,{}).get("retain",false) or card.retain_until>state.tick,"single_face":g.Cards.Rules.single_face(card.type)})
+  hand.append({"uid":card.uid,"type":card.type,"name":B.CARD_NAMES[card.type],"cost":"—" if B.CARD_TRAITS.get(card.type,{}).get("unplayable",false) else g.Cards.Rules.energy_label(card.type),"tag":info[0],"bound":bound,"free":info[2],"note":info[3],"retained":g.Enchantments.has_trait(g,card,"retain") or card.retain_until>state.tick,"single_face":g.Cards.Rules.single_face(card.type)})
   hand.back().merge(g.Cards.Rules.classification(card.type))
   hand.back().merge(g.Cards.metadata(g,card.type,card.uid),true)
   var choices=facts.filter(func(f):return f.payload.get("uid","")==card.uid and f.payload.get("kind","") in ["card","prison"])
   hand.back().unplayable=B.CARD_TRAITS.get(card.type,{}).get("unplayable",false)
   hand.back().availability={"free":g.Cards.availability(g,card,true,choices),"bound":g.Cards.availability(g,card,false,choices)}
   hand.back().magic=hand.back().cast_faces.bound or hand.back().cast_faces.free
-  if hand.back().magic: hand.back().casting=g.cast_view(g.Cards.cast_profile(g,card.type))
+  if hand.back().magic: hand.back().casting=g.cast_view(g.Cards.cast_profile(g,card.type,true,null,card.uid))
   hand.back().draw_serial=card.get("draw_serial",0)
   hand.back().draw_free=card.draw_free if card.has("draw_free") else not g.Cards.has_escape_target(g,card.type)
  var enemies: Array=[]
@@ -301,7 +309,7 @@ static func build(g, demand: Array = []) -> Dictionary:
  var card_texts={}
  var card_instances={}
  for card in state.hand:
-  if g.Cards.Rules.SPECS[card.type].has("damage_growth") or g.Cards.Rules.SPECS[card.type].has("hannya_stage"):
+  if card.has("enchantment") or g.Cards.Rules.SPECS[card.type].has("damage_growth") or g.Cards.Rules.SPECS[card.type].has("hannya_stage"):
    card_instances[card.uid]=g.Cards.face_texts(g,card.type,card.uid)
    card_instances[card.uid].merge(g.Cards.metadata(g,card.type,card.uid))
  for type in g.Cards.Rules.SPECS: costs[type]=g.Cards.Rules.energy_label(type)
@@ -371,7 +379,7 @@ static func portrait_materials(g, pieces: Array) -> Dictionary:
    if piece.get("durability",0)<=0:continue
    var points=Equipment.display_points(piece).filter(func(point):return point in groups[key])
    if points.is_empty():continue
-   var material=piece.get("material","")
+   var material="leather" if Equipment.is_shackle(piece) else piece.get("material","")
    if material=="rope":rope+=1
    elif material=="leather":
     leather+=1
@@ -379,6 +387,18 @@ static func portrait_materials(g, pieces: Array) -> Dictionary:
      for point in points:
       if (point in Equipment.points(slot) or point=="shoulder") and g._outer_at(piece,slot,point):outer_leather=true
   result[key]="leather" if outer_leather or leather>rope else "rope"
+ return result
+
+# Capture artwork counts actual leather and rope coverage. Metal shackles only
+# borrow leather portrait art and therefore stay outside this projection.
+static func restraint_material_points(pieces: Array) -> Dictionary:
+ var result={"leather":[],"rope":[]}
+ for piece in pieces:
+  if piece.get("durability",0)<=0: continue
+  var material=String(piece.get("material",""))
+  if not result.has(material): continue
+  for point in Equipment.physical_points(piece):
+   if point not in result[material]: result[material].append(point)
  return result
 
 static func travel_log(logs: Array) -> Array:

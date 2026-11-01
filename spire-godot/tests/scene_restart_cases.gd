@@ -39,7 +39,8 @@ static func rest_entry(t, equal: Callable) -> void:
   var start=g.export_snapshot()
   var payload={"type":g.state.rest_cards[0]} if kind=="rest_card" else {}
   var choice=t.find_action(g,kind,payload)
-  t.check(g.dispatch(g.command(choice.payload,g.state.version),g.state.version).ok and g.state.phase=="rest","SL rest enters its playable turn after "+kind)
+  t.check(g.dispatch(g.command(choice.payload,g.state.version),g.state.version).ok and g.state.phase==("rest" if kind=="rest_begin" else "rest_choice"),"SL rest service phase after "+kind)
+  if kind!="rest_begin": t.check(t.action(g,"rest_begin").ok,"SL explicitly begin after optional services")
   var selected=g.export_snapshot()
   t.check(g.restart_snapshot()==start,"SL reward choice and rest share the original entry checkpoint: "+kind)
   t.check(t.action(g,"end").ok and g.restart_snapshot()==start,"SL rest actions and later turns preserve the pre-reward entry: "+kind)
@@ -50,7 +51,9 @@ static func rest_entry(t, equal: Callable) -> void:
   var resumed=Game.new(77)
   t.check(resumed.restore_snapshot(store.read_slot("tower").snapshot).ok and equal.call(resumed.state,start),"SL relaunch restores offers, deck, resources, equipment, turn and RNG together")
   t.check(g.restore_snapshot(g.restart_snapshot()).ok and equal.call(g.state,start),"SL returns to the original rest reward menu")
-  t.check(t.action(g,kind,payload).ok and equal.call(g.state,selected),"SL replay gives the same reward and opening effects exactly once")
+  var replayed=t.action(g,kind,payload).ok
+  if kind!="rest_begin": replayed=t.action(g,"rest_begin").ok and replayed
+  t.check(replayed and equal.call(g.state,selected),"SL replay gives the same reward and opening effects exactly once")
   for step in range(g.B.REST_TURNS+1):
    if g.state.phase!="rest": break
    t.check(t.action(g,"end").ok,"SL rest can finish normally")

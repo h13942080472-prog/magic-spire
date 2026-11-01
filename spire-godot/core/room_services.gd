@@ -73,7 +73,7 @@ static func remove_card_detail(_g, _args: Dictionary) -> String:
  return "永久移除这张牌。本店仅能使用一次。"
 
 static func refresh_detail(_g, _args: Dictionary) -> String:
- return "重新随机全部商品并补满货位。每次刷新后价格翻倍，换店不重置。"
+ return "重新随机全部商品并补满货位。每次刷新后价格翻倍，跨店保留。"
 
 static func leave_detail(_g, _args: Dictionary) -> String:
  return "保留已获得的物品，继续向上一层前进。"
@@ -139,7 +139,7 @@ static func execute(g, p: Dictionary) -> String:
  if p.op=="release":
   var trade=_shop_trade(g,p)
   var jobs=release_jobs(g).filter(func(job):return job.id==p.target)
-  if jobs.is_empty(): return "所选拘束具已经不在身上。"
+  if jobs.is_empty(): return "所选拘束具已经解除。"
   var job=jobs[0]
   if job.reason!="": return job.reason
   if job.pieces.any(func(id):
@@ -150,7 +150,7 @@ static func execute(g, p: Dictionary) -> String:
   for id in job.pieces:
    var target=g._equipment(id)
    if target.is_empty(): return "所选装备的组成已经变化，请重新选择。"
-   target.locked=false
+   g._unlock_equipment(target)
    g._apply_manual_release(target,0.0)
    removed.append(target.id)
   g._emit("event","店主"+("先开锁，再" if job.locked else "")+"卸下了"+job.name+"。支付%s魔力。" % g.number(job.price),{"shop_release":{"room":g.state.room,"target":job.id,"name":job.name,"pieces":removed,"price":job.price,"composite":job.composite,"unlocked":job.locked},"shop_trade":trade})
@@ -158,7 +158,7 @@ static func execute(g, p: Dictionary) -> String:
  if p.op=="remove":
   var trade=_shop_trade(g,p)
   var removed_type=g.Cards.remove_permanent(g,p.uid)
-  if removed_type=="": return "所选卡牌已经不在卡组中。"
+  if removed_type=="": return "所选卡牌已离开卡组。"
   var title=g.B.CARD_NAMES[removed_type]
   var price=discounted_price(g,Data.removal_price(g.state.shop_removals))
   room.remove_used=true
@@ -192,23 +192,23 @@ static func _shop_trade(g, p: Dictionary) -> Dictionary:
  return {"room":g.state.room,"source":source,"arms_level":arms_level,"method":method}
 
 static func validate(g) -> String:
- if not g.Snapshot.fields(g.state,"shop_removals:i") or g.state.shop_removals<0: return "商店删牌次数不正确。"
+ if not g.Snapshot.fields(g.state,"shop_removals:i") or g.state.shop_removals<0: return "商店删牌次数有误。"
  var refreshes=g.state.get("shop_refreshes",0)
- if not refreshes is int or refreshes<0: return "商店刷新次数不正确。"
+ if not refreshes is int or refreshes<0: return "商店刷新次数有误。"
  for room in g.state.rooms:
   if not room.has("stock"): continue
   if room.kind not in ["shop","treasure"] or not room.stock is Array or not room.get("remove_used") is bool: return "商品或宝箱记录损坏。"
   if room.kind=="treasure" and room.get("chest_size","") not in g.RelicRewards.CHESTS: return "宝箱大小记录损坏。"
   for offer in room.stock:
-   if not g.Snapshot.fields(offer,"kind:s type:s price:n taken:b") or offer.price<0: return "商品记录不完整。"
+   if not g.Snapshot.fields(offer,"kind:s type:s price:n taken:b") or offer.price<0: return "商品记录缺损。"
    match offer.kind:
     "card":
-     if not g.Character.reward_member(g,offer.type): return "商品卡牌不存在。"
+     if not g.Character.reward_member(g,offer.type): return "商品卡牌缺失。"
     "tool":
-     if offer.type not in Data.TOOLS: return "商品道具不存在。"
+     if offer.type not in Data.TOOLS: return "商品道具缺失。"
     "relic":
-     if not g.Relics.is_reward(offer.type,room.kind): return "商品遗物不存在。"
-    _: return "商品种类不存在。"
+     if not g.Relics.is_reward(offer.type,room.kind): return "商品遗物缺失。"
+    _: return "商品种类缺失。"
  if g.state.phase in ["shop","treasure"]:
   var current=g.room_data(g.state.room)
   if current.kind!=g.state.phase or not current.has("stock"): return "缺少本房间已经确定的商品。"
@@ -256,7 +256,7 @@ static func _job(g, id: String, title: String, pieces: Array, composite: bool) -
  if composite: price_detail+="＋复合处理%s" % g.number(Data.RELEASE.composite)
  if locked: price_detail+="＋开锁%s" % g.number(Data.RELEASE.locked)
  if price!=base_price: price_detail+="；折后%s魔力" % g.number(price)
- return {"id":id,"name":title,"pieces":ids,"composite":composite,"locked":locked,"price":price,"price_detail":price_detail,"location":"、".join(locations),"reason":reason,"detail":"店主用双手完整卸下这一件"+("及其全部组件" if composite else "及附带固定")+"。"+("费用包含开锁。" if locked else "")+"不消耗你的能量，不推进回合。"}
+ return {"id":id,"name":title,"pieces":ids,"composite":composite,"locked":locked,"price":price,"price_detail":price_detail,"location":"、".join(locations),"reason":reason,"detail":"店主用双手完整卸下这一件"+("及其全部组件" if composite else "及附带固定")+"。"+("费用包含开锁。" if locked else "")+"能量与回合进度保持当前值。"}
 
 static func view(g) -> Dictionary:
  if g.state.phase not in ["shop","treasure"]: return {}

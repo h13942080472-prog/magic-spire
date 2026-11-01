@@ -7,19 +7,19 @@ static func level(g) -> int:
   if value>0: return value
  return 0
 
-static func mouth_score(g) -> int:
+static func mouth_restraint_value(g) -> int:
  var score=0
  for item in g.equipment_at("mouth"):
-  var tightness=g.tier(item.durability,item.maximum)
-  if tightness>0: score=maxi(score,item.grade+tightness)
+  var tightness=g.equipment_tier(item)
+  if tightness>0: score=maxi(score,g.RestraintValue.from_profile(item.grade,tightness))
  return score
 
 static func energy_cost(g) -> int:
- var score=mouth_score(g)
+ var score=mouth_restraint_value(g)
  return 1 if score<=2 else (2 if score<=4 else 3)
 
 static func reason(g) -> String:
- if mouth_score(g)>=6: return "嘴部拘束为高级、紧度3档，无法饮用。"
+ if mouth_restraint_value(g)>=6: return "嘴部拘束为高级、紧度3档，无法饮用。"
  if g.restraint_degree("arms")>0 and g.state.posture not in ["sit","lie"]: return "上身受拘束，需要坐姿或躺姿饮用。"
  return ""
 
@@ -55,7 +55,7 @@ static func give(g, type: String, hand: bool, messages: Array) -> void:
 static func resolve(g, p: Dictionary) -> void:
  # Repeating an effect is not another physical card play.
  if p.get("replay",false):
-  g._emit("event","般若汤升级奖励不因复放重复领取。",{"card":p.type,"replay":true})
+  g._emit("event","般若汤每级升级奖励仅领取一次。",{"card":p.type,"replay":true})
   return
  var old=level(g)
  var next=next_level(g,g.Cards.Rules.SPECS[p.type].hannya_stage)
@@ -79,13 +79,14 @@ static func resolve(g, p: Dictionary) -> void:
 
 static func prepare_innate(g) -> int:
  if not g.state.combat.active or g.state.combat.turn!=1: return 0
- var innate=g.state.draw.filter(func(c):return g.B.CARD_TRAITS.get(c.type,{}).get("innate",false))
+ var innate=g.state.draw.filter(func(c):return g.Enchantments.has_trait(g,c,"innate"))
  for card in innate:
   g.state.draw.erase(card);g.state.draw.append(card)
- return mini(innate.size(),g.B.HAND_LIMIT)
+ # Enchanted Innate only reorders; native Innate retains its opening draw rule.
+ return mini(innate.filter(func(card):return g.B.CARD_TRAITS.get(card.type,{}).get("innate",false)).size(),g.B.HAND_LIMIT)
 
 static func validate(g) -> String:
  var levels=g.state.card_buffs.filter(func(id):return g.Cards.Rules.BUFFS[id].has("hannya_level"))
  var styles=g.state.card_buffs.filter(func(id):return id in ["hannya_short_strike","hannya_justice"])
- if levels.size()>1 or styles.size()>1 or levels.is_empty()!=styles.is_empty(): return "般若汤等级与首次饮用效果不一致。"
+ if levels.size()>1 or styles.size()>1 or levels.is_empty()!=styles.is_empty(): return "般若汤等级与首次饮用效果存在差异。"
  return ""

@@ -53,6 +53,7 @@ const ENTRIES={
  "rest_card":{"form":"table","source":"_rest_choice_kind_facts"},
  "rest_flask":{"form":"table","source":"_rest_choice_kind_facts"},
  "rest_begin":{"form":"table","source":"_rest_choice_kind_facts"},
+ "enchant":{"form":"table","source":"_rest_choice_kind_facts"},
  "service":{"form":"table","source":"_services_kind_facts"},
  "event":{"form":"table","source":"_events_kind_facts"},
  "prison":{"form":"table","source":"_prison_kind_facts"},

@@ -12,6 +12,7 @@
 
 | 判据 | 执行它的检查 |
 | --- | --- |
+| 快速复制纯数字初始种子，指定种子开局共用既有重开入口；拒绝非法值／溢出、取消不写状态，相同选项与种子产生相同初始快照 | `tests/home_ui_cases.gd::seed_entry`（窗口分类 `home`） |
 | `core`／`data` 不引用 `ui` 模块 | `tests/architecture_cases.gd::slice_dependency_directions` |
 | `ui/` 内只有 `ui/main.gd` preload `core`（既有边 `ui/main.gd → core/game.gd`、`ui/main.gd → core/save_store.gd`） | `tests/architecture_cases.gd::slice_dependency_directions` |
 | 附件只经 `core/save_store.gd::fixed_point_text` 读取，`ui/` 里没有第二份存档序列化 | `tests/architecture_cases.gd::feedback_save_single_serializer` |

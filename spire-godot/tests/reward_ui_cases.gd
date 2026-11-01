@@ -62,7 +62,7 @@ static func olihakimi(t) -> void:
  var icon=ui.find_child("RelicShortcut_olihakimi",true,false)
  t.check(icon!=null,"OLI UI displays relic icon")
  await t.move_mouse(icon.get_global_rect().get_center());await t.frames()
- t.check(t.visible_text(ui.layout).contains("本回合未消耗魔力") and t.visible_text(ui.layout).contains("罕见"),"OLI UI hover shows condition and rarity")
+ t.check(t.visible_text(ui.layout).contains("本回合耗魔为0") and t.visible_text(ui.layout).contains("罕见"),"OLI UI hover shows condition and rarity")
  await t.move_mouse(Vector2(650,60));await t.frames()
  t.check(await t.click("end") and ui.game.state.mana==48,"OLI UI actual unspent turn grants eight")
  t.check(await t.click("attack",{"type":"fireball"}),"OLI UI paid spell commits")
@@ -139,7 +139,7 @@ static func run(t) -> void:
  var chain_before=ui.game.export_snapshot()
  await preload("res://tests/interface_ui_cases.gd").press(t,"ReleaseEffectDetails")
  t.check(ui.game.state==chain_before,"REWARD UI expanding final unlock detail does not commit or pay")
- t.check(t.visible_text(ui.layout).contains("这是最后一把锁") and not t.visible_text(ui.layout).contains("至多还可处理"),"REWARD UI final unlock segment does not promise a third lock")
+ t.check(t.visible_text(ui.layout).contains("最后一把锁，免费处理。") and not t.visible_text(ui.layout).contains("还可免费处理"),"REWARD UI final unlock segment does not promise a third lock")
  await t.capture("ui-53-double-unlock.png")
  t.check(await t.click("chain",{"target":b.id}) and not ui.game._equipment(b.id).locked and ui.view.mana==90,"REWARD UI second lock opens without another magic payment")
 
@@ -508,7 +508,7 @@ static func rest_reward_layout(t) -> void:
   var controls=[ui.find_child("Reward_card_uncommon",true,false),ui.find_child("Reward_card_rare",true,false),ui.find_child("Reward_item_flask",true,false)]
   t.check(controls.all(func(button):return button!=null and button.size==Vector2(656,94)) and controls.all(func(button):return button.position.x==controls[0].position.x),"REST UI three options share reward-card width, height and alignment")
   t.check(controls[1].position.y-controls[0].position.y==controls[2].position.y-controls[1].position.y and controls.all(func(button):return ui.get_viewport_rect().encloses(button.get_global_rect())),"REST UI rows have equal spacing and stay on screen")
-  t.check(ui.find_child("RewardSkip_card_uncommon",true,false)==null and ui.find_child("RewardSkip_card_rare",true,false)==null and ui.find_child("RewardExtra_rest_rare",true,false)==null and ui.find_child("RewardExtra_rest_flask",true,false)==null and ui.find_child("RewardContinue",true,false).text.contains("休息6回合"),"REST UI has one clear skip footer without old detached actions")
+  t.check(ui.find_child("RewardSkip_card_uncommon",true,false)==null and ui.find_child("RewardSkip_card_rare",true,false)==null and ui.find_child("RewardExtra_rest_rare",true,false)==null and ui.find_child("RewardExtra_rest_flask",true,false)==null and ui.find_child("RewardContinue",true,false).text.contains("开始休息"),"REST UI has one clear skip footer without old detached actions")
   t.check(controls.all(func(button):return t.visible_text(button).contains("花费3回合")) and ui.game.state==before,"REST UI costs are visible without changing frozen choices or resources")
   if kind=="rest_rare": await t.capture("ui-rest-rewards.png")
   if kind=="rest_card":
@@ -520,7 +520,7 @@ static func rest_reward_layout(t) -> void:
   var selection={"type":before.rest_cards[0]} if kind=="rest_card" else {}
   t.check(await t.click(kind,selection),"REST UI shared reward control dispatches formal action: "+kind)
   var expected=6 if kind=="rest_begin" else 3
-  t.check(ui.game.state.phase=="rest" and ui.game.state.rest_left==expected,"REST UI selection enters rest with exact remaining turns: "+kind)
+  t.check(ui.game.state.phase==("rest" if kind=="rest_begin" else "rest_choice") and ui.game.state.rest_left==expected,"REST UI selection retains service phase or enters rest with exact remaining turns: "+kind)
   if kind=="rest_rare": t.check(ui.game.state.deck.size()==before.deck.size()+1 and ui.game.Cards.Rules.SPECS[ui.game.state.deck[-1].type].rarity=="rare","REST UI random card row grants one actual rare card")
   elif kind=="rest_card": t.check(ui.game.state.deck.size()==before.deck.size()+1 and ui.game.state.deck[-1].type==selection.type and ui.game.state.flask_mana==before.flask_mana,"REST UI grants exactly the selected uncommon card without changing the flask")
   elif kind=="rest_flask": t.check(ui.game.state.flask_mana==before.flask_mana+50 and ui.game.state.deck==before.deck,"REST UI flask row adds fifty only to flask and leaves deck unchanged")
@@ -528,7 +528,7 @@ static func rest_reward_layout(t) -> void:
  ui.restart(42);ui.game.state.room="rest";ui.game._start_rest();ui.game.state.rest_left=2;ui.render();await t.frames()
  for id in ["Reward_card_uncommon","Reward_card_rare","Reward_item_flask"]:
   var button=ui.find_child(id,true,false)
-  t.check(button.disabled and t.visible_text(button).contains("休息回合不足"),"REST UI insufficient time disables option with visible reason: "+id)
+  t.check(button.disabled and t.visible_text(button).contains("需要更多休息回合"),"REST UI insufficient time disables option with visible reason: "+id)
  await Pointer.press(t,ui.find_child("RewardContinue",true,false))
  t.check(ui.game.state.phase=="rest" and ui.game.state.rest_left==2,"REST UI insufficient-time screen still permits free skip")
 

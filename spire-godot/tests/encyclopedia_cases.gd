@@ -15,9 +15,11 @@ static func run(t) -> void:
  t.check(items.filter(func(entry):return entry.group=="药剂").size()==Book.Tools.TYPES.values().filter(func(spec):return spec.get("category","")=="potion").size(),"BOOK potion branch follows registered categories")
 
  var illustrated=entries.filter(func(e):return e.category=="equipment")
+ var wraps=illustrated.filter(func(e):return e.id.begins_with("composite_wrap_"))
+ t.check(wraps.size()==3 and wraps.map(func(e):return e.grade)==[1,2,3] and wraps.all(func(e):return e.title=="胶带包裹" and e.text.contains("只包裹对应一侧的手掌和手指")),"BOOK hand wraps share one single-hand entry per grade")
  t.check(illustrated.all(func(e):return not e.text.contains("紧度：剩余耐久")),"BOOK omits the unwanted generic tightness-band explanation")
  var wrap=illustrated.filter(func(e):return e.id=="composite_wrap_left_straight3")[0]
- t.check(wrap.text.contains("覆盖：手掌、手指\n\n包裹：耐久24；") and not wrap.text.contains("组件：包裹") and not wrap.text.contains("24.0") and wrap.text.contains("\n\n只包裹"),"BOOK compact composite paragraphs separate coverage, component values and effects without duplicate labels")
+ t.check(wrap.text.contains("覆盖：手掌、手指\n\n包裹：耐久30；") and not wrap.text.contains("组件：包裹") and not wrap.text.contains("30.0") and wrap.text.contains("\n\n只包裹"),"BOOK compact composite paragraphs separate coverage, component values and effects without duplicate labels")
  for config in [[1,0],[2,0],[2,1],[3,0]]:
   var entry=entries.filter(func(e):return e.id=="equipment_mouth_band_%d_%d" % config)[0]
   var grade_factor=Book.B.MOUTH_CAST_GRADE[config[0]]
@@ -26,13 +28,13 @@ static func run(t) -> void:
    t.check(entry.text.contains(str(grade_factor*Book.B.MOUTH_CAST_TIGHTNESS[tightness])),"BOOK gag lists every actual combined tightness multiplier")
   t.check(entry.text.contains("马具结构禁止")==Book.E.mouth_combination(config[0],config[1]).harness,"BOOK only harness combinations claim structural slip prohibition")
  for entry in illustrated:
-  if entry.id.begins_with("equipment_eye_"): t.check(entry.text.contains("看不到敌人意图"),"BOOK every eye cover explains visual limitation")
+  if entry.id.begins_with("equipment_eye_"): t.check(entry.text.contains("敌人意图隐藏"),"BOOK every eye cover explains visual limitation")
   if entry.id.begins_with("composite_"): t.check(entry.text.contains("耐久"),"BOOK composite components include actual durability and methods")
  t.check(illustrated.filter(func(e):return e.id=="composite_glove_long_cross2")[0].text.contains("滑脱效果×0.5") and illustrated.filter(func(e):return e.id=="composite_leg_toes_straight2")[0].text.contains("外带保留"),"BOOK composite structure exceptions are explicit")
  t.check(illustrated.filter(func(e):return e.id=="link_rope")[0].text.contains("×1.25"),"BOOK link explains the ordinary downward-link modifier")
  for entry in entries.filter(func(e):return e.category=="special"):
   var spec=Book.S.TYPES[entry.id]
-  if spec.duration>0: t.check(entry.text.contains("装备不会自动解除"),"BOOK battery expiry does not imply removal")
+  if spec.duration>0: t.check(entry.text.contains("装备继续佩戴"),"BOOK battery expiry does not imply removal")
   if "manual" in Book.S.DESIGNS[entry.id].methods: t.check(entry.text.contains("1能量直接取出"),"BOOK manual special equipment explains actual cost and body conditions")
   if Book.S.is_chastity_type(entry.id): t.check(entry.text.contains(spec.detail) and entry.text.contains("品质＋紧度"),"BOOK plate-lock entries include their registered exceptions and numerical effects")
  t.check(not illustrated.is_empty() and illustrated.all(func(e):return e.get("image","")!="" and load(e.image) is Texture2D),"BOOK ordinary, composite and link entries have loadable equipment images")
@@ -79,7 +81,7 @@ static func run(t) -> void:
   var affected=not spec.get("humanoid",false) or not spec.has("capture_kind")
   t.check(not entry.text.contains("不会自行离场") and entry.text.contains("长战斗：")==affected,"BOOK long-battle copy follows humanoid and capture boundaries: "+entry.id)
   if affected:
-   t.check(entry.text.contains("第15回合") and entry.text.contains("20件") and entry.text.contains("40") and entry.text.contains("首领战整场不适用"),"BOOK long-battle thresholds and boss exemption are explicit: "+entry.id)
+   t.check(entry.text.contains("第15回合") and entry.text.contains("20件") and entry.text.contains("40") and entry.text.contains("首领战及其随行单位维持原规则"),"BOOK long-battle thresholds and boss exemption are explicit: "+entry.id)
    t.check(entry.text.contains("反复准备逮捕") if spec.get("humanoid",false) else entry.text.contains("自动离场"),"BOOK long-battle outcome follows the registered enemy kind: "+entry.id)
  var iron_box=entries.filter(func(e):return e.category=="enemies" and e.id=="binding_box")[0]
  t.check(iron_box.text.contains("生命：64") and iron_box.text.contains("铁男战中的随行实例为40") and iron_box.text.contains("小魔女铁男战为52"),"BOOK binding box distinguishes its ordinary and Iron Man encounter health")

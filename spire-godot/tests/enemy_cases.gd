@@ -1,4 +1,5 @@
 extends RefCounted
+const RestraintValue=preload("res://data/restraint_value.gd")
 const Game=preload("res://tests/game_fixture.gd")
 const Enemies=preload("res://data/enemies.gd")
 const Save=preload("res://tests/persistence_cases.gd")
@@ -16,6 +17,7 @@ static func run(t) -> void:
  preload("res://tests/enemy_versatile_cases.gd").run(t)
  preload("res://tests/enemy_mixed_cases.gd").run(t)
  preload("res://tests/enemy_ritual_cases.gd").run(t)
+ preload("res://tests/enemy_restraint_value_cases.gd").run(t)
  preload("res://tests/enemy_serpent_cases.gd").run(t)
  preload("res://tests/enemy_split_cases.gd").run(t)
  preload("res://tests/enemy_heap_cases.gd").run(t)
@@ -32,7 +34,7 @@ static func run(t) -> void:
  t.check(g._enemy(first).hp==30 and g._enemy(second).hp==22 and not g._enemy(first).intent.delayed and g._enemy(second).intent.delayed,"DOUBLE infused ordinary kick deals eight and delays only chosen second enemy")
  t.action(g,"end")
  t.check(g._enemy(first).stage==2 and g._enemy(second).stage==1 and g.state.equipment[0].source==first,"DOUBLE stages and equipment ownership independent")
- t.check(g.state.equipment[0].template in intent.templates and g.state.equipment[0].grade==intent.grade,"DOUBLE first enemy installs from its declared pool and grade")
+ t.check(g.state.equipment[0].template in intent.templates and intent.profiles.has({"grade":g.state.equipment[0].grade,"tier":g.tier(g.state.equipment[0].durability,g.state.equipment[0].maximum)}),"DOUBLE first enemy installs from its declared pool and grade")
  g._enemy(first).hp=1; g._enemy(second).hp=1
  t.action(g,"attack",{"type":"strike","enemy":first})
  t.check(g.state.phase=="battle" and g.state.reward_count==0,"DOUBLE first defeat gives no reward")
@@ -156,7 +158,7 @@ static func vision_cases(t) -> void:
  # No newly generated charge/preparation log may reveal hidden future operations.
  g=encounter("gag_solo");g.add_fixture("eyes",4)
  t.action(g,"end")
- t.check(g.state.logs.any(func(log):return log.text.contains("未能看清")) and g.state.summary.contains("无法观察敌人意图") and not g.state.logs.any(func(log):return log.text.contains("准备施加")),"VISION attachment charge log conceals planned equipment")
+ t.check(g.state.logs.any(func(log):return log.text.contains("行动已隐藏")) and g.state.summary.contains("无法观察敌人意图") and not g.state.logs.any(func(log):return log.text.contains("准备施加")),"VISION attachment charge log conceals planned equipment")
  g=Game.new(42,true,"guard");g.add_fixture("eyes",4)
  var guard=g.state.enemies[0];guard.stage=2;guard.guard.bind_ready=false;guard.intent={"kind":"bind_prepare","text":"准备捕缚","delayed":false}
  t.action(g,"end")
@@ -186,18 +188,18 @@ static func ordinary_cases(t) -> void:
   for seed_value in t.seed_values("enemy_cycle"):
    var g=encounter(type+"_solo",seed_value);var id=g.state.enemies[0].id
    var first=g._enemy(id).intent.duplicate(true)
-   t.check(first.kind=="apply" and first.grade==1 and first.tier==2,"WEAK initial application declares basic tier two")
+   t.check(first.kind=="apply" and first.profiles==RestraintValue.profiles(3),"WEAK initial application declares value-three profiles")
    t.action(g,"end")
-   t.check(g.state.equipment.size()==1 and g.state.equipment[0].source==id and g.state.equipment[0].template in Enemies.TYPES[type].install_pool and g.state.equipment[0].grade==1 and g.tier(g.state.equipment[0].durability,g.state.equipment[0].maximum)==2,"WEAK sampled first install uses own material, basic grade and tier two")
+   t.check(g.state.equipment.size()==1 and g.state.equipment[0].source==id and g.state.equipment[0].template in Enemies.TYPES[type].install_pool and g.state.equipment[0].grade==1 and g.tier(g.state.equipment[0].durability,g.state.equipment[0].maximum)==2,"WEAK sampled first install uses own material at basic tier two")
    t.check(g._enemy(id).intent.kind=="tighten","WEAK second action reinforces same material")
    t.action(g,"end")
    t.check(g._enemy(id).stage==3 and g._enemy(id).intent.kind=="charge","WEAK third action prepares")
    var h=Save.roundtrip(t,g,"final charge "+type)
    Save.step_both(t,g,h,"end")
-   t.check(g._enemy(id).intent.kind=="apply" and g._enemy(id).intent.final and g._enemy(id).intent.grade==2 and g._enemy(id).intent.tier==3,"WEAK preparation advances to final middle-grade tier-three application")
+   t.check(g._enemy(id).intent.kind=="apply" and g._enemy(id).intent.final and g._enemy(id).intent.profiles==RestraintValue.profiles(5),"WEAK preparation advances to final value-five application")
    Save.step_both(t,g,h,"end")
    t.check(g.state.phase=="reward" and g.state.reward_count==1 and g._enemy(id).gone,"WEAK final leaves with one reward")
-   t.check(g.state.equipment.any(func(e):return e.source==id and e.template in Enemies.TYPES[type].final_pool and e.grade==2 and g.tier(e.durability,e.maximum)==3),"WEAK sampled final equipment remains from final pool at medium tier three")
+   t.check(g.state.equipment.any(func(e):return e.source==id and e.template in Enemies.TYPES[type].final_pool and e.grade+g.tier(e.durability,e.maximum)==5),"WEAK sampled final equipment remains from final pool at value five")
  var head=encounter("tape_solo")
  head.add_fixture("wrist",8);head.add_fixture("fingers",8,10,false,0,"cord")
  t.check(head.Application.choose(head,{"templates":Enemies.TYPES.tape.install_pool,"grade":1},"test").template=="mouth_tape","WEAK tape chooses empty mouth before third-band eyes")
@@ -205,10 +207,11 @@ static func ordinary_cases(t) -> void:
  # Reinforcement chooses from equipment present when it acts, preferring its own source.
  var g=encounter("rope_solo");t.action(g,"end")
  var id=g.state.enemies[0].id;var original=g.state.equipment[0].id
+ var reinforced_tier=mini(3,g.tier(g.state.equipment[0].durability,g.state.equipment[0].maximum)+1)
  var other=g._install_template("cord","toes",4,10,false,"fixture")
  var unrelated=g._install_template("belt","ankle",1,10,false,id)
  t.action(g,"end")
- t.check(g._equipment(original).durability==10 and g._equipment(other.id).durability==4 and g._equipment(unrelated.id).durability==1,"WEAK reinforcement prioritizes its own material and source over a looser foreign piece")
+ t.check(g.tier(g._equipment(original).durability,g._equipment(original).maximum)==reinforced_tier and g._equipment(other.id).durability==4 and g._equipment(unrelated.id).durability==1,"WEAK reinforcement prioritizes its own material and source over a looser foreign piece")
  g=encounter("rope_solo");t.action(g,"end")
  original=g.state.equipment[0].id
  other=g._install_template("cord","toes",4,10,false,"fixture")
@@ -229,12 +232,14 @@ static func ordinary_cases(t) -> void:
   t.check(t.action(g,"end").ok and g.state.equipment.size()==1,"WEAK substitute declaration executes exactly one installation")
   var installed=g.state.equipment[0]
   var pool=Enemies.TYPES.rope.final_pool if declared.final else Enemies.TYPES.rope.install_pool
-  t.check(installed.template in pool and installed.grade==(2 if declared.final else 1) and g.tier(installed.durability,installed.maximum)==(3 if declared.final else 2) and g._enemy(id).gone==declared.final,"WEAK only departure upgrades tier; normal application keeps its original grade and tier")
- # Fill wrists after the final declaration; execution selects the now-empty mouth.
- g=encounter("tape_solo");t.action(g,"end");t.action(g,"end");t.action(g,"end")
- for i in range(5):g._install_template("tape","wrist",4,10,false,"fixture")
+  t.check(installed.template in pool and installed.grade+g.tier(installed.durability,installed.maximum)==(5 if declared.final else 3) and g._enemy(id).gone==declared.final,"WEAK fallback preserves the selected initial or departure value")
+ # Fill both higher/equal-priority hand slots after declaration; only the mouth stays in the next band.
+ g=encounter("tape_solo");g.state.enemies[0].stage=4;g.state.enemies[0].intent=g._plan(g.state.enemies[0])
+ for slot in ["wrist","fingers"]:
+  for i in range(g.Equipment.capacity(slot,"tape")):
+   t.check(not g._install_template("tape",slot,4,10,false,"fixture").is_empty(),"WEAK final retarget fixture fills real hand capacity")
  var count=g.state.equipment.size();t.action(g,"end")
- t.check(g.state.phase=="reward" and g.state.equipment.size()==count+1 and g.equipment_at("mouth").size()==1 and g.equipment_at("mouth")[0].grade==2,"WEAK final execution chooses current legal priority and leaves after one installation")
+ t.check(g.state.phase=="reward" and g.state.equipment.size()==count+1 and g.equipment_at("mouth").size()==1 and g.equipment_at("mouth")[0].grade+g.tier(g.equipment_at("mouth")[0].durability,g.equipment_at("mouth")[0].maximum)==5,"WEAK final execution chooses current legal priority and leaves after one installation")
 
 static func toybox_cases(t) -> void:
  for stage in [1,2,3]:
@@ -571,6 +576,9 @@ static func humanoid_equipment_audit(t) -> void:
   if type=="six_bind": g=preload("res://tests/six_bind_cases.gd").encounter()
   if type=="iron_man":
    g=Game.new(42);g.state.room_encounters.entrance="iron_man_solo";g._start_battle()
+  if type=="rope_assistant":
+   g=Game.new(42);g.state.room_encounters.entrance="rope_master_solo";g._start_battle()
+   g.RopeArt.summon(g,g.RopeArt.master(g))
   var actors=g.state.enemies.filter(func(enemy):return enemy.type==type)
   t.check(actors.size()==1,"HUMAN AUDIT real encounter contains registered actor: "+type)
   if actors.is_empty(): continue
@@ -587,7 +595,8 @@ static func humanoid_equipment_audit(t) -> void:
   var plan=ordinary[0].duplicate(true)
   plan.count=1;plan.templates=["belt"];plan.required_slots=["wrist"];plan.allow_links=false;plan.shoulders=false
   g._enemy_operation(e,plan)
-  t.check(existing.filter(func(item):return g._equipment(item.id).is_empty()).size()==1 and g.equipment_at("wrist").any(func(item):return item.grade==plan.grade and item.template=="belt"),"HUMAN AUDIT real operation replaces one weaker full-slot item: "+type)
+  var profiles=plan.get("profiles",[{"grade":plan.grade,"tier":plan.tier}])
+  t.check(existing.filter(func(item):return g._equipment(item.id).is_empty()).size()==1 and g.equipment_at("wrist").any(func(item):return item.id not in existing.map(func(old):return old.id) and ((item.template=="belt" and profiles.has({"grade":item.grade,"tier":g.equipment_tier(item)})) or (item.template=="handcuffs" and profiles.any(func(profile):return profile.grade+profile.tier==g.Equipment.SHACKLE_RESTRAINT_VALUE)))),"HUMAN AUDIT real operation replaces one weaker full-slot item within the ordinary belt/cuff pool and budget: "+type)
   t.check(g._equipment(outside.id)==outside and g.state.logs.any(func(log):return not log.data.get("replaced",[]).is_empty()),"HUMAN AUDIT replacement reports actual removal and preserves unrelated equipment: "+type)
  # One occupied mouth slot still admits outer tape; fallback starts at full capacity.
  for grade in [1,2]:
@@ -597,7 +606,7 @@ static func humanoid_equipment_audit(t) -> void:
   g._six_area_sweep(g.state.enemies[0],grade,2)
   var pieces=g.equipment_at("mouth")
   var added=pieces.filter(func(item):return item.id!=mouth.id)
-  t.check(pieces.size()==2 and added.size()==1 and added[0].template=="mouth_tape" and added[0].grade==grade and added[0].layer>mouth.layer and g._equipment(mouth.id)==before,"HUMAN AUDIT six-bind appends legal outer tape before tightening an occupied mouth at grade "+str(grade))
+  t.check(pieces.size()==2 and added.size()==1 and added[0].template=="mouth_tape" and added[0].grade+g.equipment_tier(added[0])==grade+2 and added[0].layer>mouth.layer and g._equipment(mouth.id)==before,"HUMAN AUDIT six-bind appends legal outer tape before tightening an occupied mouth at grade "+str(grade))
   g=preload("res://tests/six_bind_cases.gd").encounter(41)
   mouth=R.install(g,R.request("mouth",3,2));before=mouth.duplicate(true)
   var tape_request=R.request("mouth",3,2);tape_request.template="mouth_tape"

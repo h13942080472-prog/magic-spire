@@ -45,7 +45,7 @@ static func forced_special_boundaries(t) -> void:
  g=Game.new(42)
  var rope=g._install_special("crotch_rope_low","special_3_a")
  var wrist=g.add_fixture("wrist",8)
- var link=g._install_link(rope.id,wrist.id,8,"fixture")
+ var link=g._install_link(rope.id,wrist.id,4.8,"fixture")
  t.check(not link.is_empty() and g.validate()=="","REPLACEMENT forced loss fixture has a legal special-to-wrist link")
  result=Replacement.force_special(g,"vaginal_egg_low",2,"fixture")
  t.check(result.ok and result.removed==[rope.id] and result.lost_links==[link.id] and g.state.links.is_empty(),"REPLACEMENT forced result separates removed special roots from detached links")
@@ -89,7 +89,7 @@ static func equivalent_link_transfers(t) -> void:
  var g=Game.new(42)
  var old=install(g,request("wrist"))
  var upper=install(g,request("forearm",1,2,"mid_forearm"))
- var link=g._install_link(old.id,upper.id,8,"fixture",1,[],["wrist","forearm"],["wrist","mid_forearm"])
+ var link=g._install_link(old.id,upper.id,4.8,"fixture",1,[],["wrist","forearm"],["wrist","mid_forearm"])
  t.check(not link.is_empty(),"REPLACEMENT transfer fixture starts with a real link")
  g.state.links.clear();g.state.equipment.erase(old)
  var first=install(g,request("wrist"))
@@ -106,7 +106,7 @@ static func partially_lost_transfers(t) -> void:
  var palm=install(g,request("palm"))
  var ankle=install(g,request("ankle"))
  var foot=install(g,request("foot"))
- var links=[g._install_link(upper.id,wrist.id,8,"fixture",1,[],["forearm","wrist"],["mid_forearm","wrist"]),g._install_link(wrist.id,palm.id,8,"fixture",1,[],["wrist","palm"],["wrist","palm_left"]),g._install_link(ankle.id,foot.id,8,"fixture",1,[],["ankle","foot"],["ankle","foot"])]
+ var links=[g._install_link(upper.id,wrist.id,4.8,"fixture",1,[],["forearm","wrist"],["mid_forearm","wrist"]),g._install_link(wrist.id,palm.id,4.8,"fixture",1,[],["wrist","palm"],["wrist","palm_left"]),g._install_link(ankle.id,foot.id,4.8,"fixture",1,[],["ankle","foot"],["ankle","foot"])]
  t.check(links.all(func(link):return not link.is_empty()) and g.validate()=="","REPLACEMENT partial transfer fixture has three legal links")
  if links.any(func(link):return link.is_empty()): return
  g.state.links.clear();g.state.equipment.erase(wrist);g.state.equipment.erase(ankle)
@@ -297,7 +297,7 @@ static func run(t) -> void:
  g=Game.new(42)
  var wrists=fill(g,"wrist")
  var palm=install(g,request("palm",1,1))
- var link=g._install_link(wrists[0].id,palm.id,7,"fixture",1,[wrists[0].id],["wrist","palm"],["wrist","palm_left"])
+ var link=g._install_link(wrists[0].id,palm.id,4.2,"fixture",1,[wrists[0].id],["wrist","palm"],["wrist","palm_left"])
  var old_link=link.duplicate(true)
  p=unchanged(t,g,[request("wrist",2,2)],"link transfer")
  t.check(p.ok and p.removed==[wrists[0].id] and p.lost_links.is_empty(),"REPLACEMENT legal transfer avoids loss penalty")
@@ -313,7 +313,7 @@ static func run(t) -> void:
  first=install(g,request("wrist",1,1))
  for i in range(2):
   install(g,request("forearm",2,2,"mid_forearm"));install(g,request("wrist",2,2))
- link=g._install_link(forearm.id,first.id,8,"fixture",1,[],["forearm","wrist"],["mid_forearm","wrist"])
+ link=g._install_link(forearm.id,first.id,4.8,"fixture",1,[],["forearm","wrist"],["mid_forearm","wrist"])
  p=unchanged(t,g,[glove()],"both lost endpoints")
  t.check(p.ok and p.lost_links==[link.id] and p.comparisons.size()==2 and p.comparisons.all(func(r):return r.lost_link_bonus==1),"REPLACEMENT one lost link charges each old endpoint but is deleted once")
  if p.ok: t.check(Replacement.execute(g,p).ok and g.state.links.is_empty() and g.validate()=="","REPLACEMENT same-root reconnection rejected by official link validator")
@@ -325,8 +325,8 @@ static func run(t) -> void:
  var middle_partner=install(g,request("forearm",3,2,"mid_forearm"))
  install(g,request("forearm",3,2,"mid_forearm"))
  var wrist_partner=install(g,request("wrist",1,1))
- var expendable=g._install_link(middle.id,wrist_partner.id,8,"fixture",1,[],["forearm","wrist"],["mid_forearm","wrist"])
- var critical=g._install_link(below.id,middle_partner.id,7,"fixture",1,[],["forearm","forearm"],["below_elbow","mid_forearm"])
+ var expendable=g._install_link(middle.id,wrist_partner.id,4.8,"fixture",1,[],["forearm","wrist"],["mid_forearm","wrist"])
+ var critical=g._install_link(below.id,middle_partner.id,4.2,"fixture",1,[],["forearm","forearm"],["below_elbow","mid_forearm"])
  p=unchanged(t,g,[glove()],"direction-budget alternatives")
  t.check(p.ok and p.lost_links==[expendable.id],"REPLACEMENT searches equal-size legal transfer sets before rejecting local majority")
  if p.ok:

@@ -14,6 +14,17 @@ static func tools_panel(t) -> String:
 static func run(t) -> void:
  var ui=t.ui
  var images=preload("res://data/equipment_images.gd")
+ for type in ui.game.Equipment.SHACKLES:
+  ui.restart(42)
+  var item=preload("res://tests/shackle_cases.gd").install(ui.game,type)
+  ui.render();await t.frames();await t.inspect_body(item.slot)
+  var row=ui._body_at(item.slot).targets[item.id]
+  var card=ui.find_child("EquipmentCard_"+item.id,true,false)
+  t.check(row.no_tightness and row.tier==0 and t.visible_text(card).contains("无紧度") and not t.visible_text(card).contains("紧度3档"),"SHACKLE real equipment panel shows no-tightness status")
+  t.check(ResourceLoader.exists(row.image) and row.image==images.path({"template":"fine_belt" if item.slot in ["fingers","toes"] else "belt","slot":item.slot,"material":"leather","grade":1,"variant":0}),"SHACKLE panel reuses corresponding leather item image")
+  var materials=ui.game.View.portrait_materials(ui.game,[item])
+  if item.slot in ["wrist","fingers"]: t.check(materials.upper=="leather","SHACKLE upper portrait reuses leather layer")
+  elif item.slot=="ankle": t.check(materials.ankle=="leather","SHACKLE ankle portrait reuses leather layer")
  for family in images.MATERIALS:
   for file in images.MATERIALS[family]:
    var texture=load("res://assets/ui/equipment/"+file+".png") as Texture2D

@@ -59,7 +59,7 @@ func _ready() -> void:
   var goods_width=(1138.0-12.0*(slots-1))/slots
   var top=428 if kind=="tool" else 566
   for i in range(goods.size()): _offer(goods[i],Rect2(380+i*(goods_width+12),top,goods_width,116))
-  if goods.is_empty(): _text("没有新的遗物可出售",Rect2(380,top+35,450,30),17,ui.MUTED)
+  if goods.is_empty(): _text("遗物已售罄",Rect2(380,top+35,450,30),17,ui.MUTED)
  var release=_service_button("拘束解除", "release",Rect2(380,718,275,46));release.name="ShopRelease"
  var remove=_service_button("删牌服务 · %s魔力" % ui.game.number(ui.view.shop.remove_price), "remove",Rect2(667,718,275,46));remove.name="ShopRemove"
  remove.disabled=ui.view.shop.remove_used
@@ -155,7 +155,7 @@ static func services(ui, parent: VBoxContainer) -> void:
  elif ui.shop_service_mode=="remove": parent.add_child(ui._label("永久移除一张牌，本店仅一次。本次%s魔力。" % ui.game.number(ui.view.shop.remove_price),16,ui.CYAN))
  var scroll=ui._scroll(parent)
  if offers.is_empty():
-  scroll.add_child(ui._label({"release":"目前没有需要卸下的拘束具。","remove":"本店的删牌服务已使用。","discard":"没有需要整理的随身道具。"}[ui.shop_service_mode],18,ui.MUTED));return
+  scroll.add_child(ui._label({"release":"当前全身自由。","remove":"本店的删牌服务已使用。","discard":"道具栏为空。"}[ui.shop_service_mode],18,ui.MUTED));return
  if ui.shop_service_mode=="remove":
   var grid=GridContainer.new();grid.columns=3;grid.add_theme_constant_override("h_separation",18);scroll.add_child(grid)
   for c in offers:

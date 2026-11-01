@@ -88,10 +88,10 @@ static func run(t) -> void:
  g=shop()
  var a=g._install_template("rope","calf",8,10,false,"fixture",1,-1,0,"mid_calf")
  var b=g.add_fixture("ankle",8)
- var link=g._install_link(a.id,b.id,8,"fixture")
+ var link=g._install_link(a.id,b.id,4.8,"fixture")
  var target_id=link.id
  t.check(t.action(g,"service",{"op":"release","target":target_id}).ok and g.state.links.is_empty() and g._equipment(a.id)==a and g._equipment(b.id)==b,"SHOP RELEASE connection-only service preserves both endpoints")
- link=g._install_link(a.id,b.id,8,"fixture")
+ link=g._install_link(a.id,b.id,4.8,"fixture")
  t.check(t.action(g,"service",{"op":"release","target":a.id}).ok and g.state.links.is_empty() and g._equipment(b.id)==b,"SHOP RELEASE root removal uses dependency cleanup")
  g=shop()
  var host=g._install_template("belt","upper_arm",10,10,false,"fixture")

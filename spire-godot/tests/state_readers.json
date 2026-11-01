@@ -113,11 +113,11 @@
     }
   },
   "generated_from": {
-    "cells": 1264,
+    "cells": 1303,
     "fields": 121,
-    "files": 129,
-    "inputs_sha256": "21c193880f8cefb3b11d0d86d132a88a05aee8c26675cd871b43fbe188239cd0",
-    "sites": 2075,
+    "files": 140,
+    "inputs_sha256": "bf98c96913b8b4085626d7370d0f062fc0ec1b27618bf74e6ed37f1db59a4d78",
+    "sites": 2136,
     "ui_reads": 0,
     "whole_state": 52
   },
@@ -258,7 +258,7 @@
     "core/card_effects.gd::detail": {
       "card_chain": 1,
       "mana": 1,
-      "pressure": 2,
+      "pressure": 3,
       "spell_base_bonuses": 2
     },
     "core/card_effects.gd::end_hand": {
@@ -330,7 +330,7 @@
       "temporary_mana": 1
     },
     "core/card_effects.gd::play": {
-      "card_chain": 6,
+      "card_chain": 8,
       "exhaust": 1,
       "hand": 2,
       "play": 1,
@@ -376,8 +376,9 @@
       "hand": 5,
       "mana": 10,
       "mana_max": 3,
-      "pressure": 1,
+      "pressure": 2,
       "spell_base_bonuses": 2,
+      "temporary_mana": 1,
       "turn_strength": 1
     },
     "core/card_effects.gd::restraint_changed": {
@@ -391,13 +392,11 @@
       "tick": 1
     },
     "core/card_effects.gd::select_exhaust": {
-      "card_chain": 2,
+      "card_chain": 5,
       "exhaust": 1
     },
     "core/card_effects.gd::settle_played_card": {
-      "discard": 1,
-      "exhaust": 1,
-      "play": 2
+      "play": 3
     },
     "core/card_effects.gd::target_payload": {
       "card_chain": 1
@@ -416,6 +415,7 @@
       "card_chain": 3,
       "deck": 1,
       "evasion": 3,
+      "exhaust": 1,
       "hand": 1,
       "overloaded": 2,
       "pending_retain": 1,
@@ -431,6 +431,34 @@
       "composites": 1,
       "equipment": 1,
       "special_equipment": 1
+    },
+    "core/card_enchantments.gd::card_for": {
+      "play": 2
+    },
+    "core/card_enchantments.gd::destination": {
+      "hand": 1
+    },
+    "core/card_enchantments.gd::execute": {
+      "rest_left": 1,
+      "room": 1
+    },
+    "core/card_enchantments.gd::facts": {
+      "deck": 2,
+      "rest_left": 2,
+      "room": 1
+    },
+    "core/card_enchantments.gd::panel": {
+      "deck": 1,
+      "room": 1
+    },
+    "core/card_enchantments.gd::prepare": {
+      "room": 1
+    },
+    "core/card_enchantments.gd::roll": {
+      "deck": 1,
+      "room": 1,
+      "seed": 1,
+      "tower_generation": 1
     },
     "core/card_rewards.gd::eligible": {
       "deck": 1,
@@ -667,7 +695,7 @@
       "enemies": 1
     },
     "core/game.gd::_append_enemies": {
-      "enemies": 15,
+      "enemies": 16,
       "next_enemy": 2,
       "overload_total": 1,
       "room": 1,
@@ -707,6 +735,9 @@
       "overload_energy": 1,
       "slip_ejaculation_turns": 5,
       "tick": 1
+    },
+    "core/game.gd::_begin_rest": {
+      "rest_left": 1
     },
     "core/game.gd::_card": {
       "hand": 1
@@ -800,7 +831,7 @@
       "prison": 2,
       "rest_left": 4,
       "reward_claimed": 2,
-      "room": 2,
+      "room": 4,
       "wall_distance": 3
     },
     "core/game.gd::_execute_attack": {
@@ -944,7 +975,7 @@
       "next_composite": 1
     },
     "core/game.gd::_prepare_installation": {
-      "equipment": 1
+      "equipment": 2
     },
     "core/game.gd::_prepare_link": {
       "links": 1,
@@ -1049,6 +1080,7 @@
     },
     "core/game.gd::_start_rest": {
       "practice": 1,
+      "practice_kind": 1,
       "room": 1
     },
     "core/game.gd::_start_round": {
@@ -1076,7 +1108,8 @@
     },
     "core/game.gd::_unit_rest_choice": {
       "rest_cards": 2,
-      "rest_left": 4
+      "rest_left": 4,
+      "room": 1
     },
     "core/game.gd::_unit_reward": {
       "battle_flask_drop": 2,
@@ -1242,7 +1275,7 @@
       "hand": 1,
       "overloaded": 1,
       "pending_retain": 1,
-      "phase": 1,
+      "phase": 2,
       "version": 1
     },
     "core/game.gd::retain_facts": {
@@ -1374,6 +1407,7 @@
       "initial_seed": 1,
       "items": 1,
       "journey": 1,
+      "links": 1,
       "logs": 3,
       "mana": 1,
       "mana_max": 1,
@@ -1410,7 +1444,7 @@
       "rest_cards": 1,
       "rest_left": 2,
       "reward_claimed": 1,
-      "room": 1,
+      "room": 2,
       "room_event": 1
     },
     "core/game_view.gd::run_header": {
@@ -1647,7 +1681,7 @@
       "security": 1
     },
     "core/prison.gd::equipment_spec": {
-      "security": 1
+      "security": 2
     },
     "core/prison.gd::escape": {
       "pressure_sources": 1,
@@ -2130,6 +2164,9 @@
     "core/room_events.gd::item_reward_rows": {
       "room_event": 1
     },
+    "core/room_events.gd::ordinary": {
+      "room": 1
+    },
     "core/room_events.gd::probe_cleanup": {
       "room_event": 1
     },
@@ -2227,6 +2264,58 @@
       "phase": 1,
       "room": 5,
       "shop_removals": 1
+    },
+    "core/rope_master.gd::assistant": {
+      "enemies": 1
+    },
+    "core/rope_master.gd::card_damage": {
+      "play": 2
+    },
+    "core/rope_master.gd::climax": {
+      "round": 1
+    },
+    "core/rope_master.gd::death": {
+      "enemies": 1,
+      "special_equipment": 2
+    },
+    "core/rope_master.gd::execute": {
+      "discard": 1,
+      "draw": 2
+    },
+    "core/rope_master.gd::hogtie": {
+      "logs": 1
+    },
+    "core/rope_master.gd::initialize": {
+      "round": 1
+    },
+    "core/rope_master.gd::install": {
+      "logs": 1
+    },
+    "core/rope_master.gd::master": {
+      "enemies": 1,
+      "phase": 1
+    },
+    "core/rope_master.gd::plan": {
+      "round": 1
+    },
+    "core/rope_master.gd::played": {
+      "phase": 1,
+      "round": 1
+    },
+    "core/rope_master.gd::summon": {
+      "round": 1
+    },
+    "core/rope_master.gd::sweep": {
+      "special_equipment": 1
+    },
+    "core/rope_master.gd::target_reason": {
+      "round": 1
+    },
+    "core/rope_master.gd::turn_end": {
+      "mana": 2
+    },
+    "core/rope_master.gd::unavailable": {
+      "special_equipment": 1
     },
     "core/save_store.gd::fixed_point_text": {
       "save_slot": 1

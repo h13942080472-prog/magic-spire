@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="320" viewBox="0 0 480 320">
+ <title>强人锁女</title>
+ <defs>
+  <radialGradient id="glow"><stop stop-color="#79516c" stop-opacity=".8"/><stop offset="1" stop-color="#302e3f" stop-opacity="0"/></radialGradient>
+  <linearGradient id="card" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#79647b"/><stop offset="1" stop-color="#2c3548"/></linearGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="#f6d79b"/><stop offset=".45" stop-color="#cea56a"/><stop offset="1" stop-color="#976851"/></linearGradient>
+  <linearGradient id="steel" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#c4ded3"/><stop offset="1" stop-color="#729695"/></linearGradient>
+ </defs>
+ <ellipse cx="253" cy="154" rx="216" ry="153" fill="url(#glow)"/>
+ <ellipse cx="250" cy="281" rx="133" ry="15" fill="#142431" opacity=".8"/>
+ <g stroke-linecap="round" stroke-linejoin="round">
+  <!-- A pair of cards, tied together, carries the status rather than a rule diagram. -->
+  <path d="M170 59 322 46 344 253 191 269Z" fill="#344655" stroke="#8db7b4" stroke-width="4"/>
+  <path d="m183 70 128-11 19 183-128 12Z" fill="none" stroke="#65898f" stroke-width="2"/>
+  <path d="M207 37 352 78 296 276 151 235Z" fill="url(#card)" stroke="#d1ac91" stroke-width="4"/>
+  <path d="m216 52 120 34-48 175-120-34Z" fill="none" stroke="#ad8493" stroke-width="2"/>
+  <path d="m221 70 9 3-3 10-9-3Zm59 167 9 3-3 10-9-3Z" fill="#d6b29b"/>
+  <path d="m204 101 111 32m-119-7 111 32m-129 32 111 32" fill="none" stroke="#412e44" stroke-width="9"/>
+  <!-- Braided rope crosses the cards and trails into a compact knot. -->
+  <path d="M166 137 324 177M264 52 207 257M164 191 308 227" fill="none" stroke="#302937" stroke-width="19"/>
+  <path d="M166 137 324 177M264 52 207 257M164 191 308 227" fill="none" stroke="#c89e63" stroke-width="12"/>
+  <path d="M166 137 324 177M264 52 207 257M164 191 308 227" fill="none" stroke="#f0ce91" stroke-width="3" stroke-dasharray="3 7"/>
+  <path d="M319 183c18-25 49-5 29 9-15 11-36-7-36-7-26-20-44 6-27 16 16 10 28-17 28-17m1 15c6 30 23 34 35 45m-37-41-16 36" fill="none" stroke="#342936" stroke-width="13"/>
+  <path d="M319 183c18-25 49-5 29 9-15 11-36-7-36-7-26-20-44 6-27 16 16 10 28-17 28-17m1 15c6 30 23 34 35 45m-37-41-16 36" fill="none" stroke="#ddb879" stroke-width="7"/>
+  <!-- A closed brass padlock with a simple feminine sigil. -->
+  <path d="M219 156v-34c0-39 62-39 62 0v34" fill="none" stroke="#172a37" stroke-width="22"/>
+  <path d="M219 156v-34c0-39 62-39 62 0v34" fill="none" stroke="url(#steel)" stroke-width="13"/>
+  <path d="M220 125v-5c0-25 36-30 50-12" fill="none" stroke="#e0e8cf" stroke-width="3"/>
+  <path d="m210 145 79 1 9 18-7 59-42 20-43-20-6-59Z" fill="url(#gold)" stroke="#29313d" stroke-width="5"/>
+  <path d="m218 157 63 1 5 10-6 46-31 15-32-15-5-45Z" fill="none" stroke="#ffe3ad" stroke-width="2.5"/>
+  <circle cx="249" cy="181" r="13" fill="#59404f" stroke="#ffe2ab" stroke-width="2"/>
+  <path d="M249 194v23m-9-10h18" fill="none" stroke="#59404f" stroke-width="7"/>
+  <path d="m244 176 8-2" stroke="#dcb586" stroke-width="2"/>
+  <!-- The small interrupted slash is readable at hand-card size. -->
+  <path d="m83 117 24-27 28 8-20 29 25 4-42 48 9-37-23-3Z" fill="#84b6b6" stroke="#203846" stroke-width="4"/>
+  <path d="m129 103 23 71m9-45-40 24" stroke="#ed9fa6" stroke-width="6"/>
+  <path d="m98 204 22-3m-9-11 1 23m244-120 19-11m-17-9 14 28m-27 35 18 2" stroke="#c9af85" stroke-width="3"/>
+  <circle cx="365" cy="259" r="4" fill="#8bb9b4"/>
+  <circle cx="140" cy="65" r="3" fill="#ceac87"/>
+ </g>
+</svg>

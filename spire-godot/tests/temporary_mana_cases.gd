@@ -29,7 +29,7 @@ static func run(t) -> void:
  t.check(g.dispatch(g.command(fire(t,g).payload,g.state.version),g.state.version).ok and g.state.temporary_mana==0 and g.state.mana==45,"TEMP second spell consumes leftover points before permanent mana")
  g=Game.new(42);g.state.temporary_mana=100;g.state.mana=0;g.state.pressure=99
  c=fire(t,g)
- t.check(c.mana==10 and g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g._magic_failed and is_equal_approx(g.state.temporary_mana,100-c.mana*0.5) and g.state.mana==0,"TEMP failed high-pressure spell pays base cost then refunds half to temporary pool")
+ t.check(c.mana==10 and g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g._magic_failed and is_equal_approx(g.state.temporary_mana,100-c.mana) and g.state.mana==0,"TEMP failed high-pressure spell pays base cost with zero temporary refund")
  g=Game.new(42);g.state.temporary_mana=123.5
  t.check(t.action(g,"end").ok and g.state.temporary_mana==123.5,"TEMP balance survives a normal turn boundary")
  var restored=preload("res://tests/persistence_cases.gd").roundtrip(t,g,"temporary mana fractions")

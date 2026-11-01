@@ -48,7 +48,7 @@ static func run(t) -> void:
  t.check(g.Application.execute_concrete(g,mouth,"fixture").evaded==1 and g.state.evasion==0 and g.state.equipment.is_empty(),"INDUCTION existing generic evasion retains first priority")
  t.check(g.Application.execute_concrete(g,mouth,"fixture",false,[],true).ok and g.occupied("mouth"),"INDUCTION voluntary card costs are not intercepted")
  g=Base._patience_encounter();Base.play(t,g,"witch_binding_lure")
- var enemy=g.state.enemies[0];enemy.intent=g.EnemyPlans.application(["mouth_band"],2,3);enemy.intent.slot="mouth"
+ var enemy=g.state.enemies[0];enemy.intent=g.EnemyPlans.application(["mouth_band"],1,2);enemy.intent.slot="mouth"
  t.check(t.action(g,"end").ok and not g.occupied("mouth") and g.state.equipment.size()==1 and not "witch_induction_mouth" in g.state.card_buffs,"INDUCTION real enemy turn redirects before next-start expiration")
  _presentation(t)
 

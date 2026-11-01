@@ -214,14 +214,14 @@ static func route_contract_cases(t) -> void:
  t.check(allowed==choices and view.filter(func(r):return r.status=="available").all(func(r):return r.id in allowed),"ROUTE visible active lines exactly match formal departures")
  var unrelated=g.state.rooms.filter(func(r):return r.floor==source.floor+1 and r.id not in source.next)[0]
  var before=g.export_snapshot()
- t.check(g.room_entry_reason(unrelated).contains("没有地图连线") and not t.action(g,"depart",{"room":unrelated.id}).ok and g.export_snapshot()==before,"ROUTE adjacent unconnected branch cannot move or spend resources")
+ t.check(g.room_entry_reason(unrelated).contains("沿当前房间的连线") and not t.action(g,"depart",{"room":unrelated.id}).ok and g.export_snapshot()==before,"ROUTE adjacent unconnected branch cannot move or spend resources")
  t.check(not t.action(g,"depart",{"room":"exit"}).ok and not t.action(g,"depart",{"room":"entrance"}).ok and g.export_snapshot()==before,"ROUTE skip and return attempts are atomic")
  t.check(t.action(g,"depart",{"room":source.next[0]}).ok,"ROUTE actual visible edge departs")
  var valid_save=g.export_snapshot()
  g.state.journey.target=unrelated.id
  before=g.export_snapshot()
  var blocked=t.find_action(g,"travel_step")
- t.check(not blocked.valid and blocked.reason.contains("没有地图连线") and not g.dispatch(g.command(blocked.payload,g.state.version),g.state.version).ok and g.export_snapshot()==before,"ROUTE invalidated edge blocks travel before time pressure or passive changes")
+ t.check(not blocked.valid and blocked.reason.contains("沿当前房间的连线") and not g.dispatch(g.command(blocked.payload,g.state.version),g.state.version).ok and g.export_snapshot()==before,"ROUTE invalidated edge blocks travel before time pressure or passive changes")
  var restored=Game.new(7)
  t.check(not restored.restore_snapshot(before).ok and restored.restore_snapshot(valid_save).ok,"ROUTE restore rejects off-route journey and accepts real edge")
 

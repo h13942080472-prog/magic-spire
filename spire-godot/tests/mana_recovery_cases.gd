@@ -46,4 +46,4 @@ static func run(t) -> void:
  for phase in ["departure","travel","pack","event","inspection","captured"]:
   g.state.phase=phase;g.state.mana=40
   t.check(g.Consumables.reason(g,"mana_potion")=="","RECOVERY noncombat phase policy includes "+phase)
- t.check(g.Consumables.effect_description("mana_potion",20).contains("非战斗与探索") and g.Consumables.description(g,"mana_potion").contains("嘴部不自由时效果减半"),"RECOVERY public descriptions retain phase and mouth rules")
+ t.check(g.Consumables.effect_description("mana_potion",20).contains("战斗与探索之外") and g.Consumables.description(g,"mana_potion").contains("嘴部受限时效果减半"),"RECOVERY public descriptions retain phase and mouth rules")

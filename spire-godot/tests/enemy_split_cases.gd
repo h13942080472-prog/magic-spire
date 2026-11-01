@@ -13,13 +13,16 @@ static func run(t) -> void:
  var twin=Save.roundtrip(t,g,"mass charge")
  Save.step_both(t,g,twin,"end")
  t.check(g.state.equipment.is_empty() and g._enemy(id).intent.kind=="apply" and g._enemy(id).intent.grade==2 and g._enemy(id).intent.tier==2 and not g._enemy(id).intent.final,"MASS preparation advances to middle-grade application without installing")
- t.check(t.action(g,"end").ok and g.state.equipment.size()==1 and g.state.equipment[0].grade==2 and g.tier(g.state.equipment[0].durability,g.state.equipment[0].maximum)==2,"MASS announced install creates middle grade tier two")
+ t.check(t.action(g,"end").ok and g.state.equipment.size()==1 and g.state.equipment[0].grade+g.equipment_tier(g.state.equipment[0])==4,"MASS announced install creates value four")
  t.check(t.action(g,"end").ok and g.tier(g.state.equipment[0].durability,g.state.equipment[0].maximum)==3 and not g._enemy(id).gone and g._enemy(id).intent.kind=="charge","MASS tighten closes loop and prepares again without leaving")
  Save.roundtrip(t,g,"mass second cycle")
 
  # A published reinforcement with no remaining target uses its action and keeps the cycle.
  g=Game.new(42,true,"rope_mass_solo");id=g.state.enemies[0].id
  t.action(g,"end");t.action(g,"end")
+ g.state.equipment[0].durability=g.state.equipment[0].maximum*0.4;g._refresh_equipment(g.state.equipment[0])
+ g._enemy(id).intent=g._plan(g._enemy(id))
+ t.check(g._enemy(id).intent.kind=="tighten","MASS disappearance fixture publishes actual reinforcement before removal")
  g.state.equipment[0].durability=0;g._cleanup()
  twin=Save.roundtrip(t,g,"mass last reinforcement piece removed")
  Save.step_both(t,g,twin,"end")
@@ -29,7 +32,7 @@ static func run(t) -> void:
  g=Game.new(42,true,"rope_mass_solo");id=g.state.enemies[0].id
  g._enemy(id).stage=3;g._enemy(id).intent=g._plan(g._enemy(id))
  t.check(g._enemy(id).intent.kind=="apply","MASS empty reinforcement generation selects an existing application")
- t.check(t.action(g,"end").ok and g.state.equipment.size()==1 and g.state.equipment[0].grade==2 and g.state.equipment[0].template in g.Enemies.TYPES.rope_mass.install_pool and g.tier(g.state.equipment[0].durability,g.state.equipment[0].maximum)==2 and not g._enemy(id).gone,"MASS generated substitute installs its own middle-grade tier-two equipment and stays")
+ t.check(t.action(g,"end").ok and g.state.equipment.size()==1 and g.state.equipment[0].template in g.Enemies.TYPES.rope_mass.install_pool and g.state.equipment[0].grade+g.equipment_tier(g.state.equipment[0])==4 and not g._enemy(id).gone,"MASS generated substitute installs its own value-four equipment and stays")
 
  g=Game.new(42,true,"rope_mass_solo");id=g.state.enemies[0].id
  var declared=g._enemy(id).intent.duplicate(true)

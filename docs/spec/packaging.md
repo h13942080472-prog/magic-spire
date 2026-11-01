@@ -7,9 +7,9 @@
 均相对 `spire-godot/`；设置与产出目录为 `spire-godot/project.godot` 与仓库根 `outputs/`；`docs/` 相对仓库根。
 发布（标签、Release、上传）需用户明确要求；本文件只描述打包与验收流程。
 
-## v0.18.2.fix 修复与维护版
+## v0.18.3 内容与维护版
 
-当前 project.godot 及两平台预设统一为 0.18.2.fix；版本读取接受原有两段／三段数字及可选的 `.fix` 后缀。Windows 文件版本保持数字格式 0.18.2.0，Android 显示版本为 0.18.2.fix，安装版本为15；发布新 APK 时须保留原发布签名，后续安装版本继续递增。两平台随包版本说明均读取 [本版说明](../record/release-notes/release-v0.18.2.fix.txt)，Android 附 [Android 说明](../record/release-notes/release-android-v0.18.2.fix.txt) 及基础操作教学。历史标签和安装包不覆盖。
+当前 project.godot 及两平台预设统一为 0.18.3；版本读取接受原有两段／三段数字及可选的 `.fix` 后缀。Windows 文件版本保持数字格式 0.18.3.0，Android 显示版本为 0.18.3，安装版本为16；发布新 APK 时须保留原发布签名，后续安装版本继续递增。两平台随包版本说明均读取 [本版说明](../record/release-notes/release-v0.18.3.txt)，Android 附 [Android 说明](../record/release-notes/release-android-v0.18.3.txt) 及基础操作教学。历史标签和安装包不覆盖。
 
 交付普通 Windows ZIP、Android APK及含说明与许可的 Android ZIP；本地另交付仅含完整 PC 目录的双层加密7z。内外两层均使用用户指定密码并加密文件名；双层包不上传 GitHub。两层实际解压后核对文件 SHA256，确认内层不含安卓包；密码不写入游戏或签名配置。
 
@@ -43,7 +43,7 @@
 ## 输入域
 
 - **版本号来源**：脚本从 `project.godot` 读取版本并选择同名导出预设；当前版本、Windows 文件版本、
-  Android 安装版本与随包版本说明文件名见本文「v0.18.2.fix 修复与维护版」段。不手改脚本内的版本常量。
+  Android 安装版本与随包版本说明文件名见本文「v0.18.3 内容与维护版」段。不手改脚本内的版本常量。
 - **进包内容**：编译脚本、运行资源、动态装备 JSON；正式 `content/packs` 与授权文件随包。
 - **不得进包**：测试、工具、文档、日志、内容模板、存档、密钥、构建工具，以及第三方授权清单以外的构建产物。
 - **Windows 导出**：目标 Windows x86_64 发布模板；只安装 Windows x86_64、版本标记与 ICU 数据；

@@ -70,7 +70,7 @@ static func run(t) -> void:
   var hit=batches(g)[0].data.passive_slip.results[0]
   if hit.target==e.id:
    selected_looser=true
-   t.check(is_equal_approx(hit.damage,0.65),"MOTION random looser target keeps same-layer half damage")
+   t.check(is_equal_approx(hit.damage,0.65),"MOTION random looser leather target keeps same-layer half damage")
  t.check(selected_looser,"MOTION passive does not reuse highest-tightness strain priority")
  g=fresh();var inner=piece(g,"thigh_root");var outer=piece(g,"thigh_root",0.2,1)
  t.check(t.action(g,"wall_move",{"direction":"toward"}).ok and g._equipment(outer.id).is_empty() and g._equipment(inner.id).durability==4.0,"MOTION never continues through removed outer layer")
@@ -83,10 +83,10 @@ static func run(t) -> void:
  var body=root.components[0];var old=body.durability
  t.check(t.action(g,"wall_move",{"direction":"toward"}).ok,"MOTION shared compound movement")
  var result=batches(g)[0].data.passive_slip.results
- t.check(result.size()==1 and result[0].points.size()==7 and result[0].coefficient==1.5 and is_equal_approx(g._equipment(body.id).durability,old-1.5),"MOTION compound dedup uses highest selected factor once")
+ t.check(result.size()==1 and result[0].points.size()==7 and result[0].coefficient==1.5 and is_equal_approx(g._equipment(body.id).durability,old-1.5),"MOTION leather compound dedup uses highest selected factor once")
  for value in [0.0,90.0]:
   g=fresh();e=piece(g,"thigh_root");g.state.pressure=value
-  t.check(t.action(g,"wall_move",{"direction":"toward"}).ok and is_equal_approx(g._equipment(e.id).durability,2.5),"MOTION overload value does not alter passive damage")
+  t.check(t.action(g,"wall_move",{"direction":"toward"}).ok and is_equal_approx(g._equipment(e.id).durability,2.5),"MOTION overload value does not alter passive leather damage")
  g=fresh();e=piece(g,"ankle");g.state.energy=0;state=JSON.stringify(g.state)
  t.check(not t.action(g,"wall_move",{"direction":"toward"}).ok and JSON.stringify(g.state)==state,"MOTION insufficient energy atomic")
  g.state.energy=3

@@ -78,8 +78,44 @@ static func run(t) -> void:
  ui.render();await t.frames()
  hero=ui.find_child("HeroArt",true,false);sprite=hero.get_node("HeroPose")
  t.check(not ui.view.has_restraint_level and sprite.texture==Art.HERO_POSES.stand,"ART face-only equipment does not invent an arm or leg restraint level")
+ await hogtie_pose(t)
  await witch_portraits(t)
  await fixed_portrait(t)
+
+static func hogtie_pose(t) -> void:
+ var ui=t.ui
+ ui.game=preload("res://tests/rope_master_cases.gd").encounter()
+ ui.render();await t.frames()
+ var hero=ui.find_child("HeroArt",true,false);var sprite=hero.get_node("HeroPose")
+ t.check(ui.view.body_coverage.get("special_pose","")=="" and sprite.texture!=Art.HERO_SPECIAL_POSES.hogtie,"ART ordinary rope-master battle keeps the current posture art before hogtie")
+ var boss=ui.game.RopeArt.master(ui.game);boss.rope_art.stock=100
+ ui.game.RopeArt.hogtie(ui.game,boss,2)
+ ui.render();await t.frames()
+ hero=ui.find_child("HeroArt",true,false);sprite=hero.get_node("HeroPose")
+ t.check(ui.view.body_coverage.get("special_pose","")=="hogtie" and hero.special_pose=="hogtie" and sprite.texture==Art.HERO_SPECIAL_POSES.hogtie,"ART live hogtie switches only the battle hero to its extracted special pose")
+ t.check(sprite.texture.get_image().detect_alpha()!=Image.ALPHA_NONE and is_equal_approx(sprite.size.x/sprite.texture.get_width(),sprite.size.y/sprite.texture.get_height()),"ART hogtie cutout keeps real alpha and its original proportions")
+ var sidebar=ui.find_child("EquipmentPortrait",true,false)
+ t.check(sidebar.get_script()==Portrait and sidebar.texture!=Art.HERO_SPECIAL_POSES.hogtie,"ART hogtie special pose stays out of the body sidebar compositor")
+ ui.display_settings.fixed_hero_portrait=true;ui.render();await t.frames()
+ hero=ui.find_child("HeroArt",true,false);sprite=hero.get_node("HeroPose")
+ t.check(hero.fixed_portrait and hero.special_pose=="" and sprite.texture==Portrait.FREE,"ART fixed portrait preference keeps its fixed battle image while hogtied")
+ ui.display_settings.fixed_hero_portrait=false;ui.render();await t.frames()
+ hero=ui.find_child("HeroArt",true,false);sprite=hero.get_node("HeroPose")
+ t.check(hero.special_pose=="hogtie" and sprite.texture==Art.HERO_SPECIAL_POSES.hogtie,"ART leaving fixed portrait restores the still-active hogtie pose")
+ var hogtie=ui.game._equipment(boss.rope_art.hogtie);hogtie.durability=0.0
+ ui.render();await t.frames()
+ hero=ui.find_child("HeroArt",true,false);sprite=hero.get_node("HeroPose")
+ t.check(ui.view.body_coverage.get("special_pose","")=="" and hero.special_pose=="" and sprite.texture!=Art.HERO_SPECIAL_POSES.hogtie,"ART exhausted hogtie no longer projects the special pose before cleanup")
+ ui.game._cleanup()
+ ui.render();await t.frames()
+ hero=ui.find_child("HeroArt",true,false);sprite=hero.get_node("HeroPose")
+ t.check(ui.view.body_coverage.get("special_pose","")=="" and hero.special_pose=="" and sprite.texture!=Art.HERO_SPECIAL_POSES.hogtie,"ART removing hogtie immediately restores the ordinary battle posture")
+ var witch=Game.new(42,false,"equipment",true,false,25,false,false,"witch")
+ witch.state.room_encounters.entrance="rope_master_solo";witch._start_battle()
+ boss=witch.RopeArt.master(witch);boss.rope_art.stock=100;witch.RopeArt.hogtie(witch,boss,2)
+ ui.game=witch;ui.render();await t.frames()
+ hero=ui.find_child("HeroArt",true,false);sprite=hero.get_node("HeroPose")
+ t.check(ui.view.body_coverage.get("special_pose","")=="hogtie" and hero.character_id=="witch" and hero.special_pose=="" and hero.pose==ui.view.posture and sprite.texture==Art.WITCH_POSES[ui.view.posture],"ART witch keeps her own current pose while a live hogtie remains equipped")
 
 static func witch_portraits(t) -> void:
  var ui=t.ui

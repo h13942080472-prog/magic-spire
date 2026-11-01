@@ -9,11 +9,11 @@ static func profile(g, side: String, operation: String="assist") -> Dictionary:
  var reason=""
  var code=""
  if operation=="assist" and g.hand_blocked("fingers",side):
-  reason="手指受限，不能提供手部辅助。";code="fingers_blocked"
+  reason="手部辅助需要手指自由。";code="fingers_blocked"
  elif operation!="cut" and g.hand_blocked("wrist",side):
-  reason="手腕受限，不能辅助拉扯。";code="wrist_blocked"
+  reason="辅助拉扯需要手腕自由。";code="wrist_blocked"
  elif operation!="assist" and g.hand_blocked("palm",side):
-  reason="手掌无法握持，不能执行这项操作。";code="grip_blocked"
+  reason="此操作需要手掌可握持。";code="grip_blocked"
  if reason!="": return {"side":side,"points":[],"reason":reason,"code":code,"assist_factor":0.0}
  if operation!="assist":
   return {"side":side,"points":workspace(g,operation),"reason":"","code":""}
@@ -94,8 +94,8 @@ static func evaluate(g, target: Dictionary, reach: Dictionary) -> Dictionary:
   if g._outer_at(contact.target,contact.slot,contact.get("point","")) and contact.slot not in slots: slots.append(contact.slot)
  if not slots.is_empty(): return {"code":"","reason":"","slots":slots}
  if reachable: return {"code":"covered","reason":"外层仍覆盖目标，只能接触外露的部分。","slots":[]}
- if self_only: return {"code":"same_hand","reason":"这只手不能拉扯自身的手部拘束。","slots":[]}
- return {"code":"out_of_reach","reason":"当前姿态和手臂固定方式够不到目标位置。","slots":[]}
+ if self_only: return {"code":"same_hand","reason":"请使用另一只手辅助解除。","slots":[]}
+ return {"code":"out_of_reach","reason":"请调整姿态或解除手臂固定，使手触及目标。","slots":[]}
 
 static func reason(g, target: Dictionary, operation: String) -> String:
  var issues=[]

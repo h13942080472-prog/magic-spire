@@ -13,6 +13,8 @@ const WITCH_POSES={
 const HERO_RESTRAINED_POSES={
  "sit":preload("res://assets/art/hero-restrained-sit-v1.png"),
  "lie":preload("res://assets/art/hero-restrained-lie-v1.png")}
+const HERO_SPECIAL_POSES={
+ "hogtie":preload("res://assets/art/hero-hogtie-pose-cutout-v1.png")}
 # Independent source canvases use calibrated apparent heights, never stretched axes.
 const HERO_HEIGHTS={"stand":1.0,"sit":0.73,"lie":0.68}
 const HERO_FACE=Rect2(344,164,260,260)

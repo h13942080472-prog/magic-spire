@@ -2,86 +2,356 @@
   "schema_version": 1,
   "locale": "zh_CN",
   "messages": {
-    "ui.art.inspect.fit": {"text": "适应屏幕", "context": "原图检视缩放切换"},
-    "ui.art.inspect.native": {"text": "1:1 原图", "context": "按原始像素大小检视立绘"},
-    "ui.art.test": {"text": "测试版画风", "context": "图鉴卡图选择"},
-    "ui.art.formal": {"text": "正式版·跟随模式", "context": "图鉴卡图选择"},
-    "ui.art.original": {"text": "正式版·原图", "context": "图鉴卡图选择"},
-    "ui.art.fixed": {"text": "正式版·扶她出去", "context": "图鉴卡图选择"},
-    "ui.shop.refresh": {"text": "刷新 · {price}魔力", "context": "店主立绘右上角刷新按钮，整局累计涨价"},
-    "ui.portrait.expand": {"text": "放大立绘", "context": "身体栏立绘右下角按钮"},
-    "ui.flask.deposit_uses": {"text": "存 {dots}", "context": "魔瓶战斗存取独立剩余次数"},
-    "ui.flask.withdraw_uses": {"text": "取 {dots}", "context": "魔瓶战斗存取独立剩余次数"},
-    "ui.quick_release.previous": {"text": "上一个拘束具（←）", "context": "快捷栏目标循环和探索火球术入口"},
-    "ui.quick_release.next": {"text": "下一个拘束具（→）", "context": "快捷栏目标循环和探索火球术入口"},
-    "ui.quick_release.fire_locked": {"text": "尚未获得用火球术解除拘束具的能力。", "context": "快捷栏目标循环和探索火球术入口"},
-    "ui.quick_release.fire_empty": {"text": "没有拘束具可供火球术选为目标。", "context": "快捷栏目标循环和探索火球术入口"},
-    "ui.quick_release.empty": {"text": "没有拘束具", "context": "动作横栏切换及快捷部位使用；显示原候选"},
-    "ui.quick_release.durability": {"text": "耐久 {current}/{maximum} · 紧度{tier}", "context": "动作横栏切换及快捷部位使用；显示原候选"},
-    "ui.quick_release.help": {"text": "先选部位再点牌，或直接拖牌；右键切小部位，左右箭头切换拘束具。", "context": "动作横栏切换及快捷部位使用；显示原候选"},
-    "ui.quick_release.wrong_card": {"text": "这张牌不能用于当前选中的拘束具", "context": "动作横栏切换及快捷部位使用；显示原候选"},
-    "ui.quick_release.tools": {"text": "道具使用", "context": "动作横栏切换及快捷部位使用；显示原候选"},
-    "ui.quick_release.to_actions": {"text": "切换至动作栏", "context": "动作横栏切换及快捷部位使用；显示原候选"},
-    "ui.quick_release.to_release": {"text": "切换至快捷挣脱栏", "context": "动作横栏切换及快捷部位使用；显示原候选"},
-    "ui.quick_release.exploration": {"text": "切换至快捷挣脱栏，可对选中的拘束具使用解除牌，也可使用已安装道具。", "context": "动作横栏切换及快捷部位使用；显示原候选"},
-    "ui.home.character.original": {"text": "魔法少女(futa)", "context": "角色选择页角色1名称；只影响显示"},
-    "ui.home.character.witch": {"text": "小魔女·测试版", "context": "角色选择页角色2名称；只影响显示"},
-    "ui.home.disclaimer": {"text": "免责声明：本游戏为爱发电，免费发布。\n如果你花钱购买了本游戏，说明你上当了。", "context": "主页左下角灰色免费发布声明"},
-    "ui.settings.frame_limit": {"text": "帧率上限", "context": "显示设置；即时应用并独立保存，帧数占位符fps仅用于显示"},
-    "ui.settings.frame_unlimited": {"text": "无上限", "context": "显示设置；即时应用并独立保存，帧数占位符fps仅用于显示"},
-    "ui.settings.frame_value": {"text": "{fps}帧", "context": "显示设置；即时应用并独立保存，帧数占位符fps仅用于显示"},
-    "ui.settings.vsync": {"text": "垂直同步", "context": "显示设置；即时应用并独立保存，帧数占位符fps仅用于显示"},
-    "ui.settings.vsync_note": {"text": "开启垂直同步可减少画面撕裂；即使选择无上限，帧率仍可能受显示器刷新率限制。", "context": "显示设置；即时应用并独立保存，帧数占位符fps仅用于显示"},
-    "ui.home.title": {"text": "紧缚尖塔", "context": "主页标题"},
-    "ui.home.masochist_mode": {"text": "抖M专用版", "context": "主页新局模式开关；仅改变新局设定"},
-    "ui.home.continue_practice": {"text": "继续练习", "context": "主页继续当前练习"},
-    "ui.home.continue": {"text": "继续游戏", "context": "主页继续游戏"},
-    "ui.home.new_game": {"text": "开始新游戏", "context": "主页开始新局"},
-    "ui.home.encyclopedia": {"text": "图鉴", "context": "主页打开图鉴"},
-    "ui.home.tutorial": {"text": "教程书", "context": "主页打开教程"},
-    "ui.home.practice": {"text": "练习与自定义", "context": "主页练习入口"},
-    "ui.home.quit": {"text": "退出游戏", "context": "主页退出程序"},
-    "ui.home.saves": {"text": "存档与继续", "context": "主页存档入口"},
-    "ui.common.close": {"text": "关闭 ×", "context": "共用信息窗口关闭按钮"},
-    "ui.settings.title": {"text": "设置", "context": "设置窗口标题及入口"},
-    "ui.settings.tab.display": {"text": "显示", "context": "显示设置页签"},
-    "ui.settings.tab.audio": {"text": "声音", "context": "声音设置页签"},
-    "ui.settings.tab.keys": {"text": "键位", "context": "键位设置页签"},
-    "ui.settings.language": {"text": "语言", "context": "显示设置中的语言选择"},
-    "ui.settings.language.zh_cn": {"text": "简体中文", "context": "简体中文语言选项"},
-    "ui.settings.language.en_us": {"text": "English", "context": "英语语言选项"},
-    "ui.settings.language.ja_jp": {"text": "日本語", "context": "日语语言选项"},
-    "ui.settings.mobile": {"text": "横屏 · 长按查看详情／切换", "context": "移动端显示设置"},
-    "ui.settings.mode": {"text": "显示模式", "context": "窗口模式标题"},
-    "ui.settings.mode.windowed": {"text": "窗口", "context": "有边框窗口模式"},
-    "ui.settings.mode.borderless": {"text": "无边框窗口", "context": "无边框窗口模式"},
-    "ui.settings.mode.fullscreen": {"text": "全屏", "context": "全屏模式"},
-    "ui.settings.resolution": {"text": "分辨率", "context": "显示分辨率标题"},
-    "ui.settings.native_resolution": {"text": "全屏使用显示器原生分辨率。", "context": "全屏分辨率选择不可用原因"},
-    "ui.settings.feedback_speed": {"text": "敌方行动展示速度", "context": "敌方动作播放速度"},
-    "ui.settings.speed.fast": {"text": "快速", "context": "快速度"},
-    "ui.settings.speed.normal": {"text": "标准", "context": "标准速度"},
-    "ui.settings.speed.slow": {"text": "舒缓", "context": "慢速度"},
-    "ui.settings.music_enabled": {"text": "打出卡牌时播放音乐", "context": "卡牌音乐开关"},
-    "ui.settings.music_volume": {"text": "音乐音量 · {percent}%", "context": "音量滑块说明；percent为显示用0—100数值"},
-    "ui.map.seed": {"text": "初始种子 {initial} · 第 {iteration} 次塔路", "context": "地图工作区标题行右端的本局标识；点击只复制四要素文本，不改规则"},
-    "ui.map.seed_copied": {"text": "已复制", "context": "点击本局标识后1.2秒内的显示态；到期复原"},
-    "ui.feedback.save.attached": {"text": "将附带当前进度存档：{name}（{size} KB）", "context": "反馈页存档附件行；name为存档文件名、size为KB数值，只显示不参与规则"},
-    "ui.feedback.save.declined": {"text": "当前反馈服务暂不支持附带存档。", "context": "反馈页存档附件行；服务端schema<2或探测失败时的降级说明"},
-    "ui.feedback.save.unchecked": {"text": "未附带存档：已取消勾选。", "context": "反馈页存档附件行；玩家取消勾选「一并附带当前进度存档」"},
-    "ui.feedback.save.none": {"text": "未附带存档：当前没有可附带的存档。", "context": "反馈页存档附件行；没有可用的存档来源"},
-    "ui.feedback.save.uncaptured": {"text": "未附带存档：本次草稿没有捕获到存档。", "context": "反馈页存档附件行；本次草稿尚未执行存档捕获"},
-    "ui.feedback.save.invalid": {"text": "未附带存档：当前进度存档校验未通过，未附带。", "context": "反馈页存档附件行；只读入口无法生成本局固定点"},
-    "ui.feedback.save.oversized": {"text": "未附带存档：存档过大（超过 2 MB），未附带。", "context": "反馈页存档附件行；附件UTF-8编码后超过2 MiB上限"},
-    "ui.run_review.title": {"text": "本局回顾", "context": "回顾面板标题与路线屏／通关屏两个入口按钮；唯一文本入口 RunReview.title_text"},
-    "ui.run_review.identity": {"text": "本局标识", "context": "回顾面板第一块小标题"},
-    "ui.run_review.route": {"text": "节点概况", "context": "回顾面板第二块小标题"},
-    "ui.run_review.deck": {"text": "卡组", "context": "回顾面板第三块小标题"},
-    "ui.run_review.progress": {"text": "已到达第 {floor} 层 · 已走过 {nodes} 个节点", "context": "节点概况的进度行；{floor}／{nodes} 由 view.route 现算的整数"},
-    "ui.run_review.no_route": {"text": "没有可回顾的路线数据。", "context": "view.route 为空而面板已开时的失败态，替代地图位置"},
-    "ui.run_review.deck_empty": {"text": "卡组为空。", "context": "卡组块空数据文案，交给 deck_browser.setup 的 empty_message"},
-    "ui.run_review.copy": {"text": "复制本局标识", "context": "标识块的复制按钮；点击调用 ui.copy_seed()，「已复制」分支复用 ui.map.seed_copied"},
-    "ui.settings.doubao_voice_enabled": {"text": "播放豆包语音", "context": "豆包对白语音独立开关"},
-    "ui.settings.doubao_voice_volume": {"text": "豆包语音音量 · {percent}%", "context": "豆包语音独立音量百分比"}
+    "ui.settings.interaction_audio_enabled": {"text": "播放交互音效", "context": "交互音效开关"},
+    "ui.settings.interaction_audio_volume": {"text": "音效音量 · {percent}%", "context": "交互音效音量"},
+    "ui.seed.open": {"text": "种子开局", "context": "主页及局内菜单的指定种子开局入口"},
+    "ui.seed.copy": {"text": "复制本局种子", "context": "复制纯数字初始种子"},
+    "ui.seed.paste": {"text": "粘贴", "context": "将剪贴板内容填入种子输入框"},
+    "ui.seed.help": {"text": "从初始局面开始，使用当前角色与开局选项。新局会覆盖塔路存档。", "context": "指定种子开局说明"},
+    "ui.seed.invalid": {"text": "请输入有效的整数种子。", "context": "非法或超出整数范围的种子输入"},
+    "ui.prison_capture_intro.title": {
+      "text": "你被抓住了！",
+      "context": "原角色收押完成页前的被捕过场标题"
+    },
+    "ui.prison_capture_intro.body": {
+      "text": "“老实点！”\n\n魅魔狱警拽了拽牵引绳，等待你的，将会是一段牢狱生活。",
+      "context": "原角色收押完成页前的被捕过场正文"
+    },
+    "ui.prison_capture_intro.continue": {
+      "text": "继续",
+      "context": "从被捕过场进入既有收押完成页"
+    },
+    "ui.card.use_failed": {
+      "text": "施法失败 · {card}",
+      "context": "已提交的施法失败反馈"
+    },
+    "ui.settings.reduced_card_motion": {
+      "text": "减弱卡牌动效",
+      "context": "显示偏好，关闭翻面和归堆演出、保留操作反馈"
+    },
+    "ui.art.inspect.fit": {
+      "text": "适应屏幕",
+      "context": "原图检视缩放切换"
+    },
+    "ui.art.inspect.native": {
+      "text": "1:1 原图",
+      "context": "按原始像素大小检视立绘"
+    },
+    "ui.art.test": {
+      "text": "测试版画风",
+      "context": "图鉴卡图选择"
+    },
+    "ui.art.formal": {
+      "text": "正式版·跟随模式",
+      "context": "图鉴卡图选择"
+    },
+    "ui.art.original": {
+      "text": "正式版·原图",
+      "context": "图鉴卡图选择"
+    },
+    "ui.art.fixed": {
+      "text": "正式版·扶她出去",
+      "context": "图鉴卡图选择"
+    },
+    "ui.shop.refresh": {
+      "text": "刷新 · {price}魔力",
+      "context": "店主立绘右上角刷新按钮，整局累计涨价"
+    },
+    "ui.portrait.expand": {
+      "text": "放大立绘",
+      "context": "身体栏立绘右下角按钮"
+    },
+    "ui.flask.deposit_uses": {
+      "text": "存 {dots}",
+      "context": "魔瓶战斗存取独立剩余次数"
+    },
+    "ui.flask.withdraw_uses": {
+      "text": "取 {dots}",
+      "context": "魔瓶战斗存取独立剩余次数"
+    },
+    "ui.quick_release.previous": {
+      "text": "上一个拘束具（←）",
+      "context": "快捷栏目标循环和探索火球术入口"
+    },
+    "ui.quick_release.next": {
+      "text": "下一个拘束具（→）",
+      "context": "快捷栏目标循环和探索火球术入口"
+    },
+    "ui.quick_release.fire_locked": {
+      "text": "需要炫火自解。",
+      "context": "快捷栏目标循环和探索火球术入口"
+    },
+    "ui.quick_release.fire_empty": {
+      "text": "当前可用目标为0。",
+      "context": "快捷栏目标循环和探索火球术入口"
+    },
+    "ui.quick_release.empty": {
+      "text": "自由",
+      "context": "动作横栏切换及快捷部位使用；显示原候选"
+    },
+    "ui.quick_release.durability": {
+      "text": "耐久 {current}/{maximum} · 紧度{tier}",
+      "context": "动作横栏切换及快捷部位使用；显示原候选"
+    },
+    "ui.quick_release.help": {
+      "text": "先选部位再点牌，或直接拖牌；右键切小部位，左右箭头切换拘束具。",
+      "context": "动作横栏切换及快捷部位使用；显示原候选"
+    },
+    "ui.quick_release.wrong_card": {
+      "text": "请选择适用于当前拘束具的卡牌",
+      "context": "动作横栏切换及快捷部位使用；显示原候选"
+    },
+    "ui.quick_release.tools": {
+      "text": "道具使用",
+      "context": "动作横栏切换及快捷部位使用；显示原候选"
+    },
+    "ui.quick_release.to_actions": {
+      "text": "切换至动作栏",
+      "context": "动作横栏切换及快捷部位使用；显示原候选"
+    },
+    "ui.quick_release.to_release": {
+      "text": "切换至快捷挣脱栏",
+      "context": "动作横栏切换及快捷部位使用；显示原候选"
+    },
+    "ui.quick_release.exploration": {
+      "text": "快捷挣脱",
+      "context": "动作横栏切换及快捷部位使用；显示原候选"
+    },
+    "ui.home.character.original": {
+      "text": "魔法少女(futa)",
+      "context": "角色选择页角色1名称；只影响显示"
+    },
+    "ui.home.character.witch": {
+      "text": "小魔女·测试版",
+      "context": "角色选择页角色2名称；只影响显示"
+    },
+    "ui.home.disclaimer": {
+      "text": "免责声明：本游戏为爱发电，免费发布。\n如果你花钱购买了本游戏，说明你上当了。",
+      "context": "主页左下角灰色免费发布声明"
+    },
+    "ui.settings.frame_limit": {
+      "text": "帧率上限",
+      "context": "显示设置；即时应用并独立保存，帧数占位符fps仅用于显示"
+    },
+    "ui.settings.frame_unlimited": {
+      "text": "无上限",
+      "context": "显示设置；即时应用并独立保存，帧数占位符fps仅用于显示"
+    },
+    "ui.settings.frame_value": {
+      "text": "{fps}帧",
+      "context": "显示设置；即时应用并独立保存，帧数占位符fps仅用于显示"
+    },
+    "ui.settings.vsync": {
+      "text": "垂直同步",
+      "context": "显示设置；即时应用并独立保存，帧数占位符fps仅用于显示"
+    },
+    "ui.settings.vsync_note": {
+      "text": "开启垂直同步可减少画面撕裂；即使选择无上限，帧率仍可能受显示器刷新率限制。",
+      "context": "显示设置；即时应用并独立保存，帧数占位符fps仅用于显示"
+    },
+    "ui.home.title": {
+      "text": "紧缚尖塔",
+      "context": "主页标题"
+    },
+    "ui.home.masochist_mode": {
+      "text": "抖M专用版",
+      "context": "主页新局模式开关；仅改变新局设定"
+    },
+    "ui.home.continue_practice": {
+      "text": "继续练习",
+      "context": "主页继续当前练习"
+    },
+    "ui.home.continue": {
+      "text": "继续游戏",
+      "context": "主页继续游戏"
+    },
+    "ui.home.new_game": {
+      "text": "开始新游戏",
+      "context": "主页开始新局"
+    },
+    "ui.home.encyclopedia": {
+      "text": "图鉴",
+      "context": "主页打开图鉴"
+    },
+    "ui.home.tutorial": {
+      "text": "教程书",
+      "context": "主页打开教程"
+    },
+    "ui.home.practice": {
+      "text": "练习与自定义",
+      "context": "主页练习入口"
+    },
+    "ui.home.quit": {
+      "text": "退出游戏",
+      "context": "主页退出程序"
+    },
+    "ui.home.saves": {
+      "text": "存档与继续",
+      "context": "主页存档入口"
+    },
+    "ui.common.close": {
+      "text": "关闭 ×",
+      "context": "共用信息窗口关闭按钮"
+    },
+    "ui.settings.title": {
+      "text": "设置",
+      "context": "设置窗口标题及入口"
+    },
+    "ui.settings.tab.display": {
+      "text": "显示",
+      "context": "显示设置页签"
+    },
+    "ui.settings.tab.audio": {
+      "text": "声音",
+      "context": "声音设置页签"
+    },
+    "ui.settings.tab.keys": {
+      "text": "键位",
+      "context": "键位设置页签"
+    },
+    "ui.settings.language": {
+      "text": "语言",
+      "context": "显示设置中的语言选择"
+    },
+    "ui.settings.language.zh_cn": {
+      "text": "简体中文",
+      "context": "简体中文语言选项"
+    },
+    "ui.settings.language.en_us": {
+      "text": "English",
+      "context": "英语语言选项"
+    },
+    "ui.settings.language.ja_jp": {
+      "text": "日本語",
+      "context": "日语语言选项"
+    },
+    "ui.settings.mobile": {
+      "text": "横屏 · 长按查看详情／切换",
+      "context": "移动端显示设置"
+    },
+    "ui.settings.mode": {
+      "text": "显示模式",
+      "context": "窗口模式标题"
+    },
+    "ui.settings.mode.windowed": {
+      "text": "窗口",
+      "context": "有边框窗口模式"
+    },
+    "ui.settings.mode.borderless": {
+      "text": "无边框窗口",
+      "context": "无边框窗口模式"
+    },
+    "ui.settings.mode.fullscreen": {
+      "text": "全屏",
+      "context": "全屏模式"
+    },
+    "ui.settings.resolution": {
+      "text": "分辨率",
+      "context": "显示分辨率标题"
+    },
+    "ui.settings.native_resolution": {
+      "text": "全屏使用显示器原生分辨率。",
+      "context": "全屏分辨率选择不可用原因"
+    },
+    "ui.settings.feedback_speed": {
+      "text": "敌方行动展示速度",
+      "context": "敌方动作播放速度"
+    },
+    "ui.settings.speed.fast": {
+      "text": "快速",
+      "context": "快速度"
+    },
+    "ui.settings.speed.normal": {
+      "text": "标准",
+      "context": "标准速度"
+    },
+    "ui.settings.speed.slow": {
+      "text": "舒缓",
+      "context": "慢速度"
+    },
+    "ui.settings.music_enabled": {
+      "text": "打出卡牌时播放音乐",
+      "context": "卡牌音乐开关"
+    },
+    "ui.settings.music_volume": {
+      "text": "音乐音量 · {percent}%",
+      "context": "音量滑块说明；percent为显示用0—100数值"
+    },
+    "ui.map.seed": {
+      "text": "初始种子 {initial} · 第 {iteration} 次塔路",
+      "context": "地图工作区标题行右端的本局标识；点击只复制四要素文本，不改规则"
+    },
+    "ui.map.seed_copied": {
+      "text": "已复制",
+      "context": "点击本局标识后1.2秒内的显示态；到期复原"
+    },
+    "ui.feedback.save.attached": {
+      "text": "将附带当前进度存档：{name}（{size} KB）",
+      "context": "反馈页存档附件行；name为存档文件名、size为KB数值，只显示不参与规则"
+    },
+    "ui.feedback.save.declined": {
+      "text": "当前反馈服务仅接收文字和截图。",
+      "context": "反馈页存档附件行；服务端schema<2或探测失败时的降级说明"
+    },
+    "ui.feedback.save.unchecked": {
+      "text": "存档：已取消附带。",
+      "context": "反馈页存档附件行；玩家取消勾选「一并附带当前进度存档」"
+    },
+    "ui.feedback.save.none": {
+      "text": "可附带存档：0份。",
+      "context": "反馈页存档附件行；没有可用的存档来源"
+    },
+    "ui.feedback.save.uncaptured": {
+      "text": "存档：请重新创建草稿以获取当前进度。",
+      "context": "反馈页存档附件行；本次草稿尚未执行存档捕获"
+    },
+    "ui.feedback.save.invalid": {
+      "text": "存档校验失败，附件已跳过。",
+      "context": "反馈页存档附件行；只读入口无法生成本局固定点"
+    },
+    "ui.feedback.save.oversized": {
+      "text": "存档超过2 MB，附件已跳过。",
+      "context": "反馈页存档附件行；附件UTF-8编码后超过2 MiB上限"
+    },
+    "ui.run_review.title": {
+      "text": "本局回顾",
+      "context": "回顾面板标题与路线屏／通关屏两个入口按钮；唯一文本入口 RunReview.title_text"
+    },
+    "ui.run_review.identity": {
+      "text": "本局标识",
+      "context": "回顾面板第一块小标题"
+    },
+    "ui.run_review.route": {
+      "text": "节点概况",
+      "context": "回顾面板第二块小标题"
+    },
+    "ui.run_review.deck": {
+      "text": "卡组",
+      "context": "回顾面板第三块小标题"
+    },
+    "ui.run_review.progress": {
+      "text": "已到达第 {floor} 层 · 已走过 {nodes} 个节点",
+      "context": "节点概况的进度行；{floor}／{nodes} 由 view.route 现算的整数"
+    },
+    "ui.run_review.no_route": {
+      "text": "路线记录为空。",
+      "context": "view.route 为空而面板已开时的失败态，替代地图位置"
+    },
+    "ui.run_review.deck_empty": {
+      "text": "卡组为空。",
+      "context": "卡组块空数据文案，交给 deck_browser.setup 的 empty_message"
+    },
+    "ui.run_review.copy": {
+      "text": "复制本局标识",
+      "context": "标识块的复制按钮；点击调用 ui.copy_seed()，「已复制」分支复用 ui.map.seed_copied"
+    },
+    "ui.settings.doubao_voice_enabled": {
+      "text": "播放豆包语音",
+      "context": "豆包对白语音独立开关"
+    },
+    "ui.settings.doubao_voice_volume": {
+      "text": "豆包语音音量 · {percent}%",
+      "context": "豆包语音独立音量百分比"
+    }
   }
 }

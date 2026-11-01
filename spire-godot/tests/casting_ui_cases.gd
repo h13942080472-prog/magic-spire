@@ -12,7 +12,7 @@ static func run(t) -> void:
  var fire_tip=ui.find_child("TermExplanation",true,false)
  t.check(fire_tip!=null and t.visible_text(fire_tip).contains("当前施法成功率："+ui.game.cast_view(ui.game.Cards.Rules.cast_profile("fireball")).percent),"CAST fireball hover uses actual spell probability")
  t.check(ui.game.export_snapshot()==hover_before,"CAST fireball hover does not roll or pay costs")
- t.check(t.visible_text(fire_tip).contains("失败返还本次耗魔的50%") and t.visible_text(fire_tip).contains("能量照扣") and t.visible_text(fire_tip).contains("火球术次数不消耗"),"CAST tooltip describes half-mana refund and retained energy cost")
+ t.check(t.visible_text(fire_tip).contains("失败返还50%自身耗魔") and t.visible_text(fire_tip).contains("能量照扣") and t.visible_text(fire_tip).contains("火球术次数保留"),"CAST tooltip describes half-mana refund and retained energy cost")
  ui.game._install_template("mouth_band","mouth",24.0,24.0,false,"fixture",3,0)
  # A valid independent target isolates the zero-chance reason from the gag's
  # integrated harness, which has no slip route.
@@ -53,7 +53,7 @@ static func run(t) -> void:
  await t.mouse_button(t.card_point(magic.uid),MOUSE_BUTTON_RIGHT,false)
  t.check(ui.card_faces[magic.uid]!=old_face and ui.card_buttons[magic.uid].modulate.r==1,"CARD UI dim paid face flips to available free preparation")
  t.check(t.visible_text(ui.card_buttons[magic.uid]).contains(ui.game.Cards.face_text(ui.game,magic.type,true,magic.uid)),"CARD UI preparation remains explicit beside its mana badge")
- t.check(ui.find_child("TermExplanation",true,false)!=null and not t.visible_text(ui.term_popup).contains("施法成功率") and t.visible_text(ui.term_popup).contains("临时魔力"),"CAST UI free face replaces casting explanation with its keyword: "+(t.visible_text(ui.term_popup) if is_instance_valid(ui.term_popup) else "missing"))
+ t.check(ui.find_child("TermExplanation",true,false)!=null and not t.visible_text(ui.term_popup).contains("施法部位：") and t.visible_text(ui.term_popup).contains("临时魔力"),"CAST UI free face replaces casting explanation with its keyword: "+(t.visible_text(ui.term_popup) if is_instance_valid(ui.term_popup) else "missing"))
  t.check(ui.layout.get_instance_id()==layout_id and ui.card_buttons[magic.uid].get_instance_id()==card_id and is_instance_valid(other) and other.get_instance_id()==other_id and ui.game.view_reads==reads,"CARD UI flip preserves scene/card controls and does not reproject rules")
  t.check(ui.card_buttons[magic.uid].drag_payload.free==ui.card_faces[magic.uid] and ui.card_buttons[magic.uid].drag_payload.version==ui.view.version,"CARD UI partial flip updates drag face without changing version")
  ui.game.state.equipment.clear();ui.game.state.pressure=0
@@ -166,7 +166,7 @@ static func mana_badges(t) -> void:
  var shown=ui.view.hand.filter(func(entry):return entry.uid==free_surge.uid)[0]
  t.check(shown.face_casting.bound.percent=="100%" and shown.face_casting.free.percent=="25%","SURGE only the paid bound face previews the crystal guarantee")
  await t.move_mouse(Vector2(1100,90));await t.frames();await t.move_mouse(t.card_point(free_surge.uid));await t.frames()
- t.check(t.visible_text(ui.find_child("TermExplanation",true,false)).contains("施法成功率 · 25%") and ui.card_buttons[free_surge.uid].get_node_or_null("CardMana/Mana_cost")==null,"SURGE free hover uses actual unpaid chance and hides mana cost")
+ t.check(t.visible_text(ui.find_child("TermExplanation",true,false)).contains("施法部位：无 · 25%") and ui.card_buttons[free_surge.uid].get_node_or_null("CardMana/Mana_cost")==null,"SURGE free hover uses actual unpaid chance and hides mana cost")
 
  ui.restart(42);await t.frames();ui.game._discard_end()
  var slip=preload("res://tests/curse_cases.gd").give(ui.game,"magic_slip")
@@ -174,22 +174,22 @@ static func mana_badges(t) -> void:
  if not ui.card_faces[slip.uid]: await t.flip(slip.uid)
  t.check(t.visible_text(ui.card_buttons[slip.uid]).contains("施法：嘴部") and ui.card_buttons[slip.uid].get_node_or_null("CardMana/Mana_cost")==null,"MAGIC SLIP free UI shows mouth casting without mana payment")
  await t.move_mouse(Vector2(1100,90));await t.frames();await t.move_mouse(t.card_point(slip.uid));await t.frames()
- t.check(t.visible_text(ui.find_child("TermExplanation",true,false)).contains("施法成功率 · 25%"),"MAGIC SLIP free tooltip shows actual mouth chance")
+ t.check(t.visible_text(ui.find_child("TermExplanation",true,false)).contains("施法部位：嘴部 · 25%"),"MAGIC SLIP free tooltip shows actual mouth chance")
  var entry=preload("res://data/encyclopedia.gd").card("magic_slip")
  t.check(entry.face_requirements.free==["施法：嘴部"] and entry.cast_faces.free,"MAGIC SLIP catalog also declares free mouth casting")
 
 static func failed_card_stays(t) -> void:
  var ui=t.ui
- ui.restart(42);ui.game._discard_end();ui.game.state.pressure=99
+ ui.restart(42);ui.game._discard_end();ui.game.state.pressure=99;ui.game.state.temporary_mana=2.5
  var card=preload("res://tests/curse_cases.gd").give(ui.game,"mana_surge")
  var rng=ui.game.state.rng.magic
  while ui.game._random_index("magic",ui.game.B.CAST_ROLL_STEPS)<ui.game.cast_view(ui.game.Cards.cast_profile(ui.game,"mana_surge")).winning_rolls: rng=ui.game.state.rng.magic
  ui.game.state.rng.magic=rng
  ui.render();await t.frames()
- var failed_cost=Queries.find(ui.view,"card",{"uid":card.uid,"free":false}).mana
+ var failed_cost=Queries.find(ui.view,"card",{"uid":card.uid,"free":false}).mana_payment.mana
  await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
- t.check(ui.game._magic_failed and ui.card_buttons.has(card.uid) and ui.game.state.exhaust.is_empty() and ui.game.state.mana<100,"CAST UI failed exhaust card remains visible after paid attempt")
- t.check(is_equal_approx(ui.game.state.mana,100-failed_cost*0.5) and ui.game.state.logs.any(func(log):return log.data.has("spell") and log.text.contains("返还") and is_equal_approx(log.data.spell.mana_refund.mana,failed_cost*0.5)),"CAST UI failed attempt reports actual refund and remaining mana")
+ t.check(ui.game._magic_failed and ui.game.state.temporary_mana==0 and ui.card_buttons.has(card.uid) and ui.game.state.exhaust.is_empty() and ui.game.state.mana<100,"CAST UI failed exhaust card remains visible after paid attempt")
+ t.check(is_equal_approx(ui.game.state.mana,100-failed_cost+floorf(failed_cost*0.5)) and ui.game.state.logs.any(func(log):return log.data.has("spell") and log.text.contains("返还") and is_equal_approx(log.data.spell.mana_refund.mana,floorf(failed_cost*0.5))),"CAST UI failed attempt reports actual refund and remaining mana")
  ui.game.state.sure_cast=true;ui.render();await t.frames()
  await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
  t.check(not ui.card_buttons.has(card.uid) and ui.game.state.exhaust.any(func(x):return x.uid==card.uid) and ui.game.state.charge==2,"CAST UI retry succeeds and then animates actual exhaust")

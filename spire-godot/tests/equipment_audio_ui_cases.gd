@@ -1,0 +1,83 @@
+extends RefCounted
+const Audio=preload("res://ui/equipment_audio.gd")
+const VoiceProfile=preload("res://data/girl_sound_profile.gd")
+const Queries=preload("res://ui/target_queries.gd")
+const Rules=preload("res://tests/equipment_audio_cases.gd")
+
+static func run(t) -> void:
+ var ui=t.ui;ui.restart(42);await t.frames()
+ var player=ui.equipment_audio
+ t.check(player.stream is AudioStreamMP3 and not player.stream.loop and player.stream.get_length()>0 and player.max_polyphony==8,"AUDIO imported clip is finite and supports overlapping operation tails")
+ var before=ui.game.export_snapshot()
+ player.consume([]);player.consume(["unrelated"])
+ t.check(not player.playing,"AUDIO empty and unrelated receipts are silent")
+ ui.hero_voice.stop();ui.card_music.stop_music()
+ player.consume([Audio.CUE]);ui.hero_voice.consume([VoiceProfile.cue("hit",false)])
+ ui.card_music.configure(true,0.2);ui.card_music.play_track("rain_love",ui.view.phase,false)
+ ui.interaction_audio.request("fireball");await t.frames(2,false)
+ t.check(player.playing and ui.hero_voice.playing and ui.card_music.playing and ui.interaction_audio.voices.action.playing,"AUDIO restraint material overlaps voice, music and interaction effects on independent players")
+ player.stop();ui.hero_voice.stop();ui.card_music.stop_music()
+ player.consume([Audio.CUE,Audio.CUE]);await t.frames(4)
+ var playback=player.get_stream_playback()
+ player.consume([Audio.CUE]);await t.frames(2,false)
+ t.check(player.playing and player.get_stream_playback()!=playback and playback.is_playing(),"AUDIO a new operation starts while the preceding playback continues")
+ t.check(ui.game.export_snapshot()==before,"AUDIO playback cannot mutate game state")
+ var deadline=Time.get_ticks_msec()+int((player.stream.get_length()+1.0)*1000)
+ while player.playing and Time.get_ticks_msec()<deadline: await t.process_frame
+ t.check(not player.playing,"AUDIO overlapping clips finish naturally without a delayed playback queue")
+ player.consume([Audio.CUE]);t.check(player.playing,"AUDIO a later independent cue can play again")
+ ui.restart(42);await t.frames()
+ t.check(not player.playing,"AUDIO restart clears a previous run's sound")
+ var target=ui.game.add_fixture("ankle",8)
+ var card=preload("res://tests/curse_cases.gd").give(ui.game,"strain")
+ ui.render();await t.frames()
+ var c=Queries.find(ui.view,"card",{"uid":card.uid,"target":target.id,"free":false})
+ t.check(c.valid,"AUDIO UI real damage action is usable")
+ if not c.valid: return
+ ui.command_router.emit("card",c)
+ t.check(player.playing,"AUDIO successful UI submission starts the material sound")
+ player.stop();ui.render(ui.view);await t.frames()
+ t.check(not player.playing,"AUDIO redraw does not replay the last committed receipt")
+ player.consume([Audio.CUE]);ui._return_home();await t.frames()
+ t.check(not player.playing,"AUDIO returning home stops the material sound")
+ await enemy_sequence(t)
+
+static func enemy_sequence(t) -> void:
+ var ui=t.ui;var player=ui.equipment_audio;var heard=[]
+ var listener=func():heard.append(ui.enemy_feedback.current.key if is_instance_valid(ui.enemy_feedback) else "player")
+ player.played.connect(listener)
+ ui.restart(42);await t.frames();player.stop();heard.clear()
+ Rules.audible_enemies(ui.game);ui.render();await t.frames()
+ var end=Queries.find(ui.view,"flow",{"kind":"end"})
+ ui.command_router.emit("end",end)
+ var committed=ui.game.export_snapshot();var presenter=ui.enemy_feedback
+ t.check(is_instance_valid(presenter),"AUDIO real end-turn command starts the enemy presenter")
+ if not is_instance_valid(presenter): player.played.disconnect(listener);return
+ presenter.set_process(false)
+ var expected=presenter.queue.filter(func(step):return Audio.CUE in step.sound_feedback).map(func(step):return step.key)
+ t.check(expected.size()>=2 and heard==expected.slice(0,1),"AUDIO only the first enemy starts at commit; later enemies await their own step")
+ var first_playback=player.get_stream_playback()
+ await t.frames(3,false)
+ presenter._process(presenter.duration)
+ t.check(heard==expected.slice(0,2) and first_playback.is_playing(),"AUDIO second enemy plays independently over the first tail at its action boundary")
+ while not presenter.closing: presenter._process(presenter.duration)
+ t.check(heard==expected and ui.game.export_snapshot()==committed,"AUDIO each enemy operation plays exactly once in committed order without game mutations")
+ presenter.finish();await t.frames();heard.clear();ui.render(ui.view);await t.frames()
+ t.check(heard.is_empty(),"AUDIO redraw does not reconstruct enemy sounds")
+
+ ui.restart(42);await t.frames();heard.clear()
+ ui.command_router.emit("end",Queries.find(ui.view,"flow",{"kind":"end"}))
+ presenter=ui.enemy_feedback
+ var count=heard.size()
+ presenter.find_child("SkipEnemyFeedback",true,false).pressed.emit();await t.frames(12,false)
+ t.check(count==1 and heard.size()==count and not is_instance_valid(ui.enemy_feedback),"AUDIO skipping presentation drops unheard enemy steps without a sound burst")
+
+ ui.restart(42);ui.game.state.evasion=99;ui.render();await t.frames();heard.clear();player.stop()
+ ui.command_router.emit("end",Queries.find(ui.view,"flow",{"kind":"end"}));await t.frames()
+ t.check(heard.is_empty() and not player.playing,"AUDIO evaded enemy installations stay silent throughout presentation")
+
+ ui.restart(42);await t.frames();heard.clear()
+ ui.command_router.emit("end",Queries.find(ui.view,"flow",{"kind":"end"}))
+ count=heard.size();ui._return_home();await t.frames(12,false)
+ t.check(heard.size()==count and not player.playing and not is_instance_valid(ui.enemy_feedback),"AUDIO returning home cancels enemy sounds and active material tails")
+ player.played.disconnect(listener)

@@ -146,7 +146,7 @@ static func event_gate_names_are_total(t) -> void:
  t.check(not studio.state.room_event.options.any(func(option):return str(option.get("id",""))=="temper") and not studio.command_facts().any(func(candidate):return str(candidate.payload.get("choice","")).begins_with("temper__")),"EVENT GATE an empty selector enters no frozen and no candidate option")
  # stage_missing: the node pipeline names an unknown target node and keeps the current stage
  var missing_result=studio.Events.enter_node_result(studio,"missing")
- t.check(missing_result.gate=="stage_missing" and str(missing_result.detail)=="missing" and missing_result.issue=="下一阶段不存在。","EVENT GATE an unknown node reports stage_missing with its id and its current wording: "+JSON.stringify(missing_result))
+ t.check(missing_result.gate=="stage_missing" and str(missing_result.detail)=="missing" and missing_result.issue=="下一阶段缺失。","EVENT GATE an unknown node reports stage_missing with its id and its current wording: "+JSON.stringify(missing_result))
  t.check(studio.state.room_event.stage=="choice","EVENT GATE an unknown node leaves the entered stage unchanged")
  # node_empty: the staged fixture closes the only option of its last node
  var staged_document=preload("res://tests/event_flow_cases.gd").document()
@@ -215,7 +215,7 @@ static func run(t) -> void:
  # Content registrations fail here rather than silently choosing another behavior.
  for id in g.Enemies.TYPES:
   var spec=g.Enemies.TYPES[id]
-  t.check(spec.hp>0 and spec.behavior in ["restraint","dispenser","attachment","lock","guard","humanoid","sequence","six_bind","binding_box","drone","puppeteer","puppet","iron_man","iron_drone"] and spec.visual in ["rope","belt","tape","cable_tie","toybox","silencer","lock","guard","rope_mass","rope_heap","belt_mass","belt_heap","trader","versatile","mixed_bundle","rope_serpent","ominous_circle","six_bind","binding_box","drone","puppeteer","puppet","iron_man"],"CONTENT enemy behavior and visual registered "+id)
+  t.check(spec.hp>0 and spec.behavior in ["restraint","dispenser","attachment","lock","guard","humanoid","sequence","six_bind","binding_box","drone","puppeteer","puppet","iron_man","iron_drone","rope_master","rope_assistant"] and spec.visual in ["rope","belt","tape","cable_tie","toybox","silencer","lock","guard","rope_mass","rope_heap","belt_mass","belt_heap","trader","versatile","mixed_bundle","rope_serpent","ominous_circle","six_bind","binding_box","drone","puppeteer","puppet","iron_man"],"CONTENT enemy behavior and visual registered "+id)
   if spec.has("special_pool"): t.check(not spec.special_pool.is_empty() and spec.special_pool.all(func(type):return g.SpecialEquipment.DESIGNS.has(type)),"CONTENT enemy special pool resolves "+id)
   if spec.behavior=="attachment": t.check(spec.attachment_slot in ["eyes","mouth"] and spec.attachment_pool.all(func(template):return spec.attachment_slot in g.Equipment.TEMPLATES[template].slots),"CONTENT attachment pool matches declared body region "+id)
   for field in ["install_pool","final_pool","attachment_pool"]:

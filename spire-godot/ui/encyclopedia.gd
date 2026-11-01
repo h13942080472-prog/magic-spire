@@ -89,7 +89,7 @@ func refresh() -> void:
    button.icon_alignment=HORIZONTAL_ALIGNMENT_LEFT
   button.name="EncyclopediaEntry_"+entry.id;button.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;list.add_child(button)
  if matching.is_empty():
-  clear_children(detail);detail.add_child(host._label("此分支暂无条目，或没有符合筛选条件的内容。",18,host.MUTED));return
+  clear_children(detail);detail.add_child(host._label("此筛选下条目为0。",18,host.MUTED));return
  var chosen=matching.filter(func(e):return e.id==selected)
  show_entry(chosen[0] if not chosen.is_empty() else matching[0])
 
@@ -176,9 +176,9 @@ func _art_selector(entry: Dictionary) -> void:
  picker.set_item_disabled(1,not settings.has_formal_art(entry.category,entry.id))
  picker.select(options.keys().find(settings.art_style(entry.category,entry.id)))
  picker.size_flags_horizontal=Control.SIZE_SHRINK_BEGIN;detail.add_child(picker)
- var note=host._label("正式版立绘未添加" if not settings.has_formal_art(entry.category,entry.id) else "",14,host.MUTED)
+ var note=host._label("立绘待添加" if not settings.has_formal_art(entry.category,entry.id) else "",14,host.MUTED)
  note.name="EncyclopediaArtNote";note.visible=not note.text.is_empty();detail.add_child(note)
  picker.item_selected.connect(func(index):
   settings.set_art_style(entry.category,entry.id,picker.get_item_metadata(index))
-  note.text=settings.save_error if not settings.save_error.is_empty() else ("正式版立绘未添加" if not settings.has_formal_art(entry.category,entry.id) else "")
+  note.text=settings.save_error if not settings.save_error.is_empty() else ("立绘待添加" if not settings.has_formal_art(entry.category,entry.id) else "")
   note.visible=not note.text.is_empty())

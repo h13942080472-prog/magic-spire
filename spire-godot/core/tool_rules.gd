@@ -22,7 +22,7 @@ static func target_contact(g, target: Dictionary, operation_id: String) -> Dicti
  return {"reason":Contact.reason(g,target,operation_id),"slots":Contact.usable_slots(g,target,operation_id)}
 
 static func escape_reason(g) -> String:
- if g.state.phase!="prison" or g.state.security>=5: return "传送符只能在一至四级牢房的可行动回合使用，巡视和战斗中不能使用。"
+ if g.state.phase!="prison" or g.state.security>=5: return "传送符仅限一至四级牢房的可行动回合使用。"
  var scroll_reason=g.Consumables.scroll_reason(g)
  if scroll_reason!="": return scroll_reason
  if g.carried_items()-1>g.item_capacity(): return "用掉传送符后，剩余道具仍超出容量；请先使用或放弃多出的道具。"
@@ -63,7 +63,7 @@ static func target_parts(g, target: Dictionary) -> String:
 static func contact_reason(g, target: Dictionary, item: Dictionary) -> String:
  if item.mount=="carry" or assisted(g): return target_contact(g,target,"cut").reason
  var result=Contact.evaluate(g,target,{"points":reach(g,item)})
- if result.code=="out_of_reach": return "当前姿势下，"+target_parts(g,target)+"碰不到这里的工具。"
+ if result.code=="out_of_reach": return "当前姿势下，"+target_parts(g,target)+"请调整姿势，使目标触及工具。"
  return result.reason
 
 static func reach(g, item: Dictionary) -> Array:
@@ -88,18 +88,18 @@ static func operator_profile(g, mount: String, type: String) -> Dictionary:
  var ranges=OPERATOR_HEIGHTS[pose]
  # Bound arms can still pinch nearby; they cannot raise the hands into the upper band.
  if mount in ranges.hand:
-  if g.occupied("fingers"): issues.append("手指受限，夹不住工具")
-  elif g.level("arms")!=0 and mount!=("hand_wall" if pose=="stand" else "foot_wall"): issues.append("双臂受限，手够不到这里")
+  if g.occupied("fingers"): issues.append("夹取工具需要手指自由")
+  elif g.level("arms")!=0 and mount!=("hand_wall" if pose=="stand" else "foot_wall"): issues.append("需要双臂能触及目标")
   else: result.append("hand")
  if mount in ranges.foot:
-  if g.occupied("toes"): issues.append("脚趾受限，夹不住工具")
-  elif g.level("legs")>2: issues.append("双腿受限超过二级，不能用脚趾送取工具")
+  if g.occupied("toes"): issues.append("夹取工具需要脚趾自由")
+  elif g.level("legs")>2: issues.append("脚趾送取工具需要腿部束缚≤2级")
   else: result.append("foot")
  if mount in ranges.mouth and TYPES.get(type,{}).get("mouth_install",false):
   if g.occupied("mouth"): issues.append("嘴部被占用")
   else: result.append("mouth")
  var reason=""
- if result.is_empty(): reason="当前姿势够不到"+mount_label(mount)+"。" if issues.is_empty() else "；".join(issues)+"。"
+ if result.is_empty(): reason="请调整姿势以触及目标"+mount_label(mount)+"。" if issues.is_empty() else "；".join(issues)+"。"
  return {"operators":result,"reason":reason}
 
 static func install_operators(g, mount: String, type: String) -> Array:

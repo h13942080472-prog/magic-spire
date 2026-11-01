@@ -9,12 +9,15 @@ static func ordinary(g, grade: int=2, free: bool=false, templates: Array=[], loc
  var previous=g._begin_equipment_read()
  var offers=[]
  for template in (E.TEMPLATES.keys() if templates.is_empty() else templates):
-  if not E.TEMPLATES.has(template) or not E.TEMPLATES[template].get("generated",true): continue
+  if not E.TEMPLATES.has(template): continue
+  var shackle=E.is_shackle({"template":template})
+  if not E.TEMPLATES[template].get("generated",true) and not (shackle and not templates.is_empty()): continue
+  var item_grade=1 if shackle else grade
   for slot in E.TEMPLATES[template].slots:
-   if E.definition_reason(template,slot,grade,locked)!="": continue
+   if E.definition_reason(template,slot,item_grade,locked)!="": continue
    if free and g.occupied(slot): continue
    for point in (E.points(slot) if E.SEGMENTS.has(slot) else [""]):
-    if not legal_only or g._installation_reason(template,slot,grade,locked,point)=="":
+    if not legal_only or g._installation_reason(template,slot,item_grade,locked,point)=="":
      offers.append({"kind":"install","template":template,"slot":slot,"point":point,"rank":g._priority(slot),"name":E.name_for(template,slot)})
  g._equipment_read=previous
  return offers

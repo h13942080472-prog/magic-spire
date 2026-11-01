@@ -43,7 +43,7 @@ static func run(t) -> void:
  var g=fresh();var card=Cards.give(g,TYPE)
  g.state.mana=50;g.state.temporary_mana=20;g.state.pressure=95
  var failed=t.find_action(g,"card",{"uid":card.uid,"free":true})
- t.check(failed.valid and g.cast_view(g.Cards.cast_profile(g,TYPE)).chance<1 and g.dispatch(g.command(failed.payload,g.state.version),g.state.version).ok and not g.Cards.basic_attack_freedom(g) and g.state.mana==25 and g.state.temporary_mana==10 and g.state.hand.any(func(v):return v.uid==card.uid),"WAR GODDESS failed activation retains card and follows normal half refund")
+ t.check(failed.valid and g.cast_view(g.Cards.cast_profile(g,TYPE)).chance<1 and g.dispatch(g.command(failed.payload,g.state.version),g.state.version).ok and not g.Cards.basic_attack_freedom(g) and g.state.mana==25 and g.state.temporary_mana==0 and g.state.hand.any(func(v):return v.uid==card.uid),"WAR GODDESS failed activation retains card and follows normal half refund")
  t.check(g.get_view().speech.get("text","")!="无尽战神,出来!","WAR GODDESS failed activation does not announce successful transformation")
  var spec=g.Cards.Rules.SPECS[TYPE].duplicate(true);spec.all_mana_minimum=-1
  t.check(g.Cards.Rules.definition_reason(spec)!="","WAR GODDESS invalid all-mana threshold is rejected")

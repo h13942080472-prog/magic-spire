@@ -49,11 +49,14 @@ var card_music_enabled=true
 var card_music_volume=0.2
 var doubao_voice_enabled=true
 var doubao_voice_volume=0.32
+var interaction_audio_enabled=true
+var interaction_audio_volume=0.7
 
 const MODES=["窗口","无边框窗口","全屏"]
 const FRAME_LIMITS=[60,120,240,0]
 var frame_limit=60
 var vsync_enabled=true
+var reduced_card_motion=false
 const Localization=preload("res://ui/localization.gd")
 var locale=Localization.DEFAULT_LOCALE
 const RESOLUTIONS=[Vector2i(1280,720),Vector2i(1440,810),Vector2i(1600,900),Vector2i(1920,1080),Vector2i(2560,1440),Vector2i(3840,2160)]
@@ -83,7 +86,9 @@ func initialize(target: Window, persist: bool=true) -> void:
  first_battle_tutorial_seen=false
  card_music_enabled=true;card_music_volume=0.2
  doubao_voice_enabled=true;doubao_voice_volume=0.32
+ interaction_audio_enabled=true;interaction_audio_volume=0.7
  frame_limit=60;vsync_enabled=true
+ reduced_card_motion=false
  _apply_frame_settings()
  mode=2 if window.mode in [Window.MODE_FULLSCREEN,Window.MODE_EXCLUSIVE_FULLSCREEN] else (1 if window.borderless else 0)
  resolution=window.size
@@ -103,6 +108,11 @@ func initialize(target: Window, persist: bool=true) -> void:
  if (saved_voice_volume is float or saved_voice_volume is int) and is_finite(float(saved_voice_volume)):
   doubao_voice_volume=clampf(float(saved_voice_volume),0.0,1.0)
  var saved_fixed=config.get_value("art","fixed_hero_portrait",false)
+ var saved_effects=config.get_value("audio","interaction_audio_enabled",true)
+ var saved_effects_volume=config.get_value("audio","interaction_audio_volume",0.7)
+ if saved_effects is bool: interaction_audio_enabled=saved_effects
+ if (saved_effects_volume is float or saved_effects_volume is int) and is_finite(float(saved_effects_volume)):
+  interaction_audio_volume=clampf(float(saved_effects_volume),0.0,1.0)
  if saved_fixed is bool: fixed_hero_portrait=saved_fixed
  var saved_chastity=config.get_value("gameplay","chastity_locks_enabled",false)
  var saved_chance=config.get_value("gameplay","chastity_lock_chance",25)
@@ -128,6 +138,8 @@ func initialize(target: Window, persist: bool=true) -> void:
  var saved_mode=config.get_value("display","mode",mode)
  var saved_limit=config.get_value("display","frame_limit",60)
  var saved_vsync=config.get_value("display","vsync_enabled",true)
+ var saved_motion=config.get_value("display","reduced_card_motion",false)
+ if saved_motion is bool: reduced_card_motion=saved_motion
  if saved_limit is int and saved_limit in FRAME_LIMITS: frame_limit=saved_limit
  if saved_vsync is bool: vsync_enabled=saved_vsync
  var saved_size=config.get_value("display","resolution",resolution)
@@ -179,6 +191,7 @@ func save() -> void:
  config.set_value("display","mode",mode)
  config.set_value("display","frame_limit",frame_limit)
  config.set_value("display","vsync_enabled",vsync_enabled)
+ config.set_value("display","reduced_card_motion",reduced_card_motion)
  config.set_value("localization","locale",locale)
  config.set_value("display","resolution",resolution)
  config.set_value("art","choices",art_choices)
@@ -192,7 +205,9 @@ func save() -> void:
  config.set_value("audio","card_music_volume",card_music_volume)
  config.set_value("audio","doubao_voice_enabled",doubao_voice_enabled)
  config.set_value("audio","doubao_voice_volume",doubao_voice_volume)
- if config.save(path)!=OK: save_error="设置未能保存，下次启动时需要重新选择。"
+ config.set_value("audio","interaction_audio_enabled",interaction_audio_enabled)
+ config.set_value("audio","interaction_audio_volume",interaction_audio_volume)
+ if config.save(path)!=OK: save_error="设置保存失败，请重试。"
 
 func set_locale(value: String) -> bool:
  if not Localization.supported(value): return false
@@ -217,6 +232,10 @@ func set_fixed_hero_portrait(enabled: bool) -> void:
 
 func set_doubao_voice(enabled: bool, volume: float) -> void:
  doubao_voice_enabled=enabled;doubao_voice_volume=clampf(volume,0.0,1.0)
+ save()
+
+func set_interaction_audio(enabled: bool, volume: float) -> void:
+ interaction_audio_enabled=enabled;interaction_audio_volume=clampf(volume,0.0,1.0)
  save()
 
 func set_chastity_locks(enabled: bool) -> void:

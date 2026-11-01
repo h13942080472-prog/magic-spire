@@ -7,7 +7,7 @@ static func run(t) -> void:
  var weak_id=weak.state.enemies[0].id
  t.check(weak._enemy(weak_id).hp==30 and weak.Enemies.TYPES.small_circle.strength==1 and weak.Enemies.FirstFloor.candidates(weak).any(func(m):return m.type=="small_circle"),"RITUAL weak variant has thirty HP and enters the normal weak draw")
  t.action(weak,"end");t.action(weak,"end")
- t.check(weak.equipment_targets().size()==4 and weak._enemy(weak_id).application_bonus==6,"RITUAL weak variant reuses the complete ritual behavior")
+ t.check(weak.equipment_targets().size()==4 and weak._enemy(weak_id).application_bonus==6 and weak.equipment_targets().all(func(p):return p.grade==1 and weak.equipment_tier(p)==2),"RITUAL weak variant retains growth while only installing basic tier-two equipment")
  var g=Game.new(42,true,"ominous_circle_solo")
  var id=g.state.enemies[0].id
  var before=g.export_snapshot();g.get_view();g.command_facts()

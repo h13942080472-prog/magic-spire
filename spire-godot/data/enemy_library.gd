@@ -1,5 +1,5 @@
 extends RefCounted
-const CLASSIFICATIONS={"weak":["rope","belt","tape","cable_tie","gag","toybox","lock","small_circle","mixed_bundle","drone"],"strong":["binding_box","rope_mass","belt_mass","trader","versatile","ominous_circle","rope_serpent"],"elite":["guard","rope_heap","belt_heap","puppeteer"],"boss":["six_bind","iron_man"]}
+const CLASSIFICATIONS={"weak":["rope","belt","tape","cable_tie","gag","toybox","lock","small_circle","mixed_bundle","drone"],"strong":["binding_box","rope_mass","belt_mass","trader","versatile","ominous_circle","rope_serpent"],"elite":["guard","rope_heap","belt_heap","puppeteer"],"boss":["six_bind","iron_man","rope_master"]}
 const VARIANTS={
  "rope_basic":{"type":"rope","grade":1},"belt_basic":{"type":"belt","grade":1},
  "tape_basic":{"type":"tape","grade":1},"cable_tie_basic":{"type":"cable_tie","grade":1},

@@ -19,10 +19,10 @@ static func remaining(g, op: String) -> int:
  return maxi(0,limit(g,op)-used)
 
 static func validate(g) -> String:
- if not g.Snapshot.fields(g.state,"flask_mana:n flask_deposits:i") or g.state.flask_mana<0 or g.state.flask_deposits<0 or g.state.flask_deposits>DEPOSITS: return "贴身魔瓶的魔力或存入次数不正确。"
+ if not g.Snapshot.fields(g.state,"flask_mana:n flask_deposits:i") or g.state.flask_mana<0 or g.state.flask_deposits<0 or g.state.flask_deposits>DEPOSITS: return "贴身魔瓶的魔力或存入次数有误。"
  # Older snapshots have no withdrawal counter; absence means no uses under the new rule.
  var used=g.state.combat.get("flask_withdrawals",0)
- if not used is int or used<0 or used>DEPOSITS: return "贴身魔瓶的取出次数不正确。"
+ if not used is int or used<0 or used>DEPOSITS: return "贴身魔瓶的取出次数有误。"
  return ""
 
 static func available(g) -> bool:
@@ -54,7 +54,7 @@ static func facts(g, withdrawal_only: bool=false) -> Array:
  var result=withdrawal(g)
  reason=g.Consumables.reason(g,"mana_potion")
  if g.state.flask_mana<=0: reason="魔瓶中没有魔力。"
- elif reason=="" and result.restored<=0: reason="魔瓶余量不足以在嘴部减效后恢复魔力。"
+ elif reason=="" and result.restored<=0: reason="请补充魔瓶魔力，以满足嘴部减效后的取用量。"
  if limited(g,"withdraw") and remaining(g,"withdraw")==0: reason="本回合已取出%d次。" % limit(g,"withdraw")
  var withdraw_args={"drawn":result.drawn,"restored":result.restored,"remaining":remaining(g,"withdraw"),"limited":limited(g,"withdraw")}
  out.append(g._fact({"kind":"flask","op":"withdraw"},"取出",{"kind":"mana_flask.withdraw","args":withdraw_args,"fallback":withdraw_detail(g,withdraw_args)},0,0.0,reason,"","flask"))
@@ -62,12 +62,12 @@ static func facts(g, withdrawal_only: bool=false) -> Array:
 
 # R1（docs/ondemand-copy.md「文案路由（收口阶段）」）：生产者提交「类别 + 参数」，正文仍留本模块，路由只做分派。
 static func deposit_detail(g, args: Dictionary) -> String:
- if not args.get("limited",false): return "存入%s魔力，战斗外不限次数。" % g.number(float(args.get("amount",0.0)))
+ if not args.get("limited",false): return "存入%s魔力，战斗外可反复操作。" % g.number(float(args.get("amount",0.0)))
  return "存入%s魔力，本回合剩余%d次。" % [g.number(float(args.get("amount",0.0))),int(args.get("remaining",0))]
 
 static func withdraw_detail(g, args: Dictionary) -> String:
  var values=[g.number(float(args.get("drawn",0.0))),g.number(float(args.get("restored",0.0)))]
- if not args.get("limited",false): return "取出%s魔力，恢复自身%s魔力，战斗外不限次数。" % values
+ if not args.get("limited",false): return "取出%s魔力，恢复自身%s魔力，战斗外可反复操作。" % values
  return "取出%s魔力，恢复自身%s魔力，本回合剩余%d次。" % (values+[int(args.get("remaining",0))])
 
 static func execute(g, p: Dictionary) -> void:

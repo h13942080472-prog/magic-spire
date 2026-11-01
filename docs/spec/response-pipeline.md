@@ -19,10 +19,11 @@
 - 文件域：`ui/main.gd`（唯一允许 `preload` core 的 UI 文件；唯一提交入口与全部节重建函数）、
   `ui/keyboard_input.gd`、`ui/touch_input.gd`、`ui/first_turn_presenter.gd`、`ui/target_queries.gd`、
   `ui/shell/game_layout.gd`、`ui/shell/body_sidebar.gd`、`ui/shell/header.gd`，
-  反馈模块 `card_motion.gd`／`resource_feedback.gd`／`combat_feedback.gd`／`enemy_feedback.gd`／
-  `impact_feedback.gd`；
+  反馈模块 `card_motion.gd`／`resource_feedback.gd`／`combat_feedback.gd`／`enemy_feedback.gd`／`battle_feed.gd`／
+  `impact_feedback.gd`／`equipment_audio.gd`／`hero_voice.gd`、`ui/card_interaction.gd`；
   core 侧被消费的只有 `core/game.gd` 的 `dispatch`／`get_view`／`number`／`restore_snapshot`／
-  `restart_snapshot`／`Prison.*` 与 `core/game_view.gd` 的 `View.build`。
+  `restart_snapshot`／`Prison.*`、只读文案 `ActionCopy.result` 与 `core/game_view.gd` 的 `View.build`。
+- 卡牌表现模块 `ui/card_interaction.gd` 消费卡面与原生拖放显示事实，不写规则、不新增规则接口；手势与失效条件见 `docs/design/input-controls.md`。
 - 依赖方向（不得新增反向边）：`core`／`data` 不 preload ui；UI 不读 `game.state`、不调用 `dispatch` 之外的
   规则写入口（快照入口 `restore_snapshot`／`restart_snapshot` 只允许在 `_resume_snapshot`、`restart`、
   `_quick_sl` 三处使用）；`ui/target_queries.gd` 不持有 Game、控件或跨刷新缓存；
@@ -34,7 +35,7 @@
 
 | 接口 | 输入／返回 | 谁能调 | 信任依据 |
 | --- | --- | --- | --- |
-| `game.dispatch(cmd, expected_version) -> Dictionary` | `cmd`＝类型化指令 `{kind, params, expected_version}`（kind 与键面见 `docs/spec/candidate-removal.md`；`params` 只用稳定 ID）。成功 `{ok:true, version, resource_feedback, card_feedback, music_feedback, checkpoint, spell_failed, fact, phase, overloaded}`：`fact` 为本次提交的判定行（display fact；`ui/main.gd::_submit` 由它取呈现用的 `payload`，不再于提交前另查 `command_fact`；一次成功提交只在 `dispatch` 内做一次事实出口查询）；`phase`＝提交后（已提交态）的相位，`overloaded`＝提交后的过载态（归一化段 `ui/main.gd::_submit` 的 `_close_drawers()` 判断依据），两键都是**提交后状态的只读标量**，与 `core/game_view.gd::build` 的 `phase`／`pressure.overloaded` **同源同值**（过载态的唯一定义处＝`core/pressure.gd::overloaded`，`Pressure.view` 与 `dispatch` 共用它），不构成第二份判定／第二份相位真源，**不得由 `payload.kind` 反推**；失败 `{ok:false, error:String, fact:{}}`（不带其它键；两键只在 `ok==true` 时出现） | 只有 M2 `_submit`（测试可直调，UI 其它文件禁止） | 只有 `ok=true` 才写状态：`state=state.duplicate(true)` 后执行事务，失败回滚，不留部分付款／部分装备；core 侧拒绝语义与 `tests/test_game.gd` 的 TC-CORE-0002／0003 锁定 |
+| `game.dispatch(cmd, expected_version) -> Dictionary` | `cmd`＝类型化指令 `{kind, params, expected_version}`（kind 与键面见 `docs/spec/candidate-removal.md`；`params` 只用稳定 ID）。成功 `{ok:true, version, resource_feedback, card_feedback, music_feedback, sound_feedback, checkpoint, spell_failed, fact, phase, overloaded}`：`fact` 为本次提交的判定行（display fact；`ui/main.gd::_submit` 由它取呈现用的 `payload`，不再于提交前另查 `command_fact`；一次成功提交只在 `dispatch` 内做一次事实出口查询）；`phase`＝提交后（已提交态）的相位，`overloaded`＝提交后的过载态（归一化段 `ui/main.gd::_submit` 的 `_close_drawers()` 判断依据），两键都是**提交后状态的只读标量**，与 `core/game_view.gd::build` 的 `phase`／`pressure.overloaded` **同源同值**（过载态的唯一定义处＝`core/pressure.gd::overloaded`，`Pressure.view` 与 `dispatch` 共用它），不构成第二份判定／第二份相位真源，**不得由 `payload.kind` 反推**；失败 `{ok:false, error:String, fact:{}}`（不带其它键；两键只在 `ok==true` 时出现） | 只有 M2 `_submit`（测试可直调，UI 其它文件禁止） | 只有 `ok=true` 才写状态：`state=state.duplicate(true)` 后执行事务，失败回滚，不留部分付款／部分装备；core 侧拒绝语义与 `tests/test_game.gd` 的 TC-CORE-0002／0003 锁定 |
 | `game.command_params(kind, source)`／`game.command(source)` | 指令装配的唯一投影／唯一装箱 | UI 指令层（`ui/command_router.gd`／`ui/command_routes.gd`）与测试；不得在别处二次装配 | 同一形状 → 同一 `params` 只有一条路径；键面＝`core/game.gd::COMMAND_KEYS` 的 39 kind 声明（`tests/architecture_cases.gd::command_params_keys_pinned`） |
 | `game.command_issue(cmd)`／`game.command_fact(cmd)` | 形状与参数合法性复核（失败返回「该行动已经失效，请重新选择。」）／形状 → 当前状态下的显示事实 | `command_issue` 由 `dispatch` 内调用；`command_fact` 供提交复核、显示读取路径与测试 | 形状与 `params` 相等的事实恰有一条；不写 `valid`／`reason`、不产事件、不推进随机、不跨调用保留 |
 | `game.get_view(demand := [])` | 输入＝**需求**（一组组名；缺省 `[]` ＝全组，与显式全组是**同一语义、同一条路径**——需求闭包的唯一实现＝`core/game.gd::fact_demand_groups`，组→单元在 `core/command_registry.gd::FACT_UNITS` 的组列，投影承接组下限＝同文件 `VIEW_FACT_GROUPS`）；纯只读投影（`View.build` 内调 `Game.command_facts()` 取显示事实、每条显示事实的 `ReleaseView.preview`、显示集合 `card_texts`、room_event／shop／relics／prison 四个 view）；唯一新增 View 键 `display_fact_scope`＝本次实际投影的组集合（＝`display_facts` 各行 `group` 的去重排序，可推导）。需求只决定**哪些单元被构建与哪些行外放**：`display_facts` 恒为全组行的**纯子序列**（逐行逐字节、顺序一致、无增无减），其余 View 键的取值由闭包下限保证与全组构建逐字节相等（判据 `tests/architecture_cases.gd::default_projection_is_unchanged`／`lazy_projection_invariant`／`fact_groups_are_total`／`whole_table_branches_force_full_demand`；接管／`card_chain`／`pending_retain` 三支按声明守卫取全组） | 唯一允许的调用点集合：`_resume_snapshot`、`render`（空快照）、`_submit`、`restart`（`tests/architecture_cases.gd::get_view_call_sites_are_pinned`）；`_submit` 的局部重建分支（前后均 battle 且节键可用）传**声明需求**＝`ui/main.gd::_present_demand`（`PRESENT_DEMAND`／`PHASE_OPEN_DEMAND` 两张字面表＋与归一化段共用的开合实现 `_submit_opens`；失败提交退化为 `PHASE_OPEN_DEMAND` 兜底），其余调用点与 `render(updated)` 回落取缺省＝全组（判据 `tests/architecture_cases.gd::submit_demand_call_sites_are_pinned`／`demand_declarations_are_total`／`section_read_sets_are_pinned`；实际读取记录器为 `tests/display_ui_cases.gd::present_demand_recorder`；逐节读集与需求声明对照 `docs/spec/fact-table-dependencies.md`「需求声明」） | `view.version` 等于投影来源的已提交 `state.version`；**在不改变实际呈现效果的情况下，尽量降低单次成本**；投影结果不得当规则判定来源 |
@@ -59,11 +60,33 @@
 | `keyboard_input.handle(event) -> bool` | 返回是否已处理；内部可能调 `host._submit`／`host._activate_card` | `main._input` 与 PopupMenu 桥 | host 成员名与语义在本管线内冻结（`view`／`actions`／`card_buttons`／`card_faces`／`attack_forms`／`_submit`／`_activate_card`／`render`／`_show_term`／`_hide_term`／`_panel`／`_label`／`_button`／`_open_drawer`／`_close_drawers`／`DRAWERS`／`modal_region`／`quick_release_*`）；android 直接返回 false；不新增 `dispatch` |
 | `keyboard_input.refresh_hints()` | 幂等重建按钮角标 | `render` 与 `present` 局部末尾（均 `call_deferred`） | 只读 view 与 settings；无游戏副作用 |
 | `touch_input` | 把触摸合成鼠标事件推入 viewport（含 PopupMenu 独立视口桥） | 引擎输入；`_ready` 由 main 挂载 | 不直接调提交／规则；长按阈值与取消路径不提交；UI 侧不得假设存在触摸专用入口 |
+| `card_interaction.inspect`／`capture_flip`／`flip`／`begin_drag`／`clear` | 既有卡面工厂与控件、当前拖放载荷；逐帧瞄准只消费 `DropTarget` 原生接受结果 | 卡面回调、`DragTargets`；提交前与重开清理 | 无规则、资格或提交写入；幽灵节点忽略鼠标；失效与手势契约见 `docs/design/input-controls.md` |
 | `card_motion.positions(ui)`／`enqueue(events, before)` | 抓取当前手牌按钮位置／角度／牌面；core 的 `card_feedback` 事件＋提交前快照 | `_submit`：`positions` 在 `dispatch` 前，`enqueue` 在 ok 分支且展示更新之后 | 只读；不改状态；不推进随机；幽灵卡不持有牌、不挡输入；`pending_draws` 隐藏新抽牌按钮的规则必须被手牌节尊重 |
 | `resource_feedback.enqueue(events, point, instant_fields)` | core 的 `resource_feedback` 事件＋锚点 | `_submit` ok 分支 | 只消费已提交差值；`show_home` 时自毁 |
-| `combat_feedback.play(ui, before, payload)` | 提交前 View＋已提交 payload | `_submit` ok 分支 | 只用可见前后差分（HP／日志／装备耐久）；不预测、不改伤害／意图／资源／时机 |
+| `combat_feedback.play(ui, before, payload)` | 提交前 View＋已提交 payload | `_submit` ok 分支 | 敌人伤害与连续解除逐击读已提交日志的 `damage`／`follow_through_hit`，装备汇总仍读耐久差分；不预测、不改伤害／意图／资源／时机 |
 | `impact_feedback.play(events, payload, snapshot)` | `dispatch` 返回的 `resource_feedback` 事件（可为空数组）；本次已提交候选的载荷；提交后 View | `_submit` ok 分支（经 `ui/main.gd` 的节内助手按 `will_play` 预判后才创建节点） | 只消费已提交数据：不读 `state`／`state.logs`，不预测、不改数值／候选／存档／随机；无效果可播时空操作；层内节点 `MOUSE_FILTER_IGNORE`、无 `_process`，一次性 Tween 后 `hide()` 并 `set_process(false)`；效果族由已提交事实唯一决定（`pressure` 净涨出滤镜、`charge`／`next_energy` 净涨出黄边框、`mana`／`temporary_mana`／`witch_focus` 任一净变化出蓝边框、载荷 `kind=="calm"` 出白边框，多族命中按白＞黄＞蓝取一；攻击／挣扎／滑脱出震动）；蓝边框 gain／loss 只由净增量符号决定，强度按字段参考尺度归一化，无最小增量门槛 |
 | `enemy_feedback.finish()` | 清 `ui.enemy_feedback` 并释放 | `_return_home`、`_reset_interface`、播报结束 | 节点存在即「播报期」：提交入口守卫与 `blocked()` 都据此吃输入（产品决策）；全屏 `MOUSE_FILTER_STOP` 不得被 `render` 提前回收 |
+
+### 卡牌表现的职责与时序
+
+```mermaid
+flowchart LR
+  Input[鼠标／触屏／键盘] --> Face[CardFace 与原生拖放]
+  Face --> Preview[CardInteraction：预览／翻面／瞄准]
+  Face --> Router[CommandRouter 原有提交入口]
+  Router --> Dispatch[Game.dispatch]
+  Dispatch --> View[提交后 View 与反馈结果]
+  View --> Motion[CardMotion：使用强调／归堆／抽牌]
+  View --> Feedback[CombatFeedback 与 ResourceFeedback]
+```
+
+- 动画不承担支付、抽牌、伤害或回合推进。`main._submit` 成功提交后，只有 `spell_failed` 产生简短失败提示；正常出牌不另弹居中的成功播报。卡牌是否留手／消耗／归堆消费原有反馈，不由动画猜测。
+- 右侧即时记录由 `CombatFeedback.play` 读取提交前后 `View.logs` 的新增区间，交 `ui/battle_feed.gd` 排队；只保留有界显示节点和待播文字，不保留 View 或装备快照。`render`／`present` 通过 `CombatFeedback.sync_feed` 维护阶段可见性，既不补播历史，也不增加事实查询。普通重绘复用队列；换场、读档回退和界面重置使队列失效。敌方标题与记录的开放时机、显示上限及日志入口见 `docs/spec/release-interface.md`「行动日志」。
+- 能量、本体魔力、临时魔力与魔瓶的文字值显示提交后的真实余额；资源条可继续插值、浮字可依次播放，但不回放旧数字余额。
+- 回合信息保留在原状态栏，不另加回合横幅；沿用现有抽牌依次到手的演出，不增加输入锁。手牌顺序保持规则给定顺序，不因查看／拖动而排序；拖动期间只隐藏原卡的显示，原控件及正式落点判定保持，取消或拒绝统一恢复。
+- `DragTargets.begin` 对已有合法、无需再选具体目标的自身卡创建透明战场接收区；仍由 `DragTargets.receiver` 校验载荷／版本并向原指令路由提交一次。无效牌、具体装备／敌人／手牌目标不启用该区；人物立绘与资源显示保留，不加人物目标高亮框或额外按钮。
+- “减弱卡牌动效”跳过翻面幽灵与卡牌转移动画，停止瞄准光圈脉动和手牌下沉；保留目标识别、结果提示与原本的操作条件。
+- 新显示节点不阻断输入，不创造过肩立绘、镜头视差或新的战斗机制。核对入口为 `tests/card_interaction_ui_cases.gd`、`tests/touch_ui_cases.gd`，并复用 rewards／keyboard／targeting／interface 的交互检查。
 
 ### 现行自动接管与提交守卫
 
@@ -120,6 +143,8 @@ func render(snapshot: Dictionary = {}) -> void
 | `drawers` | `_refresh_drawer_section`（按当前打开的抽屉重建） | `_drawer_presentation_key`（菜单面＋道具抽屉内容）；只读约定见 [界面契约](release-interface.md#行动日志) |
 | `page` | 无，始终全量 `render` | 无局部键，不进入提交脏集 |
 | `scene_instances` | `_refresh_scene_instances_section`（另经 `_enemy_row`＋`_place_enemy_row` 维护存活敌人的展示顺序与整行几何） | 无统一节键；外观由既有 arena／`equipment_portrait` 叶实例比对；状态图标条由 `_status_strip` 按 owner 键（`_status_keys`）比对；存活敌人的名条／血条／HP 文本／意图图标由 `_sync_enemy_stage` 按名复用并原地更新，图标另按 `_intent_icon_keys` 增删，按钮另按 `_enemy_select_keys`；`gone` 敌人的整槽由 `_release_enemy_stage` 释放 |
+
+基础攻击事实的 `posture_available` 由 `core/game.gd::_attack_offer_fact` 复用实际姿势判定产出，基础踢击沿用 `core/game.gd::kick_profile`；无视姿势效果仍经 `data/basic_attacks.gd::posture` 解析。`ui/main.gd::_build_action_rail` 只按该字段筛选显示与形态切换，不删除正式指令事实。字段进入 `_action_fact_slice`，随姿势或相关能力变化使行动栏缓存失效；其余禁用条件不影响形态是否显示。
 
 节键计算的成本同样要进测量（见「证据入口」），不得默认「算键几乎免费」。
 `hand` 的每卡窄键（`ui/main.gd::_hand_card_key`）逐档（0／12／26／44 件）不得随装备件数增长：
@@ -182,6 +207,30 @@ func render(snapshot: Dictionary = {}) -> void
   以「应该更快」或单次采样宣称提速。
 - 成功路径不得因未来刷新重构改变：自动保存仍只在 `ok` 且 `checkpoint` 非空时；`expand_applied` 的 phase 条件不变；
   提交路径的 `_reset_interface` 仍只在 `demo_continue` 调用；反馈仍在展示更新后、只在 `ok` 分支。
+
+## 交互音效
+
+`sound_feedback` 的即时标识保持字符串；敌方材质音效另携带 `{cue, enemy_id, sequence, kind}`，与既有敌方动作展示同步，详见 `docs/spec/release-interface.md`“装备材质音效”。
+
+`spire-godot/ui/interaction_audio.gd` 是本组音效的唯一播放入口；素材位于 `spire-godot/assets/audio/interaction/`。
+
+```mermaid
+flowchart LR
+  Controls[按钮与卡牌操作] --> Request[InteractionAudio.request]
+  Drawers[窗口显隐状态] --> Sync[InteractionAudio.sync_windows]
+  Sync --> Request
+  Commit[main._submit 已提交结果与新增结构化日志] --> Consume[InteractionAudio.consume]
+  Consume --> Request
+  Motion[main._animate_cards 卡牌转移事件] --> Transfers[InteractionAudio.transfers]
+  Transfers --> Request
+  Request --> Flush[按声部合并并播放]
+```
+
+- 控件加入场景时接线；同一帧内按控制、行动、抽弃牌三个声部各取一个声音。窗口开合替代同次普通点击，火球术替代同次通用施法成功与命中声。抽弃牌声部额外降低 7 dB；保留素材本身的窗口低音量。
+- 成功／失败施法读取新增日志的 `spell`，命中读取 `enemy`＋`damage`，抵消读取 `evasion`；只消费提交前后新增的日志区间，既不读取显示文本，也不扫描装备或重算玩法。失败提交只给取消声；成功结果和动画减弱设置相互独立。
+- 窗口按显隐身份变化播放，普通重绘保持安静。播放层只缓存三个声部的待播标识、17 类声音的最近播放时间和当前窗口身份，不保存 View／规则状态；静音、音量归零、界面重置、返回主页时清除待播及正在播放的声音。
+- 设置经 `spire-godot/ui/display_settings.gd::set_interaction_audio` 保存，独立于音乐与语音；跨端沿用既有指针、触屏及提交入口。
+- 验证入口：`spire-godot/tests/interaction_audio_ui_cases.gd`，覆盖真实开关窗、翻面、拖放、火球成功／失败、过期提交、静音和设置持久化。
 
 ## 证据入口
 

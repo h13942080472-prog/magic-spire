@@ -6,7 +6,7 @@ extends RefCounted
 # 本文件与 command_routes.gd 都不 preload core（依赖方向：ui 内只有 ui/main.gd 允许 preload core）。
 const Routes=preload("res://ui/command_routes.gd")
 
-# 唯一分类点：39 条 kind 各恰一条子路由（docs/spec/candidate-removal.md「输入域」的 kind 全集；本表是闭集，
+# 唯一分类点：登记的 kind 各恰一条子路由（docs/spec/candidate-removal.md「输入域」的 kind 全集；本表是闭集，
 # 新增 kind 必须先回填契约再实现）。子路由名＝command_routes.gd::assemble 的 route 分支。
 const ROUTES={
  "card":"battle","chain":"battle","attack":"battle","status_toggle":"battle","posture":"battle",
@@ -15,6 +15,7 @@ const ROUTES={
  "end":"flow","surrender":"flow","finish_prepare":"flow","finish_rest":"flow","finish_pack":"flow",
  "retain":"flow","retain_skip":"flow",
  "rest_rare":"rest","rest_card":"rest","rest_flask":"rest","rest_begin":"rest",
+ "enchant":"rest",
  "service":"shop",
  "event":"event",
  "prison":"prison",

@@ -22,7 +22,7 @@ static func run(t) -> void:
  var g=Game.new(42);g.state.wall_distance=1
  var target=g.add_fixture("ankle",4)
  for mode in ["strain","slip","magic_slip"]:
-  t.check(g.escape_preview(target,mode,5).damage==7,"ASSIST two hands add two before multipliers "+mode)
+  t.check(g.escape_preview(target,mode,5).damage==7.0,"ASSIST two hands add two before multipliers "+mode)
  target.locked=true
  t.check(g.escape_preview(target,"strain",5).damage==3.5 and g.escape_preview(target,"slip",5).damage==7,"ASSIST lock halves strain including assist but not slip")
  target.durability=10
@@ -60,16 +60,16 @@ static func run(t) -> void:
  g.add_fixture("fingers",4);target=g.add_fixture("ankle",4)
  t.check(Assist.preview(g,target).bonus==0,"ASSIST fingers must be free even when palms are usable")
  var a=g._install_template("rope","thigh",8,10,false,"fixture",1,-1,0,"above_knee");var b=g.add_fixture("calf",8)
- var link=g._install_link(a.id,b.id,8,"fixture",1,[])
+ var link=g._install_link(a.id,b.id,4.8,"fixture",1,[])
  t.check(not link.is_empty() and Assist.preview(g,link).bonus==0,"ASSIST blocked fingers cannot assist links either")
 
  # Shared contact reasons are target-specific and do not grant tool capabilities.
  g=Game.new(42);g.state.posture="sit";g.state.wall_distance=0
  var blocked=g.add_fixture("wrist",4);target=g.add_fixture("ankle",8)
  var result=Assist.preview(g,target)
- t.check(result.bonus==0 and result.reasons.size()==2 and result.reasons.all(func(x):return x.code=="wrist_blocked") and result.detail.contains("手腕受限"),"CONTACT no assist explains both blocked wrists")
+ t.check(result.bonus==0 and result.reasons.size()==2 and result.reasons.all(func(x):return x.code=="wrist_blocked") and result.detail.contains("手腕自由"),"CONTACT no assist explains both blocked wrists")
  card=t.hand_card(g,"strain")
- t.check(g.candidate_detail(t.find_action(g,"card",{"uid":card.uid,"target":target.id})).contains("手腕受限"),"CONTACT target choice carries the actual no-assist reason")
+ t.check(g.candidate_detail(t.find_action(g,"card",{"uid":card.uid,"target":target.id})).contains("手腕自由"),"CONTACT target choice carries the actual no-assist reason")
  g.state.equipment.erase(blocked);g.add_fixture("fingers",4);g._gain_tool("shard")
  var tool=g.state.items.back()
  t.check(Assist.preview(g,target).bonus==0 and not t.find_action(g,"manual",{"target":target.id}).valid and not t.find_action(g,"item_use",{"target":target.id,"item":tool.id}).valid,"CONTACT blocked fingers disable assistance and fine operations")
@@ -106,7 +106,7 @@ static func run(t) -> void:
  g._install_assembly("wrap","right","fixture",1,1)
  palms=g._install_template("fine_belt","palm",4,10,false,"fixture")
  result=Assist.preview(g,target)
- t.check(result.hands==["left"] and result.bonus==0.5 and result.label=="左手辅助＋0.5" and result.detail.contains("手掌不能使用"),"ASSIST one finger-free hand keeps fractional label")
+ t.check(result.hands==["left"] and result.bonus==0.5 and result.label=="左手辅助＋0.5" and result.detail.contains("手掌受限"),"ASSIST one finger-free hand keeps fractional label")
  t.check(result.reasons.any(func(r):return r.side=="right" and r.code=="fingers_blocked"),"ASSIST finger condition wins over palm condition")
  g._gain_tool("shard")
  t.check(not t.find_action(g,"item_use",{"item":g.state.items.back().id,"target":target.id}).valid,"ASSIST half assistance does not enable handheld cutting")

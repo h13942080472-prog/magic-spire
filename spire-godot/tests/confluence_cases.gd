@@ -15,7 +15,7 @@ static func run(t) -> void:
    for slot in g.B.SLOTS.slice(0,count): g.add_fixture(slot,8)
    var card=Give.give(g,"confluence");var c=t.find_action(g,"card",{"uid":card.uid,"free":free});var before=g.export_snapshot()
    var text=g.Cards.face_text(g,"confluence",free)
-   t.check(text.contains("每佩戴2件拘束具，本回合获得1点力量，不足2件不计。") if not free else text.contains("每佩戴1件拘束具，恢复2点魔力。"),"CONFLUENCE card always explains the rule, including zero equipment")
+   t.check(text.contains("每佩戴2件拘束具，本回合获得1点力量，向下取整。") if not free else text.contains("每佩戴1件拘束具，恢复2点魔力。"),"CONFLUENCE card always explains the rule, including zero equipment")
    t.check(text.contains("当前：本回合力量＋%d。" % int(count/2)) if not free else text.contains("当前：恢复%d魔力。" % (count*2)),"CONFLUENCE current result supplements the permanent rule")
    t.check(c.valid and c.cost==0 and c.mana==0 and not c.get("casting",{}).get("roll_required",false) and not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"CONFLUENCE no casting or energy and stale request rolls back")
    t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.strength==0 and g.state.turn_strength==(int(count/2) if not free else 0) and g.state.mana==40+(0 if not free else count*2) and g.state.energy==before.energy,"CONFLUENCE odd even zero counts grant exact values")

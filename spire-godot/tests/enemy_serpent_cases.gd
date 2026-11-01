@@ -3,7 +3,7 @@ const Game=preload("res://tests/game_fixture.gd")
 const Save=preload("res://tests/persistence_cases.gd")
 
 static func count(g) -> int:
- return g.physical_pieces().size()+g.state.links.size()
+ return g.state.equipment.size()+g.state.links.size()
 
 static func run(t) -> void:
  var g=Game.new(42,true,"rope_serpent_solo")
@@ -54,4 +54,4 @@ static func run(t) -> void:
  g=Game.new(42,true,"rope_serpent_solo");g.state.posture="lie";g._start_battle();id=g.state.enemies[0].id
  t.check(count(g)==0 and g._enemy(id).turn_install_layers==1,"SERPENT enemy-first constrict does not fire before player actions")
  t.action(g,"end")
- t.check(count(g)==3,"SERPENT enemy-first player end pulses once before the next enemy action")
+ t.check(count(g)==1 and g.equipment_tier(g.state.equipment[0])==3 and g._enemy(id).turn_install_layers==1,"SERPENT enemy-first player end pulses once, then its tightening branch reinforces that real target")

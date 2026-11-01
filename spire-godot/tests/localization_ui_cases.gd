@@ -4,7 +4,7 @@ const Settings=preload("res://ui/display_settings.gd")
 
 static func choose(t, locale: String) -> void:
  var picker=t.ui.find_child("LanguageSelection",true,false)
- t.check(picker!=null,"LOCALE UI language selector exists in shared settings")
+ t.check(picker!=null,"LOCALE UI language selector exists below the home title")
  if picker==null: return
  var index=t.ui.localization.LOCALES.find(locale)
  picker.select(index);picker.item_selected.emit(index)
@@ -28,12 +28,12 @@ static func run(t) -> void:
  check_font(t)
  var before=ui.game.export_snapshot()
  var facts=ui.view.display_facts.duplicate(true)
- await Navigation.press(t,"HomeOptions")
  var picker=ui.find_child("LanguageSelection",true,false)
  t.check(picker.item_count==3 and picker.get_item_text(1)=="English" and picker.get_item_text(2)=="日本語","LOCALE UI lists the finished Japanese pack")
  await choose(t,"en_US")
  t.check(ui.localization.locale=="en_US" and ui.find_child("HomeTitle",true,false).text=="Bound Spire","LOCALE UI selects the completed English catalog")
  t.check(ui.find_child("HomeCursedPlateMasochist",true,false).text=="Masochist Mode","LOCALE new-game mode reads a semantic message instead of fragment translation")
+ await Navigation.press(t,"HomeOptions")
  t.check(ui.find_child("DisplayMode",true,false).get_item_text(0)=="Windowed","LOCALE UI translates registered setting options")
  var home_remains=chinese_runs(t.visible_text(ui.layout))
  t.check(home_remains.is_empty(),"LOCALE English home and settings contain no Chinese display fragments: "+str(home_remains.slice(0,12)))
@@ -49,7 +49,7 @@ static func run(t) -> void:
  settings_scroll.ensure_control_visible(final_setting);await t.frames()
  t.check(panel.get_global_rect().encloses(final_setting.get_global_rect()) and settings_scroll.get_global_rect().encloses(final_setting.get_global_rect()),"LOCALE UI final display setting remains fully reachable by scrolling inside the window")
  settings_scroll.scroll_vertical=0;await t.frames()
- t.check(settings_scroll.get_global_rect().encloses(ui.find_child("LanguageSelection",true,false).get_global_rect()),"LOCALE UI can scroll back to the language selector")
+ t.check(ui.find_child("LanguageSelection",true,false).get_parent()==ui.find_child("GameHome",true,false) and not settings_scroll.is_ancestor_of(ui.find_child("LanguageSelection",true,false)),"LOCALE UI keeps the single language selector on the homepage instead of duplicating it in display settings")
  # In-memory pseudo copy proves that wired controls actually read the resource.
  var sample={"schema_version":1,"locale":"ja_JP","messages":{
   "ui.home.title":{"source":"紧缚尖塔","text":"[TEST TITLE]"},
@@ -85,10 +85,12 @@ static func run(t) -> void:
  ui.restart(42);await t.frames()
  before=ui.game.export_snapshot();facts=ui.view.display_facts.duplicate(true)
  await t.open_menu();await Navigation.press(t,"OpenOptions")
+ t.check(ui.find_child("LanguageSelection",true,false)==null,"LOCALE in-game settings do not duplicate the homepage language selector")
+ await t.close_information();ui._return_home();await t.frames()
  await choose(t,"ja_JP");await choose(t,"zh_CN")
- t.check(ui.game.export_snapshot()==before and ui.view.display_facts==facts,"LOCALE in-game settings use the same selector without restarting or submitting an action")
+ t.check(ui.game.export_snapshot()==before and ui.view.display_facts==facts,"LOCALE homepage selector changes language without restarting or submitting an action")
  t.check(ui.localization.diagnostics().is_empty(),"LOCALE wired screens resolve every registered template without silent errors")
- await t.close_information()
+ await Navigation.press(t,"HomeContinue")
  ui._set_language("en_US");await t.frames()
  var remains=chinese_runs(t.visible_text(ui.layout))
  t.check(remains.is_empty(),"LOCALE English in-game interface has no Chinese display fragments: "+str(remains.slice(0,12)))

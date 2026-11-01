@@ -1,4 +1,5 @@
 extends RefCounted
+const RestraintValue=preload("res://data/restraint_value.gd")
 const Game=preload("res://tests/game_fixture.gd")
 const Save=preload("res://tests/persistence_cases.gd")
 
@@ -130,7 +131,7 @@ static func run(t) -> void:
  for seed_value in range(64):
   var tower=Game.new(seed_value)
   summit_seen[tower.state.room_encounters.summit]=true
- t.check(summit_seen.has("six_bind_solo") and summit_seen.has("iron_man_solo") and summit_seen.size()==2,"IRON first-floor boss pool can draw both Six Bind and Iron Man")
+ t.check(summit_seen.has("six_bind_solo") and summit_seen.has("iron_man_solo") and summit_seen.has("rope_master_solo") and summit_seen.size()==3,"IRON first-floor boss pool can draw Six Bind, Iron Man and Rope Artist")
 
 static func capture_contract(t) -> void:
  for witch in [false,true]:
@@ -207,6 +208,8 @@ static func upgrade_reversal(t) -> void:
   g.CaptureBind.damage_bind(g,100,"测试解除")
   t.check(iron.iron_enhancements==level-1 and g.IronMan.cup_spec(iron)==next_profile and g.state.special_equipment==worn,"IRON UPGRADE escape removes one current layer and future cup upgrade without editing worn gear")
   t.check(g.IronMan.modifiers(iron)==g.IronMan.modifiers({"iron_enhancements":level-1}) and g.IronMan.capture_start(iron)==30+5*(level-1),"IRON UPGRADE all ordinary, composite and capture effects retract together")
+  var value=4 if level==1 else (5 if level==2 else 6)
+  t.check(g.IronMan.installation_intents(g,iron)[0].profiles==RestraintValue.profiles(value),"IRON UPGRADE breaking Capture retracts the ordinary restraint value for future applications")
   g=Save.roundtrip(t,g,"iron removed upgrade "+str(level))
   var remaining=enemy(g,"iron_man").iron_enhancements
   g.CaptureBind.damage_bind(g,100,"重复解除")
@@ -308,17 +311,18 @@ static func support_contract(t) -> void:
   t.check(plan.kind=="apply" and plan.count==2 and plan.grade==2 and plan.tier==(1 if boss_encounter else 2),"IRON BOX first cycle application uses encounter-specific tightness")
   t.check(g.EnemyPlans.installation_intents(g,box)[0].tier==plan.tier,"IRON BOX fallback declaration shares the actual application profile")
   g._enemy_operation(box,plan)
-  t.check(g.state.equipment.size()==2 and g.state.equipment.all(func(item):return item.grade==2 and g.tier(item.durability,item.maximum)==plan.tier),"IRON BOX application execution wears two restraints at the declared grade and tier")
+  t.check(g.state.equipment.size()==2 and g.state.equipment.all(func(item):return (g.Equipment.is_shackle(item) and plan.grade+plan.tier==g.Equipment.SHACKLE_RESTRAINT_VALUE) or (not g.Equipment.is_shackle(item) and item.grade+g.equipment_tier(item)==2+plan.tier)),"IRON BOX application wears two restraints within the declared profile or matching fixed-value cuff pool")
   var seen=false
   for attempt in range(32):
    plan=g.EnemyPlans.build(g,box)
    if plan.kind!="tighten_budget": continue
    seen=true
    t.check(plan.budget==(2 if boss_encounter else 4),"IRON BOX reinforcement branch uses encounter-specific total tiers")
-   var tiers_before=g.state.equipment.reduce(func(total,item):return total+g.tier(item.durability,item.maximum),0)
+   var available=g.state.equipment.reduce(func(total,item):return total+(3-g.equipment_tier(item) if g._can_tighten(item) else 0),0)
+   var tiers_before=g.state.equipment.reduce(func(total,item):return total+g.equipment_tier(item),0)
    g._enemy_operation(box,plan)
-   var tiers_after=g.state.equipment.reduce(func(total,item):return total+g.tier(item.durability,item.maximum),0)
-   t.check(tiers_after-tiers_before==2,"IRON BOX reinforcement executes all available tiers without exceeding its budget")
+   var tiers_after=g.state.equipment.reduce(func(total,item):return total+g.equipment_tier(item),0)
+   t.check(tiers_after-tiers_before==mini(available,plan.budget),"IRON BOX reinforcement executes all available tiers without exceeding its budget or tightening cuffs")
    break
   t.check(seen,"IRON BOX deterministic fixture reaches the reinforcement alternative")
 

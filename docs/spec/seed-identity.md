@@ -1,6 +1,6 @@
 # 本局种子标识（初始种子 · 塔路次数 · 查看与复制）
 
-契约文件：本局标识的保存、校验、读档回填、只读投影，以及玩家在地图角落查看与复制的语义。
+契约文件：本局标识的保存、校验、读档回填、只读投影，以及查看、复制与指定种子开局的语义。
 内部实现以代码为准，接口语义以本文件为准；函数名与稳定 ID 是锚点，本文件不写行号。
 本文件不写执行结果：通过／失败／未执行与红集登记 `docs/record/verification.md`。
 
@@ -35,7 +35,7 @@ state.initial_seed: int          # = _init 的 run_seed
 
 # UI：唯一文本与复制入口（ui/main.gd）
 func seed_report_text() -> String   # 复制文本，四要素；见下
-func copy_seed() -> String          # = DisplayServer.clipboard_set(seed_report_text()) + 显示态
+func copy_seed(plain: bool=false) -> String # 默认复制完整标识；plain=true 复制 initial_seed 的十进制整数
 
 # 控件：地图工作区右上角（`RouteMessages` 顶部标题行右端）按钮 `SeedChip`
 ui.seed_copied_until: int           # 复制反馈的显示截止（msec）
@@ -54,14 +54,35 @@ ui.seed_copied_until: int           # 复制反馈的显示截止（msec）
 ### 显示与复制文本
 
 - 显示：`ui._text("ui.map.seed","初始种子 {initial} · 第 {iteration} 次塔路", …)`。
-- 复制（四要素必须齐；文字可调，结构不改）：
+- 地图与本局回顾复制（四要素必须齐；文字可调，结构不改）：
   `紧缚尖塔 · 初始种子 <initial_seed> · 第 <tower_generation+1> 次塔路 · 当前塔路种子 <view.seed>（精确复现需同批上传的存档）`
 - 复制后 1200 ms 内控件显示 `ui._text("ui.map.seed_copied","已复制")`；到期复原。失效守卫沿用
   `_queue_map_step` 的写法（`is_inside_tree()`＋截止时间），旧回调不得改写新一局或已关闭的界面。
 
+### 快速复制与种子开局
+
+- 局内菜单 `QuickCopySeed` 调用同一 `copy_seed(true)`，只复制 `view.initial_seed` 的十进制整数，不复制当前塔路种子。`quick_seed_copy` 与地图／回顾按钮共用 `seed_copied_until` 和 `_refresh_seed_chip`；提示到期后恢复“复制本局种子”。
+- 主页 `HomeSeedGame` 与局内菜单 `OpenSeedGame` 经 `_open_drawer("show_settings","seed")` 打开同一输入界面；`settings_seed_only` 仅为显示状态。主页随机开局和原练习入口继续使用各自原有流程。
+- `_settings_drawer` 复用种子输入框 `SeedInput`、校验与开局按钮；种子模式隐藏练习列表，自动聚焦并全选。`PasteSeed` 只在玩家点击时读取剪贴板，去除首尾空白。回车与 `StartSeedGame` 共用 `_start_seed_run`，练习按钮也复用该方法。
+- `_parsed_seed` 接受带可选正负号的十进制整数、前导零及首尾空白，去除首尾空白后最多128字符，数值限定有符号64位范围；空值、非整数、过长和溢出禁用开始按钮并显示错误。输入框不截断文本；粘贴中的内部换行与制表符换为空格，使多行数字按非法输入处理。执行入口重复校验，失败不调用 `restart`、不写存档；关闭或取消不改变当前局。
+- 成功只调用既有 `restart`：从初始局面开始，使用当前角色及开局选项，覆盖塔路存档。种子不包含中途进度、已作选择或开局选项；相同种子及相同选项才复现同一初始局面。恢复／重开界面预填 `initial_seed`，不以已重建塔路的 `seed` 替代。
+
+```mermaid
+flowchart LR
+  Menu[局内菜单复制] --> Copy[copy_seed true]
+  Copy --> Clipboard[纯数字初始种子]
+  Home[主页或局内种子开局] --> Drawer[既有 show_settings 输入界面]
+  Clipboard --> Paste[玩家点击粘贴]
+  Paste --> Drawer
+  Drawer --> Start[_start_seed_run 校验]
+  Start --> Restart[既有 restart 开始新局]
+```
+
+判据：`tests/home_ui_cases.gd::seed_entry`（UI `home`）覆盖原生按钮／回车、剪贴板、错误与范围边界、取消、无状态／存档副作用、复制后初始快照一致以及练习入口保留。
+
 ## 输入域
 
-- 可见性唯一判据＝**路线屏是否被渲染**：地图相位（`map`／`travel`／`cleared`／`pack`）与任意相位的
+- `SeedChip` 可见性唯一判据＝**路线屏是否被渲染**：地图相位（`map`／`travel`／`cleared`／`pack`）与任意相位的
   「地图」覆盖显示 `SeedChip`；普通战斗屏与 `view.practice` 的练习屏（`_practice_screen`）不显示。
   不得引入第二判据。
 - 位置：`RouteMessages` 顶部标题行右端，不新增布局行；不覆盖 `TowerMapScroll`／`TowerRoute`，

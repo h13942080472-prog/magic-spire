@@ -25,11 +25,66 @@
 - 所有卡牌的卡图区统一占卡高的2/3；立绘保持原图比例、完整显示，不裁剪或拉伸。窄卡面保留全部效果、费用和限制；长文统一沿用正文滚动及悬停详情。
 - 卡面已有词条中的独立关键词句（如唯一、消耗、保留、虚无、固有、顺延）由 `CardFace.separate_keywords` 从未本地化的显示文案中分离，统一使用金色，固定排在牌底左侧；`HFlowContainer` 按实际字宽整词排列。蓝色施法部位与使用条件位于右下角，右对齐、右留12像素、底留14像素，字号仍按基础11缩放；两栏放不下时关键词位于蓝字上方。最小尺寸改变时刷新正文避让，正文在底栏上方滚动，关键词本身不拆字换行。只做排版，不由文字判断规则；含关键词的效果句保持完整；翻面切换到该面已缓存的词条与条件（同一批节点原地重写值，不重建卡面、不新建样式资源）。
 
+### 装备材质音效
+
+- 绳索／皮革装备实际受到正伤害、或成功佩戴时，沿 `core/game.gd::_equipment_feedback` 向现有事务收据登记；材质判定统一在 `core/resource_feedback.gd::equipment`，只认实例的 `material`，不根据名称或部位猜测。普通装备、链接（含股绳连接）、复合部件、特殊装备、肩带及新生躯干连接沿各自已有写入入口登记；伤害统一从 `_apply_equipment_damage` 的实际耐久差登记。直接解除、零伤害、既有部件刷新不触发。
+- 同一次玩家行动内的材质触发合并为一个 `rope_leather_tension` 字符串；敌方触发按既有 `_copy_context` 的敌人实例、行动序号和种类分别合并，由 `core/resource_feedback.gd::sound_events` 输出 `{cue, enemy_id, sequence, kind}`。两类记录仍经成功 `dispatch` 的 `sound_feedback` 返回；角色语音保持原字符串与合并逻辑。推演沿既有 `_resource_feedback=null` 隔离，事务失败直接丢弃全部收据；音效标识不入存档，不扫描装备。
+- `ui/main.gd::_submit` 将无敌方身份的材质标识立即交给 `ui/equipment_audio.gd::consume`；敌方标识由 `ui/combat_feedback.gd::steps` 按既有行动身份绑定到展示队列，`ui/enemy_feedback.gd::_next` 到达对应行动时再播放。相同敌人的不同操作分别触发；同一步的多件装备只播一次；隐藏准备仍沿公开的 unseen 身份展示，不暴露动作详情。无实际施加／伤害的停顿、闪避等动作没有材质声。
+- 材质播放器独立于角色语音、交互音效和卡牌音乐，可同时播放。它自身允许最多 8 段尾音重叠，音量 −9 dB，不循环；下一行动直接开始新播放，前一段自然结束，达到声部上限时由引擎结束最早的尾音。没有额外音频等待队列；跳过敌方展示丢弃后续未展示动作的声音，回主页及重开／读档重置停止已播放声音，普通重绘保持安静。
+
+```mermaid
+flowchart LR
+  Write[既有装备安装与实际伤害入口] --> Receipt[resource_feedback.equipment 按行动增量合并]
+  Receipt --> Commit[dispatch 成功后的 sound_feedback]
+  Commit --> Player[玩家标识立即播放]
+  Commit --> Steps[combat_feedback.steps 按敌人行动身份绑定]
+  Steps --> Next[enemy_feedback._next 到达该动作]
+  Next --> Audio[equipment_audio 独立重叠播放]
+  Player --> Audio
+  Fail[失败或推演] --> Drop[丢弃音频收据]
+```
+
+验证：`tests/equipment_audio_cases.gd`（`application` 分类）覆盖材质、普通／特殊／链接／复合部件、零伤害、销毁、预览、每个敌人的操作身份以及玩家／敌方事务回滚；`tests/equipment_audio_ui_cases.gd`（`enemy_feedback` 分类）覆盖与角色语音／音乐／交互音效并行、真实提交、逐怪播放及尾音重叠、跳过展示、闪避静默、重绘静默和主页／重置停止。角色语音判据继续由原测试独立验证。
+
+### 角色触发语音
+
+- `core/resource_feedback.gd` 在事务内增量记录四类事实：快感值实际增加、成功安装拘束具、卡牌及其附带工具直接造成正装备伤害、高潮次数增加。成功提交末尾由 `voice` 合并为一个角色语音标识；优先级固定为高潮 `orgasm` ＞ 卡牌／卡牌续段成功伤害拘束具 `struggle` ＞ 施加拘束具 `hit` ＞ 获得快感 `edge`。同类或多类在同一提交重复触发仍只产生一个角色语音标识；卡牌提交期间由能力周期、高潮或移动产生的被动装备损伤不冒充 `struggle`，但仍可触发独立的材质音效。
+- 堵嘴版本只按提交完成时 `equipment_at("mouth")` 是否仍有正耐久装备选择；有则使用 `gagged` 池，否则使用普通池。名称、材质、动画和文案不参与该判定。失败施法未造成伤害、零伤害、被拒提交、推演和回滚均不生成语音。
+- `data/girl_sound_profile.gd` 是 Profile A 的目录与文件编号真源：edge普通25／堵嘴24，hit普通45／堵嘴37，orgasm普通21／堵嘴14，struggle普通8／堵嘴12。`ui/hero_voice.gd` 只消费成功返回的 `sound_feedback`，使用独立的表现层随机数从对应池抽一段；不推进玩法随机、不写存档。
+- 角色语音播放器只有一个声部、音量−9 dB、全部不循环。已有角色语音播放时丢弃新标识，不重新抽取、不重启、不叠放、不排队；自然结束后下一次提交才能重新抽取。装备材质音效仍由独立播放器处理。回主页及重开／读档重置停止旧语音，普通重绘不播放。
+
+```mermaid
+flowchart LR
+  Facts[快感／安装／卡牌伤害／高潮事实] --> Receipt[resource_feedback 增量收据]
+  Receipt --> Pick[成功提交按优先级合并一个 cue]
+  Pick --> Gag{结算后嘴部有拘束具}
+  Gag -->|是| Gagged[gagged 池]
+  Gag -->|否| Clear[普通池]
+  Gagged --> Voice[hero_voice 随机抽一段]
+  Clear --> Voice
+  Busy[已有语音播放] --> Drop[本次触发丢弃]
+```
+
+验证：`tests/girl_sound_cases.gd`（`application` 分类）覆盖四类提交、堵嘴分流、同提交优先级、非卡牌伤害与卡牌期间被动伤害反例及原子回滚共用通路；`tests/girl_sound_ui_cases.gd`（`enemy_feedback` 分类）覆盖186项资源、八个池、随机抽取、单声部忙时丢弃、真实UI提交、重绘静默及重置停止。
+
 ### 行动日志
 
-- 场景不显示独立日志按钮或固定侧栏；从游戏菜单的“行动日志”进入，L 快捷键打开同一窗口。
+- 战斗界面最右侧用 `ui/battle_feed.gd` 播放即时记录：新条目从底部加入，旧条目上移，最多同时显示6条；先显示图标，再显出文字，停留后淡出。末条图标保留为行动日志入口，菜单入口及L快捷键仍打开同一窗口。
+- 敌方行动提示位于战场顶部中央，仅显示橙色“敌人 · 行动”标题；详细结果由右侧即时记录播放。记录沿 `CombatFeedback.play` 消费已提交 View 的新增日志，敌人实例与动作序号经 `CombatFeedback.enemy_key` 关联，在 `EnemyFeedback._next` 展示该动作时开放其结果；跳过展示开放剩余记录，不重复结算。纯计算日志仍收在详细记录中。
+- 即时层独立于场景重建，最多保留6个显示节点；普通重绘不重播，按日志索引去重。换场、重新开始、读档回退或返回主页清理队列；战后整备保留本场未播完的结果。收押或试炼结束时，最后一次提交的记录播完并淡出后隐藏，进入监狱等下一页面清理。文本层不拦截战场输入，只有日志图标接收点击；完整抽屉覆盖即时层。
 - `show_log → _log_drawer` 只读展示 `view.action_log` 的角色、回合与行动结果；原 `view.logs` 最近记录收在“详细记录”折叠区。
 - 复用单一抽屉及遮罩，支持返回菜单、关闭与 Esc；遮罩点击只关闭窗口，不触发背后的行动。查看日志不改状态、随机、手牌或场景实例。
+
+```mermaid
+flowchart LR
+  Commit[提交后的 View 日志增量] --> Feedback[CombatFeedback.play]
+  Feedback --> Feed[battle_feed: 排队 / 去重 / 六条淡出]
+  Feedback --> Enemy[enemy_feedback: 顶部行动名]
+  Enemy -->|当前动作开放记录| Feed
+  Feed -->|图标点击| Log[既有 show_log 抽屉]
+```
+
+验证入口：`tests/enemy_feedback_ui_cases.gd::live_feed` 覆盖真实结束回合的播放顺序、尚未展示的敌方结果、跳过、去重、淡出、日志点击及重开清理；`run` 验证紧凑标题与原有行动高亮。
 
 ### 共享目标查询（`ui/target_queries.gd`）
 
@@ -61,6 +116,8 @@
 
 ### 场景结构
 
+- 共享视觉令牌集中于 `ui/visual_theme.gd`：深灰底与细分隔线承载常驻信息，金色强调主要操作，青色保留资源、焦点及可交互状态。`button_style` 统一派生普通、轻量及主要操作的悬停、按下、禁用与键盘焦点样式；`style_button` 应用同一套样式，不改变按钮的候选与事件。
+- 顶栏采用轻量导航，左栏身体、资源、魔瓶分区使用连续底色；动作栏移除外层装饰框，结束回合使用金色胶囊按钮。共享窗口保留不透明底色与阴影，避免内容叠在战场上难以阅读。可读性与色彩层级依靠实际窗口人审；交互沿既有 UI 套件验证。
 - 左侧界面铺满背景的 x=0—375、y=64—900 区域。身体框到 y=595，状态框 y=599—695，
   魔瓶与能量框 y=699—900；各框左右对齐，仅保留 4 像素纵向分隔，不移动战场边界。
   身体立绘保持比例，部位列宽 128；装备详情继续从身体框右边缘定位。
@@ -173,6 +230,8 @@ flowchart LR
   新增短／长单手套夹具检查两处底图、配套腿根切片及嵌套输入隔离。
 - 装备材质立绘由 `GameView.portrait_materials` 汇总存活实体装备，随 `body_coverage.materials` 投影到两处共用组合器；外层关系复用装备查询，不在界面重算。部位存在最外层皮革装备时优先皮带图，否则皮革数量严格多于红绳时选皮带，红绳较多、相等或两者皆无时选红绳。上身把手臂、手部、颈部与肩部合计，每件实体只计一次；腿部七个物理锚点独立判定，无覆盖的锚点仍使用自由切片。
 - 材质属于外观缓存键；同一部位仍被覆盖但外层装备解除时，两处立绘必须刷新。普通及平板锁组合使用完整连续腿切片，单腿套复用同一边界；含单手套的组合继续使用原单手套底图、切片与坐标，不接入皮带／股绳切换。
+- 原角色进入 `captured` 时，`ui/main.gd::_capture_intro_screen` 先显示一次只读被捕过场，继续后才显示既有收押完成页；小魔女直接进入既有收押页。固定主角立绘偏好或 `equipment_portrait_layers` 含 `flat_lock` 时使用平板锁插图，否则由 `core/game_view.gd::restraint_material_points` 按装备真实 `material` 将皮革／绳索覆盖的不同物理点投影到 `body_coverage.material_points`：皮革严格更多时使用皮革图，相等或绳索更多时使用绳索图。金属镣铐虽然在普通人物立绘中借用皮革外观，但不计入此处的皮革覆盖。该过场只记录本次界面确认，不提交指令，也不改变已经结算完成的收押状态。
+- 原角色身上存在有效 `art_hogtie` 时，`core/game_view.gd::build` 在既有 `body_coverage` 中投影 `special_pose=hogtie`；`ui/arena.gd::configure_hero` 只在战斗人物画面切换到驷马缚透明姿势图。身体侧栏仍使用原装备组合立绘；驷马缚解除后，战斗人物画面按当前姿势立即恢复。固定主角立绘偏好和小魔女不使用该专图；此映射不改变驷马缚的装备、姿势或链接规则。
 
 ```mermaid
 flowchart LR
@@ -181,6 +240,13 @@ flowchart LR
   View --> Portrait[EquipmentPortrait 共用组合器]
   Portrait --> Sidebar[身体侧栏]
   Portrait --> Arena[战场站姿]
+  Pieces --> Points[按材质去重的物理覆盖点]
+  Links[连接绳覆盖点] --> Points
+  Points --> CaptureView[body_coverage.material_points]
+  CaptureView --> CaptureIntro[被捕过场插图选择]
+  Plate[equipment_portrait_layers / 固定立绘偏好] --> CaptureIntro
+  Pieces -->|有效 art_hogtie| HogtiePose[body_coverage.special_pose]
+  HogtiePose --> Arena[仅战斗人物画面]
 ```
 
 ## 输入域

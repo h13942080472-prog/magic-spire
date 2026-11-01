@@ -28,6 +28,7 @@ static func floating_illustrations(t) -> void:
 
 static func run(t) -> void:
  await six_bind_idle(t)
+ await rope_master_turns(t)
  t.ui.game=preload("res://tests/six_bind_cases.gd").encounter()
  t.ui._reset_interface(t.ui.game.get_view());t.ui.render();await t.frames()
  var art_settings=t.ui.display_settings
@@ -93,12 +94,12 @@ static func run(t) -> void:
  await t.start_practice("Practice_binding_box_solo")
  var box_id=ui.view.enemies[0].id
  t.check(ui.find_child("EnemyArt_"+box_id,true,false).mode=="binding_box" and ui.view.statuses.any(func(s):return s.id=="carried_"+box_id and s.value=="3件"),"BOX UI practice renders mechanical box and actual carried stock")
- t.check(await t.click("end") and ui.view.posture=="sit" and ui.find_child("HeroGuardBindValue",true,false).text=="40/100" and ui.view.statuses.any(func(s):return s.id=="guard_bind" and s.detail.contains("首个玩家回合不触发")),"BOX UI opening preserves forty and explains the first upkeep skip")
+ t.check(await t.click("end") and ui.view.posture=="sit" and ui.find_child("HeroGuardBindValue",true,false).text=="40/100" and ui.view.statuses.any(func(s):return s.id=="guard_bind" and s.detail.contains("施加后从第二个玩家回合起")),"BOX UI opening preserves forty and explains the first upkeep skip")
  await t.start_practice("Practice_drone_solo")
  var drone_id=ui.view.enemies[0].id
  t.check(ui.view.enemies[0].template=="drone" and ui.find_child("EnemyArt_"+drone_id,true,false).mode=="drone" and ui.find_child("StatusIcon_hard_"+drone_id,true,false)!=null,"DRONE UI native practice renders mechanical enemy and hard buff")
  t.check(await t.click("end") and ui.view.guard_bind.value==30.0 and ui.view.posture=="stand","DRONE UI direct opening capture fixes standing")
- t.check(ui.actor_targets.has("guard_bind") and ui.find_child("HeroGuardBindValue",true,false).text=="30/100" and ui.view.statuses.any(func(s):return s.id=="guard_bind" and s.detail.contains("同种捕缚不叠加")),"DRONE UI uses one real target meter and explains source stacking")
+ t.check(ui.actor_targets.has("guard_bind") and ui.find_child("HeroGuardBindValue",true,false).text=="30/100" and ui.view.statuses.any(func(s):return s.id=="guard_bind" and s.detail.contains("同种捕缚仅生效一次")),"DRONE UI uses one real target meter and explains source stacking")
  var escape_cards=ui.view.hand.filter(func(c):return c.type=="strain")
  t.check(not escape_cards.is_empty(),"DRONE UI has an actual escape card")
  if not escape_cards.is_empty():
@@ -235,11 +236,11 @@ static func run(t) -> void:
  var old_hp=ui.view.enemies.filter(func(e):return e.id==attack.payload.enemy)[0].hp
  t.check(await t.click("attack",attack.payload),"ART feedback follows a real legal attack")
  var new_hp=ui.view.enemies.filter(func(e):return e.id==attack.payload.enemy)[0].hp
- var feedback=ui.layout.find_child("DamageFeedback",true,false)
- t.check(feedback!=null and feedback.text=="−"+ui.game.number(old_hp-new_hp),"ART floating damage matches actual target HP loss")
+ var feedback=ui.layout.find_children("DamageFeedback_*","Label",true,false).filter(func(label):return label.get_meta("target","")==attack.payload.enemy)
+ t.check(feedback.size()==1 and feedback[0].text=="−"+ui.game.number(old_hp-new_hp) and is_equal_approx(float(feedback[0].get_meta("damage")),old_hp-new_hp),"ART floating damage matches actual target HP loss")
  var committed=JSON.stringify(ui.game.state)
  await t.create_timer(0.7).timeout
- t.check(JSON.stringify(ui.game.state)==committed and ui.layout.find_child("DamageFeedback",true,false)==null,"ART completed feedback removes itself without advancing game state")
+ t.check(JSON.stringify(ui.game.state)==committed and ui.layout.find_children("DamageFeedback_*","Label",true,false).is_empty(),"ART completed feedback removes itself without advancing game state")
 
  for type in ["rope","belt","tape","cable_tie","toybox"]:
   await t.start_practice("Practice_"+type+"_solo")
@@ -289,15 +290,62 @@ static func run(t) -> void:
  await t.capture("ui-weak-budget-group.png")
 
 
+static func rope_master_turns(t) -> void:
+ var ui=t.ui
+ var factory=ui.game_factory
+ ui.game_factory=preload("res://core/game.gd")
+ ui.restart(3364630912,true,"rope_master_solo");await t.frames()
+ var upgraded=false
+ var seen={};var card_seen=false;var captured=false;var hogtie_art_seen=false
+ for step in range(20):
+  if ui.view.phase!="battle": break
+  var version=ui.view.version
+  await preload("res://tests/target_sidebar_ui_cases.gd").press(t,ui.end_button)
+  t.check(ui.view.version>version and ui.notice=="","ROPE UI real end-turn button commits without an equipment or capture error")
+  if ui.view.version==version: break
+  upgraded=upgraded or ui.game.state.equipment.any(func(item):return item.template==ui.game.RopeArt.HOGTIE and item.grade==3)
+  var hogties=ui.game.state.equipment.filter(func(item):return item.template==ui.game.RopeArt.HOGTIE)
+  t.check(hogties.all(func(item):return not item.has("binding") and ui.game.state.links.all(func(link):return item.id not in link.ends)) and ui.view.bodies.all(func(body):return hogties.all(func(hog):return not body.targets.has("binding_"+hog.id))),"ROPE UI live hogtie has neither attached links nor a torso-binding target")
+  if not hogties.is_empty() and not hogtie_art_seen:
+   var hero=ui.find_child("HeroArt",true,false)
+   t.check(hero!=null and hero.special_pose=="hogtie" and hero.get_node("HeroPose").texture==preload("res://ui/pixel_art.gd").HERO_SPECIAL_POSES.hogtie,"ROPE UI real end-turn sequence switches to the dedicated hogtie battle pose")
+   hogtie_art_seen=true
+  for row in ui.view.statuses:
+   if row.id not in ["rope_submission","rope_drunk"]: continue
+   var strip=ui.find_child("StatusStrip_hero",true,false)
+   var button=strip.find_child("StatusIcon_"+row.id,true,false) if strip!=null else null
+   t.check(button!=null and button.find_child("StatusCount",true,false).text==row.value,"ROPE UI left player status strip follows actual debuff stacks: "+row.id)
+   if button==null or seen.has(row.id):continue
+   var before=ui.game.export_snapshot()
+   await t.move_mouse(button.get_global_rect().get_center());await t.frames()
+   t.check(ui.term_popup!=null and t.visible_text(ui.term_popup).contains(row.name) and t.visible_text(ui.term_popup).contains(row.detail),"ROPE UI debuff hover shows its current rule: "+row.id)
+   await preload("res://tests/target_sidebar_ui_cases.gd").press(t,button)
+   t.check(ui.show_pressure and ui.selected_status==row.id,"ROPE UI debuff icon opens its status details: "+row.id)
+   await preload("res://tests/interface_ui_cases.gd").press(t,"CloseDrawer")
+   t.check(ui.game.export_snapshot()==before,"ROPE UI reading a debuff preserves state and random streams")
+   seen[row.id]=true
+  for card in ui.view.hand:
+   if card.type!="art_submission" or card_seen:continue
+   var face=ui.card_buttons[card.uid]
+   t.check(face.get_node("CardIllustration").texture.resource_path.ends_with("/art_submission.svg"),"ROPE UI drawn submission card uses its dedicated SVG illustration")
+   card_seen=true
+  if seen.size()==2 and not captured:
+   await t.move_mouse(Vector2(1500,80));await t.capture("ui-rope-statuses.png");captured=true
+ t.check(upgraded and ui.view.phase=="captured" and ui.game.state.guard_bind.is_empty(),"ROPE UI reported seed crosses the hogtie upgrade and opens the capture screen")
+ t.check(seen.size()==2 and card_seen and hogtie_art_seen,"ROPE UI real encounter produces both debuff icons, the illustrated status card and the live hogtie pose")
+ t.check(ui.find_child("StatusIcon_rope_submission",true,false)==null and ui.find_child("StatusIcon_rope_drunk",true,false)==null,"ROPE UI leaving battle removes its debuff icons")
+ ui.game_factory=factory
+ ui.restart(42);await t.frames()
+
 static func six_bind_idle(t) -> void:
  var ui=t.ui
  ui.restart(42);ui.game=preload("res://tests/six_bind_cases.gd").encounter()
  var enemy=ui.game.state.enemies[0];enemy.stage=10;enemy.intent=ui.game._plan(enemy)
  ui.render();await t.frames()
  var icons=ui.view.enemies[0].intent_icons
- t.check(icons.size()==1 and icons[0].kind=="wait" and icons[0].detail=="敌人暂不行动","SIX IDLE UI shows wait intent without equipment or debuff icons")
+ t.check(icons.size()==1 and icons[0].kind=="wait" and icons[0].detail=="敌人本次休息","SIX IDLE UI shows wait intent without equipment or debuff icons")
  var popup=await preload("res://tests/intent_ui_cases.gd").hover(t,"IntentIcon_"+enemy.id+"_wait")
- t.check(t.visible_text(popup).contains("敌人暂不行动"),"SIX IDLE UI hover explains the idle turn")
+ t.check(t.visible_text(popup).contains("敌人本次休息"),"SIX IDLE UI hover explains the idle turn")
  await t.move_mouse(Vector2(650,60));await t.frames()
  t.check(await t.click("end") and ui.game.state.enemies[0].stage==11 and ui.view.enemies[0].intent_icons.any(func(icon):return icon.kind=="bind") and ui.game.state.equipment.is_empty(),"SIX IDLE UI end-turn leaves equipment alone and announces next cycle")
  ui.restart(42);await t.frames()

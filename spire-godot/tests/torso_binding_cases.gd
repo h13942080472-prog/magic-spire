@@ -37,10 +37,30 @@ static func index_connection_edge_parity(t) -> void:
   g._equipment_read=previous
   t.check(parity and g.export_snapshot()==before and g._equipment_read.is_empty(),"INDEX connection edge parity with the live path "+kind)
 
+static func parent_grade_refresh(t) -> void:
+ for kind in ["linked","integrated"]:
+  var g=sample(kind)
+  var host=g.state.equipment[0]
+  if kind=="linked": host.binding.durability=5.0
+  var rng=g.state.rng.duplicate(true)
+  host.grade=3;host.maximum=g.Equipment.maximum(3);host.durability=host.maximum*0.8;host.variant=0
+  host.name=g.Equipment.name_for(host.template,host.slot,host.grade,host.variant)
+  g._refresh_equipment(host)
+  t.check(host.binding.kind==kind and g.state.rng==rng and g.Binding.validate(g,host)=="" and g.validate()=="","BIND ordinary parent grade refresh keeps attachment metadata consistent without rerolling "+kind)
+  if kind=="linked":
+   t.check(host.binding.grade==3 and host.binding.maximum==24 and host.binding.durability==5,"BIND tier-two parent grade change updates cap without healing")
+   host.binding.durability=0;g._refresh_equipment(host)
+   t.check(host.binding.durability==0 and not g.Binding.present(host),"BIND low-tier refresh preserves an exhausted connection")
+   g._reinforce_equipment(host)
+   t.check(host.binding.durability==24 and g.Binding.present(host),"BIND ordinary tier-three reinforcement restores connection durability")
+  var restored=Game.new(0,false,"equipment",false)
+  t.check(restored.restore_snapshot(g.export_snapshot()).ok,"BIND refreshed ordinary parent and attachment survive save restoration "+kind)
+
 static func run(t) -> void:
  var handbook=preload("res://data/tutorial.gd").entries()
  t.check(handbook.any(func(row):return row.title=="躯干固缚：连接式与一体式" and "二档加固回三档" in row.text),"BIND handbook explains forms and reinforcement refresh")
  index_connection_edge_parity(t)
+ parent_grade_refresh(t)
  for kind in ["linked","integrated"]:
   var g=sample(kind)
   t.check(g!=null,"BIND seeded generation produces "+kind)
@@ -76,6 +96,7 @@ static func run(t) -> void:
    g._cleanup();g.command_facts()
    t.check(not g.Binding.present(e),"BIND cleanup does not recreate depleted attachment")
    # Formal enemy operation performs the same reinforcement used by live enemies.
+   e.durability=e.maximum*0.8
    var enemy={"id":"fixture_guard","type":"guard","name":"测试警卫"}
    g._enemy_operation(enemy,{"kind":"tighten","target":e.id,"text":"加固","delayed":false})
    e=g._equipment(e.id)

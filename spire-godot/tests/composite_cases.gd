@@ -80,7 +80,7 @@ static func run(t) -> void:
  var left=part(g,"left")
  var right=part(g,"right")
  left.durability=1.0
- t.check(play(t,g,"slip",left.id).ok and g.state.composites.size()==1 and part(g,"body").durability==12.8,"COMPOSITE first shoulder slip cannot also remove body")
+ t.check(play(t,g,"slip",left.id).ok and g.state.composites.size()==1 and part(g,"body").durability==12.0,"COMPOSITE first shoulder slip cannot also remove body")
  body=part(g,"body")
  t.check(g.escape_preview(body,"slip",5).reason=="" and part(g,"right").locked,"COMPOSITE one open straight strap enables slip even with other strap locked")
  t.check(g.escape_preview(body,"strain",5).release,"COMPOSITE next strain previews complete release")
@@ -100,10 +100,10 @@ static func run(t) -> void:
  # Locks remain local; shoulder tier is independent of the body.
  g=Game.new(42,true,"glove_short")
  body=part(g,"body"); left=part(g,"left"); right=part(g,"right")
- body.durability=6.4; left.durability=16; right.durability=16;g._cleanup()
+ body.durability=6.0; left.durability=15; right.durability=15;g._cleanup()
  t.check(g._effective_ratio(left)==1.0 and g.escape_preview(left,"strain",5).reason!="","COMPOSITE independent shoulder tier and no strain")
  t.check(g._slip_reason(left)!="","COMPOSITE crossed shoulder cannot borrow low body tier")
- t.check(play(t,g,"unlock",right.id).ok and not part(g,"right").locked and part(g,"body").durability==6.4,"COMPOSITE gesture unlock targets exactly one shoulder")
+ t.check(play(t,g,"unlock",right.id).ok and not part(g,"right").locked and part(g,"body").durability==6.0,"COMPOSITE gesture unlock targets exactly one shoulder")
 
  # Third tier blocks automatic removal until a later action, not mid-hit.
  g=Game.new(42,true)
@@ -117,10 +117,10 @@ static func run(t) -> void:
  body=part(g,"body")
  t.check(not g.escape_preview(body,"strain",5).release and g.escape_preview(body,"slip",5).immune,"COMPOSITE open strap does not override third-tier body")
  t.check(play(t,g,"strain",body.id).ok and g.state.composites.size()==1,"COMPOSITE a hit crossing third-tier boundary does not retroactively release")
- t.check(g.tier(part(g,"body").durability,16)==3,"COMPOSITE first weak hit remains above eighty percent")
+ t.check(g.tier(part(g,"body").durability,15)==2,"COMPOSITE first hit crosses eighty percent without retroactive release")
  t.action(g,"end")
  body=part(g,"body")
- t.check(play(t,g,"ease",body.id).ok and g.state.composites.size()==1 and g.tier(part(g,"body").durability,16)<3,"COMPOSITE magic downgrade is not a strain event")
+ t.check(play(t,g,"ease",body.id).ok and g.state.composites.size()==1 and g.tier(part(g,"body").durability,15)<3,"COMPOSITE magic downgrade is not a strain event")
  t.check(play(t,g,"strain",body.id).ok and g.state.composites.is_empty(),"COMPOSITE later strain after actual downgrade releases")
 
  # Real outer coverage and capacities, not display count or component names.
@@ -173,7 +173,7 @@ static func run(t) -> void:
  body=part(g,"body")
  g.state.items[0].mount="hand_wall"
  g._apply_equipment_damage(body,5,"cut");g._cleanup()
- t.check(g.state.composites.size()==1 and is_equal_approx(part(g,"body").durability,7.8),"COMPOSITE shared cut damage does not trigger strain-only removal")
+ t.check(g.state.composites.size()==1 and is_equal_approx(part(g,"body").durability,7.0),"COMPOSITE shared cut damage does not trigger strain-only removal")
  # Test slipping alone: the mounted cutter can now make the stronger base card lethal.
  g.state.items[0].mount="carry"
  t.check(play(t,g,"slip",body.id).ok and g.state.composites.size()==1,"COMPOSITE ordinary slipping cannot trigger strain-only shortcut")
@@ -187,7 +187,7 @@ static func run(t) -> void:
  t.check(not cut.valid and not g.dispatch(g.command(cut.payload,g.state.version),g.state.version).ok and JSON.stringify(g.state)==before,"COMPOSITE closed fingers block handheld cut without cost")
  t.check(t.action(g,"item_install",{"item":item.id,"mount":"foot_wall"}).ok,"COMPOSITE toe installation works with both hands covered")
  t.action(g,"posture",{"dest":"sit","wall":false}); t.action(g,"posture",{"dest":"lie","wall":false})
- t.check(g.InstalledTools.reason(g,g._item(item.id),body)=="" and part(g,"body").durability==24,"COMPOSITE lying reaches cutter but posture alone causes no damage")
+ t.check(g.InstalledTools.reason(g,g._item(item.id),body)=="" and part(g,"body").durability==30,"COMPOSITE lying reaches cutter but posture alone causes no damage")
  t.check(g.item_capacity()==2,"COMPOSITE finger and arm penalties do not stack twice")
 
 

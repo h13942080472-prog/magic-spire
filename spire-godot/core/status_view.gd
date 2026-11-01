@@ -50,6 +50,15 @@ static func sources(g, slots: Array, side: String="", joint_only: bool=false) ->
 static func build(g, special_regions: Array, pressure: Dictionary) -> Array:
  var out: Array=[]
  var s=g.state
+ for artist in s.enemies:
+  if s.phase!="battle" or artist.gone or artist.type not in [g.RopeArt.MASTER,g.RopeArt.ASSISTANT]: continue
+  entry(out,"rope_art_"+artist.id,"enemy",artist.name,str(artist.rope_art.stock)+"/24" if artist.type==g.RopeArt.MASTER else "助理",g.RopeArt.description(artist),artist.name,"本场战斗","bad")
+  mark(out,"bind","",true,artist.id)
+  if artist.type==g.RopeArt.MASTER:
+   for key in ["drunk","submission","active","drain","desire"]:
+    if artist.rope_art[key]<=0: continue
+    entry(out,"rope_"+key,"limit",{"drunk":"醉绳","submission":"不可反抗","active":"活性绳索","drain":"吸魔绳索","desire":"情欲绳索"}[key],str(artist.rope_art[key]),{"drunk":"下一张绳索伤害牌的绳索伤害为0，每张牌消耗1层。","submission":"下一张装备伤害牌的全部装备伤害为0，优先于醉绳消耗。","active":"每层力量、灵巧－1。捕缚为0时暂停。","drain":"每层回合结束失去5自身魔力。捕缚为0时暂停。","desire":"每层打出一张牌获得1基础快感。捕缚为0时暂停。"}[key],artist.name,"本场战斗","bad")
+    mark(out,{"drunk":"bind","submission":"cards","active":"weakness","drain":"mana","desire":"pressure"}[key],str(artist.rope_art[key]))
  var toe=g.RelicEffects.toe_traction(g)
  if toe.base>0:
   var details: Array[String]=[]
@@ -60,13 +69,13 @@ static func build(g, special_regions: Array, pressure: Dictionary) -> Array:
   for part in g.Character.PARTS:
    var count=s.witch_charges[part]
    var detail="至少4层可使用魔女飞踹：伤害1，打断，消耗全部腿部施法预备。" if part=="legs" else "释放时每层额外触发一次法术效果，消耗该部位全部施法预备；失败保留。"
-   detail+="每回合预备次数不限；各部位每回合只能成功释放1次。"
-   if g.Character.Expansion.protects_preparation(g): detail+="耐心耐心～生效：施法预备不会减少（主动释放除外），也不抵挡拘束。"
-   if part!="mind": detail+="对应部位被施加拘束时可消耗2层抵挡；不足2层不能抵挡。"
+   detail+="每回合可反复预备；各部位每回合只能成功释放1次。"
+   if g.Character.Expansion.protects_preparation(g): detail+="耐心耐心～生效：施法预备仅在主动释放时消耗，抵挡拘束功能暂停。"
+   if part!="mind": detail+="对应部位被施加拘束时可消耗2层抵挡，需要至少2层。"
    entry(out,"witch_charge_"+part,"benefit",g.Character.NAMES[part]+"施法预备","%d层" % count,detail,"基础动作","本场整备结束或高潮时清空","good")
    mark(out,{"hand":"hand","mouth":"mouth","legs":"foot","mind":"ritual"}[part],str(count))
   if s.witch_focus>0:
-   entry(out,"witch_focus","benefit","精神集中","%d层" % s.witch_focus,"下次对敌人造成伤害的魔法每段伤害＋%d，整次施放消耗全部层数；魔力松缚不受加成，也不消耗层数。施法失败或高潮时失去1层。" % s.witch_focus,"卡牌／遗物","使用后清除；跨战斗最多保留%d层" % (2+g.combat_retention_bonus()),"good")
+   entry(out,"witch_focus","benefit","精神集中","%d层" % s.witch_focus,"下次对敌人造成伤害的魔法每段伤害＋%d，整次施放消耗全部层数。魔力松缚按原伤害生效并保留层数。施法失败或高潮时失去1层。" % s.witch_focus,"卡牌／遗物","使用后清除；跨战斗最多保留%d层" % (2+g.combat_retention_bonus()),"good")
    mark(out,"ritual",str(s.witch_focus))
  for buff in s.body_buffs:
   var spec=g.Tools.TYPES[buff.type]
@@ -78,7 +87,7 @@ static func build(g, special_regions: Array, pressure: Dictionary) -> Array:
   entry(out,"permanent_spell_"+spell,"benefit",label+"强化","＋%d" % s.spell_base_bonuses[spell],label+"基础伤害永久增加%d点，先加基础再计算伤害倍率。" % s.spell_base_bonuses[spell],"卡牌效果","本局永久","good")
   mark(out,"flame",str(s.spell_base_bonuses[spell]))
  if s.get("weakness_turns",0)>0:
-  entry(out,"weakness","limit","无力化","%d个玩家回合" % s.weakness_turns,"肘击、近身短打和踢击禁用；火球、卡牌魔法不受无力化影响，仍需满足各自施法条件。","敌人施加的无力化","本玩家回合结束后解除","bad")
+  entry(out,"weakness","limit","无力化","%d个玩家回合" % s.weakness_turns,"无力化：体术暂停；火球与卡牌魔法仍可按各自施法条件使用。","敌人施加的无力化","本玩家回合结束后解除","bad")
   mark(out,"weakness",str(s.weakness_turns))
  if g.CaptureBind.has_bind(g):
   var bind=g.CaptureBind.view(g)
@@ -106,13 +115,13 @@ static func build(g, special_regions: Array, pressure: Dictionary) -> Array:
     entry(out,"hard_"+enemy.id,"limit","坚硬 · "+enemy.name,"非魔法减伤%s%%" % g.number((1.0-multiplier)*100),"该机械敌人受到的非魔法伤害×%s；魔法与固定伤害正常。" % g.number(multiplier),enemy.name,"该敌人存活期间","bad")
     mark(out,"shield","",true,enemy.id)
    if not enemy.gone and g.Enemies.TYPES[enemy.type].has("quantity_gain") and enemy.get("application_bonus",0)>0:
-    entry(out,"quantity_"+enemy.id,"limit","狂躁 · "+enemy.name,"%d层" % enemy.application_bonus,"每次施加额外增加%d件拘束具，不消耗层数，也不增加加固次数。" % enemy.application_bonus,enemy.name,"来源存活期间","bad")
+    entry(out,"quantity_"+enemy.id,"limit","狂躁 · "+enemy.name,"%d层" % enemy.application_bonus,"每次施加额外增加%d件拘束具，层数保留；仅增加施加数量。" % enemy.application_bonus,enemy.name,"来源存活期间","bad")
     mark(out,"charge",str(enemy.application_bonus),true,enemy.id)
    if not enemy.gone and enemy.get("ritual",0)>0:
-    entry(out,"ritual_"+enemy.id,"limit","仪式 · "+enemy.name,"%d点 · 数量＋%d" % [enemy.ritual,enemy.application_bonus],"每个自身回合结束时，施加数量加成增加%d件。已有加成不会消耗；施加行动被打断仍会增长。" % enemy.ritual,enemy.name,"该敌人存活期间","bad")
+    entry(out,"ritual_"+enemy.id,"limit","仪式 · "+enemy.name,"%d点 · 数量＋%d" % [enemy.ritual,enemy.application_bonus],"每个自身回合结束时，施加数量加成增加%d件，持续累积；施加行动被打断仍会增长。" % enemy.ritual,enemy.name,"该敌人存活期间","bad")
     mark(out,"ritual",str(enemy.ritual),true,enemy.id)
    if not enemy.gone and enemy.get("ready_layers",0)>0:
-    entry(out,"ready_"+enemy.id,"limit","准备就绪 · "+enemy.name,"%d层" % enemy.ready_layers,"该敌人每成功施加或替换一件拘束具消耗1层，使该件紧度为3档；无目标、失败或被打断时保留，可继续叠层。",enemy.name,"逐件成功时消耗；来源离场后不再生效","bad")
+    entry(out,"ready_"+enemy.id,"limit","准备就绪 · "+enemy.name,"%d层" % enemy.ready_layers,"该敌人每成功施加或替换一件拘束具消耗1层，使该件紧度为3档；无目标、失败或被打断时保留，可继续叠层。",enemy.name,"逐件成功时消耗；持续至来源离场","bad")
     mark(out,"ready",str(enemy.ready_layers),true,enemy.id)
    if not enemy.gone and enemy.get("turn_install_layers",0)>0:
     var effect=g.Enemies.TYPES[enemy.type].turn_install_effect
@@ -129,14 +138,14 @@ static func build(g, special_regions: Array, pressure: Dictionary) -> Array:
   if not enemy.gone and enemy.has("puppet_owner"):
    entry(out,"puppet_"+enemy.id,"limit","引敌缚咒" if enemy.puppet_awakened else "牵线保护","%s/%s生命" % [g.number(enemy.hp),g.number(enemy.max_hp)],g.Puppets.description(g,enemy),g._enemy(enemy.puppet_owner).name,"玩偶师被击败后，玩偶与这些效果一同消失","bad")
    mark(out,"puppet","",true,enemy.id)
-   entry(out,"puppet_stock_"+enemy.id,"enemy","普通反击容量","%d/%d" % [enemy.puppet_stock,g.Puppets.capacity(g,enemy)],"每次普通反击消耗1次，用尽后停止；缝补时上限＋%d并补满。复合装束和暗藏机关不消耗此容量。" % definition.capacity_per_mend,enemy.name,"缝补时补充","bad")
+   entry(out,"puppet_stock_"+enemy.id,"enemy","普通反击容量","%d/%d" % [enemy.puppet_stock,g.Puppets.capacity(g,enemy)],"每次普通反击消耗1次，用尽后停止；缝补时上限＋%d并补满。复合装束和暗藏机关单独计次。" % definition.capacity_per_mend,enemy.name,"缝补时补充","bad")
    mark(out,"stock",str(enemy.puppet_stock),true,enemy.id)
  for region in ["arms","legs"]:
   var level=g.level(region)
   var arms=region=="arms"
-  var detail="肘击与近身短打伤害×%s（含力量和蓄力）；三级起无法使用这两种攻击。" % g.number(B.BODY_DAMAGE[level]) if arms else "腿部体术伤害×%s（含力量和蓄力）。站着踢要求0级；坐着踢4级起不可用。并腿踢击沿用此伤害倍率。姿态费用与移动速度随腿部限制变化。" % g.number(B.BODY_DAMAGE[level])
+  var detail="肘击与近身短打伤害×%s（含力量和蓄力）；三级起无法使用这两种攻击。" % g.number(B.BODY_DAMAGE[level]) if arms else "腿部体术伤害×%s（含力量和蓄力）。站着踢要求0级，坐着踢要求≤3级。并腿踢击沿用此伤害倍率。姿态费用与移动速度随腿部限制变化。" % g.number(B.BODY_DAMAGE[level])
   if arms and g.Cards.attack_ignores_restraints(g,"strike"): detail+="魔术手生效期间，手部体术暂时忽略这些拘束限制与减益。"
-  if arms: detail+="切换姿态"+("减少1能量，最低0。" if level<=1 else "不获得双臂灵活的能量减免。")
+  if arms: detail+="切换姿态"+("减少1能量，最低0。" if level<=1 else "双臂灵活能量减免为0。")
   entry(out,region,"body","上身束缚等级" if arms else "腿部束缚等级","%d / 4级" % level,detail,sources(g,B.ARM_SLOTS if arms else B.LEG_SLOTS,"",true),"随真实拘束部位变化", "bad" if level>0 else "neutral")
   mark(out,region,str(level),level>0)
  for side in ["left","right"]:
@@ -148,7 +157,7 @@ static func build(g, special_regions: Array, pressure: Dictionary) -> Array:
  entry(out,"hand_assist","body","手部辅助",g.HandAssist.summary(g),g.HandAssist.description(g),"当前手指、手掌、手腕与触及范围","每次挣扎／滑脱按实际目标重新检查")
  mark(out,"hand","",false)
  var toes=g.occupied("toes")
- entry(out,"toes","body","脚趾","受限" if toes else "自由","不能用脚趾安装工具。" if toes else "满足脚趾操作条件；工具安装还需检查腿部等级、姿态与墙面。",sources(g,["toes"]),"随脚趾装备变化","bad" if toes else "neutral")
+ entry(out,"toes","body","脚趾","受限" if toes else "自由","脚趾安装工具功能受限。" if toes else "满足脚趾操作条件；工具安装还需检查腿部等级、姿态与墙面。",sources(g,["toes"]),"随脚趾装备变化","bad" if toes else "neutral")
  mark(out,"foot","",toes)
  var blind=not g.can_observe_intents()
  entry(out,"vision","body","视觉","受阻" if blind else "清晰","无法观察敌人意图；解除最后一件眼部装备后立即恢复。" if blind else "可以观察敌人当前公开意图。",sources(g,["eyes"]),"随眼部装备变化","bad" if blind else "neutral")
@@ -159,12 +168,12 @@ static func build(g, special_regions: Array, pressure: Dictionary) -> Array:
  mark(out,"mouth","",mouth)
  var movement=g.movement_profile()
  var order=("玩家先手" if s.order=="first" else "玩家后手") if s.phase=="battle" else "当前非战斗"
- entry(out,"posture","body","姿态与行动",B.POSE_NAMES[s.posture]+" · "+movement.mode,"相邻房间移动需要%d回合；途中不抽牌、不补能。\n%s；回合中换姿不改变本回合的先后手。" % [movement.turns,order],"当前姿态与腿部活动能力","随姿态和腿部状态变化")
+ entry(out,"posture","body","姿态与行动",B.POSE_NAMES[s.posture]+" · "+movement.mode,"相邻房间移动需要%d回合；途中手牌与能量保持当前值。\n%s；本回合行动顺序已确定。" % [movement.turns,order],"当前姿态与腿部活动能力","随姿态和腿部状态变化")
  mark(out,"movement","",false)
  var upper=1 if g.level("arms")>=3 or g.occupied("fingers") else 0
  var lower=1 if g.level("legs")>=3 else 0
  var extra=int(g.relic_value("capacity"))
- entry(out,"capacity","body","随身容量","%d / %d格" % [g.carried_items(),g.item_capacity()],"基础3格＋遗物%d－上肢%d－下肢%d；双手手指同时受限与上肢扣减不叠加。" % [extra,upper,lower],"身体限制与随身遗物","超出容量时使用或放下多余道具","bad" if g.carried_items()>g.item_capacity() else "neutral")
+ entry(out,"capacity","body","随身容量","%d / %d格" % [g.carried_items(),g.item_capacity()],"基础3格＋遗物%d－上肢%d－下肢%d；双手手指同时受限与上肢扣减取较高值。" % [extra,upper,lower],"身体限制与随身遗物","超出容量时使用或放下多余道具","bad" if g.carried_items()>g.item_capacity() else "neutral")
  for attribute in ["strength","dexterity"]:
   var name="力量" if attribute=="strength" else "灵巧"
   var value=g.RelicEffects.attribute(g,attribute)
@@ -173,7 +182,7 @@ static func build(g, special_regions: Array, pressure: Dictionary) -> Array:
   var detail="在倍率计算前增加%s基础值。" % ("挣扎及全部体术每段伤害" if attribute=="strength" else "主动与被动滑脱")
   detail+="\n人物%s · 遗物%s · 手牌%s · 能力%s。" % [g.number(s[attribute]),g.number(g.relic_value(attribute)),g.number(modifier),g.number(power_modifier)]
   if attribute=="strength" and s.turn_strength>0: detail+="\n临时力量＋%d，本回合结束清除。" % s.turn_strength
-  if modifier!=0: detail+="手牌加值不用于移动被动滑脱；离开手牌立即失效。"
+  if modifier!=0: detail+="手牌加值仅对主动行动生效；离开手牌立即失效。"
   if power_modifier!=0: detail+="增益加值按当前卡牌效果计算；般若汤持续至本场整备结束。"
   entry(out,attribute,"benefit",name,g.number(value),detail,"人物、遗物、手牌与能力","随人物属性、手牌与当前装备变化","bad" if modifier<0 else "good")
   mark(out,attribute,g.number(value),value!=0 or modifier!=0 or power_modifier!=0)
@@ -195,7 +204,7 @@ static func build(g, special_regions: Array, pressure: Dictionary) -> Array:
   if buff.get("toggleable",false):
    var enabled=id in g.Cards.active_buffs(g)
    out.back().merge({"toggle":true,"emphasized":enabled,"disabled":not enabled,"badge":"开" if enabled else "关"},true)
- if s.temporary_mana>0: entry(out,"temporary_mana","benefit","临时魔力",g.number(s.temporary_mana)+"点","优先抵扣法术和卡牌耗魔，不受魔力上限限制；不能存入魔瓶或用于购物。","预备魔力","可跨回合并延续至整备；整备结束最多保留%s点到下场；入狱清除。" % g.number(g.B.TEMPORARY_MANA_RETENTION+g.combat_retention_bonus()*5),"good")
+ if s.temporary_mana>0: entry(out,"temporary_mana","benefit","临时魔力",g.number(s.temporary_mana)+"点","优先抵扣法术和卡牌耗魔，上限无限；存瓶使用自身魔力；购物使用自身或魔瓶魔力。","预备魔力","可跨回合并延续至整备；整备结束最多保留%s点到下场；入狱清除。" % g.number(g.B.TEMPORARY_MANA_RETENTION+g.combat_retention_bonus()*5),"good")
  if s.temporary_mana>0: mark(out,"mana",g.number(s.temporary_mana))
  if s.charge>0:
   var detail="下一次主动挣扎、滑脱或体术基础伤害＋%s；%s" % [g.number(g.charge_bonus()),"消耗全部%d层，随后恢复普通模式。右键切回普通蓄力。" % s.charge if s.charge_all else "每次触发消耗1层。右键切换为全量蓄力。"]
@@ -211,9 +220,9 @@ static func build(g, special_regions: Array, pressure: Dictionary) -> Array:
  entry(out,"pressure","pressure","快感","%s / %s" % [g.number(pressure.value),g.number(pressure.maximum)],pressure.detail,"身体受到的刺激","快感跨战保留；可通过深呼吸降低","bad" if pressure.stage>=2 else "neutral")
  if s.overloaded: entry(out,"overload","pressure","高潮","本回合%d次" % s.overload_count,"身体暂时失去力气，剩余行动已跳过，只能继续回合。","快感达到100","本玩家回合结束后解除","bad")
  if s.overloaded: mark(out,"weakness",str(s.overload_count))
- if s.overload_energy>0: entry(out,"overload_energy","pressure","高潮后的乏力","－%d能量" % s.overload_energy,"下一玩家回合能量减少；连续高潮会叠加。","高潮","下一玩家回合消耗；整备结束不继承","bad")
+ if s.overload_energy>0: entry(out,"overload_energy","pressure","高潮后的乏力","－%d能量" % s.overload_energy,"下一玩家回合能量减少；连续高潮会叠加。","高潮","下一玩家回合消耗；整备结束清空","bad")
  if s.overload_energy>0: mark(out,"energy","−"+str(s.overload_energy))
- if s.slip_ejaculation_turns>0: entry(out,"slip_ejaculation","pressure","滑精","后续%d回合：能量－1、魔力－%s" % [s.slip_ejaculation_turns,g.number(g.B.SLIP_EJACULATION_MANA)],"期间高潮不立即损失魔力；后续%d个玩家回合开始时各损失%s魔力、减少1点能量。" % [s.slip_ejaculation_turns,g.number(g.B.SLIP_EJACULATION_MANA)]+("下一玩家回合固定后手。" if s.slip_ejaculation_force_last else ""),"平板锁与马眼装备共同触发高潮","经过对应玩家回合后解除；重复触发刷新为2回合","bad")
+ if s.slip_ejaculation_turns>0: entry(out,"slip_ejaculation","pressure","滑精","后续%d回合：能量－1、魔力－%s" % [s.slip_ejaculation_turns,g.number(g.B.SLIP_EJACULATION_MANA)],"期间高潮保留当前魔力；后续%d个玩家回合开始时各损失%s魔力、减少1点能量。" % [s.slip_ejaculation_turns,g.number(g.B.SLIP_EJACULATION_MANA)]+("下一玩家回合固定后手。" if s.slip_ejaculation_force_last else ""),"平板锁与马眼装备共同触发高潮","经过对应玩家回合后解除；重复触发刷新为2回合","bad")
  if s.slip_ejaculation_turns>0: mark(out,"energy","−1")
  var pressure_groups={}
  for source in s.pressure_sources:
@@ -233,19 +242,19 @@ static func build(g, special_regions: Array, pressure: Dictionary) -> Array:
  if wall.at_wall: entry(out,"against_wall","benefit","贴墙",wall.status,wall.detail,wall.source,wall.duration,"good")
  if wall.at_wall: mark(out,"wall")
  if s.phase=="battle":
-  if s.heavy_used: entry(out,"heavy_used","limit","近身短打","本回合已使用","本回合不能再次发动近身短打。","已执行的攻击","下个玩家回合恢复","bad")
+  if s.heavy_used: entry(out,"heavy_used","limit","近身短打","本回合已使用","本回合近身短打已用完。","已执行的攻击","下个玩家回合恢复","bad")
   var cooldown=g.BasicAttacks.kick_cooldown(g)
   if cooldown>0:
-   entry(out,"kick_cooldown","limit","踢击冷却","%d回合后恢复" % cooldown,"坐姿踢击与并腿踢击共用冷却。般若汤强化后的正义飞踢也共用冷却；普通正义飞踢、横扫和站着踢／坐着踢不受影响。","已使用的踢击动作","随战斗回合推进恢复，切换姿势不刷新","bad")
+   entry(out,"kick_cooldown","limit","踢击冷却","%d回合后恢复" % cooldown,"坐姿踢击、并腿踢击与般若汤强化后的正义飞踢共用冷却；其余踢击独立冷却。","已使用的踢击动作","随战斗回合推进恢复，跨姿势共享冷却","bad")
  var retained=[]
  for card in s.hand:
   if B.CARD_TRAITS.get(card.type,{}).get("retain",false): retained.append(B.CARD_NAMES[card.type]+"：自带保留。")
   elif card.retain_until>s.tick: retained.append(B.CARD_NAMES[card.type]+"：至第%d个后续玩家回合结束。" % (card.retain_until-s.tick))
  if not retained.is_empty():
-  entry(out,"retained","benefit","保留","%d张" % retained.size(),"回合结束暂不弃置；虚无优先进入消耗区。\n"+"\n".join(retained),"当前手牌","各张牌分别按自己的保留期限结束")
+  entry(out,"retained","benefit","保留","%d张" % retained.size(),"回合结束留手；虚无优先进入消耗区。\n"+"\n".join(retained),"当前手牌","各张牌分别按自己的保留期限结束")
   mark(out,"cards",str(retained.size()))
  if s.pending_retain: entry(out,"retain_pending","benefit","等待选择保留牌","至多%d张" % s.retain_left,"当前需要完成保留选择后再继续其他行动。","已打出的卡牌","完成选择后结束")
- if not s.card_chain.is_empty(): entry(out,"chain","benefit","连续行动","剩余%d段" % s.card_chain.remaining,"继续选择合法目标；费用已支付，不重复扣除。",B.CARD_NAMES[s.card_chain.type],"完成剩余段或失去合法目标后结束")
+ if not s.card_chain.is_empty(): entry(out,"chain","benefit","连续行动","剩余%d段" % s.card_chain.remaining,"继续选择合法目标；费用已支付。",B.CARD_NAMES[s.card_chain.type],"完成剩余段或失去合法目标后结束")
  if s.evasion>0:
   entry(out,"evasion","benefit","闪避","%d层" % s.evasion,"即将被施加拘束具时，消耗1层抵消1件。","卡牌","本场整备结束时清除","good")
   mark(out,"slip",str(s.evasion))
@@ -257,9 +266,9 @@ static func build(g, special_regions: Array, pressure: Dictionary) -> Array:
   entry(out,"status_cards","limit","状态牌","%d张" % status_cards.size(),"混入本场牌堆，占用抽牌机会；效果按各自牌面说明。","本场牌堆","本场整备结束或被收押时消失","bad")
  if pressure.gain_multiplier!=1.0: entry(out,"hand_pleasure","pressure","快感增长倍率","×"+g.number(pressure.gain_multiplier),"手牌与遗物的快感倍率相乘；固定快感仅受遗物倍率影响。","当前手牌与遗物","随手牌与持有遗物变化","bad" if pressure.gain_multiplier>1.0 else "good")
  if pressure.gain_multiplier!=1.0: mark(out,"pressure","×"+g.number(pressure.gain_multiplier))
- if s.phase=="rest": entry(out,"rest","environment","休息房规则","剩余%d回合" % s.rest_left,"禁止卡牌自由效果，不自动回魔；挂钩剩余%d次。" % s.hook_uses,"当前休息房","离开房间后结束")
+ if s.phase=="rest": entry(out,"rest","environment","休息房规则","剩余%d回合" % s.rest_left,"仅限拘束面，魔力由道具与卡牌补充；挂钩剩余%d次。" % s.hook_uses,"当前休息房","离开房间后结束")
  if s.phase=="prepare": entry(out,"prepare","environment","战后整备","剩余%d回合" % s.prepare_left,"可以继续挣脱或积攒自由效果。","战斗结束与整备类遗物","整备结束后结束")
- if s.security>0: entry(out,"security","environment","监狱警戒度","%d / 5级" % s.security,g.Prison.intake_label(g)+"3级起固定佩戴限制项圈，不占件数。","累计入狱记录","携带卡组与遗物继续游玩仍累计；新开游戏归零","bad")
+ if s.security>0: entry(out,"security","environment","监狱警戒度","%d / 5级" % s.security,g.Prison.intake_label(g)+"3级起固定佩戴限制项圈，件数统计豁免。","累计入狱记录","携带卡组与遗物继续游玩仍累计；新开游戏归零","bad")
  if s.prison.get("active",false) and s.phase!="prison_end":
   var prison=g.Prison.view(g)
   entry(out,"inspection","environment","狱警巡视","已暂停" if prison.paused else "剩余%d回合" % prison.left,"持有监门钥匙或正在反抗时暂停巡视。拘束具或性玩具缺件会分别触发补装；每次完整检查最后补满性玩具电池。\n"+prison.sentence,"当前牢房与警戒度","随牢房回合和巡视进度变化")

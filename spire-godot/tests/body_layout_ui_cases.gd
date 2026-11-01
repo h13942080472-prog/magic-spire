@@ -21,6 +21,12 @@ static func run(t) -> void:
  await t.capture("ui-83-portrait-equipment-sidebar.png")
  var before=ui.game.export_snapshot()
  await t.inspect_body("toes")
+ var selected_style=ui.body_buttons.toes.get_theme_stylebox("normal")
+ var idle_style=ui.body_buttons.ankle.get_theme_stylebox("normal")
+ t.check(selected_style.bg_color!=idle_style.bg_color and selected_style.border_width_left>idle_style.border_width_left,"BODY selected subslot retains a visible marker without mouse hover")
+ await t.inspect_body("ankle")
+ t.check(ui.body_buttons.ankle.get_theme_stylebox("normal").border_width_left>ui.body_buttons.toes.get_theme_stylebox("normal").border_width_left and ui.game.export_snapshot()==before,"BODY inspection moves the selection marker and preserves gameplay")
+ await t.inspect_body("toes")
  t.check(ui.game.export_snapshot()==before and t.visible_text(ui.find_child("EquipmentDetails",true,false)).contains("脚趾"),"BODY inspecting lowest free slot spends no resources or turn")
  await Pointer.press(t,ui.find_child("CloseEquipmentDetails",true,false))
  t.check(ui.find_child("EquipmentDetails",true,false)==null and ui.view.body_groups.size()==14,"BODY closing details preserves all body targets")
@@ -72,8 +78,35 @@ static func run(t) -> void:
  await single_click_play(t)
  await release_preview(t)
  await adaptive_regions(t)
+ await portrait_resize(t)
  await applied_regions(t)
  await portrait_zoom(t)
+
+static func portrait_resize(t) -> void:
+ var ui=t.ui
+ ui.restart(42);await t.frames()
+ var panel=ui.layout.body
+ var original=panel.get_global_rect()
+ var portrait=panel.get_node("Canvas/EquipmentPortrait")
+ var divider=panel.get_node("Canvas/Divider")
+ var button=panel.get_node("Canvas/ExpandPortrait")
+ var parts=[portrait,divider,button]
+ var rectangles=parts.map(func(node):return node.get_global_rect())
+ var before=ui.game.export_snapshot()
+ panel.size.y=300;await t.frames(5)
+ for node in parts:
+  t.check(panel.get_global_rect().encloses(node.get_global_rect()),"PORTRAIT shortened frame contains "+String(node.name))
+ t.check(portrait.get_global_rect().encloses(button.get_global_rect()) and portrait.stretch_mode==TextureRect.STRETCH_KEEP_ASPECT_CENTERED,"PORTRAIT shortened image preserves its full aspect and reachable zoom button")
+ var compact=portrait.get_global_rect()
+ await t.capture("ui-body-short.png")
+ await Pointer.press(t,button)
+ t.check(panel.portrait_expanded and panel.get_global_rect().encloses(portrait.get_global_rect()),"PORTRAIT shortened frame can still expand the complete image")
+ var outside=ui.end_button.get_global_rect().get_center()
+ await t.mouse_button(outside,MOUSE_BUTTON_LEFT,true);await t.mouse_button(outside,MOUSE_BUTTON_LEFT,false)
+ t.check(not panel.portrait_expanded and portrait.get_global_rect()==compact and is_equal_approx(panel.size.y,300),"PORTRAIT closing zoom restores the shortened frame exactly")
+ panel.size=original.size;await t.frames(5)
+ t.check(parts.map(func(node):return node.get_global_rect())==rectangles and ui.game.export_snapshot()==before,"PORTRAIT restoring frame height restores all artwork geometry without gameplay changes")
+ await t.capture("ui-body-restored.png")
 
 static func nipple_region(t) -> void:
  var ui=t.ui

@@ -58,7 +58,7 @@ static func _route_block(ui, column: Node) -> void:
  if route.is_empty():
   # Extreme case (phase replaced while the drawer is open): the map slot carries the explicit
   # missing-data caption instead of a blank area or an empty map.
-  var missing=ui._label(ui._text("ui.run_review.no_route","没有可回顾的路线数据。"),16,ui.MUTED)
+  var missing=ui._label(ui._text("ui.run_review.no_route","路线记录为空。"),16,ui.MUTED)
   missing.name="RunReviewMap"
   column.add_child(missing)
   return

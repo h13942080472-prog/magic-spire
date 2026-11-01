@@ -129,7 +129,7 @@ static func drawer(ui) -> void:
    if selected.has("durability"):
     body.add_child(ui._bar(selected.durability,selected.maximum,ui.CYAN))
     var condition=HBoxContainer.new();body.add_child(condition)
-    var numbers=ui._label("耐久 %s / %s  ·  紧度%d" % [selected.durability,selected.maximum,selected.tier],16,ui.TEXT)
+    var numbers=ui._label(("耐久 %s / %s · 无紧度" % [selected.durability,selected.maximum]) if selected.get("no_tightness",false) else ("耐久 %s / %s  ·  紧度%d" % [selected.durability,selected.maximum,selected.tier]),16,ui.TEXT)
     numbers.size_flags_horizontal=Control.SIZE_EXPAND_FILL
     condition.add_child(numbers)
     ui._equipment_lock(condition,selected.locked,selected.id,selected.lockable)
@@ -144,7 +144,7 @@ static func restraint_box(ui, parent: Node, selected: Dictionary) -> VBoxContain
  if selected.has("durability"):
   body.add_child(ui._bar(selected.durability,selected.maximum,ui.CYAN))
   var condition=HBoxContainer.new();body.add_child(condition)
-  var numbers=ui._label("耐久 %s / %s  ·  紧度%d" % [selected.durability,selected.maximum,selected.tier],16,ui.TEXT)
+  var numbers=ui._label(("耐久 %s / %s · 无紧度" % [selected.durability,selected.maximum]) if selected.get("no_tightness",false) else ("耐久 %s / %s  ·  紧度%d" % [selected.durability,selected.maximum,selected.tier]),16,ui.TEXT)
   numbers.size_flags_horizontal=Control.SIZE_EXPAND_FILL
   condition.add_child(numbers)
   ui._equipment_lock(condition,selected.locked,selected.id,selected.lockable)

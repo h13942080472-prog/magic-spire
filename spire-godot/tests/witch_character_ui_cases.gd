@@ -13,7 +13,7 @@ static func run(t) -> void:
  t.check(select.item_count==2 and select.get_item_text(0)=="魔法少女(futa)" and select.get_item_text(1)=="小魔女·测试版","WITCH UI character selection displays both requested names in their original order")
  var before=ui.game.export_snapshot()
  select.select(1);select.item_selected.emit(1);await t.frames()
- t.check(ui.selected_character=="witch" and ui.game.state==before and t.visible_text(ui.find_child("CharacterDescription",true,false)).contains("11张"),"WITCH UI selection changes next-run choice only")
+ t.check(ui.selected_character=="witch" and ui.game.state==before and ui.find_child("CharacterDescription",true,false)==null and ui.find_child("LanguageSelection",true,false)!=null,"WITCH UI selection changes next-run choice only without restoring the removed blue description")
  await t.capture("ui-witch-selection.png")
  await Click.press(t,"HomeNewGame")
  t.check(ui.game.Character.active(ui.game) and ui.game.state.deck.size()==11 and ui.view.phase=="departure","WITCH UI new game starts selected character through normal opening")

@@ -186,12 +186,12 @@ static func reuse(t) -> void:
   t.check(not copy.restore_snapshot(invalid).ok and copy.state==before,"MASTERY snapshot rejects mutually exclusive faces")
  # Paid basic spell: pure personal, split payment, pure temporary.
  for side in [true,false]:
-  for temporary in [0.0,4.0,30.0]:
+  for temporary in [0.0,4.0,4.5,30.0]:
    var g=reuse_setup(t,side);g.state.mana=50;g.state.temporary_mana=temporary
    var result=reuse_fail(t,g);var c=result.candidate;var before=result.before
    var eligible=not side or c.mana_payment.mana==0
    var rate=(0.0 if side else 1.0) if eligible else 0.5
-   t.check(is_equal_approx(g.state.mana,before.mana-c.mana_payment.mana*(1-rate)) and is_equal_approx(g.state.temporary_mana,before.temporary_mana-c.mana_payment.temporary_mana*(1-rate)),"MASTERY actual refund matches paid sources")
+   t.check(is_equal_approx(g.state.mana,before.mana-c.mana_payment.mana+(c.mana_payment.mana*rate if eligible else floorf(c.mana_payment.mana*rate))) and is_equal_approx(g.state.temporary_mana,before.temporary_mana-c.mana_payment.temporary_mana+(c.mana_payment.temporary_mana*rate if eligible else 0.0)),"MASTERY actual refund matches paid sources")
    t.check(g.state.energy==before.energy-c.cost+(1 if eligible else 0) and result.spell.energy_refund==(1 if eligible else 0) and g.state.flask_mana==before.flask_mana,"MASTERY energy and log agree; flask untouched")
    t.check(g.state.powers[0].power_failure_count==0,"MASTERY paid actions never consume zero-card quota")
  # Zero-energy spells: exactly two conversions, third returns normal 50%.
@@ -201,7 +201,7 @@ static func reuse(t) -> void:
    g.state.mana=50;g.state.temporary_mana=30
    var result=reuse_fail(t,g,"mana_surge")
    var rate=(0.0 if side else 1.0) if n<2 else 0.5
-   t.check(result.candidate.cost==0 and result.spell.energy_refund==(1 if n<2 else 0) and is_equal_approx(result.spell.mana_refund.temporary_mana,result.candidate.mana*rate),"MASTERY zero-card conversion exact quota "+str(n))
+   t.check(result.candidate.cost==0 and result.spell.energy_refund==(1 if n<2 else 0) and is_equal_approx(result.spell.mana_refund.temporary_mana,result.candidate.mana*rate if n<2 else 0.0),"MASTERY zero-card conversion exact quota "+str(n))
   t.check(g.state.powers[0].power_failure_count==2,"MASTERY counter saturates at limit")
   var copy=Game.new(0)
   t.check(copy.restore_snapshot(g.export_snapshot()).ok and copy.state.powers[0].power_failure_count==2,"MASTERY saving cannot refresh spent quota")
@@ -242,7 +242,7 @@ static func reuse(t) -> void:
  t.check(copy.restore_snapshot(g.export_snapshot()).ok and copy.Cards.failure_unlimited(copy,Rules.BUFFS.reuse_bound) and copy.state.powers[0].power_failure_count==2,"MASTERY restore recomputes worn upgrade and preserves quota")
  g.state.equipment.clear();g.state.temporary_mana=30
  result=reuse_fail(t,g)
- t.check(result.spell.energy_refund==0 and g.get_view().statuses.any(func(row):return row.id=="power_reuse_bound" and row.value.contains("未生效")),"MASTERY lost requirement immediately pauses conversion")
+ t.check(result.spell.energy_refund==0 and g.get_view().statuses.any(func(row):return row.id=="power_reuse_bound" and row.value.contains("待生效")),"MASTERY lost requirement immediately pauses conversion")
  for slot in ["wrist","ankle","palm","foot"]: g.add_fixture(slot,8)
  g.state.temporary_mana=30
  result=reuse_fail(t,g)

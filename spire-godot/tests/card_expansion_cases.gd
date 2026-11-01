@@ -45,7 +45,7 @@ static func run(t) -> void:
  var c=t.find_action(g,"attack",{"type":"fireball"})
  t.check(c.payload.damage==g.B.FIREBALL*4 and g.get_view().statuses.filter(func(e):return e.id.begins_with("power_")).size()==3,"BUFF damage preview and separate status entries reflect all sources")
  var copy=give(t,g,"henshin");var before=g.export_snapshot()
- t.check(t.find_action(g,"card",{"uid":copy.uid,"free":true}).reason=="唯一：henshin已生效，不能重复叠加。" and g.B.card_info("henshin")[3].contains("同源不叠加"),"HENSHIN face and duplicate reason clearly explain single effect")
+ t.check(t.find_action(g,"card",{"uid":copy.uid,"free":true}).reason=="唯一：henshin已生效，仅生效一次。" and g.B.card_info("henshin")[3].contains("同源伤害加倍仅生效一次"),"HENSHIN face and duplicate reason clearly explain single effect")
  t.check(not t.action(g,"card",{"uid":copy.uid,"free":true}).ok and g.state==before,"BUFF duplicate source rejects before payment")
  var restored=Save.roundtrip(t,g,"dual powers and damage source")
  if restored!=null: t.check(restored.Cards.damage_multiplier(restored,"fireball")==4,"BUFF restored effects derive from their original sources")
@@ -95,10 +95,21 @@ static func run(t) -> void:
   copy=give(t,g,"mana_conversion");c=t.find_action(g,"card",{"uid":copy.uid,"free":free})
   before=g.export_snapshot()
   t.check(c.valid and c.mana==(0 if free else 20) and g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok,"CONVERSION either face uses normal probabilistic spell submission with fixed payment")
-  t.check(g.state.mana==before.mana-c.mana_payment.mana*0.5 and g.state.energy==before.energy-c.cost and g.state.temporary_mana==before.temporary_mana-c.mana_payment.temporary_mana*0.5 and g.state.hand.any(func(x):return x.uid==copy.uid),"CONVERSION failed exchange spends cost without gain, uses temporary mana and keeps card")
+  t.check(g.state.mana==before.mana-c.mana_payment.mana+floorf(c.mana_payment.mana*0.5) and g.state.energy==before.energy-c.cost and g.state.temporary_mana==before.temporary_mana-c.mana_payment.temporary_mana and g.state.hand.any(func(x):return x.uid==copy.uid),"CONVERSION failed exchange spends cost without gain, uses temporary mana and keeps card")
   t.check(g.state.rng.magic==before.rng.magic+1 and not g.state.logs.filter(func(x):return x.data.has("spell")).back().data.spell.success,"CONVERSION failure uses the shared casting random domain")
  g=Game.new(42);g.state.energy=0;copy=give(t,g,"mana_conversion");before=g.export_snapshot()
  t.check(not t.action(g,"card",{"uid":copy.uid,"free":true}).ok and g.state==before,"CONVERSION printed zero still requires actual one energy")
+ for pressure in [0.0,1.99,2.0,59.0,99.0]:
+  g=Game.new(42);g.state.pressure=pressure;g.state.temporary_mana=5
+  var initial_energy=g.state.energy;var initial_mana=g.state.mana
+  copy=give(t,g,"pleasure_conversion");c=t.find_action(g,"card",{"uid":copy.uid,"free":true})
+  var gain=int(pressure/2.0)
+  t.check(c.valid and g.Cards.detail(g,c.payload).contains("本次获得%d临时魔力。" % gain),"CONVERSION free preview floors current pressure into temporary mana")
+  t.check(t.action(g,"card",{"uid":copy.uid,"free":true}).ok and g.state.temporary_mana==5+gain and g.state.mana==initial_mana and g.state.energy==initial_energy and g.state.pressure==pressure,"CONVERSION free grants only temporary mana without spending pressure")
+ var conversion=g.Cards.Rules.SPECS.pleasure_conversion.duplicate(true)
+ for invalid in [0,-1,"2"]:
+  conversion.self_faces.free.pressure_temporary_mana=invalid
+  t.check(g.Cards.Rules.definition_reason(conversion)!="","CONVERSION invalid temporary-mana divisor rejected")
  g=Game.new(42);g.state.pressure=59
  t.check(cast(t,g,"pleasure_conversion",false).ok and g.state.energy==5 and g.state.pressure==59,"CONVERSION floor of current resource is gained without spending it")
 

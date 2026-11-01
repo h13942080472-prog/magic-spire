@@ -21,8 +21,8 @@ static func ordinary_templates() -> Array:
  return E.TEMPLATES.keys().filter(func(id):return id!="eye_cloth" and not E.TEMPLATES[id].slots.is_empty())
 
 static func application(templates: Array, count: int=1, required_slots: Array=[]) -> Dictionary:
- var plan=Plans.application(templates,2,2,count)
- plan.replace=true;plan.shoulders=true;plan.text="施加中级拘束具 · 2档"
+ var plan=Plans.application(templates,2,2,count,false,4)
+ plan.replace=true;plan.shoulders=true;plan.text="施加拘束具 · 初级3档／中级2档／高级1档"
  if not required_slots.is_empty():
   plan.required_slots=required_slots.duplicate()
   plan.shoulders=false
@@ -56,7 +56,7 @@ static func build(g, e: Dictionary) -> Dictionary:
  match int(e.guard.cycle_step)%3:
   0:
    var plan=application(ordinary_templates(),2)
-   plan.text="随机施加两件中级拘束具 · 2档"
+   plan.text="随机施加两件拘束具 · 初级3档／中级2档／高级1档"
    return plan
   1: return {"kind":"bind_gain","text":"捕缚进度＋10","delayed":false}
   _: return composite_or_reinforce(g,e)
@@ -89,7 +89,7 @@ static func execute(g, e: Dictionary, intent: Dictionary) -> void:
 
 static func capture(g, captor: Dictionary) -> void:
  if g.state.phase!="battle": return
- Bind.clear_bind(g)
+ Bind.clear_bind(g,true)
  g.state.security=mini(5,g.state.security+1)
  g.state.prison={}
  var retained=g.equipment_targets().map(func(e):return e.id)
@@ -141,13 +141,13 @@ static func validate(g) -> String:
  if bind_issue!="": return bind_issue
  for e in g.state.enemies:
   if Bind.kind(g,e)=="": continue
-  if not e.has("guard") or not e.guard.get("bind_ready") is bool or not e.guard.get("cycle_step") is int or e.guard.cycle_step not in [0,1,2]: return "魅魔警卫行动进度不合法。"
+  if not e.has("guard") or not e.guard.get("bind_ready") is bool or not e.guard.get("cycle_step") is int or e.guard.cycle_step not in [0,1,2]: return "魅魔警卫行动进度有误。"
   if e.intent.get("kind","")=="guard_sequence":
-   if e.intent.operations.size() not in [1,2,3]: return "魅魔警卫连续行动数量不合法。"
+   if e.intent.operations.size() not in [1,2,3]: return "魅魔警卫连续行动数量有误。"
    for op in e.intent.operations:
-    if op.kind not in ["apply","install","assembly","shoulder","tighten","lock","idle"] or op.get("final",false): return "魅魔警卫连续行动只能包含不离场的装备操作。"
+    if op.kind not in ["apply","install","assembly","shoulder","tighten","lock","idle"] or op.get("final",false): return "魅魔警卫连续行动仅可包含保留在场的装备操作。"
  if g.state.phase=="captured":
-  if g.state.capture.is_empty() or g.state.capture.security!=g.state.security or g.state.room!="prison" or g.state.items.any(func(item):return not g.Tools.TYPES.get(item.type,{}).get("keep_on_capture",false)) or g.state.energy!=0: return "入狱结算不完整。"
-  if g.state.capture.baseline!=g.equipment_targets().map(func(e):return e.id): return "入狱装备基准与实际装备不一致。"
-  if g.state.capture.special_baseline!=g.state.special_equipment.map(func(e):return e.id): return "入狱性玩具清单与实际装备不一致。"
+  if g.state.capture.is_empty() or g.state.capture.security!=g.state.security or g.state.room!="prison" or g.state.items.any(func(item):return not g.Tools.TYPES.get(item.type,{}).get("keep_on_capture",false)) or g.state.energy!=0: return "入狱结算缺损。"
+  if g.state.capture.baseline!=g.equipment_targets().map(func(e):return e.id): return "入狱装备基准与实际装备存在差异。"
+  if g.state.capture.special_baseline!=g.state.special_equipment.map(func(e):return e.id): return "入狱性玩具清单与实际装备存在差异。"
  return ""

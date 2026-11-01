@@ -119,7 +119,7 @@ const FADED=Color("656362")
 const ACTIVE=Color("29646c")
 const GOLD=Color("81612e")
 
-const STATUS={"completed":"已走过","current":"当前","available":"可前往","destination":"正在前往","skipped":"未选择","ahead":"未到达"}
+const STATUS={"completed":"已走过","current":"当前","available":"可前往","destination":"正在前往","skipped":"待选择","ahead":"待到达"}
 
 func _ready() -> void:
  mouse_filter=Control.MOUSE_FILTER_PASS

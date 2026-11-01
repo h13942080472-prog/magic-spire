@@ -5,6 +5,30 @@ const E=preload("res://data/equipment.gd")
 # Living index-off reference for the B1 parity checks (single definition in the architecture suite).
 const Arch=preload("res://tests/architecture_cases.gd")
 
+static func leather_slip(t) -> void:
+ for mode in ["strain","slip","magic_slip"]:
+  for passive in [false,true]:
+   var g=Game.new(42);g.state.wall="rough"
+   var leather=g.add_fixture("ankle",4,10,false,0,"belt")
+   var rope=leather.duplicate(true);rope.material="rope";rope.template="rope"
+   var plain=g.escape_preview(rope,mode,2,[],passive)
+   var boosted=g.escape_preview(leather,mode,2,[],passive)
+   var factor=1.0
+   t.check(is_equal_approx(boosted.damage,plain.damage*factor) and is_equal_approx(boosted.environment_true,plain.environment_true*factor),"LEATHER non-card previews exclude the card-only material bonus: "+mode+str(passive))
+   if not passive:
+    var ordinary=boosted.duplicate(true)
+    g.Cards.scale_card_preview(g,boosted,mode,"",leather)
+    var card_factor=1.0 if mode=="strain" else 1.5
+    t.check(is_equal_approx(boosted.damage,ordinary.damage*card_factor) and is_equal_approx(boosted.environment_true,ordinary.environment_true*card_factor),"LEATHER only card slip scales final damage including the wall bonus: "+mode)
+ var g=Game.new(42);g.state.wall="normal"
+ var target=g.add_fixture("ankle",8,10,false,0,"belt")
+ var card=preload("res://tests/curse_cases.gd").give(g,"slip")
+ var choice=t.find_action(g,"card",{"uid":card.uid,"target":target.id,"free":false},true)
+ var before=g.export_snapshot();var damage=choice.payload.preview.damage
+ t.check(choice.payload.preview.material_factor==1.5 and is_equal_approx(damage,g.escape_preview(target,"slip",6).damage*1.5),"LEATHER real slip card includes its material multiplier exactly once")
+ t.check(not g.dispatch(g.command(choice.payload,g.state.version-1),g.state.version-1).ok and g.export_snapshot()==before,"LEATHER stale slip preserves equipment and resources")
+ t.check(g.dispatch(g.command(choice.payload,g.state.version),g.state.version).ok and is_equal_approx(g._equipment(target.id).durability,maxf(0,8-damage)),"LEATHER real card damage matches multiplied preview")
+
 static func eye_capacity(t) -> void:
  var g=Game.new(42,true,"head_harness")
  var eyes=g.get_view().bodies.filter(func(b):return b.id=="eyes")[0]
@@ -21,6 +45,8 @@ static func eye_capacity(t) -> void:
  t.check(result.ok and result.removed.size()==1 and g.equipment_at("eyes").size()==2 and g.equipment_at("eyes").any(func(e):return e.id not in old_ids) and g.validate()=="","EYES authorized replacement swaps one at the two-slot limit without creating a third")
 
 static func run(t) -> void:
+ leather_slip(t)
+ preload("res://tests/shackle_cases.gd").run(t)
  mouth_stacking(t)
  release_projection(t)
  precise_positions(t)
@@ -49,7 +75,7 @@ static func run(t) -> void:
    t.check(manual.valid and t.action(g,"manual",{"target":target.id}).ok and g._equipment(target.id).is_empty(),"TEMPLATE actual quick release "+template)
   else:
    var before=JSON.stringify(g.state)
-   t.check(not manual.valid and manual.reason.contains("不能徒手"),"TEMPLATE structural manual rejection "+template)
+   t.check(not manual.valid and manual.reason.contains("解除牌或工具"),"TEMPLATE structural manual rejection "+template)
    t.check(not g.dispatch(g.command(manual.payload,g.state.version),g.state.version).ok and JSON.stringify(g.state)==before,"TEMPLATE blocked manual is atomic "+template)
    var card=t.hand_card(g,"slip")
    t.check(t.action(g,"card",{"uid":card.uid,"target":target.id}).ok and g._equipment(target.id).is_empty(),"TEMPLATE actual slip still works "+template)
@@ -133,7 +159,7 @@ static func run(t) -> void:
  before=JSON.stringify(g.state)
  t.check(not cut.valid and cut.reason.contains("塑料"),"TOOL stone explicitly cannot cut plastic")
  t.check(not g.dispatch(g.command(cut.payload,g.state.version),g.state.version).ok and JSON.stringify(g.state)==before,"TOOL incompatible attempt consumes no uses")
- t.check(t.action(g,"item_use",{"item":saw.id,"target":plastic.id}).ok and g._equipment(plastic.id).durability==1 and g._item(saw.id).uses==1 and g.state.energy==3,"TOOL saw cuts plastic through shared zero-energy action")
+ t.check(t.action(g,"item_use",{"item":saw.id,"target":plastic.id}).ok and g._equipment(plastic.id).is_empty() and g._item(saw.id).uses==1 and g.state.energy==3,"TOOL saw removes basic plastic through shared zero-energy action")
  t.check(g.state.encounter==0 and g.state.reward_count==0 and g.state.rest_left==6 and g.get_view().route.is_empty(),"PRACTICE no fake battle, rewards or route")
  for i in range(6): t.action(g,"end")
  t.check(g.state.phase=="cleared" and g.state.completed_rooms.is_empty() and g.command_facts().all(func(c):return c.payload.kind=="item_discard"),"PRACTICE ends after six real rounds without tower progress; only universal item discard remains")

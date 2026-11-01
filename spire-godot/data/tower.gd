@@ -8,35 +8,35 @@ const LAST_FLOOR=15
 const PRACTICE={
  "name":"装备练习室",
  "description":"初始佩戴绳索、胶带、已锁皮带和扎带，携带小石片与锈锯条。练习采用6回合休息规则，禁用卡牌自由效果。",
- "hint":"绳索可徒手解开，皮带须先解除锁；胶带和扎带没有徒手快速解除路线。小石片不能切塑料扎带，锈锯条可以。所有操作仍检查姿态、部位与外露条件。",
+ "hint":"绳索可徒手解开，皮带须先开锁；胶带和扎带请用解除牌或适用工具处理。切割塑料扎带需要锈锯条。操作需满足姿态、部位与外露条件。",
  "equipment":[
-  {"template":"rope","slot":"wrist","durability":4.0,"locked":false},
-  {"template":"tape","slot":"calf","durability":4.0,"locked":false},
-  {"template":"belt","slot":"ankle","durability":8.0,"locked":true},
-  {"template":"cable_tie","slot":"thigh","durability":8.0,"locked":false}],
+  {"template":"rope","slot":"wrist","durability":3.2,"locked":false},
+  {"template":"tape","slot":"calf","durability":3.2,"locked":false},
+  {"template":"belt","slot":"ankle","durability":6.4,"locked":true},
+  {"template":"cable_tie","slot":"thigh","durability":6.4,"locked":false}],
  "items":["shard","saw"]}
 const LINK_PRACTICE={
  "name":"链接练习室",
- "description":"小腿绳索与脚踝皮带之间接有一条链接绳，共享8点耐久。携带两件切割工具，拥有6回合和3次挂钩；卡牌自由效果禁用。",
- "hint":"链接绳牵住脚踝皮带，阻止它向脚部滑出。先用挣扎牌处理链接绳，或坐下后切割、徒手解开；也可以解除它连接的小腿绳索。链接绳不占部位容量，不能滑脱或上锁。",
- "equipment":[{"template":"rope","slot":"calf","point":"mid_calf","durability":8.0,"locked":false},{"template":"belt","slot":"ankle","durability":8.0,"locked":false}],
- "links":[{"a":0,"b":1,"durability":8.0,"blocked_end":1}],
+ "description":"小腿绳索与脚踝皮带之间接有一条链接绳，共享6.4点耐久。携带两件切割工具，拥有6回合和3次挂钩；卡牌自由效果禁用。",
+ "hint":"链接绳牵住脚踝皮带。先挣扎解除链接绳，或坐下后切割、徒手解开；也可解除相连的小腿绳索。链接绳容量占用0，解除方式为挣扎、徒手或适用工具，锁孔：无。",
+ "equipment":[{"template":"rope","slot":"calf","point":"mid_calf","durability":6.4,"locked":false},{"template":"belt","slot":"ankle","durability":6.4,"locked":false}],
+ "links":[{"a":0,"b":1,"durability":6.4,"blocked_end":1}],
  "items":["shard","saw"]}
 
 const GLOVE_SHORT_PRACTICE={
  "name":"短型单手套练习室",
  "description":"短型套体固定大臂、小臂与手腕；两条直肩带分别处理，手掌与手指保持自由。限时6回合，挂钩可用3次，提供两件切割工具。",
- "hint":"先将滑脱牌拖到左侧手臂，选择左肩带；解除一侧后，再对套体使用挣扎牌可直接脱下。短型仍允许手势魔法。套体不能徒手一键解开。",
+ "hint":"先将滑脱牌拖到左侧手臂，选择左肩带；解除一侧后，再对套体使用挣扎牌可直接脱下。短型仍允许手势魔法。套体需使用解除牌或工具。",
  "equipment":[],"items":["shard","saw"],
  "composites":[{"variant":"short","straps":"straight","tier":2,"parts":{"left":{"tier":1},"right":{"locked":true}}}]}
 const GLOVE_LONG_PRACTICE={
  "name":"长型单手套练习室",
  "description":"长型套体额外包住手掌与手指，交叉肩带左右独立耐久，需先用兼容工具松到一档才能滑脱。套体开局三档；拥有6回合、3次挂钩与两件切割工具。",
- "hint":"先解除交叉肩带。三档套体还需挣扎或魔力撑隙降档，再次挣扎才能直接脱下。手指被覆盖时不能施放手势魔法或握持工具；脚趾仍可把工具装入墙脚的缝隙，躺下后切割外露套体。",
+ "hint":"先解除交叉肩带。三档套体还需挣扎或魔力撑隙降档，再次挣扎才能直接脱下。手势施法与握持工具需要手指自由；脚趾仍可把工具装入墙脚的缝隙，躺下后切割外露套体。",
  "equipment":[],"items":["shard","saw"],
  "composites":[{"variant":"long","straps":"cross","grade":3,"tier":3,"parts":{}}]}
 const PRACTICES={
- "doubao":{"label":"豆包练习 · 首回合接管","node":"StartDoubaoPractice","focus":"wrist","spec":{"name":"豆包练习","description":"携带豆包进入漂浮玩具箱战斗，体验首回合接管、模拟鼠标与对白。","hint":"接管结束后可自行操作，战后整备不接管。离开战斗、战后整备、休息及监狱后，右键遗物可切换为DeepSeek。","equipment":[],"items":[],"relics":["doubao"],"encounter":"toybox_solo"}},
+ "doubao":{"label":"豆包练习 · 首回合接管","node":"StartDoubaoPractice","focus":"wrist","spec":{"name":"豆包练习","description":"携带豆包进入漂浮玩具箱战斗，体验首回合接管、模拟鼠标与对白。","hint":"接管结束后可自行操作。离开战斗、战后整备、休息及监狱后，右键遗物可切换为DeepSeek。","equipment":[],"items":[],"relics":["doubao"],"encounter":"toybox_solo"}},
  "equipment":{"label":"装备练习 · 四种材质与切割工具","node":"StartEquipmentPractice","focus":"wrist","spec":PRACTICE},
  "links":{"label":"链接练习 · 连接、挣扎与切割","node":"StartLinkPractice","focus":"calf","spec":LINK_PRACTICE},
  "glove_short":{"label":"短型单手套 · 直肩带与挣扎解除","node":"StartShortGlovePractice","focus":"upper_arm","spec":GLOVE_SHORT_PRACTICE},

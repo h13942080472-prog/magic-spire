@@ -42,7 +42,7 @@ static func skip_detail(_g, _args: Dictionary) -> String:
 
 static func finish_detail(_g, _args: Dictionary) -> String:
  if _g.state.relic_bundle.get("source","")=="universal_scanner": return "放弃本次复制。"
- return "未领取的遗物将被放弃。"
+ return "放弃剩余遗物。"
 
 static func execute(g, p: Dictionary) -> void:
  if g.state.relic_bundle.source=="universal_scanner":
@@ -68,7 +68,7 @@ static func panel(g, facts: Array) -> Dictionary:
   var cards=copy_cards(g)
   var copies=facts.filter(func(c):return c.payload.get("kind","")=="relic_bundle" and c.payload.op=="copy")
   var exits=facts.filter(func(c):return c.payload.get("kind","")=="relic_bundle" and c.payload.op=="finish")
-  return {"active":true,"layout":"relic_bundle","selection":"card_copy","title":g.Relics.TYPES.universal_scanner.name,"destination":"选择一张牌复制。基础牌、双面唯一能力牌除外。" if not cards.is_empty() else "没有可复制的卡牌。","continue_key":String(exits[0].key),"continue_label":"跳过","extra_keys":[],"rows":[],"entries":[],"cards":cards.duplicate(true),"action_keys":copies.map(func(c):return String(c.key))}
+  return {"active":true,"layout":"relic_bundle","selection":"card_copy","title":g.Relics.TYPES.universal_scanner.name,"destination":"选择一张牌复制。基础牌、双面唯一能力牌除外。" if not cards.is_empty() else "可复制卡牌：0张。","continue_key":String(exits[0].key),"continue_label":"跳过","extra_keys":[],"rows":[],"entries":[],"cards":cards.duplicate(true),"action_keys":copies.map(func(c):return String(c.key))}
  var entries=[]
  for i in range(g.state.relic_bundle.entries.size()):
   var saved=g.state.relic_bundle.entries[i]
@@ -86,21 +86,21 @@ static func panel(g, facts: Array) -> Dictionary:
 
 static func validate(g, state: Dictionary) -> String:
  var bundle=state.get("relic_bundle")
- if not bundle is Dictionary: return "遗物待领取记录不完整。"
+ if not bundle is Dictionary: return "遗物待领取记录缺损。"
  if bundle.is_empty(): return ""
  if bundle.get("source","")=="universal_scanner":
-  if bundle.size()!=2 or bundle.source not in state.relics or not bundle.get("entries") is Array or not bundle.entries.is_empty(): return "卡牌复制领取记录不正确。"
+  if bundle.size()!=2 or bundle.source not in state.relics or not bundle.get("entries") is Array or not bundle.entries.is_empty(): return "卡牌复制领取记录有误。"
   return ""
- if bundle.size()!=2 or bundle.get("source","")!="nesting_doll" or bundle.source not in state.relics or not bundle.get("entries") is Array or bundle.entries.size()!=3: return "套娃奖励记录不正确。"
+ if bundle.size()!=2 or bundle.get("source","")!="nesting_doll" or bundle.source not in state.relics or not bundle.get("entries") is Array or bundle.entries.size()!=3: return "套娃奖励记录有误。"
  var seen=[]
  for i in range(3):
   var entry=bundle.entries[i]
-  if not entry is Dictionary or entry.size()!=3 or entry.get("rarity","")!=g.RelicRewards.TIERS[i] or entry.get("status","") not in ["pending","claimed","skipped"]: return "套娃遗物领取状态不正确。"
+  if not entry is Dictionary or entry.size()!=3 or entry.get("rarity","")!=g.RelicRewards.TIERS[i] or entry.get("status","") not in ["pending","claimed","skipped"]: return "套娃遗物领取状态有误。"
   var id=entry.get("type","")
-  if id not in g.Relics.TYPES or id not in state.relic_seen: return "套娃遗物来源不正确。"
+  if id not in g.Relics.TYPES or id not in state.relic_seen: return "套娃遗物来源有误。"
   if id!=g.Relics.FALLBACK:
-   if id not in g.Relics.REWARDS or g.Relics.TYPES[id].rarity!=entry.rarity or id in seen: return "套娃遗物品质或重复记录不正确。"
-   if not g.Relics.TYPES[id].get("collectible",false) and (id in state.relics)!=(entry.status=="claimed"): return "套娃遗物持有记录与领取状态不符。"
+   if id not in g.Relics.REWARDS or g.Relics.TYPES[id].rarity!=entry.rarity or id in seen: return "套娃遗物品质或重复记录有误。"
+   if not g.Relics.TYPES[id].get("collectible",false) and (id in state.relics)!=(entry.status=="claimed"): return "套娃遗物持有记录与领取状态存在差异。"
    if entry.status=="claimed" and id not in state.relics: return "套娃遗物领取记录缺少已获遗物。"
   elif entry.status=="claimed" and id not in state.relics: return "套娃遗物领取记录缺少已获遗物。"
   seen.append(id)

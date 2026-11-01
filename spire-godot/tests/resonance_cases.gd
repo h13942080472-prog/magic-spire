@@ -55,4 +55,4 @@ static func run(t) -> void:
  var rng=g.state.rng.magic
  while g._random_index("magic",g.B.CAST_ROLL_STEPS)<g.cast_view(g.Cards.cast_profile(g,"rekindle")).winning_rolls: rng=g.state.rng.magic
  g.state.rng.magic=rng;before=g.export_snapshot()
- t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g._magic_failed and is_equal_approx(g.state.mana,before.mana-4.75),"RESONANCE failed cast refunds half the discounted nine point five cost")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g._magic_failed and is_equal_approx(g.state.mana,before.mana-5.5),"RESONANCE failed cast refunds four of the discounted nine point five cost")

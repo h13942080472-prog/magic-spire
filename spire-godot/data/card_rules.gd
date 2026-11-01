@@ -7,6 +7,8 @@ const UPPER_BODY_SLOTS=["eyes","mouth","neck","shoulder","upper_arm","forearm","
 
 # Mechanical card definitions. Display templates in balance.gd read these values.
 static var BUFFS={
+ "enchantment_strengthen":{"name":"强化","duration":"turn","stack_uses":true,"attributes":{"strength":1,"dexterity":1},"detail":"本回合力量＋1、灵巧＋1，可叠加。"},
+ "enchantment_blessing":{"name":"祝福","duration":"battle","stack_uses":true,"attributes":{"strength":2,"dexterity":2},"detail":"力量＋2、灵巧＋2，可叠加，持续到整备结束。"},
  "binding_power_current":{"name":"拘束就是力量！","duration":"next_turn_start","stack_uses":true,"attributes":{"strength":1},"on_expire_buff":"binding_power_last","duration_text":"下回合结束","detail":"力量加成持续到你的下回合结束。"},
  "binding_power_last":{"name":"拘束就是力量！","duration":"turn","stack_uses":true,"attributes":{"strength":1},"detail":"力量加成持续到你的本回合结束。"},
  "psychological_suggestion":{"name":"心理暗示","duration":"battle","next_action_freedom":true,"stack_uses":true,"detail":"下一次出牌或基础动作无视拘束具的使用限制、施法倍率与威力削减；目标的锁与外层覆盖、姿势、快感、费用照常。"},
@@ -15,20 +17,20 @@ static var BUFFS={
  "desire_rune_free":{"name":"爱欲魔纹·自由","duration":"battle","pressure_gained":{"step":40,"effects":[{"op":"draw","amount":1}]},"detail":"每实际获得40快感，抽1张牌。进度跨回合保留。"},
  "supple_flesh_bound":{"name":"活动媚肉·灵巧","duration":"turn","stack_uses":true,"attributes":{"dexterity":4},"detail":"本回合灵巧＋4。可叠加，回合结束清除。"},
  "supple_flesh_free":{"name":"活动媚肉·力量","duration":"turn","stack_uses":true,"attributes":{"strength":2},"detail":"本回合力量＋2。可叠加，回合结束清除。"},
- "mana_attachment_free":{"name":"魔力附着·自由","duration":"battle","toggleable":true,"physical_attachment":{"mana":10.0,"multiplier":0.5},"detail":"体术额外消耗10魔力，造成全体伤害，威力减半。魔力不足时按原招式发动。右键开关。"},
- "mana_attachment_bound":{"name":"魔力附着·拘束","duration":"battle","toggleable":true,"skill_charge":{"mana":5.0,"amount":1},"detail":"成功打出技能牌时，额外消耗5魔力，获得1层蓄力。魔力不足时不触发。右键开关。"},
- "kip_up_free":{"name":"鲤鱼打挺","duration":"next_attack","attacks":["heavy","kick"],"ignore_posture":true,"detail":"下一次腿部体术无视姿势限制，按站姿招式发动；包括近身短打和各类踢击。只持续到下一次完整攻击，不会因此站起；捕缚的强制姿势优先，击后躺下、拘束、费用、冷却及次数限制照常。"},
- "sympathetic_form_free":{"name":"交感形态·自由","duration":"battle","stackable":true,"turn_start_requirements":{"no_restraints":true,"include_special":false},"turn_start_effects":[{"op":"mana","amount":20},{"op":"pressure","amount":10}],"detail":"回合开始时，若未佩戴非特殊装备的拘束具，恢复20魔力并获得10快感。"},
+ "mana_attachment_free":{"name":"魔力附着·自由","duration":"battle","toggleable":true,"physical_attachment":{"mana":10.0,"multiplier":0.5},"detail":"体术额外消耗10魔力，造成全体伤害，威力减半。魔力低于费用时按原招式发动。右键开关。"},
+ "mana_attachment_bound":{"name":"魔力附着·拘束","duration":"battle","toggleable":true,"skill_charge":{"mana":5.0,"amount":1},"detail":"成功打出技能牌时，若有至少5魔力，额外消耗5魔力并获得1层蓄力。右键开关。"},
+ "kip_up_free":{"name":"鲤鱼打挺","duration":"next_attack","attacks":["heavy","kick"],"ignore_posture":true,"detail":"下一次腿部体术无视姿势限制，按站姿招式发动，姿势保持原状；包括近身短打和各类踢击。持续至下一次完整攻击；捕缚强制姿势优先，击后躺下、拘束、费用、冷却及次数限制照常。"},
+ "sympathetic_form_free":{"name":"交感形态·自由","duration":"battle","stackable":true,"turn_start_requirements":{"no_restraints":true,"include_special":false},"turn_start_effects":[{"op":"mana","amount":20},{"op":"pressure","amount":10}],"detail":"回合开始时，普通及复合拘束具为0件，恢复20魔力并获得10快感。"},
  "sympathetic_form_bound":{"name":"交感形态·拘束","duration":"battle","stackable":true,"turn_start_effects":[{"op":"reserve_mana","amount":2},{"op":"energy","amount":1}],"detail":"回合开始时，获得10点临时魔力与1能量。"},
  "endless_war_goddess":{"name":"无尽魔法少女战神","duration":"battle","attack":"all","ignore_restraints":true,"unrestricted_basics":true,"detail":"本场战斗中，所有基础动作和火球术都无视拘束、快感与姿势限制。右键可切换所有踢击招式。使用动作仍需付费、等待冷却，并受每回合次数上限限制。"},
  "prepared_chant":{"name":"预备咏唱","duration":"turn","cast_minimum":1.0,"detail":"本回合施法成功率固定为100%。"},
  "prepared_chant_next":{"name":"预备咏唱·下回合","duration":"next_turn_start","on_expire_buff":"prepared_chant","detail":"下回合施法成功率固定为100%。"},
- "reuse_free":{"name":"魔路精通·自由","duration":"battle","failure_conversion":{"temporary_only":true,"refund":0.0,"energy":1,"zero_cost_limit":2},"exclusive_group":"reuse","detail":"本次耗魔全部由临时魔力支付时，施法失败不返还魔力，改为获得1能量。0费牌每回合最多触发2次。两面互斥。唯一。"},
- "reuse_bound":{"name":"魔路精通·拘束","duration":"battle","min_levels":{"arms":3,"legs":3},"failure_conversion":{"refund":1.0,"energy":1,"zero_cost_limit":2,"unlimited_worn":{"count":10,"min_tier":2,"include_special":false}},"exclusive_group":"reuse","detail":"上身、腿部束缚等级均≥3时，施法失败返还100%耗魔并获得1能量；0费牌每回合最多触发2次。当前佩戴紧度≥2的拘束具≥10件时取消该次数限制，不计特殊装备。条件实时检测。两面互斥。唯一。"},
- "resonance_bound":{"name":"共鸣·拘束","duration":"battle","worn_mana_reduction":0.05,"detail":"每佩戴一件拘束具，魔法耗魔降低5%，最低0。随当前件数变化；复合拘束算1件，连接绳不计。固定兑换与追加付款不减免。"},
+ "reuse_free":{"name":"魔路精通·自由","duration":"battle","failure_conversion":{"temporary_only":true,"refund":0.0,"energy":1,"zero_cost_limit":2},"exclusive_group":"reuse","detail":"本次耗魔全部由临时魔力支付时，施法失败获得1能量，返还魔力为0。0费牌每回合最多触发2次。两面互斥。唯一。"},
+ "reuse_bound":{"name":"魔路精通·拘束","duration":"battle","min_levels":{"arms":3,"legs":3},"failure_conversion":{"refund":1.0,"energy":1,"zero_cost_limit":2,"unlimited_worn":{"count":10,"min_tier":2,"include_special":false}},"exclusive_group":"reuse","detail":"上身、腿部束缚等级均≥3时，施法失败返还100%耗魔并获得1能量；0费牌每回合最多触发2次。当前佩戴紧度≥2的拘束具≥10件时取消该次数限制，仅计普通及复合装备。条件实时检测。两面互斥。唯一。"},
+ "resonance_bound":{"name":"共鸣·拘束","duration":"battle","worn_mana_reduction":0.05,"detail":"每佩戴一件普通或复合拘束具，魔法耗魔降低5%，最低0。随当前件数变化，复合拘束算1件。固定兑换与追加付款按原价支付。"},
  "resonance_free":{"name":"共鸣·自由","duration":"battle","stackable":true,"turn_start_effects":[{"op":"evasion","amount":1}],"detail":"回合开始时，获得1层闪避。可叠加。"},
- "formation_free":{"name":"布阵·自由","duration":"battle","stackable":true,"max_degree_any":{"arms":1},"first_magic":{"energy_discount":1},"detail":"每回合第一张魔法牌能量费用－1，最低0。打出当回合立即获得次数，回合开始刷新。0费牌与施法失败也消耗次数，复放和基础动作不消耗。"},
- "formation_bound":{"name":"布阵·拘束","duration":"battle","stackable":true,"max_degree_any":{"arms":1,"legs":1},"first_magic":{"cast_minimum":1.0},"detail":"每回合第一张魔法牌必定成功。打出当回合立即获得次数，回合开始刷新。0费牌及不判施法的魔法牌也消耗次数；复放和基础动作不消耗，不绕过出牌与施法部位要求。"},
+ "formation_free":{"name":"布阵·自由","duration":"battle","stackable":true,"max_degree_any":{"arms":1},"first_magic":{"energy_discount":1},"detail":"每回合第一张魔法牌能量费用－1，最低0。打出当回合立即获得次数，回合开始刷新。仅主动出牌消耗次数，包括0费牌与施法失败。"},
+ "formation_bound":{"name":"布阵·拘束","duration":"battle","stackable":true,"max_degree_any":{"arms":1,"legs":1},"first_magic":{"cast_minimum":1.0},"detail":"每回合第一张魔法牌必定成功。打出当回合立即获得次数，回合开始刷新。仅主动出牌消耗次数，包括0费牌及直接生效的魔法牌；出牌与施法部位要求照常。"},
  "practiced_free":{"name":"熟练而已·熟手","duration":"battle","card_cast_bonus":0.03,"detail":"每成功打出另一张牌，本回合施法成功率额外＋3个百分点。回合开始清零。唯一。"},
  "practiced_bound":{"name":"熟练而已·稳手","duration":"battle","cast_minimum":0.75,"magic_card_traction":1,"detail":"施法成功率最低75%；每次使用魔法牌，额外牵扯1次（按1能量），无论成败。唯一。"},
  "hannya_level_1":{"name":"般若汤","duration":"battle","hannya_level":1,"attributes":{"strength":1,"dexterity":1},"detail":"般若汤1级：力量＋1、灵巧＋1。各级奖励本场仅一次。"},
@@ -43,14 +45,14 @@ static var BUFFS={
  "breath_control_free":{"name":"运气","duration":"next_attack","attacks":["strike","heavy","kick"],"energy_discount":1,"detail":"下一次体术费用－1，最低0。"},
  "restraint_embrace_free":{"name":"拘束之拥·自由","duration":"battle","stackable":true,"restraint_draw":{"event":"released","next_turn":false,"amount":1,"energy":1},"detail":"每挣脱1件拘束具，抽1张牌，恢复1能量。抽牌与回能均可叠加。"},
  "restraint_embrace_bound":{"name":"拘束之拥·拘束","duration":"battle","stackable":true,"restraint_draw":{"event":"worn","next_turn":true,"amount":1},"detail":"每被佩戴1件拘束具，下回合抽1张牌。可叠加。"},
- "infusion_free":{"name":"灌注·手部","duration":"next_attack","attacks":["strike","heavy"],"interrupt":true,"detail":"下一次手部体术附加1层打断，包括肘击和近身短打。不与自带打断叠加。"},
- "infusion_bound":{"name":"灌注·腿部","duration":"next_attack","attacks":["heavy","kick"],"interrupt":true,"detail":"下一次腿部体术附加1层打断，包括近身短打和各类踢击。不与自带打断叠加。"},
+ "infusion_free":{"name":"灌注·手部","duration":"next_attack","attacks":["strike","heavy"],"interrupt":true,"detail":"下一次手部体术附加1层打断，包括肘击和近身短打。与自带打断取较高值。"},
+ "infusion_bound":{"name":"灌注·腿部","duration":"next_attack","attacks":["heavy","kick"],"interrupt":true,"detail":"下一次腿部体术附加1层打断，包括近身短打和各类踢击。与自带打断取较高值。"},
  "ready_to_strike_free":{"name":"蓄势待发","duration":"next_attack","attacks":["strike","heavy","kick"],"energy_discount":1,"detail":"下一次体术费用－1，最低0。"},
  "mana_circuit_free":{"name":"魔力回路·能量","duration":"battle","stackable":true,"mana_spent":{"step":30,"effects":[{"op":"energy","amount":1}]},"detail":"每累计消耗30魔力，恢复1能量。计入临时魔力。"},
  "mana_circuit_bound":{"name":"魔力回路·蓄力","duration":"battle","stackable":true,"mana_spent":{"step":20,"effects":[{"op":"charge","amount":1}]},"detail":"每累计消耗20魔力，获得1层蓄力。计入临时魔力。"},
- "echo_cast_bound":{"name":"余势复演·拘束","duration":"battle","stack_uses":true,"replay":{"kind":"card","distinct_faces":true},"detail":"下一张成功打出的拘束面牌，每层额外释放一次；双面效果相同的牌不适用。免费复放，只作用原目标，目标失效则跳过。"},
- "echo_cast_free":{"name":"余势复演·火球","duration":"battle","stack_uses":true,"replay":{"kind":"attack","spell":"fireball"},"detail":"下一次火球术每层免费额外施放一次，不占使用次数；只作用原目标，目标失效则跳过。每次施法各自判定成功率。"},
- "embers_free":{"name":"余火","duration":"turn","spell":"fireball","attack":"fireball","base_bonus":4.0,"detail":"本回合火球术基础伤害＋4。同源不叠加。"},
+ "echo_cast_bound":{"name":"余势复演·拘束","duration":"battle","stack_uses":true,"replay":{"kind":"card","distinct_faces":true},"detail":"下一张成功打出的双面效果各异的拘束面牌，每层额外释放一次。免费复放，只作用原目标，目标失效则跳过。"},
+ "echo_cast_free":{"name":"余势复演·火球","duration":"battle","stack_uses":true,"replay":{"kind":"attack","spell":"fireball"},"detail":"下一次火球术每层免费额外施放一次，使用次数保留；只作用原目标，目标失效则跳过。每次施法各自判定成功率。"},
+ "embers_free":{"name":"余火","duration":"turn","spell":"fireball","attack":"fireball","base_bonus":4.0,"detail":"本回合火球术基础伤害＋4。同源仅生效一次。"},
  "wildfire_descent":{"name":"猛火下山","duration":"battle","stackable":true,"spell":"fireball","spell_use_effects":[{"op":"draw","amount":1}],"detail":"本场每成功施放一次火球术，抽1张牌。可叠加。"},
  "adaptability_bound":{"name":"灵活变通·挣扎","duration":"battle","stackable":true,"turn_start_effects":[{"op":"charge","amount":1}],"detail":"每回合开始时，获得1层蓄力。可叠加。"},
  "adaptability_free":{"name":"灵活变通·自由","duration":"battle","stackable":true,"turn_start_effects":[{"op":"reserve_mana","amount":1}],"detail":"每回合开始时，获得5点临时魔力。可叠加。"},
@@ -60,18 +62,18 @@ static var BUFFS={
  "letter_opener_free":{"name":"开信刀play·自由","duration":"battle","stackable":true,"periodic":{"card_type":"skill","count":3,"target":"enemies","damage_type":"physical","base":5.0},"detail":"每使用3张技能牌，对所有敌人造成5点伤害。跨回合累计。可叠加。"},
  "flame_flourish_bound":{"name":"炫火·自解","duration":"battle","spell":"fireball","equipment_damage_factor":0.5,"detail":"火球术可对选中的最外层拘束具使用，造成当前火球术一半的魔法伤害。与对敌人施法共用次数。"},
  "flame_flourish_free":{"name":"炫火·连发","duration":"battle","stackable":true,"spell":"fireball","extra_uses":1,"detail":"每回合火球术可用次数＋1。可叠加。"},
- "fire_mastery_bound":{"name":"火焰精通·无拘施法","duration":"battle","spell":"fireball","ignore_body":true,"disable_gesture":true,"detail":"火球术无视身体限制，不获得手势加成。"},
+ "fire_mastery_bound":{"name":"火焰精通·无拘施法","duration":"battle","spell":"fireball","ignore_body":true,"disable_gesture":true,"detail":"火球术无视身体限制，手势加成为0。"},
  "fire_mastery_free":{"name":"火焰精通·烈焰","duration":"battle","attack":"fireball","damage_multiplier":2.0,"detail":"火球术伤害×2。"},
  "strong_elbow_free":{"name":"强力肘击","duration":"next_attack","attack":"strike","damage_multiplier":2.0,"detail":"下一次完整肘击伤害×2，多段形态的每一击均生效。"},
  "binding_enthusiast":{"name":"紧缚爱好","duration":"battle","stackable":true,"worn_attributes":{"strength":1,"dexterity":1},"bound_card_pressure":10,"detail":"当前每佩戴1件拘束具或性玩具，力量与灵巧＋1；每成功打出1张拘束面牌，固定增加10快感。装备变化后立即重算。可叠加。"},
- "henshin_free":{"name":"henshin","duration":"battle","attack":"all","damage_multiplier":2.0,"detail":"自身造成的全部伤害×2，不可叠加；包括对拘束具与行动触发的被动伤害。"}}
+ "henshin_free":{"name":"henshin","duration":"battle","attack":"all","damage_multiplier":2.0,"detail":"自身造成的全部伤害×2，同源仅生效一次；包括对拘束具与行动触发的被动伤害。"}}
 const REWARD_RATES={"normal":{"rare":3,"uncommon":37},"elite":{"rare":10,"uncommon":40},"boss":{"rare":100,"uncommon":0}}
 const RARE_OFFSET_INITIAL=-5
 const RARE_OFFSET_MAX=40
 const FOLLOW_THROUGH_REGIONS={"head":["eyes","mouth","neck"],"arms":["shoulder","upper_arm","forearm","wrist","palm","fingers"],"legs":["thigh","calf","ankle","foot","toes"]}
 const FOLLOW_THROUGH_SLOTS=FOLLOW_THROUGH_REGIONS.head+FOLLOW_THROUGH_REGIONS.arms+FOLLOW_THROUGH_REGIONS.legs
 const SUPER_FOLLOW_THROUGH_TEXT="先按顺延处理；区域内无合法目标后，按手腕→口部／手指→其他部位寻找全身合法目标，同级随机。没有合法目标时结束。"
-const FOLLOW_THROUGH_TEXT="顺延：目标未解除时继续攻击原件；解除后，剩余段数依次转向同一指定部位、同一大部位的其他部位、同一大片区域的最外层拘束具。同一级有多个可选目标时随机选择，无目标则结束，不跨区域。"
+const FOLLOW_THROUGH_TEXT="顺延：原件仍佩戴时继续攻击；解除后，剩余段数依次转向同一指定部位、同一大部位的其他部位、同一大片区域的最外层拘束具。同一级随机选择，仅在同区域内转移，无目标则结束。"
 const MAGIC_HAND={"card_type":"magic","rarity":"uncommon","cost":1,"mana_cost":20.0,"mode":"lower","hits":3,"follow_through":true,"follow_through_scope":"body","target_slots":FOLLOW_THROUGH_SLOTS,"cast_free":true,"casting":{"parts":["mouth"],"multiplier":1.0},"free_effects":[{"op":"buff","buff":"magic_hand_free"}]}
 const HANNYA_MANA_GAIN=5.0
 const HANNYA_REWARDS={
@@ -130,7 +132,7 @@ static var SPECS=_with_hannya({
  "letter_opener":{"card_type":"power","rarity":"uncommon","cost":1,"mode":"power","self_faces":{"bound":{"buff":"letter_opener_bound"},"free":{"buff":"letter_opener_free"}}},
  "mana_invocation":{"card_type":"magic","rarity":"common","cost":1,"mode":"self","casting":{"parts":["none"],"multiplier":1.0},"self_faces":{"bound":{"cast":true,"mana_gain":20.0},"free":{"cast":true,"mana_gain":20.0}}},
  "strong_elbow":{"card_type":"skill","rarity":"common","cost":1,"mode":"strain","damage_type":"strain","base":8.0,"target_slots":["upper_arm","forearm"],"free_effects":[{"op":"buff","buff":"strong_elbow_free"}],"hit_effects":[{"op":"draw","amount":1}]},
- "pleasure_conversion":{"card_type":"skill","rarity":"rare","cost":0,"mode":"self","self_faces":{"bound":{"pressure_energy":20},"free":{"pressure_energy":20}}},
+ "pleasure_conversion":{"card_type":"skill","rarity":"rare","cost":0,"mode":"self","self_faces":{"bound":{"pressure_energy":20},"free":{"pressure_temporary_mana":2}}},
  "mana_conversion":{"card_type":"magic","rarity":"uncommon","cost":0,"mode":"self","casting":{"parts":["none"],"multiplier":1.0},"fixed_mana_cost":true,"self_faces":{"bound":{"cast":true,"mana_cost":20.0,"energy_gain":2},"free":{"cast":true,"energy_cost":1,"mana_gain":10.0}}},
  "mana_surge":{"card_type":"magic","rarity":"common","cost":0,"mode":"self","casting":{"parts":["none"],"multiplier":1.0},"self_faces":{"bound":{"cast":true,"mana_cost":5.0,"effects":[{"op":"charge","amount":2}]},"free":{"cast":true,"mana_cost":0.0,"effects":[{"op":"reserve_mana","amount":2}]}}},
  "henshin":{"play_music":"rain_love","card_type":"magic","rarity":"rare","cost":2,"mode":"self","casting":{"parts":["none"],"multiplier":1.0},"self_faces":{"bound":{"cast":true,"energy_cost":1,"mana_cost":40.0,"release_all":true},"free":{"cast":true,"energy_cost":2,"mana_cost":40.0,"buff":"henshin_free"}}},
@@ -152,6 +154,7 @@ static var SPECS=_with_hannya({
  "panic":{"card_type":"curse","rarity":"curse","cost":1,"mode":"none"},
  "sensitive":{"card_type":"curse","rarity":"curse","cost":0,"mode":"none","hand_modifiers":{"pleasure_multiplier":1.2}},
  "lewd_mark":{"card_type":"curse","rarity":"curse","cost":0,"mode":"none","hand_modifiers":{"energy_pressure":4.0}},
+ "art_submission":{"card_type":"status","rarity":"status","cost":0,"mode":"none","reward_excluded":true},
  "tease":{"card_type":"status","rarity":"status","cost":0,"mode":"none","end_turn_pressure":5.0},
  "tease_plus":{"card_type":"status","rarity":"status","cost":0,"mode":"none","end_turn_pressure":8.0}})
 static func _with_hannya(specs: Dictionary) -> Dictionary:
@@ -301,34 +304,34 @@ static func definition_reason(spec: Dictionary) -> String:
  if spec.has("self_binding"):
   var rule=spec.self_binding
   if not spec.get("x_cost",false) or spec.mode!="self" or not rule is Dictionary: return "自缚需要X费自身技能配置。"
-  if rule.get("tighten_per_x")!=2 or rule.get("mana_per_x")!=15 or rule.get("slots")!=FOLLOW_THROUGH_REGIONS.legs or rule.get("templates")!=["rope","cord","belt","fine_belt","tape","cable_tie"]: return "自缚的收紧、回魔或腿部装备配置不正确。"
+  if rule.get("tighten_per_x")!=2 or rule.get("mana_per_x")!=15 or rule.get("slots")!=FOLLOW_THROUGH_REGIONS.legs or rule.get("templates")!=["rope","cord","belt","fine_belt","tape","cable_tie"]: return "自缚的收紧、回魔或腿部装备配置有误。"
  if spec.has("x_cost") and (spec.x_cost!=true or spec.cost!=0 or spec.mode!="self"): return "X费卡需要零占位费用和自身效果。"
  if spec.has("reward_excluded") and not spec.reward_excluded is bool: return "卡牌随机奖励资格需要布尔配置。"
  if spec.has("encyclopedia_hidden") and not spec.encyclopedia_hidden is bool: return "卡牌图鉴展示设置需要布尔配置。"
  if spec.has("cast_free") and (not spec.cast_free is bool or not spec.has("casting") or spec.has("self_faces")): return "自由面施法需要有效施法配置。"
  if spec.has("free_mana_cost") and (not (spec.free_mana_cost is int or spec.free_mana_cost is float) or not is_finite(float(spec.free_mana_cost)) or spec.free_mana_cost<0 or not spec.get("cast_free",false)): return "自由面魔力费用需要有效施法配置和非负数值。"
- if spec.has("mana_cost") and (not (spec.mana_cost is int or spec.mana_cost is float) or not is_finite(float(spec.mana_cost)) or spec.mana_cost<0 or not spec.has("casting") or spec.has("self_faces")): return "卡牌魔力费用不正确。"
+ if spec.has("mana_cost") and (not (spec.mana_cost is int or spec.mana_cost is float) or not is_finite(float(spec.mana_cost)) or spec.mana_cost<0 or not spec.has("casting") or spec.has("self_faces")): return "卡牌魔力费用有误。"
  if spec.has("worn_damage"):
   var scaling=spec.worn_damage
   if not scaling is Dictionary or not scaling.get("per_item") is int or scaling.per_item<=0 or not scaling.get("include_special") is bool or spec.get("damage_type","")=="": return "佩戴数量伤害需要正整数倍率、特殊装备计数规则和伤害类型。"
  if spec.has("exhaust_hand") and (not spec.exhaust_hand is bool or spec.mode not in ["strain","slip","magic_slip"]): return "目标卡牌的手牌消耗需要布尔配置。"
- if spec.has("free_slots") and (not spec.free_slots is Array or spec.free_slots.is_empty() or spec.free_slots.any(func(slot):return slot not in UPPER_BODY_SLOTS+FOLLOW_THROUGH_REGIONS.legs)): return "卡牌自由部位条件不正确。"
+ if spec.has("free_slots") and (not spec.free_slots is Array or spec.free_slots.is_empty() or spec.free_slots.any(func(slot):return slot not in UPPER_BODY_SLOTS+FOLLOW_THROUGH_REGIONS.legs)): return "卡牌自由部位条件有误。"
  if spec.has("bound_modes"):
   var self_modes=spec.mode=="self" and spec.bound_modes==["self","self"]
   if not self_modes and (not spec.bound_modes is Array or spec.bound_modes.size()!=2 or spec.bound_modes.any(func(mode):return mode not in ["strain","slip"]) or spec.has("self_faces")) or spec.has("casting"): return "双拘束面需要两种挣扎、滑脱或成对自身效果。"
  if spec.has("damage_growth") and (not spec.damage_growth is int or spec.damage_growth<=0 or spec.get("damage_type","")==""): return "卡牌成长需要正整数增量和伤害效果。"
  if spec.get("card_type","") not in TYPES or spec.get("rarity","") not in RARITIES: return "卡牌缺少有效的类型或稀有度。"
  if spec.has("drinking") and (spec.drinking!=true or spec.mode!="self" or spec.card_type!="skill" or spec.has("casting")): return "饮用牌必须是无施法的自身技能牌。"
- if spec.has("hannya_stage") and (not spec.hannya_stage is int or spec.hannya_stage not in HANNYA_REWARDS or not spec.get("drinking",false)): return "般若汤阶段或饮用配置不正确。"
+ if spec.has("hannya_stage") and (not spec.hannya_stage is int or spec.hannya_stage not in HANNYA_REWARDS or not spec.get("drinking",false)): return "般若汤阶段或饮用配置有误。"
  var tags=spec.get("type_tags",[spec.card_type])
- if not tags is Array or spec.card_type not in tags or tags.any(func(tag):return tag not in TYPES or tags.count(tag)!=1): return "卡牌类型词条不正确。"
+ if not tags is Array or spec.card_type not in tags or tags.any(func(tag):return tag not in TYPES or tags.count(tag)!=1): return "卡牌类型词条有误。"
  if spec.has("casting") and "magic" not in tags: return "施法卡牌缺少魔法词条。"
  if (spec.card_type=="curse")!=(spec.rarity=="curse"): return "诅咒牌需要独立的诅咒分类。"
  if (spec.card_type=="status")!=(spec.rarity=="status"): return "状态牌需要独立的状态分类。"
  if (spec.card_type=="power")!=(spec.mode=="power"): return "能力牌需要能力出牌方式。"
  if spec.mode in ["self","power"]:
   var faces=spec.get("self_faces",{})
-  if not faces is Dictionary or faces.size()!=2: return "自身卡牌的双面效果不完整。"
+  if not faces is Dictionary or faces.size()!=2: return "自身卡牌的双面效果缺损。"
   for side in ["bound","free"]:
    if not faces.get(side) is Dictionary: return "卡牌缺少对应牌面。"
    var face=faces[side]
@@ -344,7 +347,7 @@ static func definition_reason(spec: Dictionary) -> String:
     var batch=face.exhaust_hand_batch
     if spec.mode!="self" or face.get("exhaust_hand",false) or not batch is Dictionary: return "批量消耗手牌需要自身牌面的效果配置。"
     if batch.has("include_type")==batch.has("exclude_type") or batch.get("include_type",batch.get("exclude_type","")) not in TYPES: return "批量消耗手牌需要一个有效的包含或排除类型。"
-    if batch.keys().any(func(key):return key not in ["include_type","exclude_type","mana_gain","effects"]): return "批量消耗手牌包含未知效果。"
+    if batch.keys().any(func(key):return key not in ["include_type","exclude_type","mana_gain","effects"]): return "批量消耗手牌包含待支持效果。"
     if batch.has("mana_gain") and (not (batch.mana_gain is int or batch.mana_gain is float) or not is_finite(float(batch.mana_gain)) or batch.mana_gain<=0): return "每张手牌恢复魔力必须为正数。"
    if face.has("balance_mana_pressure") and (not face.balance_mana_pressure is bool or spec.mode!="self"): return "资源均分需要自身牌面的布尔配置。"
    if face.has("optional_draw"):
@@ -357,11 +360,12 @@ static func definition_reason(spec: Dictionary) -> String:
     var gain=face.worn_resource
     if spec.mode!="self" or not gain is Dictionary or gain.keys().any(func(key):return key not in ["resource","divisor","amount","buff"]) or gain.get("resource","") not in ["mana","turn_strength","charge","strength"] or not gain.get("divisor") is int or gain.divisor<1 or not gain.get("amount",1) is int or gain.get("amount",1)<1: return "佩戴件数收益需要合法资源、正整数除数与收益。"
     if gain.resource=="strength" and (not BUFFS.has(gain.get("buff","")) or not BUFFS[gain.buff].get("stack_uses",false) or BUFFS[gain.buff].get("attributes",{}).get("strength",0)!=1): return "力量收益需要可叠加的每层1点力量增益。"
-   for key in ["mana_cost","pressure_cost","mana_gain","energy_cost","energy_gain","pressure_energy"]:
-    if face.has(key) and (not (face[key] is int or face[key] is float) or not is_finite(float(face[key])) or face[key]<0): return "卡牌资源数值不正确。"
+   for key in ["mana_cost","pressure_cost","mana_gain","energy_cost","energy_gain","pressure_energy","pressure_temporary_mana"]:
+    if face.has(key) and (not (face[key] is int or face[key] is float) or not is_finite(float(face[key])) or face[key]<0): return "卡牌资源数值有误。"
    if face.has("pressure_energy") and face.pressure_energy<=0: return "能量转换需要正数快感间隔。"
+   if face.has("pressure_temporary_mana") and face.pressure_temporary_mana<=0: return "临时魔力转换需要正数快感间隔。"
    if face.has("free_slots"):
-    if not face.free_slots is Array or face.free_slots.is_empty() or face.free_slots.any(func(slot):return slot not in ["eyes","mouth","neck","shoulder","upper_arm","forearm","wrist","palm","fingers","thigh","calf","ankle","foot","toes"]): return "卡牌自由部位条件不正确。"
+    if not face.free_slots is Array or face.free_slots.is_empty() or face.free_slots.any(func(slot):return slot not in ["eyes","mouth","neck","shoulder","upper_arm","forearm","wrist","palm","fingers","thigh","calf","ankle","foot","toes"]): return "卡牌自由部位条件有误。"
  if spec.has("free_energy_discount") and (not spec.free_energy_discount is int or spec.free_energy_discount<0): return "自由面减费必须是非负整数。"
  if spec.has("free_max_levels"):
   var limits=spec.free_max_levels
@@ -380,7 +384,7 @@ static func definition_reason(spec: Dictionary) -> String:
     if buff.has("exclusive_group") and (spec.mode!="power" or not buff.exclusive_group is String or buff.exclusive_group==""): return "互斥能力需要有效的互斥组。"
     if buff.has("failure_conversion"):
      var conversion=buff.failure_conversion
-     if spec.mode!="power" or not conversion is Dictionary or conversion.get("refund",-1.0) not in [0.0,1.0] or conversion.get("energy")!=1 or conversion.get("zero_cost_limit")!=2: return "失败转换的返还、能量或次数配置不正确。"
+     if spec.mode!="power" or not conversion is Dictionary or conversion.get("refund",-1.0) not in [0.0,1.0] or conversion.get("energy")!=1 or conversion.get("zero_cost_limit")!=2: return "失败转换的返还、能量或次数配置有误。"
      if conversion.has("temporary_only") and not conversion.temporary_only is bool: return "临时魔力付款条件需要布尔配置。"
     if buff.has("stack_uses") and (not buff.stack_uses is bool or not (buff.has("attack_uses") or buff.has("replay") or buff.has("next_action_freedom") or buff.has("on_expire_effects") or (buff.duration=="turn" and buff.has("attributes")))): return "累计次数需要攻击次数或复放配置。"
     if buff.has("stackable") and (not buff.stackable is bool or spec.mode!="power"): return "能力叠加需要布尔配置。"
@@ -410,20 +414,20 @@ static func definition_reason(spec: Dictionary) -> String:
  for effects in effect_groups:
   if not effects is Array: return "卡牌附加效果必须是列表。"
   for effect in effects:
-   if not effect is Dictionary or effect.get("op","") not in EFFECT_OPS: return "卡牌附加效果类型不正确。"
+   if not effect is Dictionary or effect.get("op","") not in EFFECT_OPS: return "卡牌附加效果类型有误。"
    if effect.op=="buff" and effect.get("buff","") not in BUFFS: return "卡牌增益没有登记。"
    if effect.has("filter"):
     var filter=effect.filter
-    if effect.op!="draw" or not filter is Dictionary or filter.size()!=1 or filter.get("tag","") not in TYPES: return "定向抽牌条件不正确。"
+    if effect.op!="draw" or not filter is Dictionary or filter.size()!=1 or filter.get("tag","") not in TYPES: return "定向抽牌条件有误。"
    var value=effect.get("amount",0)
    if value is String: value=spec.get(value,null)
-   if effect.has("all") and (effect.op!="retain" or effect.all!=true or effect.has("amount")): return "全部保留不能同时指定选牌数量。"
-   if not value is int or value<0 or (effect.op=="retain" and value==0 and not effect.get("all",false)): return "卡牌附加效果数量不正确。"
-   if not effect.get("draw_after",0) is int or effect.get("draw_after",0)<0: return "保留后的抽牌数不正确。"
+   if effect.has("all") and (effect.op!="retain" or effect.all!=true or effect.has("amount")): return "全部保留模式需要省略选牌数量。"
+   if not value is int or value<0 or (effect.op=="retain" and value==0 and not effect.get("all",false)): return "卡牌附加效果数量有误。"
+   if not effect.get("draw_after",0) is int or effect.get("draw_after",0)<0: return "保留后的抽牌数有误。"
  var modifiers=spec.get("hand_modifiers",{})
  if not modifiers is Dictionary: return "手牌持续加成必须是属性表。"
  for key in modifiers:
-  if key not in ["strength","dexterity","pleasure_multiplier","energy_pressure"] or not (modifiers[key] is int or modifiers[key] is float) or not is_finite(float(modifiers[key])): return "手牌持续加成属性不正确。"
+  if key not in ["strength","dexterity","pleasure_multiplier","energy_pressure"] or not (modifiers[key] is int or modifiers[key] is float) or not is_finite(float(modifiers[key])): return "手牌持续加成属性有误。"
   if key=="pleasure_multiplier" and modifiers[key]<=0: return "手牌快感倍率必须大于零。"
   if key=="energy_pressure" and modifiers[key]<=0: return "手牌能量刺激必须大于零。"
  if spec.has("end_turn_pressure") and (not (spec.end_turn_pressure is int or spec.end_turn_pressure is float) or not is_finite(float(spec.end_turn_pressure)) or spec.end_turn_pressure<=0): return "回合末快感值必须大于零。"
@@ -462,5 +466,5 @@ static func effect_details(spec: Dictionary, compact: bool=false) -> String:
  var result=""
  for group in ["hit_effects","lowered_effects","destroyed_effects"]:
   for effect in spec.get(group,[]):
-   result+="\n"+({"hit_effects":"随后","lowered_effects":"降档且未解除：","destroyed_effects":"解除目标："} if compact else {"hit_effects":"随后","lowered_effects":"使目标降档且未解除时，","destroyed_effects":"直接解除所选目标时，"})[group]+effect_text(effect,spec,compact)+"。"
+   result+="\n"+({"hit_effects":"随后","lowered_effects":"降档后仍佩戴：","destroyed_effects":"解除目标："} if compact else {"hit_effects":"随后","lowered_effects":"目标降档后仍佩戴时，","destroyed_effects":"直接解除所选目标时，"})[group]+effect_text(effect,spec,compact)+"。"
  return result

@@ -31,12 +31,7 @@ func _draw() -> void:
  draw_texture_rect(Art.BACKGROUND,Rect2(0,-100,1600,900),false,Color(0.48,0.59,0.70))
  draw_rect(Rect2(0,0,1600,900),Color(0.025,0.065,0.11,0.16))
  # Quiet borders frame the stage while preserving the original background art.
- draw_rect(Rect2(0,62,376,838),Color(0.027,0.05,0.08,0.92))
- draw_line(Vector2(375,62),Vector2(375,900),Color(0.66,0.55,0.35,0.45),1)
- draw_line(Vector2(0,63),Vector2(1600,63),Color(0.66,0.55,0.35,0.5),1)
- for x in [407,1571]:
-  draw_line(Vector2(x,83),Vector2(x,114),Color(0.66,0.55,0.35,0.42),1)
-  draw_line(Vector2(x,83),Vector2(x+(24 if x<500 else -24),83),Color(0.66,0.55,0.35,0.42),1)
- draw_rect(Rect2(0,62,376,478),Color(0.03,0.025,0.055,0.42))
+ draw_rect(Rect2(0,62,376,838),preload("res://ui/visual_theme.gd").HUD)
+ draw_line(Vector2(375,62),Vector2(375,900),Color("383b43"),1)
  for i in range(24):
-  draw_rect(Rect2(376,475+i*14,1224,14),Color(0.025,0.05,0.085,minf(0.98,float(i)/13.0)))
+  draw_rect(Rect2(376,475+i*14,1224,14),Color(0.035,0.038,0.05,minf(0.98,float(i)/13.0)))

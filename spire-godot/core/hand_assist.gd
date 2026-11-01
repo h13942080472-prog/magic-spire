@@ -45,11 +45,11 @@ static func label(hands: Array, amount: float) -> String:
  return ("双手" if hands.size()==2 else ("左手" if hands[0]=="left" else "右手"))+"辅助＋"+str(amount).trim_suffix(".0")
 
 static func description(g) -> String:
- var lines=["每只手必须手指自由；手掌可用时＋1，手掌不能使用时减半为＋0.5。两手分别相加，适用于挣扎、普通滑脱和魔法滑脱；手腕、触及与外露条件仍须满足。"]
+ var lines=["每只手必须手指自由；手掌可用时＋1，手掌受限时减半为＋0.5。两手分别相加，适用于挣扎、普通滑脱和魔法滑脱；手腕、触及与外露条件仍须满足。"]
  for side in SIDES:
   var reach=profile(g,side)
   var name="左手" if side=="left" else "右手"
-  if reach.get("assist_factor",0.0)==0.5: lines.append(name+"：手指自由，手掌不能使用，辅助效果减半为＋0.5。")
+  if reach.get("assist_factor",0.0)==0.5: lines.append(name+"：手指自由，手掌受限，辅助效果减半为＋0.5。")
   if reach.reason!="": lines.append(name+"："+reach.reason)
   elif E.ANATOMY.all(func(point):return point in reach.points): lines.append(name+"：所有身体位置以及乳头、肉棒和双穴区域均可触及。")
   else:
@@ -63,7 +63,7 @@ static func description(g) -> String:
 static func explain(hands: Array, amount: float, reasons: Array, contributions: Array=[]) -> String:
  var lines=[label(hands,amount)]
  for contribution in contributions:
-  if contribution.factor==0.5: lines.append(("左手" if contribution.side=="left" else "右手")+"：手指自由，手掌不能使用，辅助减半为＋"+str(contribution.bonus).trim_suffix(".0")+"。")
+  if contribution.factor==0.5: lines.append(("左手" if contribution.side=="left" else "右手")+"：手指自由，手掌受限，辅助减半为＋"+str(contribution.bonus).trim_suffix(".0")+"。")
  for issue in reasons:
   lines.append(("左手" if issue.side=="left" else "右手")+"："+issue.reason)
  return "\n".join(lines)

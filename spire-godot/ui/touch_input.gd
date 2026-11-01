@@ -3,6 +3,7 @@ extends Node
 # Translate one finger into the existing GUI mouse routes. No game-state writes.
 const HOLD_SECONDS=0.5
 const MOVE_THRESHOLD=12.0
+const CARD_SWIPE_DISTANCE=42.0
 var host
 var finger=-1
 var origin=Vector2.ZERO
@@ -15,6 +16,16 @@ var pressed_control: WeakRef
 var details_allowed=false
 var popup_context=false
 var active_popup: WeakRef
+var pressed_card: WeakRef
+var card_swiping=false
+var press_version=-1
+
+func card_at(control: Node) -> Control:
+ var node=control
+ while node!=null:
+  if node.get_script()==preload("res://ui/card_face.gd"): return node
+  node=node.get_parent()
+ return null
 
 func _ready() -> void:
  Input.emulate_mouse_from_touch=false
@@ -62,18 +73,22 @@ func _input(event: InputEvent) -> void:
   get_viewport().set_input_as_handled()
   if event.pressed:
    if finger!=-1: return
-   finger=event.index;origin=event.position;point=origin;elapsed=0;held=false;dragging=false
+   finger=event.index;origin=event.position;point=origin;elapsed=0;held=false;dragging=false;card_swiping=false
+   press_version=host.view.get("version",-1)
    details_allowed=false;host._hide_term();host._dismiss_speech()
    motion(point)
    var control=get_viewport().gui_get_hovered_control()
    pressed_control=weakref(control) if control!=null else null
+   var card=card_at(control)
+   pressed_card=weakref(card) if card!=null else null
    scrolling=null
    var parent=control
    while parent!=null:
     if parent is ScrollContainer:
      scrolling=parent;break
     parent=parent.get_parent()
-   if control!=null and "drag_payload" in control and not control.drag_payload.is_empty(): scrolling=null
+   if card!=null and not card.drag_payload.is_empty(): scrolling=null
+   elif control!=null and "drag_payload" in control and not control.drag_payload.is_empty(): scrolling=null
    if popup_context and scrolling==null: scrolling=_popup_scroller(get_viewport())
   elif event.index==finger:
    if event.canceled: cancel()
@@ -82,11 +97,15 @@ func _input(event: InputEvent) -> void:
   get_viewport().set_input_as_handled()
   if event.index!=finger: return
   var previous=point;point=event.position
+  if card_swiping: return
   if held:
-   motion(point,point-previous,MOUSE_BUTTON_MASK_RIGHT)
+   motion(point,point-previous,0 if pressed_card!=null else MOUSE_BUTTON_MASK_RIGHT)
   elif dragging:
    move_drag(previous)
   elif point.distance_to(origin)>MOVE_THRESHOLD:
+   var displacement=point-origin
+   if pressed_card!=null and displacement.y>absf(displacement.x)*1.25:
+    card_swiping=true;return
    dragging=true
    if not popup_context and not is_instance_valid(scrolling):
     motion(origin);button(origin,MOUSE_BUTTON_LEFT,true)
@@ -94,14 +113,15 @@ func _input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
  if popup_context: return
- if finger<0 or held or dragging: return
+ if finger<0 or held or dragging or card_swiping: return
  elapsed+=delta
  if elapsed<HOLD_SECONDS: return
  var control=pressed_control.get_ref() if pressed_control!=null else null
  if not is_instance_valid(control) or not control.is_visible_in_tree():
   cancel();return
  held=true;details_allowed=true
- motion(point);button(point,MOUSE_BUTTON_RIGHT,true)
+ motion(point)
+ if pressed_card==null: button(point,MOUSE_BUTTON_RIGHT,true)
  show_details.call_deferred()
 
 func show_details() -> void:
@@ -126,7 +146,15 @@ func move_drag(previous: Vector2) -> void:
   motion(point,point-previous,MOUSE_BUTTON_MASK_LEFT)
 
 func release(position: Vector2) -> void:
- if held: button(position,MOUSE_BUTTON_RIGHT,false)
+ if card_swiping:
+  var card=pressed_card.get_ref() if pressed_card!=null else null
+  var displacement=position-origin
+  var distance=CARD_SWIPE_DISTANCE*host.layout.scale.y
+  if is_instance_valid(card) and card.is_visible_in_tree() and host.view.get("version",-1)==press_version and displacement.y>=distance and displacement.y>absf(displacement.x)*1.25:
+   var center=card.get_global_rect().get_center()
+   motion(center);button(center,MOUSE_BUTTON_RIGHT,true);button(center,MOUSE_BUTTON_RIGHT,false)
+ elif held:
+  if pressed_card==null: button(position,MOUSE_BUTTON_RIGHT,false)
  elif dragging:
   if not popup_context and not is_instance_valid(scrolling): button(position,MOUSE_BUTTON_LEFT,false)
  else:
@@ -137,14 +165,14 @@ func release(position: Vector2) -> void:
    # A tall menu can overlap its opener. The opening tap must not select a row.
    if popup_context or not is_instance_valid(opened) or not opened.visible:
     button(position,MOUSE_BUTTON_LEFT,false)
- finger=-1;held=false;dragging=false;scrolling=null;pressed_control=null
+ finger=-1;held=false;dragging=false;scrolling=null;pressed_control=null;pressed_card=null;card_swiping=false
 
 func cancel() -> void:
  if finger<0: return
  motion(Vector2(-1000,-1000))
- if held: button(Vector2(-1000,-1000),MOUSE_BUTTON_RIGHT,false)
+ if held and pressed_card==null: button(Vector2(-1000,-1000),MOUSE_BUTTON_RIGHT,false)
  elif dragging and not popup_context and not is_instance_valid(scrolling): button(Vector2(-1000,-1000),MOUSE_BUTTON_LEFT,false)
- finger=-1;held=false;dragging=false;scrolling=null;pressed_control=null;details_allowed=false
+ finger=-1;held=false;dragging=false;scrolling=null;pressed_control=null;details_allowed=false;pressed_card=null;card_swiping=false
  host._hide_term()
 
 func _notification(what: int) -> void:

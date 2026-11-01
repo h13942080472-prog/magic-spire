@@ -209,25 +209,25 @@ static func validate(g) -> String:
  var p=g.state.prison
  if p.is_empty(): return ""
  var s=p.get("space",{})
- if not g.Snapshot.fields(s,"position:a blocked:a sites:a") or not cell(s.position): return "牢房位置记录不完整。"
+ if not g.Snapshot.fields(s,"position:a blocked:a sites:a") or not cell(s.position): return "牢房位置记录缺损。"
  if s.blocked.size()!=s.blocked.reduce(func(found,pos):found[str(pos)]=true;return found,{}).size(): return "牢房家具位置重复。"
  if s.blocked.any(func(pos):return not cell(pos)) or not walkable(s,s.position): return "牢房位置落在墙外或家具中。"
- if s.sites.size()!=5: return "牢房地点数量不正确。"
+ if s.sites.size()!=5: return "牢房地点数量有误。"
  var ids=[];var positions=[];var discoveries=[]
  for site in s.sites:
-  if not g.Snapshot.fields(site,"id:s position:a label:s discovery:s visited:b") or not walkable(s,site.position) or site.id in ids or site.position in positions: return "牢房地点重复或不合法。"
+  if not g.Snapshot.fields(site,"id:s position:a label:s discovery:s visited:b") or not walkable(s,site.position) or site.id in ids or site.position in positions: return "牢房地点重复或有误。"
   if site.position!=s.position and path(s,s.position,site.position).is_empty(): return "牢房地点无法到达。"
-  if site.id in ["place_0","place_1"] and site.discovery!="": return "牢房入口不能兼作隐藏发现。"
-  if site.id=="place_0" and (site.position!=[0,6] or site.label!="床边" or not site.visited): return "牢房起点记录不一致。"
-  if site.id=="place_1" and (site.position!=[6,3] or site.label!="牢门"): return "牢门位置记录不一致。"
+  if site.id in ["place_0","place_1"] and site.discovery!="": return "牢房入口需单独设置，隐藏发现请使用其他位置。"
+  if site.id=="place_0" and (site.position!=[0,6] or site.label!="床边" or not site.visited): return "牢房起点记录存在差异。"
+  if site.id=="place_1" and (site.position!=[6,3] or site.label!="牢门"): return "牢门位置记录存在差异。"
   if site.discovery in ["saw","vent"] and wall_distance(site.position)!=0: return "墙缝和通风口必须靠墙。"
-  if site.discovery=="shard" and wall_distance(site.position)==0: return "地面未知物必须位于室内。"
+  if site.discovery=="shard" and wall_distance(site.position)==0: return "地面待探索物必须位于室内。"
   ids.append(site.id);positions.append(site.position)
   if site.discovery!="":
-   if site.discovery not in g.Prison.ACTIVE_DISCOVERIES or site.discovery in discoveries or site.visited!=(site.discovery in p.found): return "牢房发现与地点不一致。"
+   if site.discovery not in g.Prison.ACTIVE_DISCOVERIES or site.discovery in discoveries or site.visited!=(site.discovery in p.found): return "牢房发现与地点存在差异。"
    discoveries.append(site.discovery)
  if not ["place_0","place_1","place_2","place_3","place_4"].all(func(id):return id in ids) or discoveries.size()!=3: return "牢房地点缺少必要入口。"
- if active(g) and g.state.wall_distance!=wall_distance(s.position): return "距墙与牢房位置不一致。"
+ if active(g) and g.state.wall_distance!=wall_distance(s.position): return "距墙与牢房位置存在差异。"
  for item in g.state.items:
   if p.active and item.mount!="carry" and (not cell(item.get("prison_position")) or wall_distance(item.prison_position)!=0): return "墙上工具缺少安装位置。"
  return ""

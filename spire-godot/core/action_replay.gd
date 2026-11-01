@@ -19,14 +19,24 @@ static func target(p: Dictionary) -> Dictionary:
  var result={"slot":p.get("slot",""),"target":p.target,"self_target":p.get("self_target",false)}
  if p.has("hand_uid"): result.hand_uid=p.hand_uid
  if Rules.SPECS[p.type].get("x_cost",false): result.x=p.x
- if Rules.SPECS[p.type].has("damage_growth") or Rules.SPECS[p.type].has("bound_modes"):
-  result.free=p.get("free",false);result.uid=p.get("uid","")
+ result.free=p.get("free",false);result.uid=p.get("uid","")
  return result
+
+static func valid_target(value: Variant) -> bool:
+ if not value is Dictionary or not value.get("slot") is String or not value.get("target") is String or not value.get("self_target") is bool: return false
+ if value.keys().any(func(key):return key not in ["slot","target","self_target","free","uid","hand_uid","x","selected_uids"]): return false
+ if value.has("free") and not value.free is bool: return false
+ for key in ["uid","hand_uid"]:
+  if value.has(key) and not value[key] is String: return false
+ if value.has("x") and (not value.x is int or value.x<0): return false
+ if value.has("selected_uids") and (not value.selected_uids is Array or value.selected_uids.any(func(uid):return not uid is String or value.selected_uids.count(uid)!=1)): return false
+ return true
 
 static func payload(g, type: String, original: Dictionary, used: Array) -> Dictionary:
  var spec=g.Cards.Rules.SPECS[type]
  var p={"kind":"card","type":type,"mode":spec.mode,"free":false,"uid":"","replay":true}
  p.merge(original,true)
+ if p.has("selected_uids") and p.selected_uids.any(func(uid):return not g.Cards.selection_cards(g).any(func(entry):return entry.card.uid==uid)): return {}
  if p.self_target: return p if g.Cards.reason(g,p)=="" else {}
  if p.target=="prison_door":
   if g.state.phase!="prison" or g.state.prison.door_open or not g.Prison.Space.at(g,"door"): return {}

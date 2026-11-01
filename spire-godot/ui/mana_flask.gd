@@ -29,9 +29,6 @@ static func build(ui) -> void:
   button.name="FlaskDeposit" if op=="deposit" else "FlaskWithdraw"
   button.disabled=not choice.valid;button.tooltip_text=ui.detail_of(choice) if choice.valid else choice.reason
   button.add_theme_font_size_override("font_size",13);button.custom_minimum_size.y=28
-  for state in ["normal","disabled"]:
-   var style=ui._style(Color("13222e"),Color("456068") if state=="normal" else Color("303f48"),6)
-   style.shadow_size=0;style.set_border_width_all(1)
-   button.add_theme_stylebox_override(state,style)
+  ui.Palette.style_button(button,ui.CYAN,"quiet")
   ui._place(button,Rect2(225,9 if op=="deposit" else 49,72,28),panel)
   ui.candidate_buttons[choice.key]=button

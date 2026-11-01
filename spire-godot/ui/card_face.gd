@@ -22,6 +22,7 @@ static func separate_keywords(effect: String, terms: Array) -> Dictionary:
  return result
 
 const ILLUSTRATIONS={
+ "art_submission":preload("res://assets/ui/cards/art_submission.svg"),
  "witch_binding_lure":preload("res://assets/ui/cards/witch_binding_lure.svg"),
  "itching_heart":preload("res://assets/ui/cards/desire_magic.svg"),
  "self_satisfaction":preload("res://assets/ui/cards/desire_magic.svg"),
@@ -130,6 +131,10 @@ var effect_free=false:
 var face_name="拘束"
 var localize: Callable
 var lift_on_hover=true
+var preview_factory: Callable
+var inspect_requested: Callable
+var drag_grab=Vector2.ZERO
+var drag_grabbed=false
 const ART_HEIGHT_RATIO=2.0/3.0
 var art_bottom=174.0
 # 正文溢出＝`fit_text` 的结果（唯一写入点）；悬停详情读它，不读 `Content.size`：
@@ -515,22 +520,26 @@ func _draw_header() -> void:
  header.draw_arc(Vector2(19,19)*unit,15*unit,0,TAU,32,Color(accent,0.4),1,true)
 
 func _gui_input(event: InputEvent) -> void:
+ if event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT:
+  drag_grabbed=event.pressed
+  if event.pressed: drag_grab=event.position
  if event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_RIGHT and event.pressed:
   accept_event()
   flip_requested.emit()
 
-func _get_drag_data(_at_position: Vector2) -> Variant:
+func _get_drag_data(at_position: Vector2) -> Variant:
  if drag_payload.is_empty(): return null
- var ghost=PanelContainer.new()
- ghost.name="CardDragPreview";ghost.z_index=240;ghost.position=Vector2(18,18)
+ # Hover motion may continue between press and drag; retain the original card-local grip.
+ var grip=drag_grab if drag_grabbed else at_position
+ drag_grabbed=false
+ var ghost=Control.new()
+ ghost.name="CardDragPreview";ghost.z_index=240
+ ghost.scale=get_global_transform().get_scale()
  ghost.mouse_filter=Control.MOUSE_FILTER_IGNORE
- ghost.custom_minimum_size=Vector2(190,75)
- ghost.modulate=Color(1,1,1,0.94)
- ghost.add_theme_stylebox_override("panel",Palette.surface(Palette.INK,Palette.CYAN if effect_free else Palette.GOLD))
- var label=Label.new()
- label.text=_display(display_name)+"\n"+_display("单面卡牌" if single_face else face_name)
- label.add_theme_font_size_override("font_size",18)
- ghost.add_child(label)
+ add_child(ghost)
+ # Godot owns the preview root position; keep the grab offset on the card child.
+ if preview_factory.is_valid(): preview_factory.call(ghost,size.y).position=-grip
+ remove_child(ghost)
  set_drag_preview(ghost)
  drag_began.emit(drag_payload)
  return drag_payload
@@ -563,6 +572,7 @@ func _art_changed(category: String, id: String) -> void:
 
 func _hover(raised: bool) -> void:
  if not lift_on_hover: return
+ if inspect_requested.is_valid(): inspect_requested.call(raised)
  if is_instance_valid(tween): tween.kill()
  tween=create_tween().set_parallel(true)
  tween.tween_property(self,"position",home+Vector2(0,-44 if raised else 0),0.13)

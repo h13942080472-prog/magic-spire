@@ -5,6 +5,7 @@ static func attack(t,g,type: String,form: int) -> Dictionary:
  return t.find_action(g,"attack",{"type":type,"form":form,"enemy":g.state.enemies[0].id})
 
 static func run(t) -> void:
+ posture_projection(t)
  body_part_projection(t)
  zero_energy_fireball(t)
 
@@ -44,6 +45,19 @@ static func run(t) -> void:
  t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.enemies[0].gone and g.state.enemies[1].hp==other_hp and g.state.logs.slice(start).filter(func(log):return log.data.has("hit")).size()==1,"BASIC early kill stops remaining hits without retargeting")
  var before=g.export_snapshot()
  t.check(not g.dispatch(g.command(c.payload,before.version-1),before.version-1).ok and g.state==before,"BASIC stale form submission rolls back")
+
+static func posture_projection(t) -> void:
+ var g=Game.new(42)
+ for pose in ["stand","sit","lie"]:
+  g.state.posture=pose
+  var expected={"stand":{"strike":[0,1],"heavy":[0,1],"kick":[0,1,2],"fireball":[0]},"sit":{"kick":[0,2,3],"fireball":[0]},"lie":{"fireball":[0]}}[pose]
+  g.state.energy=0
+  for fact in g.command_facts().filter(func(c):return c.payload.kind=="attack"):
+   var available=fact.payload.form in expected.get(fact.payload.type,[])
+   t.check(fact.posture_available==available,"POSTURE projection distinguishes posture availability from zero-energy rejection")
+   if available: continue
+   var before=g.export_snapshot()
+   t.check(not fact.valid and not g.dispatch(g.command(fact.payload,g.state.version),g.state.version).ok and g.export_snapshot()==before,"POSTURE hidden attacks still reject forged submissions without mutation")
 
 static func zero_energy_fireball(t) -> void:
  var g=Game.new(42);g.state.energy=0

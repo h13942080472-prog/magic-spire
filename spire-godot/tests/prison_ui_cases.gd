@@ -1,8 +1,32 @@
 extends RefCounted
 const Spatial=preload("res://tests/exploration_fixture.gd")
 const Queries=preload("res://ui/target_queries.gd")
+const Click=preload("res://tests/interface_ui_cases.gd")
+const GameView=preload("res://core/game_view.gd")
+
+static func capture_intro_selection(t) -> void:
+ var ui=t.ui
+ var leather={"character_id":"original","equipment_portrait_layers":[],"body_coverage":{"material_points":{"leather":["wrist_left","palm_left"],"rope":["ankle"]}}}
+ var tie={"character_id":"original","equipment_portrait_layers":[],"body_coverage":{"material_points":{"leather":["wrist_left"],"rope":["ankle"]}}}
+ t.check(ui.capture_intro_required(leather,false) and not ui.capture_intro_required(leather,true) and not ui.capture_intro_required({"character_id":"witch"},false),"PRISON UI capture prelude is original-character only and is dismissed once")
+ t.check(ui.capture_intro_art_key(leather,false)=="leather" and ui.capture_intro_art_key(tie,false)=="rope","PRISON UI capture prelude compares distinct leather and rope coverage points with ties choosing rope")
+ t.check(ui.capture_intro_art_key(leather,true)=="flat_lock" and ui.capture_intro_art_key({"equipment_portrait_layers":["flat_lock"],"body_coverage":{}},false)=="flat_lock","PRISON UI capture prelude gives fixed portrait and worn flat lock the dedicated artwork")
+ var physical=GameView.restraint_material_points([
+  {"template":"handcuffs","material":"metal","durability":1,"points":["wrist_left"]},
+  {"template":"test","material":"leather","durability":1,"points":["wrist_left","palm_left"]},
+  {"template":"test","material":"rope","durability":1,"points":["ankle","ankle"]}])
+ var metal_only=GameView.restraint_material_points([
+  {"template":"handcuffs","material":"metal","durability":1,"points":["wrist_left"]}])
+ t.check(physical=={"leather":["wrist_left","palm_left"],"rope":["ankle"]},"PRISON UI capture material projection deduplicates physical points and excludes metal shackles")
+ t.check(metal_only=={"leather":[],"rope":[]},"PRISON UI capture material projection keeps real metal handcuffs out of leather artwork coverage")
+
+static func continue_capture_intro(t) -> void:
+ if t.ui.find_child("PrisonCaptureIntroContinue",true,false)==null: return
+ await Click.press(t,"PrisonCaptureIntroContinue")
+ await t.frames()
 
 static func enter(t, security: int=1) -> void:
+ t.ui.display_settings.fixed_hero_portrait=false
  await t.start_practice("Practice_guard")
  t.ui.game.state.security=security-1
  # Fast-forward only the enemy's published preparation fixture; all transitions use buttons.
@@ -11,6 +35,20 @@ static func enter(t, security: int=1) -> void:
  e.intent={"kind":"capture","text":"执行收押 · 可打断","delayed":false}
  t.ui.render();await t.frames()
  t.check(await t.click("end") and t.ui.view.phase=="captured","PRISON UI actual enemy action reaches intake")
+ var expected_material_points={"leather":[],"rope":[]}
+ for piece in t.ui.game.physical_pieces()+t.ui.game.state.links:
+  if piece.get("durability",0)<=0: continue
+  var material=String(piece.get("material",""))
+  if not expected_material_points.has(material): continue
+  for point in t.ui.game.Equipment.physical_points(piece):
+   if point not in expected_material_points[material]: expected_material_points[material].append(point)
+ t.check(t.ui.view.body_coverage.material_points==expected_material_points,"PRISON UI capture artwork receives distinct physical coverage points for every live leather and rope restraint")
+ var intro=t.ui.find_child("PrisonCaptureIntroPanel",true,false)
+ var intro_art=t.ui.find_child("PrisonCaptureIntroArtwork",true,false)
+ t.check(intro!=null and intro.find_children("*","Button",true,false).size()==1 and t.ui.find_child("PrisonIntakePanel",true,false)==null,"PRISON UI original-character capture opens a one-choice prelude before intake")
+ t.check(intro_art!=null and t.visible_text(intro).contains("你被抓住了！") and t.visible_text(intro).contains("魅魔狱警拽了拽牵引绳") and intro_art.get_meta("variant","") in ["leather","rope","flat_lock"],"PRISON UI capture prelude shows the authored arrest copy and a projected artwork variant")
+ await continue_capture_intro(t)
+ t.check(t.ui.find_child("PrisonCaptureIntroPanel",true,false)==null and t.ui.find_child("PrisonIntakePanel",true,false)!=null,"PRISON UI continue reveals the existing completed-intake page without submitting gameplay")
  var scene=t.ui.view.capture.intake_scene
  t.check(t.visible_text(t.ui.layout).contains("警戒度 %d" % security) and not t.visible_text(t.ui.layout).contains("拘束具保底") and not scene.is_empty(),"PRISON UI intake keeps current security and exposes its one-time authored scene")
  t.check(scene.restraints.size()>=t.ui.view.capture.added.size() and scene.links.size()==t.ui.view.capture.links.size() and scene.toys.size()==t.ui.view.capture.special_added.size(),"PRISON UI intake receives concrete reusable prose for every installed equipment category")
@@ -20,6 +58,7 @@ static func enter(t, security: int=1) -> void:
   t.check(speech==null or not speech.visible or not t.visible_text(speech).contains("欢迎入住"),"PRISON UI cell entry does not replay a persistent intake dialogue")
 
 static func run(t) -> void:
+ capture_intro_selection(t)
  await release_case(t)
  await surrender_case(t)
  var ui=t.ui
@@ -88,19 +127,28 @@ static func run(t) -> void:
  if cards.is_empty(): return
  await preload("res://tests/exploration_ui_cases.gd").open_details(t,"place_1")
  var uid=cards[0].uid
- var original=JSON.stringify(ui.game.state)
+ var original=ui.game.export_snapshot()
  if not ui.card_faces.get(uid,false): await t.flip(uid)
  await t.drop_card_on_actor(uid,"prison_door")
- t.check(JSON.stringify(ui.game.state)==original,"PRISON UI free face cannot unlock door or silently switch effect")
- await t.flip(uid)
- var mana=ui.view.mana
+ t.check(not ui.view.prison.door_open and ui.view.energy==original.energy-1 and ui.view.mana==original.mana and ui.view.temporary_mana==original.temporary_mana+10 and not ui.card_buttons.has(uid),"PRISON UI free self card resolves on release over the door, pays once, gains temporary mana and keeps the door closed")
+ n=0
+ while not ui.view.hand.any(func(c):return c.type=="unlock") and n<3:
+  t.check(await t.click("end"),"PRISON UI redraws the unlock card through normal turns for its bound face")
+  n+=1
+ cards=ui.view.hand.filter(func(c):return c.type=="unlock")
+ t.check(not cards.is_empty(),"PRISON UI bound door branch has a real drawn card")
+ if cards.is_empty(): return
+ uid=cards[0].uid
+ ui.game.state.pressure=0;ui.render();await t.frames()
+ if ui.card_faces.get(uid,false): await t.flip(uid)
+ var mana=ui.view.mana+ui.view.temporary_mana
  var point=t.card_point(uid)
  await t.move_mouse(point);await t.mouse_button(point,MOUSE_BUTTON_LEFT,true);await t.move_mouse(point+Vector2(0,-42),true)
  var door_hint=ui.find_child("DoorDragTarget",true,false)
- t.check(door_hint!=null and not ui.view.prison.door_open and ui.view.mana==mana,"PRISON UI legal door appears immediately as a drag target without payment")
+ t.check(door_hint!=null and not ui.view.prison.door_open and ui.view.mana+ui.view.temporary_mana==mana,"PRISON UI legal door appears immediately as a drag target without payment")
  point=door_hint.get_global_rect().get_center() if door_hint!=null else ui.actor_targets.prison_door.get_global_rect().get_center()
  await t.move_mouse(point,true);await t.mouse_button(point,MOUSE_BUTTON_LEFT,false)
- t.check(ui.view.prison.door_open and ui.view.mana==mana-10 and not ui.card_buttons.has(uid),"PRISON UI native door drag uses actual bound card and magic once")
+ t.check(ui.view.prison.door_open and ui.view.mana+ui.view.temporary_mana==mana-10 and not ui.card_buttons.has(uid),"PRISON UI native door drag uses actual bound card and magic once")
  t.check(await t.click("prison",{"action":"door_exit"}) and ui.view.phase=="map","PRISON UI open door at sufficient speed escapes")
 
  await enter(t)
@@ -116,7 +164,7 @@ static func run(t) -> void:
  var use=Queries.find(ui.view,"item",{"kind":"item_use","item":seal.id,"target":"hero"})
  var use_button=ui.candidate_buttons.get(use.key)
  t.check(use_button!=null and not use_button.disabled and use_button.text=="使用","SEAL UI exposes the formal direct-use button")
- t.check(use_button!=null and use.cost==0 and use.mana==0 and use_button.tooltip_text.contains("不耗能量或魔力") and use_button.tooltip_text.contains("手指或脚趾"),"SEAL UI explains zero-cost use and actual body conditions")
+ t.check(use_button!=null and use.cost==0 and use.mana==0 and use_button.tooltip_text.contains("能量与魔力费用为0") and use_button.tooltip_text.contains("手指或脚趾"),"SEAL UI explains zero-cost use and actual body conditions")
  await t.capture("ui-64-return-seal.png")
  var seal_mana=ui.view.mana
  var prison_end_restore=0.0
@@ -190,7 +238,7 @@ static func punishment_case(t) -> void:
  while t.ui.view.phase=="prison":
   t.check(await t.click("end"),"PRISON UI violation timer uses actual turns")
  t.check(await t.click("prison",{"action":"inspect"}),"PRISON UI opens missing equipment report")
- t.check(t.visible_text(t.ui.layout).contains("%d件初级二档" % quota) and t.visible_text(t.ui.layout).contains("又拿来了2件初级性玩具") and not t.visible_text(t.ui.layout).contains("检查结束时会补满"),"PRISON UI displays separate missing quotas without reciting the later service steps")
+ t.check(t.visible_text(t.ui.layout).contains("%d件普通拘束具（初级2档／中级1档）" % quota) and t.visible_text(t.ui.layout).contains("又拿来了2件初级性玩具") and not t.visible_text(t.ui.layout).contains("检查结束时会补满"),"PRISON UI displays separate missing quotas without reciting the later service steps")
  t.check(await t.click("prison",{"action":"accept"}),"PRISON UI accepts replacement punishment once")
  t.check(t.visible_text(t.ui.layout).contains("拘束具补回%d/%d件" % [quota,quota]) and t.visible_text(t.ui.layout).contains("性玩具补回2/2件") and not t.visible_text(t.ui.layout).contains("重新登记") and g.state.prison.baseline==g.equipment_targets().map(func(e):return e.id) and g.state.prison.special_baseline==g.state.special_equipment.map(func(e):return e.id) and g.state.special_equipment.all(func(item):return item.remaining==g.SpecialEquipment.TYPES[item.type].duration if g.SpecialEquipment.TYPES[item.type].duration>0 else item.remaining==0),"PRISON UI keeps the result concise while the refreshed manifests and batteries remain correct")
 
@@ -212,13 +260,16 @@ static func surrender_case(t) -> void:
  t.check(button.text=="确定要投降吗" and t.ui.game.state==before,"SURRENDER first real click only requests confirmation")
  await t.capture("ui-surrender-confirm.png")
  await preload("res://tests/interface_ui_cases.gd").press(t,"SurrenderButton")
- t.check(t.ui.view.phase=="captured" and t.ui.view.security==1 and t.ui.find_child("PrisonIntakePanel",true,false)!=null and t.ui.find_child("SurrenderButton",true,false)==null,"SURRENDER second real click opens the one-time intake page")
+ t.check(t.ui.view.phase=="captured" and t.ui.view.security==1 and t.ui.find_child("PrisonCaptureIntroPanel",true,false)!=null and t.ui.find_child("SurrenderButton",true,false)==null,"SURRENDER second real click opens the one-time capture prelude")
+ await continue_capture_intro(t)
+ t.check(t.ui.find_child("PrisonIntakePanel",true,false)!=null,"SURRENDER capture prelude continues to the completed-intake page")
  t.check(await t.click("prison",{"action":"enter"}) and t.ui.view.phase=="prison","SURRENDER intake page enters the cell through its sole formal choice")
 
 static func release_case(t) -> void:
  await t.start_practice("Practice_prison_release_violation")
  var blocked=t.ui.game
  t.check(t.ui.view.phase=="captured" and not blocked.state.capture.baseline.is_empty() and not blocked.state.capture.special_baseline.is_empty(),"PRISON UI delay entry displays actual intake and registered equipment")
+ await continue_capture_intro(t)
  t.check(await t.click("prison",{"action":"enter"}) and t.visible_text(t.ui.layout).contains("已服刑0／20回合"),"PRISON UI delay practice enters the first real prison turn")
  t.check(await t.click("end") and t.ui.view.phase=="prison" and blocked.state.prison.served_turns==1,"PRISON UI first practice turn cannot directly release")
  # Only accelerate this UI boundary case after verifying the real entry.
@@ -232,7 +283,9 @@ static func release_case(t) -> void:
  t.check(blocked.state.prison.baseline==blocked.equipment_targets().map(func(e):return e.id) and not blocked.state.prison.baseline.is_empty(),"PRISON UI failed check retains the real replacement equipment")
  await t.start_practice("Practice_prison_release")
  var ui=t.ui
- t.check(ui.view.phase=="captured" and await t.click("prison",{"action":"enter"}),"PRISON UI release entry requires normal intake confirmation")
+ t.check(ui.view.phase=="captured","PRISON UI release entry reaches the capture prelude")
+ await continue_capture_intro(t)
+ t.check(await t.click("prison",{"action":"enter"}),"PRISON UI release entry requires normal intake confirmation")
  t.check(t.visible_text(ui.layout).contains("已服刑0／20回合") and ui.view.prison.left==16,"PRISON UI shows full sentence and normal patrol at entry")
  for turn in range(20):
   t.check(await t.click("end"),"PRISON UI practice plays every actual sentence turn")
@@ -246,7 +299,7 @@ static func release_case(t) -> void:
  t.check(release_speech!=null and t.visible_text(release_speech).contains("手续办完了") and release_portrait!=null and release_portrait.texture==ui.Arena.Art.GUARD_PORTRAITS.guard_brown,"PRISON UI normal release opens the senior guard's nameless dialogue bubble")
  var strong_room=ui.game.state.rooms.filter(func(room):return room.get("pool","")=="strong")[0]
  t.check(ui.game.room_description(strong_room)=="普通战斗 · 强怪池。" and ui.view.route.filter(func(room):return room.id==strong_room.id)[0].icon=="battle","PRISON UI strong encounters retain normal battle icons and describe the stronger pool")
- t.check(ui.find_child("PrisonStartTitle",true,false)!=null and t.visible_text(ui.layout).contains("第10—11层非休息、非宝箱区域"),"PRISON UI start range and zero time visible")
+ t.check(ui.find_child("PrisonStartTitle",true,false)!=null and t.visible_text(ui.layout).contains("第10—11层战斗、事件或商店 · 0回合"),"PRISON UI start range and zero time visible")
  var starts=ui.view.route.filter(func(r):return r.status=="available")
  t.check(not starts.is_empty() and starts.all(func(r):return ui.game.Prison.start_room(ui.game.room_data(r.id))),"PRISON UI highlights all legal start nodes")
  var before=ui.game.export_snapshot()

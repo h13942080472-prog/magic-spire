@@ -1,11 +1,12 @@
 extends RefCounted
+const RestraintValue=preload("res://data/restraint_value.gd")
 
 const Library=preload("res://data/enemy_library.gd")
 const FirstFloor=preload("res://data/first_floor_enemy_pools.gd")
 const B=preload("res://data/balance.gd")
 const Special=preload("res://data/special_equipment.gd")
 const PUPPET_MIN_CAPACITY=1
-const BARRIER_CAPACITY_DESCRIPTION="伤害超过屏障剩余额度时，玩偶普通反击容量上限－1，最低1，持续本场战斗；多段及群攻每次攻击只扣一次。额度耗尽后继续攻击仍可触发，恰好打满不触发。"
+const BARRIER_CAPACITY_DESCRIPTION="伤害严格超过屏障剩余额度时，玩偶普通反击容量上限－1，最低1，持续本场战斗；多段及群攻每次攻击只扣一次。额度耗尽后继续攻击仍可触发。"
 # Strength is an independent encounter-design value, never an equipment grade or damage multiplier.
 static var TYPES=definitions()
 
@@ -14,13 +15,15 @@ static func definitions() -> Dictionary:
  var ordinary_initial=["rope","cord","belt","fine_belt","tape","cable_tie","eye_tape","mouth_tape"]
  var ordinary_medium=["rope","cord","belt","fine_belt","tape","cable_tie","eye_leather","eye_tape","mouth_tape","mouth_band"]
  var opening=[
-  {"kind":"apply","text":"施加两件初级拘束具","delayed":false,"final":false,"replace":true,"count":2,"grade":1,"tier":2,"pool":"ordinary","templates":ordinary_initial},
+  {"kind":"apply","text":"施加两件拘束具 · 初级2档／中级1档","delayed":false,"final":false,"replace":true,"count":2,"grade":1,"tier":2,"profiles":RestraintValue.profiles(3),"pool":"ordinary","templates":ordinary_initial},
   {"kind":"debuff","text":"施加无力化","delayed":false,"effect":"weakness","turns":1},
-  {"kind":"apply","text":"施加一件中级拘束具，随后准备就绪","delayed":false,"final":false,"replace":true,"count":1,"grade":2,"tier":2,"pool":"ordinary","templates":ordinary_medium,"ready_gain":1},
+  {"kind":"apply","text":"施加一件拘束具 · 初级3档／中级2档／高级1档，随后准备就绪","delayed":false,"final":false,"replace":true,"count":1,"grade":2,"tier":2,"profiles":RestraintValue.profiles(4),"pool":"ordinary","templates":ordinary_medium,"ready_gain":1},
   {"kind":"apply","text":"优先施加中级马具口球或眼罩","delayed":false,"final":false,"replace":true,"count":1,"grade":2,"tier":2,"pool":"ordinary","templates":["mouth_band","eye_leather","eye_tape"],"preferred_slots":["mouth","eyes"],"fallback_templates":ordinary_medium.duplicate(),"variants":{"mouth_band":0}}]
  var versatile_special={"kind":"apply","text":"安装一件初级2档性玩具","delayed":false,"final":false,"replace":true,"count":1,"grade":1,"tier":2,"pool":"special","templates":Special.RANDOM_POOLS[1].duplicate()}
  var versatile_control={"kind":"versatile_control","text":"寻找可以上锁或加固的拘束具","delayed":false}
  var result={
+ "rope_master":{"behavior":"rope_master","humanoid":true,"visual":"rope_master","name":"绳艺大师","hp":140,"strength":6,"order":62,"capture_kind":"rope_master","capture_start":0.0,"install_pool":["rope","cord","link_rope"]},
+ "rope_assistant":{"behavior":"rope_assistant","humanoid":true,"can_arrest":false,"visual":"rope_assistant","name":"绳艺助理","hp":36,"order":61,"install_pool":["rope","cord","link_rope"]},
  "iron_man":{"behavior":"iron_man","humanoid":true,"mechanical":true,"visual":"iron_man","name":"铁男","hp":140,"strength":6,"order":40,"capture_kind":"iron_man","capture_start":30.0,"capture_poses":["sit","lie"],"install_pool":["belt","fine_belt","eye_leather","mouth_band"]},
  "iron_drone":{"behavior":"iron_drone","mechanical":true,"can_arrest":false,"capture_kind":"iron_drone","capture_start":20.0,"visual":"drone","name":"捕缚无人机","hp":40,"order":44},
  "puppeteer":{"behavior":"puppeteer","humanoid":true,"visual":"puppeteer","name":"玩偶师","hp":96,"order":51,"damage_cap":30.0,"special_pool":Special.RANDOM_POOLS[2].duplicate()},
@@ -34,15 +37,15 @@ static func definitions() -> Dictionary:
  "mixed_bundle":{"behavior":"restraint","visual":"mixed_bundle","name":"一团分不清的拘束具","hp":56,"strength":2,"order":28,
   "install_pool":ordinary_initial+["mouth_band"],"final_pool":ordinary_initial+["mouth_band"],"install_grade":1,"restraint_name":"混合拘束具","quantity_gain":1,
   "weighted_moves":{
-   "scatter":{"weight":25,"limit":1,"plan":{"kind":"apply","text":"散缚","delayed":false,"pool":"ordinary","templates":ordinary_initial+["mouth_band"],"grade":1,"tier":2,"count":2,"replace":false}},
-   "roll":{"weight":30,"limit":2,"plan":{"kind":"apply","text":"翻卷收紧","delayed":false,"pool":"ordinary","templates":ordinary_initial+["mouth_band"],"grade":1,"tier":2,"count":1,"replace":false,"tighten_after":true}},
+   "scatter":{"weight":25,"limit":1,"plan":{"kind":"apply","text":"散缚","delayed":false,"pool":"ordinary","templates":ordinary_initial+["mouth_band"],"grade":1,"tier":2,"profiles":RestraintValue.profiles(3),"count":2,"replace":false}},
+   "roll":{"weight":30,"limit":2,"plan":{"kind":"apply","text":"翻卷收紧","delayed":false,"pool":"ordinary","templates":ordinary_initial+["mouth_band"],"grade":1,"tier":2,"profiles":RestraintValue.profiles(3),"count":1,"replace":false,"tighten_after":true}},
    "swell":{"weight":45,"limit":1,"plan":{"kind":"charge","text":"躁动膨胀","delayed":false,"quantity_gain":1}}}},
  "rope_serpent":{"behavior":"restraint","visual":"rope_serpent","name":"游动的绳蛇","hp":60,"strength":3,"order":27,
   "install_pool":["rope","cord","link_rope"],"final_pool":["rope","cord","link_rope"],"restraint_name":"绳索","install_grade":1,"install_count":2,
   "cycle":["turn_install","random_strike"],"turn_install_effect":{"name":"紧缠","timing":"turn_end","stack":true}},
  "ominous_circle":{"behavior":"sequence","visual":"ominous_circle","name":"看着不妙的魔法阵","hp":40,"strength":2,"order":47,
   "ritual_gain":3,"opening":[{"kind":"charge","ritual_gain":3,"text":"启动仪式","delayed":false}],
-  "repeat_cycle":[{"kind":"apply","text":"施加拘束具，无处添加时加固","delayed":false,"pool":"ordinary","templates":ordinary_medium.duplicate(),"grade":1,"tier":2,"count":1,"replace":false,"tighten_missing":true,"profiles":[{"grade":1,"tier":2},{"grade":2,"tier":1}]}]},
+  "repeat_cycle":[{"kind":"apply","text":"施加拘束具，无处添加时加固","delayed":false,"pool":"ordinary","templates":ordinary_medium.duplicate(),"grade":1,"tier":2,"count":1,"replace":false,"tighten_missing":true,"profiles":RestraintValue.profiles(3)}]},
  "trader":{"behavior":"humanoid","humanoid":true,"visual":"trader","name":"奴隶贩子","full_name":"被魔法控制的奴隶贩子","hp":56,"strength":2,"order":48,
   "opening":opening,"repeat_cycle":[opening[0].duplicate(true),opening[2].duplicate(true),opening[3].duplicate(true)],"repeat_count":2},
  "rope_heap":{"install_pool":["rope","cord","link_rope"],"final_pool":["rope","cord"],"behavior":"restraint","visual":"rope_heap","name":"一堆绳","hp":96,"order":26,
@@ -65,6 +68,9 @@ static func definitions() -> Dictionary:
   "chastity_departure":{"kind":"apply","pool":"special","templates":["negative_plate_lock_medium"],"grade":B.ENEMY_DEPARTURE_GRADE,"tier":B.ENEMY_DEPARTURE_TIER,"count":1,"locked":false,"final":true,"replace":false,"text":"附加中级3档平板锁，随后离场","delayed":false}},
  "toybox":{"behavior":"dispenser","visual":"toybox","name":"漂浮玩具箱","hp":30,"strength":1,"order":45,
   "special_pool":Special.RANDOM_POOLS[1].duplicate()}}
+ for type in ["rope","belt","tape","cable_tie"]:
+  result[type].install_restraint_value=3
+  result[type].departure_restraint_value=5
  # Material variants inherit the complete cycle and split rules; only their pool,
  # appearance and descendants differ. No second implementation of the behavior.
  for size in ["mass","heap"]:
@@ -85,6 +91,7 @@ static func definitions() -> Dictionary:
  return result
 
 static var ENCOUNTERS={
+ "rope_master_solo":{"group":"绳艺大师","rank":"boss","members":[{"type":"rope_master","grade":3}]},
  "iron_man_solo":{"group":"铁男","rank":"boss","members":[{"type":"iron_man","grade":3},{"type":"binding_box","grade":2,"hp":40,"name":"凑数型拘束盒","capture_start":20.0,"capture_gain":5.0,"application_tier":1,"reinforce_budget":2},{"type":"iron_drone","grade":2,"name":"凑数型无人机"}]},
  "puppeteer_solo":{"group":"玩偶师","rank":"elite","members":[{"type":"puppeteer","grade":2}]},
  "event_belt_trio":{"group":"漂浮皮带群","rank":"event","members":[{"type":"belt","grade":1},{"type":"belt","grade":1},{"type":"belt","grade":1}]},

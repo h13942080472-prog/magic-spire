@@ -19,18 +19,14 @@ static func eligible(g, member: Dictionary, strict: bool=true) -> bool:
  if not strict and spec.behavior not in ["lock","attachment"]: return true
  if spec.has("capture_kind"): return true
  match spec.behavior:
-  "sequence":
+  "sequence","restraint":
    for plan in g.EnemyPlans.installation_intents(g,{"type":member.type}):
-    for profile in plan.get("profiles",[{"grade":plan.get("grade",member.grade)}]):
-     if not g.EquipmentOffers.for_pool(g,profile.grade,plan.templates).is_empty(): return true
+    var application=g.EnemyPlans.application_spec(g,{"type":member.type},plan)
+    if g.Application.can_apply(g,application,"probe"): return true
    return false
   "lock": return g.physical_pieces().any(func(e):return g.Equipment.allows(e,"lock") and not e.locked)
   "attachment": return spec.attachment_pool.any(func(id):return g._installation_reason(id,spec.attachment_slot,member.grade)=="")
   "dispenser": return spec.special_pool.any(func(id):return g._special_install_reason(id,g.SpecialEquipment.DESIGNS[id].slots[0])=="")
-  "restraint":
-   for grade in [1,2]:
-    if not g.EquipmentOffers.for_pool(g,grade,spec.install_pool if grade==1 else spec.final_pool).is_empty(): return true
-   return false
  return false
 
 static func candidates(g, strict: bool=true) -> Array:
@@ -78,7 +74,7 @@ static func roll(g, budget: int=WEAK_STRENGTH, max_strength: int=0, unique_types
  return result
 
 const ELITE_ENCOUNTERS=["guard_solo","heap_family","puppeteer_solo"]
-const SUMMIT_ENCOUNTERS=["six_bind_solo","iron_man_solo"]
+const SUMMIT_ENCOUNTERS=["six_bind_solo","iron_man_solo","rope_master_solo"]
 
 static func summit_name(encounter: String) -> String:
- return {"six_bind_solo":"六缚","iron_man_solo":"铁男"}.get(encounter,"首领")
+ return {"six_bind_solo":"六缚","iron_man_solo":"铁男","rope_master_solo":"绳艺大师"}.get(encounter,"首领")

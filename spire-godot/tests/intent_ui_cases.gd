@@ -40,7 +40,7 @@ static func run(t) -> void:
  ui.game.add_fixture("eyes",4);ui.render();await t.frames()
  t.check(ui.find_child("TermExplanation",true,false)==null,"INTENT UI state refresh removes stale explanation")
  popup=await hover(t,"IntentIcon_"+first.id+"_hidden")
- t.check(popup!=null and t.visible_text(popup).strip_edges()=="你看不清敌人的意图","INTENT UI blind hover only explains observation restriction")
+ t.check(popup!=null and t.visible_text(popup).strip_edges()=="视线受阻，敌人意图隐藏","INTENT UI blind hover only explains observation restriction")
 
  ui.restart(42);await t.frames()
  ui.game.state.enemies[0].intent.pressure=7
@@ -91,7 +91,7 @@ static func last_order_after_kick(t) -> void:
  await t.move_mouse(Vector2(700,510));await t.frames()
  g.add_fixture("eyes",4);ui.render();await t.frames()
  popup=await hover(t,"IntentIcon_"+id+"_hidden")
- t.check(popup!=null and t.visible_text(popup).strip_edges()=="你看不清敌人的意图","LAST ORDER UI eye obstruction retains its separate explanation")
+ t.check(popup!=null and t.visible_text(popup).strip_edges()=="视线受阻，敌人意图隐藏","LAST ORDER UI eye obstruction retains its separate explanation")
 
 static func saturated_arrest(t) -> void:
  var ui=t.ui

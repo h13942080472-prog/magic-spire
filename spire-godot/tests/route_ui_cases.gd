@@ -157,7 +157,7 @@ static func run(t) -> void:
  scroll.ensure_control_visible(graph.buttons[disconnected.id]);await t.frames()
  before=ui.game.export_snapshot()
  await Pointer.press(t,graph.buttons[disconnected.id])
- t.check(ui.game.export_snapshot()==before and t.visible_text(ui.layout).contains("没有地图连线"),"ROUTE native adjacent disconnected room click explains rejection without moving")
+ t.check(ui.game.export_snapshot()==before and t.visible_text(ui.layout).contains("沿当前房间的连线"),"ROUTE native adjacent disconnected room click explains rejection without moving")
 
  await merged_departure(t)
  await seed_chip(t)
@@ -518,7 +518,7 @@ static func review_copy_exists_in_both_languages(t) -> void:
  var chinese=preload("res://tests/localization_ui_cases.gd").chinese_runs
  ui._set_language("en_US");await t.frames()
  var panel=ui.find_child("InformationDrawer",true,false)
- var keys=[["ui.run_review.title","本局回顾"],["ui.run_review.identity","本局标识"],["ui.run_review.route","节点概况"],["ui.run_review.deck","卡组"],["ui.run_review.progress","已到达第 {floor} 层 · 已走过 {nodes} 个节点"],["ui.run_review.no_route","没有可回顾的路线数据。"],["ui.run_review.deck_empty","卡组为空。"],["ui.run_review.copy","复制本局标识"]]
+ var keys=[["ui.run_review.title","本局回顾"],["ui.run_review.identity","本局标识"],["ui.run_review.route","节点概况"],["ui.run_review.deck","卡组"],["ui.run_review.progress","已到达第 {floor} 层 · 已走过 {nodes} 个节点"],["ui.run_review.no_route","路线记录为空。"],["ui.run_review.deck_empty","卡组为空。"],["ui.run_review.copy","复制本局标识"]]
  var unresolved=[]
  for entry in keys:
   # 进度行带参数：缺参调用会记 call_parameters 并回退到中文错误文案，这里按真实调用形状取文案。

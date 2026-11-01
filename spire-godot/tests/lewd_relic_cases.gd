@@ -92,9 +92,18 @@ static func bodysuit(t) -> void:
  g.state.charge=5;g.state.energy=3;g.state.mana=60;g.state.flask_mana=0
  var hand=g.state.hand.duplicate(true)
  g.Pressure.gain(g,300,"fixture",true);g.RelicEffects.flush(g)
- t.check(g.state.overload_total==3 and g.state.pressure==50 and not g.state.overloaded,"LEWD RELICS bodysuit preserves climax counts and fixes pressure at half without hairpin")
- t.check(g.state.charge==5 and g.state.energy==3 and g.state.mana==60 and g.state.hand==hand and g.state.overload_energy==0 and g.state.slip_ejaculation_turns==0,"LEWD RELICS bodysuit prevents resource, hand, charge and future-turn penalties")
+ t.check(g.state.overload_total==3 and g.state.pressure==50 and not g.state.overloaded,"LEWD RELICS bodysuit preserves climax counts, fixes pressure at half and keeps the current turn active")
+ t.check(g.state.charge==0 and g.state.energy==3 and g.state.mana==0 and g.state.hand==hand and g.state.overload_energy==3 and g.state.overload_count==3,"LEWD RELICS bodysuit keeps only the interruption exemption while ordinary climax penalties still apply")
+ t.check(g.command_facts().any(func(candidate):return candidate.payload.kind=="card"),"LEWD RELICS bodysuit leaves ordinary actions available after climax")
  t.check(g.state.flask_mana==30 and g.state.relic_counters.get("lucidity_necklace",0)==3,"LEWD RELICS beneficial climax rewards remain active")
+ g=fresh(["lewd_silk_bodysuit"]);g.state.sure_cast=true
+ var first=g.add_fixture("thigh",4,10,true);var second=g.add_fixture("ankle",4,10,true)
+ var chain_card=t.grant_fixture_card(g,"double_unlock")
+ t.check(t.action(g,"card",{"uid":chain_card.uid,"slot":"thigh","target":first.id}).ok and not g.state.card_chain.is_empty(),"LEWD RELICS continuation fixture begins a real two-target card")
+ var chain_before=g.state.card_chain.duplicate(true);g.state.pressure=99
+ g.Pressure.gain(g,1,"fixture",true)
+ t.check(g.state.card_chain==chain_before and g.state.play.any(func(card):return card.uid==chain_card.uid) and not g.state.overloaded and g.command_facts().any(func(candidate):return candidate.payload.kind=="chain"),"LEWD RELICS climax preserves the resolving card and its continuation candidate")
+ t.check(t.action(g,"chain",{"target":second.id}).ok and g.state.card_chain.is_empty() and not g._equipment(second.id).locked and g.validate()=="","LEWD RELICS preserved continuation completes without another payment")
  g=fresh(["lewd_silk_bodysuit","brainwash_earrings"]);g.state.charge=3;g.state.charge_all=true
  g._consume_charge();g.RelicEffects.flush(g)
  t.check(g.state.charge==0 and g.state.pressure==21 and not g.state.charge_all,"LEWD RELICS consuming three layers triggers three five-point gains, each with earrings")
@@ -109,15 +118,15 @@ static func bodysuit(t) -> void:
   t.check(g.state.charge==1,"LEWD RELICS body grants charge at each real player-turn boundary: "+phase)
  g=fresh(["lewd_silk_bodysuit"]);g._install_special("negative_plate_lock_catheter_medium","special_2_a")
  g.Pressure.gain(g,g.Pressure.maximum(g),"fixture",true)
- t.check(g.state.slip_ejaculation_turns==0 and not g.state.slip_ejaculation_force_last and g.state.pressure==g.Pressure.maximum(g)*0.5,"LEWD RELICS bodysuit also prevents deferred-loss variant penalties")
+ t.check(g.state.slip_ejaculation_turns==2 and g.state.slip_ejaculation_force_last and not g.state.overloaded and g.state.pressure==g.Pressure.maximum(g)*0.5,"LEWD RELICS bodysuit keeps the turn active but no longer prevents deferred-loss penalties")
  g=fresh(["lewd_silk_bodysuit"]);g.state.pressure=12;g.Pressure.forced_climax(g,"fixture")
- t.check(g.state.pressure==50 and not g.state.overloaded,"LEWD RELICS comfort replaces forced-climax pressure preservation")
+ t.check(g.state.pressure==50 and not g.state.overloaded and g.state.mana==g.B.MANA_MAX-g.B.OVERLOAD_MANA and g.state.overload_energy==g.B.OVERLOAD_ENERGY,"LEWD RELICS forced climax keeps half pressure and the current turn while applying ordinary penalties")
  g.Pressure.scripted_climax(g,"fixture")
- t.check(g.state.logs[-1].data.get("scripted_climax",{}).get("source","")=="fixture" and g.state.pressure==50,"LEWD RELICS comfortable scripted climax keeps the final receipt")
+ t.check(g.state.logs[-1].data.get("scripted_climax",{}).get("source","")=="fixture" and g.state.pressure==50,"LEWD RELICS scripted climax keeps the half-pressure effect and final receipt")
  g=Game.new(42,true,"guard");g.state.relics=["lewd_silk_bodysuit"]
  g.CaptureBind.apply_bind(g,g.state.enemies[0]);var progress=g.state.guard_bind.progress
  g.Pressure.gain(g,100,"fixture",true)
- t.check(g.state.guard_bind.progress==progress,"LEWD RELICS bodysuit prevents climax capture-progress penalty")
+ t.check(g.state.guard_bind.progress>progress and not g.state.overloaded,"LEWD RELICS bodysuit no longer prevents capture progress but still keeps the current turn active")
 
 static func casting(t) -> void:
  var g=fresh(["lewd_silk_gloves"]);g.state.pressure=75

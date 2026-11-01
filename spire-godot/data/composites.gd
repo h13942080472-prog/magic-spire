@@ -69,16 +69,16 @@ static func has_open_strap(root: Dictionary) -> bool:
 
 static func validate(root: Dictionary) -> String:
  var layout=spec(root.get("kind",""),root.get("variant",""),root.get("straps","straight"))
- if layout.is_empty() or root.get("name","")!=layout.name or root.get("layer",-1)<0: return "复合装备结构或层级不合法。"
+ if layout.is_empty() or root.get("name","")!=layout.name or root.get("layer",-1)<0: return "复合装备结构或层级有误。"
  var parts: Array=[]
  for e in root.get("components",[]):
-  if not layout.parts.has(e.get("part","")) or e.part in parts: return "复合组件重复或不属于当前结构。"
+  if not layout.parts.has(e.get("part","")) or e.part in parts: return "复合组件重复或归属有误。"
   parts.append(e.part)
   var p=layout.parts[e.part]
-  if e.get("root_id","")!=root.id or e.id!=root.id+"_"+e.part or e.name!=root.name+" · "+p.label: return "复合组件归属不一致。"
-  if e.template!=p.template or e.get("coverage",[])!=p.coverage or e.get("contact_slots",[])!=p.contact or e.slot!=p.contact[0]: return "复合组件覆盖或接触位置不合法。"
-  if e.get("side","")!=p.side or e.get("independent",false)!=p.independent or e.get("points",[])!=p.get("points",[]): return "复合组件的侧别或独立固定结构不合法。"
-  if e.layer!=(0 if e.template=="glove_strap" else root.layer+(1 if p.independent else 0)): return "复合组件层级不合法。"
+  if e.get("root_id","")!=root.id or e.id!=root.id+"_"+e.part or e.name!=root.name+" · "+p.label: return "复合组件归属存在差异。"
+  if e.template!=p.template or e.get("coverage",[])!=p.coverage or e.get("contact_slots",[])!=p.contact or e.slot!=p.contact[0]: return "复合组件覆盖或接触位置有误。"
+  if e.get("side","")!=p.side or e.get("independent",false)!=p.independent or e.get("points",[])!=p.get("points",[]): return "复合组件的侧别或独立固定结构有误。"
+  if e.layer!=(0 if e.template=="glove_strap" else root.layer+(1 if p.independent else 0)): return "复合组件层级有误。"
   var physical=E.physical_reason(e)
   if physical!="": return physical
  if parts.is_empty() or ("body" not in parts and root.kind!="leg"): return "复合装备缺少主体。"

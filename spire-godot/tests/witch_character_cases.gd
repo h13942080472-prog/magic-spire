@@ -95,6 +95,8 @@ static func _cards_and_flows(t) -> void:
  g=fresh();g.state.pressure=45;card=give(t,g,"pleasure_conversion");energy=g.state.energy
  candidate=t.find_action(g,"card",{"uid":card.uid,"free":false})
  t.check(g.dispatch(g.command(candidate.payload,g.state.version),g.state.version).ok and g.state.energy==energy-candidate.cost+3,"WITCH pleasure conversion uses fifteen threshold")
+ g=fresh();g.state.pressure=45;card=give(t,g,"pleasure_conversion");energy=g.state.energy
+ t.check(t.action(g,"card",{"uid":card.uid,"free":true}).ok and g.state.energy==energy+3 and g.state.temporary_mana==0,"WITCH independent conversion free face retains energy only")
  for free_face in [false,true]:
   g=fresh();g.state.energy=10;card=give(t,g,"ready_to_strike");var chosen=t.hand_card(g,"witch_slip")
   t.check(t.action(g,"card",{"uid":card.uid,"free":free_face,"hand_uid":chosen.uid}).ok and g.state.exhaust.any(func(c):return c.uid==chosen.uid),"WITCH ready consumes chosen hand card")
@@ -132,7 +134,7 @@ static func _cards_and_flows(t) -> void:
   t.check(g.dispatch(g.command(candidate.payload,g.state.version),g.state.version).ok,"WITCH probability test commits action")
   var success=g.state.logs.filter(func(row):return row.data.has("spell")).back().data.spell.success
   outcomes[success]=true
-  if not success: t.check(g.state.witch_charges==before.witch_charges and g.state.witch_focus==2 and g.state.enemies==before.enemies and g.state.mana==before.mana-2.5,"WITCH failed release refunds half mana, retains charges and loses one focus")
+  if not success: t.check(g.state.witch_charges==before.witch_charges and g.state.witch_focus==2 and g.state.enemies==before.enemies and g.state.mana==before.mana-3,"WITCH failed release refunds two of five personal mana, retains charges and loses one focus")
  t.check(outcomes.size()==2,"WITCH probability tests cover success and failure")
  g=fresh();var other=g.state.enemies[0].duplicate(true);other.id="fixture_second";g.state.enemies.append(other);g.state.witch_charges.mouth=2
  var hp=other.hp

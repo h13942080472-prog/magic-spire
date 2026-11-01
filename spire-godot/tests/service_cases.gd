@@ -72,7 +72,7 @@ static func rest_choice(t) -> void:
  var room_game=Game.new(42)
  var room_before=room_game.export_snapshot()
  var description=room_game.room_description(room_game.room_data("rest"))
- t.check(description.contains("扣3回合随机获得1张稀有卡") and description.contains("扣3回合选择1张罕见卡") and description.contains("扣3回合补充50魔瓶魔力") and description.contains("跳过奖励"),"REST map description matches all current reward choices and their actual costs")
+ t.check(description.contains("休息6回合") and description.contains("挂钩3次") and description.contains("卡牌或魔力") and description.contains("附魔") and description.contains("仅限拘束面"),"REST map overview preserves duration, tools, services and face requirement")
  t.check(room_game.state==room_before,"REST room description leaves resources, facts and random state unchanged")
  var observed=[]
  for seed_value in range(8):
@@ -106,8 +106,7 @@ static func rest_choice(t) -> void:
   var payload={"type":g.state.rest_cards.filter(func(id):return g.Cards.Rules.SPECS[id].rarity==option)[0]} if option=="uncommon" else {}
   var chosen=t.find_action(g,kind,payload);var version=g.state.version;var deck=g.state.deck.size()
   t.check(not g.dispatch(g.command(chosen.payload,version-1),version-1).ok and g.state==before,"REST stale claim preserves rewards, time and random state")
-  t.check(g.dispatch(g.command(chosen.payload,version),version).ok and g.state.phase=="rest" and g.state.rest_left==remaining_turns,"REST correct remaining time after "+option)
-  t.check(g.state.tick==tick+1 and g.state.combat.turn==1 and g.state.combat.serial==serial+1 and g.state.charge==2 and g.state.energy==4 and g.state.pressure==0 and g.state.mana==40,"REST no skipped-turn effects, exactly one real opening")
+  t.check(g.dispatch(g.command(chosen.payload,version),version).ok and g.state.phase==("rest" if kind=="rest_begin" else "rest_choice") and g.state.rest_left==remaining_turns,"REST correct remaining time after "+option)
   t.check(g.state.deck.size()==deck+(1 if is_card else 0) and g.state.flask_mana==1000+(50 if option=="rest_flask" else 0),"REST grants only selected benefit")
   t.check((g.state.rng.reward!=reward_rng if option=="rare" else g.state.rng.reward==reward_rng) and g.state.rare_offset==offset,"REST only random rare selection consumes reward RNG without changing rarity correction")
   if is_card:
@@ -118,6 +117,10 @@ static func rest_choice(t) -> void:
    t.check(t.action(twin,kind,payload).ok and Save.same(g.state,twin.state),"REST current snapshot preserves both offers and reproduces chosen card and opening effects")
   before=g.export_snapshot()
   t.check(not g.dispatch(g.command(chosen.payload,version),version).ok and g.state==before and ["rest_rare","rest_card","rest_flask"].all(func(action_kind):return not t.find_action(g,action_kind).valid),"REST cannot claim another benefit or replay the choice after entry")
+  if kind!="rest_begin":
+   t.check(g.state.tick==tick and g.state.combat.serial==serial,"REST service does not start the real rest turn")
+   t.check(t.action(g,"rest_begin").ok,"REST explicitly begin after optional enchantment")
+  t.check(g.state.tick==tick+1 and g.state.combat.turn==1 and g.state.combat.serial==serial+1 and g.state.charge==2 and g.state.energy==4 and g.state.pressure==0 and g.state.mana==40,"REST no skipped-turn effects, exactly one real opening")
   var remaining=g.state.rest_left
   for i in range(remaining): t.check(t.action(g,"end").ok,"REST remaining real turn")
   t.check(g.state.phase=="map" and not g.state.combat.active,"REST ends at selected duration")

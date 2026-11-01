@@ -2,6 +2,48 @@
   "schema_version": 1,
   "locale": "ja_JP",
   "messages": {
+    "ui.settings.interaction_audio_enabled": {"source": "播放交互音效", "text": "操作効果音を再生"},
+    "ui.settings.interaction_audio_volume": {"source": "音效音量 · {percent}%", "text": "効果音の音量 · {percent}%"},
+    "ui.seed.open": {
+      "source": "种子开局",
+      "text": "シードで開始"
+    },
+    "ui.seed.copy": {
+      "source": "复制本局种子",
+      "text": "シードをコピー"
+    },
+    "ui.seed.paste": {
+      "source": "粘贴",
+      "text": "貼り付け"
+    },
+    "ui.seed.help": {
+      "source": "从初始局面开始，使用当前角色与开局选项。新局会覆盖塔路存档。",
+      "text": "現在のキャラクターと開始オプションで最初から始めます。塔ルートのセーブを上書きします。"
+    },
+    "ui.seed.invalid": {
+      "source": "请输入有效的整数种子。",
+      "text": "有効な整数のシードを入力してください。"
+    },
+    "ui.prison_capture_intro.title": {
+      "source": "你被抓住了！",
+      "text": "捕まってしまった！"
+    },
+    "ui.prison_capture_intro.body": {
+      "source": "“老实点！”\n\n魅魔狱警拽了拽牵引绳，等待你的，将会是一段牢狱生活。",
+      "text": "「おとなしくしなさい！」\n\nサキュバスの看守がリードをぐいっと引く。これから待っているのは、牢獄での暮らしだ。"
+    },
+    "ui.prison_capture_intro.continue": {
+      "source": "继续",
+      "text": "続ける"
+    },
+    "ui.card.use_failed": {
+      "source": "施法失败 · {card}",
+      "text": "詠唱失敗・{card}"
+    },
+    "ui.settings.reduced_card_motion": {
+      "source": "减弱卡牌动效",
+      "text": "カード演出を控えめに"
+    },
     "ui.art.inspect.fit": {
       "source": "适应屏幕",
       "text": "画面に合わせる"
@@ -24,7 +66,7 @@
     },
     "ui.art.fixed": {
       "source": "正式版·扶她出去",
-      "text": "正式版・ふたなり差分"
+      "text": "正式版・ふたなり非表示"
     },
     "ui.shop.refresh": {
       "source": "刷新 · {price}魔力",
@@ -51,15 +93,15 @@
       "text": "次の拘束具（→）"
     },
     "ui.quick_release.fire_locked": {
-      "source": "尚未获得用火球术解除拘束具的能力。",
-      "text": "拘束具にファイアボールを使う能力をまだ獲得していません。"
+      "source": "需要炫火自解。",
+      "text": "まだ拘束具にファイアボールを使えません。"
     },
     "ui.quick_release.fire_empty": {
-      "source": "没有拘束具可供火球术选为目标。",
+      "source": "当前可用目标为0。",
       "text": "ファイアボールの対象にできる拘束具がありません。"
     },
     "ui.quick_release.empty": {
-      "source": "没有拘束具",
+      "source": "自由",
       "text": "拘束具なし"
     },
     "ui.quick_release.durability": {
@@ -68,10 +110,10 @@
     },
     "ui.quick_release.help": {
       "source": "先选部位再点牌，或直接拖牌；右键切小部位，左右箭头切换拘束具。",
-      "text": "部位を選んでからカードをクリックするか、直接ドラッグします。右クリックで小部位、左右キーで拘束具を切り替えます。"
+      "text": "部位を選んでカードをクリックするか、直接ドラッグ。右クリックで小部位、左右キーで拘束具を切り替えます。"
     },
     "ui.quick_release.wrong_card": {
-      "source": "这张牌不能用于当前选中的拘束具",
+      "source": "请选择适用于当前拘束具的卡牌",
       "text": "このカードは選択中の拘束具には使えません"
     },
     "ui.quick_release.tools": {
@@ -80,14 +122,14 @@
     },
     "ui.quick_release.to_actions": {
       "source": "切换至动作栏",
-      "text": "アクション欄へ切替"
+      "text": "アクション欄に切替"
     },
     "ui.quick_release.to_release": {
       "source": "切换至快捷挣脱栏",
-      "text": "クイック脱出欄へ切替"
+      "text": "クイック脱出欄に切替"
     },
     "ui.quick_release.exploration": {
-      "source": "切换至快捷挣脱栏，可对选中的拘束具使用解除牌，也可使用已安装道具。",
+      "source": "快捷挣脱",
       "text": "クイック脱出欄に切り替えると、選択中の拘束具に解除カードや設置済みアイテムを使えます。"
     },
     "ui.home.character.original": {
@@ -232,7 +274,7 @@
     },
     "ui.settings.speed.fast": {
       "source": "快速",
-      "text": "速い"
+      "text": "高速"
     },
     "ui.settings.speed.normal": {
       "source": "标准",
@@ -240,7 +282,7 @@
     },
     "ui.settings.speed.slow": {
       "source": "舒缓",
-      "text": "ゆっくり"
+      "text": "低速"
     },
     "ui.settings.music_enabled": {
       "source": "打出卡牌时播放音乐",
@@ -252,7 +294,7 @@
     },
     "ui.map.seed": {
       "source": "初始种子 {initial} · 第 {iteration} 次塔路",
-      "text": "初期シード {initial}・第{iteration}回目の塔路"
+      "text": "初期シード {initial}・ルート {iteration}"
     },
     "ui.map.seed_copied": {
       "source": "已复制",
@@ -260,43 +302,43 @@
     },
     "ui.feedback.save.attached": {
       "source": "将附带当前进度存档：{name}（{size} KB）",
-      "text": "現在の進行状況のセーブデータを添付します：{name}（{size} KB）"
+      "text": "現在のセーブを添付します：{name}（{size} KB）"
     },
     "ui.feedback.save.declined": {
-      "source": "当前反馈服务暂不支持附带存档。",
-      "text": "現在のフィードバックサービスはセーブデータの添付に対応していません。"
+      "source": "当前反馈服务仅接收文字和截图。",
+      "text": "現在のフィードバックサービスはセーブの添付に対応していません。"
     },
     "ui.feedback.save.unchecked": {
-      "source": "未附带存档：已取消勾选。",
-      "text": "セーブデータは添付しません：チェックを外しました。"
+      "source": "存档：已取消附带。",
+      "text": "セーブ未添付：選択されていません。"
     },
     "ui.feedback.save.none": {
-      "source": "未附带存档：当前没有可附带的存档。",
-      "text": "セーブデータは添付しません：現在、添付できるセーブデータがありません。"
+      "source": "可附带存档：0份。",
+      "text": "セーブ未添付：添付できるセーブがありません。"
     },
     "ui.feedback.save.uncaptured": {
-      "source": "未附带存档：本次草稿没有捕获到存档。",
-      "text": "セーブデータは添付しません：今回の下書きではセーブデータを取得していません。"
+      "source": "存档：请重新创建草稿以获取当前进度。",
+      "text": "セーブ未添付：この下書きではセーブを取得できませんでした。"
     },
     "ui.feedback.save.invalid": {
-      "source": "未附带存档：当前进度存档校验未通过，未附带。",
-      "text": "セーブデータは添付しません：現在の進行状況のセーブデータが検証に失敗しました。"
+      "source": "存档校验失败，附件已跳过。",
+      "text": "セーブ未添付：現在のセーブは検証に失敗しました。"
     },
     "ui.feedback.save.oversized": {
-      "source": "未附带存档：存档过大（超过 2 MB），未附带。",
-      "text": "セーブデータは添付しません：セーブデータの容量が大きすぎます（2 MB 超）。"
+      "source": "存档超过2 MB，附件已跳过。",
+      "text": "セーブ未添付：容量が2 MBを超えています。"
     },
     "ui.run_review.title": {
       "source": "本局回顾",
-      "text": "このプレイの振り返り"
+      "text": "今回の振り返り"
     },
     "ui.run_review.identity": {
       "source": "本局标识",
-      "text": "このプレイの識別情報"
+      "text": "ランID"
     },
     "ui.run_review.route": {
       "source": "节点概况",
-      "text": "ノードの概要"
+      "text": "ルート概要"
     },
     "ui.run_review.deck": {
       "source": "卡组",
@@ -304,10 +346,10 @@
     },
     "ui.run_review.progress": {
       "source": "已到达第 {floor} 层 · 已走过 {nodes} 个节点",
-      "text": "第{floor}層に到達・{nodes}ノードを通過"
+      "text": "第{floor}層到達・{nodes}ノード通過"
     },
     "ui.run_review.no_route": {
-      "source": "没有可回顾的路线数据。",
+      "source": "路线记录为空。",
       "text": "振り返れるルートデータがありません。"
     },
     "ui.run_review.deck_empty": {
@@ -316,7 +358,7 @@
     },
     "ui.run_review.copy": {
       "source": "复制本局标识",
-      "text": "このプレイの識別情報をコピー"
+      "text": "ランIDをコピー"
     },
     "ui.settings.doubao_voice_enabled": {
       "source": "播放豆包语音",

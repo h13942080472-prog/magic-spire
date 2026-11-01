@@ -3,7 +3,7 @@ const Data=preload("res://data/room_events.gd")
 const Relics=preload("res://data/relics.gd")
 const RESULT_STATUSES=["neutral","success","failure"]
 # docs/spec/event-pipeline.md「事件链」: the player-visible reason of the chain-loop gate, declared once.
-const CHAIN_LOOP_REASON="这段事件已经走过，不能再回头。"
+const CHAIN_LOOP_REASON="这段事件已经结束，请继续前进。"
 
 # Internal phase helper, called only through Game.dispatch. Choices contain frozen
 # effects, not functions or localized identifiers. Probes always restore state.
@@ -185,11 +185,11 @@ static func _state_mode(node: Dictionary, choice: Dictionary) -> String:
 static func condition_issue(g, entry: Dictionary, data: Dictionary) -> String:
  if not entry is Dictionary: return "需要条件对象。"
  var spec=CONDITIONS.get(entry.get("kind",""),{})
- if spec.is_empty(): return "尚未支持这种状态条件。"
+ if spec.is_empty(): return "待支持这种状态条件。"
  var allowed=Array(spec.get("required",[]))+Array(spec.get("optional",[]))
  for key in entry:
   if key in ["kind","reason","mode"]: continue
-  if key not in allowed: return "不支持字段 "+str(key)+"。"
+  if key not in allowed: return "字段待支持："+str(key)+"。"
  for key in Array(spec.get("required",[])):
   if not entry.has(key): return "缺少字段 "+key+"。"
  var mode=entry.get("mode","optional")
@@ -423,7 +423,7 @@ static func enter_node_result(g, id: String, purpose: String="arrival") -> Dicti
  if node_entry.is_empty():
   # A30: a missing node writes the same node-entry failure row as an empty one.
   trace_entry(g,{"node":id,"decision":"dropped","gate":"stage_missing","detail":id,"purpose":purpose})
-  return {"issue":"下一阶段不存在。","gate":"stage_missing","detail":id}
+  return {"issue":"下一阶段缺失。","gate":"stage_missing","detail":id}
  var options=[]
  for choice in node_entry.get("choices",[]):
   var selections=selections_for(g,choice)
@@ -522,6 +522,7 @@ static func freeze_effects(g, declared: Array) -> Dictionary:
   if declared_effect.op=="install_random":
    for _index in range(declared_effect.count):
     var spec={"pool":"ordinary","templates":declared_effect.templates,"count":1,"grade":declared_effect.grade,"tier":declared_effect.tier,"locked":declared_effect.locked,"replace":declared_effect.get("replace",false)}
+    spec.profiles=g.RestraintValue.profiles(g.RestraintValue.from_profile(declared_effect.grade,declared_effect.tier))
     spec.allow_links=declared_effect.get("allow_links",true)
     # Existing events promise the factory's default material variant. Do not
     # introduce equipment-domain draws while freezing an event choice.
@@ -538,7 +539,7 @@ static func freeze_effects(g, declared: Array) -> Dictionary:
     frozen.append(concrete)
   elif declared_effect.op=="tighten_random":
    for _index in range(declared_effect.count):
-    var targets=g.physical_pieces().filter(func(item):return g._can_tighten(item) and g.tier(item.durability,item.maximum)<declared_effect.to_tier and (declared_effect.get("templates",[]).is_empty() or item.template in declared_effect.templates))
+    var targets=g.physical_pieces().filter(func(item):return g._can_tighten(item) and g.equipment_tier(item)<declared_effect.to_tier and (declared_effect.get("templates",[]).is_empty() or item.template in declared_effect.templates))
     if targets.is_empty():
      issue="没有足够的拘束具可以收紧到指定档位。";break
     var target=targets[g._random_index("event",targets.size())]
@@ -657,13 +658,13 @@ static func freeze_item_rewards(g, groups: Array) -> Array:
  return result
 
 static func item_rewards_issue(g, rows, allow_claimed: bool=false) -> String:
- if not rows is Array or rows.is_empty() or rows.size()>6: return "事件道具奖励记录不完整。"
+ if not rows is Array or rows.is_empty() or rows.size()>6: return "事件道具奖励记录缺损。"
  var ids=[]
  for row in rows:
-  if not row is Dictionary or not row.get("id") is String or not row.get("type") is String or row.id in ids or not g.Tools.TYPES.has(row.type): return "事件道具奖励记录不完整。"
+  if not row is Dictionary or not row.get("id") is String or not row.get("type") is String or row.id in ids or not g.Tools.TYPES.has(row.type): return "事件道具奖励记录缺损。"
   if allow_claimed:
-   if not row.get("claimed") is bool: return "事件道具领取记录不完整。"
-  elif row.has("claimed"): return "尚未领取的冻结奖励带有错误状态。"
+   if not row.get("claimed") is bool: return "事件道具领取记录缺损。"
+  elif row.has("claimed"): return "尚待领取的冻结奖励带有错误状态。"
   ids.append(row.id)
  return ""
 
@@ -672,20 +673,18 @@ static func pick(g, options: Array) -> Dictionary:
  var preferred=g.EquipmentOffers.preferred(g,options)
  return preferred[g._random_index("event",preferred.size())].duplicate(true)
 
-static func ordinary(g, grade: int, free: bool, templates: Array, locked: bool=false) -> Array:
- var result=[]
- for option in g.EquipmentOffers.for_pool(g,grade,templates,locked):
-  if option.kind=="install" and free and g.occupied(option.slot): continue
-  var effect=option.duplicate(true)
+static func ordinary(g, restraint_value: int, free: bool, templates: Array, locked: bool=false) -> Dictionary:
+ var spec={"pool":"ordinary","templates":templates,"count":1,"profiles":g.RestraintValue.profiles(restraint_value),"locked":locked,"variant":0,"replace":false}
+ spec.free_slots=free
+ var effect=g.Application.choose(g,spec,"event:"+g.state.room,"event")
+ if not effect.is_empty():
   effect.op=effect.kind;effect.erase("kind")
-  effect.grade=grade;effect.tier=1 if grade==1 else 2;effect.locked=locked
-  result.append(effect)
- return result
+ return effect
 
 static func compile(g, recipe: String) -> Array:
  match recipe:
   "free_basic":
-   var effect=pick(g,ordinary(g,1,true,["rope","belt"]))
+   var effect=ordinary(g,2,true,["rope","belt"])
    return [] if effect.is_empty() else [effect]
   "tighten_or_medium":
    # docs/spec/equipment-query-seam.md「作用域进出点（冻结名单）」: only this filter expression is a read scope; the locked_assembly branch
@@ -696,7 +695,7 @@ static func compile(g, recipe: String) -> Array:
    if not targets.is_empty():
     var target=targets[g._random_index("event",targets.size())]
     return [{"op":"tighten","target":target.id}]
-   var effect=pick(g,ordinary(g,2,false,["rope","belt"]))
+   var effect=ordinary(g,4,false,["rope","belt"])
    return [] if effect.is_empty() else [effect]
   "locked_assembly":
    var options=g.EquipmentOffers.assemblies(g,2,["glove","leg","jacket"])
@@ -744,11 +743,11 @@ static func describe(g, effects: Array) -> String:
    "link": lines.append("施加%s链接绳：%s，%d档。" % [g.Equipment.GRADES[e.grade]," ↔ ".join(e.contact_points.map(g.Equipment.point_name)),e.tier])
    "tighten":
     var target=g._equipment(e.target)
-    lines.append("加固%s：%s，%d档 → %d档。" % [g._equipment_name(target),g.B.SLOT_NAMES[target.slot],g.tier(target.durability,target.maximum),mini(3,g.tier(target.durability,target.maximum)+1)])
+    lines.append("加固%s：%s，%d档 → %d档。" % [g._equipment_name(target),g.B.SLOT_NAMES[target.slot],g.equipment_tier(target),mini(3,g.equipment_tier(target)+1)])
    "tighten_to":
     var target=g._equipment(e.target)
     if g.Equipment.lock_only(target): return g.Equipment.LOCK_ONLY_REASON
-    lines.append("收紧%s：%s，%d档 → %d档。" % [g._equipment_name(target),g.B.SLOT_NAMES[target.slot],g.tier(target.durability,target.maximum),e.tier])
+    lines.append("收紧%s：%s，%d档 → %d档。" % [g._equipment_name(target),g.B.SLOT_NAMES[target.slot],g.equipment_tier(target),e.tier])
    "hold_special": lines.append("暂时取下指定位置的性玩具，结束后装回。")
    "restore_held": lines.append("把事件期间代为保管的装备原样装回。")
    "transform_card": lines.append("若赌局失败，押上的「%s」会变为诅咒「%s」。" % [e.get("name","这张牌"),g.B.CARD_NAMES[e.type]])
@@ -765,7 +764,7 @@ static func apply_effects(g, effects: Array, refs: Dictionary, emit_logs: bool=t
   var target=g._equipment(refs.get(e.get("ref_target",""),e.get("target","")))
   var installed={}
   if e.op in ["install","assembly","special_install","link"]:
-   if e.has("replace") and not e.replace is bool: return "安装效果的替换权限必须明确为允许或不允许。"
+   if e.has("replace") and not e.replace is bool: return "安装效果的替换权限需要显式开关值。"
    var request=e.duplicate(true);request.kind=e.op;request.erase("op")
    # The event's assembly bargain remains exactly medium / tier two, with its
    # declared component lock included before any replacement comparison.
@@ -791,25 +790,25 @@ static func apply_effects(g, effects: Array, refs: Dictionary, emit_logs: bool=t
    "assembly":
     var root=installed
     var parts=root.components.filter(func(p):return p.part==e.part and g.Equipment.allows(p,"lock"))
-    if parts.is_empty(): return "原定上锁组件不存在或不能上锁。"
+    if parts.is_empty(): return "请选择可上锁的现有组件。"
     if not parts[0].locked: return "原定组件没有按约定上锁。"
     if emit_logs: g._emit("event","装上"+root.name+"，全部组件2档；"+parts[0].name+"已上锁。")
    "tighten":
-    if target.is_empty() or g.SpecialEquipment.is_special(target) or not g._can_tighten(target): return "原定加固目标不存在、不支持普通加固或已经完全收紧。"
+    if target.is_empty() or g.SpecialEquipment.is_special(target) or not g._can_tighten(target): return "请选择可继续加固的普通目标。"
     var change=g._reinforce_equipment(target)
     if emit_logs: g._emit("event",target.name+"被"+change+"。")
    "tighten_to":
-    if target.is_empty() or g.SpecialEquipment.is_special(target) or e.tier not in [1,2,3] or g.tier(target.durability,target.maximum)>=e.tier: return "原定目标不存在、不支持普通加固或已经达到指定紧度。"
+    if target.is_empty() or g.Equipment.is_shackle(target) or g.SpecialEquipment.is_special(target) or e.tier not in [1,2,3] or g.equipment_tier(target)>=e.tier: return "请选择紧度低于指定档位的可加固目标。"
     target.durability=target.maximum*[0.0,0.4,0.8,1.0][e.tier]
     g._refresh_equipment(target)
     if emit_logs: g._emit("event",target.name+"被收紧到%d档。" % e.tier)
    "unlock":
     if g.cursed_plate(target): return g.SpecialEquipment.CURSED_PLATE_REASON
-    if target.is_empty() or not target.locked: return "原定锁已经不存在。"
-    target.locked=false
+    if target.is_empty() or not target.locked: return "原定锁已经解除。"
+    g._unlock_equipment(target)
     if emit_logs: g._emit("event","解除了"+target.name+"的锁，装备本身保留。")
    "mana_loss":
-    if g.state.mana<e.amount: return "剩余魔力不足以支付已公开的费用。"
+    if g.state.mana<e.amount: return "需要足额魔力支付所示费用。"
     g.state.mana-=e.amount
     if emit_logs: g._emit("event","支付%s魔力。" % g.number(e.amount))
    "mana_gain":
@@ -821,7 +820,7 @@ static func apply_effects(g, effects: Array, refs: Dictionary, emit_logs: bool=t
     g.state.mana=g.state.mana_max
     if emit_logs: g._emit("event","恢复%s魔力，当前魔力%s/%s。" % [g.number(g.state.mana-full_mana_before),g.number(g.state.mana),g.number(g.state.mana_max)])
    "mana_max_loss":
-    if g.state.mana_max-e.amount<g.B.MANA_MAX_FLOOR: return "最大魔力不足以承受这项永久代价。"
+    if g.state.mana_max-e.amount<g.B.MANA_MAX_FLOOR: return "需要足够的魔力上限支付永久代价。"
     g.state.mana_max-=e.amount
     g.state.mana=minf(g.state.mana,g.state.mana_max)
     if emit_logs: g._emit("event","最大魔力永久降低%s点，当前魔力%s/%s。" % [g.number(e.amount),g.number(g.state.mana),g.number(g.state.mana_max)])
@@ -834,7 +833,7 @@ static func apply_effects(g, effects: Array, refs: Dictionary, emit_logs: bool=t
     if emit_logs: g._emit("event","「"+g.B.CARD_NAMES[e.type]+"」加入卡组。")
    "transform_card":
     var cards=g.state.deck.filter(func(card):return card.uid==e.target)
-    if cards.size()!=1: return "押上的卡牌已经不在卡组中。"
+    if cards.size()!=1: return "押上的卡牌已离开卡组。"
     var old=cards[0].type
     cards[0].type=e.type
     for zone in g.Cards.ZONES:
@@ -843,19 +842,19 @@ static func apply_effects(g, effects: Array, refs: Dictionary, emit_logs: bool=t
     if emit_logs: g._emit("event","「"+g.B.CARD_NAMES[old]+"」变成了诅咒「"+g.B.CARD_NAMES[e.type]+"」。")
    "remove_card":
     var old=g.Cards.remove_permanent(g,e.target)
-    if old=="": return "所选卡牌已经不在卡组中。"
+    if old=="": return "所选卡牌已离开卡组。"
     if emit_logs: g._emit("event","从卡组移除了「"+g.B.CARD_NAMES[old]+"」。")
    "remove_restraints":
     var targets=[]
     for id in e.targets:
      var restraint=g._equipment(id)
-     if restraint.is_empty() or restraint.durability<=0: return "所选拘束具已经不存在。"
+     if restraint.is_empty() or restraint.durability<=0: return "所选拘束具已经解除。"
      if g.cursed_eyes(restraint): return "诅咒眼罩无法解除。"
      if g.Equipment.lock_only(restraint): return g.Equipment.LOCK_ONLY_REASON
      if g.cursed_plate(restraint): return g.SpecialEquipment.CURSED_PLATE_REASON
      targets.append(restraint)
     for restraint in targets:
-     restraint.locked=false
+     g._unlock_equipment(restraint)
      restraint.durability=0.0
      g._refresh_equipment(restraint)
     if emit_logs: g._emit("event",e.get("name","所选拘束具")+"已经解除。")
@@ -864,17 +863,17 @@ static func apply_effects(g, effects: Array, refs: Dictionary, emit_logs: bool=t
     if g.Equipment.lock_only(target): return g.Equipment.LOCK_ONLY_REASON
     if g.cursed_plate(target): return g.SpecialEquipment.CURSED_PLATE_REASON
     if g.cursed_eyes(target): return "诅咒眼罩无法松解。"
-    if target.is_empty() or target.durability<=0: return "押上的拘束具已经不存在。"
-    if g.SpecialEquipment.is_special(target) and not g.SpecialEquipment.allows(target,"lower"): return "这件特殊装备不能通过松开一档来解除。"
-    var before_tier=g.tier(target.durability,target.maximum)
-    target.locked=false
+    if target.is_empty() or target.durability<=0: return "押上的拘束具已经解除。"
+    if g.SpecialEquipment.is_special(target) and not g.SpecialEquipment.allows(target,"lower"): return "请使用这件特殊装备的专属解除方式。"
+    var before_tier=g.equipment_tier(target)
+    g._unlock_equipment(target)
     target.durability=g.lower_durability(target.durability,target.maximum)
     g._refresh_equipment(target)
-    if emit_logs: g._emit("event",target.name+("已经解除。" if target.durability<=0 else "已经松到%d档。" % g.tier(target.durability,target.maximum)))
+    if emit_logs: g._emit("event",target.name+("已经解除。" if target.durability<=0 else "已经松到%d档。" % g.equipment_tier(target)))
     g._cleanup()
    "counter":
     var value=int(g.state.room_event.values.get(e.key,0))+int(e.amount)
-    if value<0: return "事件计数不能降到零以下。"
+    if value<0: return "事件计数最低为0。"
     g.state.room_event.values[e.key]=value
    "tool":
     if not g.Tools.TYPES.has(e.type): return "道具没有有效定义。"
@@ -882,15 +881,15 @@ static func apply_effects(g, effects: Array, refs: Dictionary, emit_logs: bool=t
     if emit_logs: g._emit("event","获得"+g.Tools.TYPES[e.type].name+"。")
    "relic":
     if not Relics.TYPES.has(e.type): return "遗物没有有效定义。"
-    if not g.Relics.can_gain(g.state.relics,e.type): return "已经持有这件遗物，不能重复领取。"
+    if not g.Relics.can_gain(g.state.relics,e.type): return "该遗物已持有。"
     g.RelicEffects.gain(g,e.type)
    "hold_special":
-    if g.state.room_event.held.has(e.key): return "同一保管位置不能重复使用。"
+    if g.state.room_event.held.has(e.key): return "请使用空闲的保管位置。"
     var held=[]
     for item in g.state.special_equipment.duplicate():
      if not item.coverage.any(func(slot):return slot in e.slots): continue
      if g.cursed_plate(item): return g.SpecialEquipment.CURSED_PLATE_REASON
-     if g.state.links.any(func(link):return item.id in link.ends): return item.name+"仍连接着其他拘束具，不能暂时取下。"
+     if g.state.links.any(func(link):return item.id in link.ends): return item.name+"请先解除相连拘束具，再暂时取下。"
      held.append(item.duplicate(true));g.state.special_equipment.erase(item)
     g.state.room_event.held[e.key]=held
     if emit_logs: g._emit("event","暂时取下并保管了%d件性玩具；事件结束时原样装回。" % held.size())
@@ -905,7 +904,7 @@ static func apply_effects(g, effects: Array, refs: Dictionary, emit_logs: bool=t
     g.state.special_equipment.append_array(held)
     g.state.room_event.held.erase(e.key)
     if emit_logs: g._emit("event","代为保管的%d件性玩具已经原样装回。" % held.size())
-   _: return "事件包含尚未支持的效果。"
+   _: return "事件包含待支持的效果。"
  return ""
 
 # Structured form of the effects probe: one implementation, and probe() stays the
@@ -923,7 +922,7 @@ static func probe_result(g, effects: Array, option: Dictionary={}, cleanup: bool
   issue=next_result.issue
   gate=str(next_result.get("gate","probe_failed"))
  if issue=="" and cleanup and not g.state.room_event.held.is_empty():
-  issue="事件仍有尚未归还的装备。"
+  issue="事件仍有待归还的装备。"
   gate="held_pending"
  if issue=="" and gate!="held_pending" and g.debug_checks_enabled():
   # 被门控面（docs/record/proposals/check-routing-and-per-click-checks.md「二」）：整份状态校验这一半
@@ -946,7 +945,7 @@ static func probe_choice(g, option: Dictionary) -> String:
 static func availability_issue(g, option: Dictionary) -> String:
  if option.has("availability"):
   var availability=option.availability
-  if not availability is Dictionary or not availability.get("reason") is String: return "事件选项的状态条件不完整。"
+  if not availability is Dictionary or not availability.get("reason") is String: return "事件选项的状态条件缺损。"
  var request=request_for(g,option,"candidate")
  for entry in condition_entries(request.node,request.choice):
   if CONDITIONS.get(entry.get("kind",""),{}).is_empty(): return "事件选项的状态条件无法识别。"
@@ -1041,7 +1040,7 @@ static func execute(g, c: Dictionary) -> String:
    else: event.stage="result"
   "leave":
    issue=apply_effects(g,event.get("cleanup_effects",[]),event.refs)
-   if issue=="" and not event.held.is_empty(): issue="事件仍有尚未归还的装备。"
+   if issue=="" and not event.held.is_empty(): issue="事件仍有待归还的装备。"
    if issue=="":
     if event.get("prepare_pending",false):
      event.erase("prepare_pending")
@@ -1089,12 +1088,12 @@ static func finish_item_rewards(g) -> String:
  return ""
 
 static func battle_spec_issue(g, spec) -> String:
- if not spec is Dictionary: return "事件战斗记录不完整。"
+ if not spec is Dictionary: return "事件战斗记录缺损。"
  var required=["id","requires_defeat","victory_effects","victory_report","result_status"]
- if required.any(func(key):return not spec.has(key)): return "事件战斗记录不完整。"
- if not spec.id is String or not g.Enemies.ENCOUNTERS.has(spec.id): return "事件指定的战斗不存在。"
- if not spec.requires_defeat is bool or not spec.victory_effects is Array or spec.victory_effects.is_empty() or spec.victory_effects.size()>8: return "事件战斗的胜利条件或奖励记录不完整。"
- if not spec.victory_report is String or spec.victory_report.strip_edges()=="" or spec.result_status not in RESULT_STATUSES: return "事件战斗的胜利文案或结果标记不完整。"
+ if required.any(func(key):return not spec.has(key)): return "事件战斗记录缺损。"
+ if not spec.id is String or not g.Enemies.ENCOUNTERS.has(spec.id): return "事件指定的战斗缺失。"
+ if not spec.requires_defeat is bool or not spec.victory_effects is Array or spec.victory_effects.is_empty() or spec.victory_effects.size()>8: return "事件战斗的胜利条件或奖励记录缺损。"
+ if not spec.victory_report is String or spec.victory_report.strip_edges()=="" or spec.result_status not in RESULT_STATUSES: return "事件战斗的胜利文案或结果标记缺损。"
  if not spec.victory_effects.all(func(effect):return g.Snapshot.effect(effect,g)): return "事件战斗包含无法恢复的胜利效果。"
  return ""
 
@@ -1147,17 +1146,17 @@ static func describe_result(g, effects: Array) -> String:
    "unlock": lines.append("解除了"+g._equipment(e.target).name+"的锁。")
    "tighten":
     var target=g._equipment(g.state.room_event.refs.get(e.get("ref_target",""),e.get("target","")))
-    lines.append(target.name+"已加固至%d档%s。" % [g.tier(target.durability,target.maximum),"，已上锁" if target.locked else ""])
+    lines.append(target.name+"已加固至%d档%s。" % [g.equipment_tier(target),"，已上锁" if target.locked else ""])
    "tighten_to":
     var target=g._equipment(e.target)
-    lines.append(target.name+"已收紧至%d档。" % g.tier(target.durability,target.maximum))
+    lines.append(target.name+"已收紧至%d档。" % g.equipment_tier(target))
    "hold_special": lines.append("指定位置原有的性玩具已暂时取下并妥善保管。")
    "restore_held": lines.append("暂存的性玩具已经原样装回。")
    # Authored selection reports already name these completed changes.
    "transform_card","remove_card","remove_restraints": pass
    "ease_restraint":
     var target=g._equipment(e.target)
-    lines.append((e.get("name","所选拘束具")+"已经解除。") if target.is_empty() else (target.name+"已经松到%d档。" % g.tier(target.durability,target.maximum)))
+    lines.append((e.get("name","所选拘束具")+"已经解除。") if target.is_empty() else (target.name+"已经松到%d档。" % g.equipment_tier(target)))
    "counter": pass
    "install":
     var name=g.Equipment.name_for(e.template,e.slot,e.grade,e.get("variant",0))
@@ -1199,7 +1198,7 @@ static func view(g) -> Dictionary:
      if selected_row.kind=="restraint":
       var item=g._equipment(selected_row.id)
       if not item.is_empty():
-       selected_row.merge({"durability":item.durability,"maximum":item.maximum,"tier":g.tier(item.durability,item.maximum),"locked":item.locked,"lockable":g.Equipment.allows(item,"lock")})
+       selected_row.merge({"durability":item.durability,"maximum":item.maximum,"tier":g.equipment_tier(item),"no_tightness":g.Equipment.is_shackle(item),"locked":item.locked,"lockable":g.Equipment.allows(item,"lock")})
     options.append({"choice":option.id,"selected":selected})
    if options.is_empty(): continue
    var kind=definition.selector.kind
@@ -1209,50 +1208,50 @@ static func view(g) -> Dictionary:
  return {"id":e.id,"name":name,"intro":intro,"stage":e.stage,"report":e.report,"hint":"","selections":selections,"page_id":g.state.room+":"+e.id+":"+e.stage,"result_status":e.get("result_status","neutral")}
 
 static func history_issue(state: Dictionary) -> String:
- if not state.get("event_seen") is Array or state.event_seen.any(func(id):return not id is String or id not in Data.TYPES or state.event_seen.count(id)!=1): return "已出现的事件记录不正确。"
+ if not state.get("event_seen") is Array or state.event_seen.any(func(id):return not id is String or id not in Data.TYPES or state.event_seen.count(id)!=1): return "已出现的事件记录有误。"
  if state.practice: return ""
  var assigned=[]
  for room in state.rooms:
   if room.kind!="event" or not room.has("event"): continue
-  if not room.event is String: return "事件房记录不正确。"
+  if not room.event is String: return "事件房记录有误。"
   if room.event=="": continue
-  if room.event not in state.event_seen or room.event in assigned: return "事件房与已出现的事件记录不一致。"
+  if room.event not in state.event_seen or room.event in assigned: return "事件房与已出现的事件记录存在差异。"
   assigned.append(room.event)
  return ""
 
 static func validate(g) -> String:
  var history=history_issue(g.state)
  if history!="": return history
- if not g.state.relics.all(func(id):return Relics.TYPES.has(id) and g.state.relics.count(id)==1): return "遗物重复或定义不存在。"
+ if not g.state.relics.all(func(id):return Relics.TYPES.has(id) and g.state.relics.count(id)==1): return "遗物重复或定义缺失。"
  if g.state.room_event.get("battle_issue","")!="": return g.state.room_event.battle_issue
  if g.state.room_event.has("prepare_pending"):
   var pending=g.state.room_event.prepare_pending
-  if not pending is bool or not pending or g.state.phase!="event" or g.state.room_event.get("stage","")!="result": return "事件战后的整备进度不正确。"
+  if not pending is bool or not pending or g.state.phase!="event" or g.state.room_event.get("stage","")!="result": return "事件战后的整备进度有误。"
  if g.state.room_event.get("stage","")=="loot":
-  if not active_item_rewards(g): return "事件道具奖励阶段与当前界面不一致。"
+  if not active_item_rewards(g): return "事件道具奖励阶段与当前界面存在差异。"
   var loot_issue=item_rewards_issue(g,g.state.room_event.get("loot",[]),true)
   if loot_issue!="": return loot_issue
   if not g.state.reward_options.is_empty() or not g.state.boss_relic_options.is_empty() or g.state.battle_item_drop!="" or g.state.battle_relic_drop!="" or not g.state.reward_claimed.is_empty(): return "事件道具奖励混入了战斗奖励记录。"
   return ""
  if g.state.room_event.get("stage","")=="battle":
-  if not active_battle(g): return "事件战斗阶段与当前行动阶段不一致。"
+  if not active_battle(g): return "事件战斗阶段与当前行动阶段存在差异。"
   var battle_issue=battle_spec_issue(g,g.state.room_event.get("battle",{}))
   if battle_issue!="": return battle_issue
   return ""
  if g.state.phase!="event": return ""
  var e=g.state.room_event
- if e.is_empty() or not Data.TYPES.has(e.get("id","")): return "事件阶段不合法。"
- if e.get("result_status","neutral") not in RESULT_STATUSES or e.options.any(func(option):return option.get("result_status","neutral") not in RESULT_STATUSES): return "事件结果标记不合法。"
+ if e.is_empty() or not Data.TYPES.has(e.get("id","")): return "事件阶段有误。"
+ if e.get("result_status","neutral") not in RESULT_STATUSES or e.options.any(func(option):return option.get("result_status","neutral") not in RESULT_STATUSES): return "事件结果标记有误。"
  var stages=node_ids(definition(e.id))
- if e.get("stage","") not in (["reward","result"]+stages): return "事件阶段不合法。"
- if e.winner!=-1 or (e.relic!="" and not Relics.is_reward(e.relic)): return "事件结果未正确冻结。"
- if not e.get("held",{}) is Dictionary or not e.get("values",{}) is Dictionary or not e.get("cleanup_effects",[]) is Array: return "事件的暂存装备、计数或收尾效果记录不完整。"
- if e.values.keys().any(func(key):return not key is String or not e.values[key] is int or e.values[key]<0): return "事件计数记录不正确。"
+ if e.get("stage","") not in (["reward","result"]+stages): return "事件阶段有误。"
+ if e.winner!=-1 or (e.relic!="" and not Relics.is_reward(e.relic)): return "事件结果冻结失败。"
+ if not e.get("held",{}) is Dictionary or not e.get("values",{}) is Dictionary or not e.get("cleanup_effects",[]) is Array: return "事件的暂存装备、计数或收尾效果记录缺损。"
+ if e.values.keys().any(func(key):return not key is String or not e.values[key] is int or e.values[key]<0): return "事件计数记录有误。"
  var held=[]
  for key in e.held:
-  if not key is String or not e.held[key] is Array: return "事件的暂存装备记录不正确。"
+  if not key is String or not e.held[key] is Array: return "事件的暂存装备记录有误。"
   held.append_array(e.held[key])
  var held_issue=g.SpecialEquipment.validate(g.state.special_equipment+held)
- if held_issue!="": return "事件暂存装备不合法："+held_issue
+ if held_issue!="": return "事件暂存装备有误："+held_issue
  return ""
 

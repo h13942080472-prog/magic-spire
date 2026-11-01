@@ -34,6 +34,7 @@ static func fixed_posture(g) -> String:
  return ""
 
 static func allowed_postures(g) -> Array:
+ if g.RopeArt.hogtied(g): return ["lie"]
  if not has_bind(g): return []
  var allowed=["stand","sit","lie"]
  for source in g.state.guard_bind.sources.values():
@@ -48,10 +49,12 @@ static func posture_reason(g, destination: String) -> String:
  if not allowed.is_empty() and destination not in allowed: return "捕缚只允许保持%s，先解除捕缚。" % "或".join(allowed.map(func(pose):return g.B.POSE_NAMES[pose]))
  var fixed=fixed_posture(g)
  if fixed!="" and destination!=fixed: return "捕缚将你固定为%s，先解除捕缚。" % g.B.POSE_NAMES[fixed]
- if has_bind(g,"guard") and g.state.posture+">"+destination not in ["lie>sit","sit>stand"]: return "捕缚生效时只能依次从躺姿坐起、再由坐姿站起，不能反向切换。"
+ if has_bind(g,"guard") and g.state.posture+">"+destination not in ["lie>sit","sit>stand"]: return "捕缚生效时，姿态切换顺序为躺姿→坐姿→站姿。"
  return ""
 
-static func clear_bind(g) -> void:
+static func clear_bind(g, battle_ended: bool=false) -> void:
+ # In-battle immunity must not retain a battle-only status during teardown.
+ if not battle_ended and g.RopeArt.bound(g): return
  g.state.guard_bind={}
  for enemy in g.state.enemies:
   if kind(g,enemy)!="": enemy.guard.bind_ready=false
@@ -88,6 +91,7 @@ static func gain_bind(g, amount: float, source: String) -> void:
  observe(g)
 
 static func damage_bind(g, amount: float, source: String) -> void:
+ if g.RopeArt.bound(g): return
  if not has_bind(g) or amount<=0: return
  var before=float(g.state.guard_bind.progress)
  var dealt=minf(before,amount)
@@ -120,7 +124,7 @@ static func energy_spent(g, amount: int, guard_effect: bool=false) -> void:
    if source_kind=="iron_man": g.IronMan.energy_trigger(g,enemy)
    elif source_kind=="iron_drone": g.IronMan.drone_energy_trigger(g,enemy)
    else:
-    g._enemy_operation(enemy,g.EnemyPlans.application(g.Enemies.TYPES[enemy.type].install_pool,1,2))
+    g._enemy_operation(enemy,g.EnemyPlans.application(g.Enemies.TYPES[enemy.type].install_pool,1,2,1,false,3))
     gain_bind(g,BIND_GAIN,enemy.name+"的捕缚")
 
 static func overload(g, count: int) -> void:
@@ -136,12 +140,13 @@ static func turn_start(g) -> void:
    if source.get("skip_turn_start",false):
     source.skip_turn_start=false
     continue
-   g._enemy_operation(enemy,g.EnemyPlans.application(spec.capture_pool,2,2))
+   g._enemy_operation(enemy,g.EnemyPlans.application(spec.capture_pool,2,2,1,false,4))
    gain_bind(g,gain_amount(g,enemy),enemy.name+"的捕缚")
 
 # Empty means keep the already announced ordinary intent (and its interruption).
 static func required_intent(g, enemy: Dictionary) -> String:
  var source_kind=kind(g,enemy)
+ if source_kind==g.RopeArt.MASTER: return ""
  if source_kind=="": return ""
  if capture_ready(g.state) and g.EnemyPlans.can_arrest(g,enemy): return "capture"
  if source_kind=="iron_man":
@@ -154,6 +159,7 @@ static func required_intent(g, enemy: Dictionary) -> String:
 
 static func observe(g) -> void:
  if g.state.phase!="battle": return
+ g.RopeArt.observe(g)
  if has_bind(g):
   for source_kind in g.state.guard_bind.sources.keys():
    var source=g.state.guard_bind.sources[source_kind]
@@ -177,21 +183,22 @@ static func view(g) -> Dictionary:
  if has_bind(g,"drone"): descriptions.append("无人机捕缚：固定为站姿；每累计消耗2能量，施加1件初级2档胶带并使捕缚＋10。当前累计%d/2能量。" % g.state.guard_bind.sources.drone.energy)
  if has_bind(g,"iron_man"): descriptions.append("铁男捕缚：只允许坐姿或躺姿；每累计消耗%d能量，触发全部主动刺激型特殊装备。当前累计%d/%d能量。" % [energy_threshold(g,"iron_man"),g.state.guard_bind.sources.iron_man.energy,energy_threshold(g,"iron_man")])
  if has_bind(g,"iron_drone"): descriptions.append("凑数型无人机捕缚：每累计消耗%d能量，施加1件初级2档胶带、捕缚＋5，遥控1件主动刺激型特殊装备并消耗1电量，再随机上锁1件拘束具。当前累计%d/%d能量。" % [energy_threshold(g,"iron_drone"),g.state.guard_bind.sources.iron_drone.energy,energy_threshold(g,"iron_drone")])
- if has_bind(g,"binding_box"): descriptions.append("拘束盒捕缚：固定为坐姿；施加后的首个玩家回合不触发，此后每个玩家回合开始施加1件中级2档皮革拘束具，并使捕缚＋%s。" % g.number(gain_amount(g,g._enemy(g.state.guard_bind.sources.binding_box.enemy))))
+ if has_bind(g,"binding_box"): descriptions.append("拘束盒捕缚：固定为坐姿；施加后从第二个玩家回合起，每个玩家回合开始施加1件中级2档皮革拘束具，并使捕缚＋%s。" % g.number(gain_amount(g,g._enemy(g.state.guard_bind.sources.binding_box.enemy))))
  for source in g.state.guard_bind.sources.values(): names.append(g._enemy(source.enemy).name)
- var detail="被捕缚时无法移动，先解除捕缚。挣扎／滑脱牌可直接削减进度；除眼罩、口球外没有其他拘束具时伤害翻倍，不受环境加成。上身受限至少按1级计算。同种捕缚不叠加；新种类增加其初始值的一半。降至0全部解除，达到100后下一敌方回合执行收押。\n降紧每层固定削减8点捕缚，不受属性、蓄力和倍率影响，也不消耗蓄力。"
+ var detail="被捕缚时无法移动，先解除捕缚。挣扎／滑脱牌可直接削减进度；除眼罩、口球外没有其他拘束具时伤害翻倍，环境加成为0。上身受限至少按1级计算。同种捕缚仅生效一次；新种类增加其初始值的一半。降至0全部解除，达到100后下一敌方回合执行收押。\n降紧每层固定削减8点捕缚，使用固定数值，蓄力保留。"
+ if g.RopeArt.bound(g): detail="进度为当前绳索拘束值之和。不能直接解除捕缚；拆除或松解绳索可降低进度，降至0时附魔暂停。达到100后执行收押。"
  return {"name":"捕缚","value":g.state.guard_bind.progress,"maximum":BIND_MAXIMUM,"source":"、".join(names),"text":"捕缚进度 %s/100" % g.number(g.state.guard_bind.progress),"detail":detail+"\n"+"\n".join(descriptions)}
 
 static func validate(g) -> String:
  var bind=g.state.guard_bind
  if bind.is_empty(): return ""
- if not g.Snapshot.fields(bind,"progress:n sources:d") or g.state.phase!="battle" or bind.progress<=0 or bind.progress>BIND_MAXIMUM or bind.sources.is_empty(): return "捕缚进度记录不完整。"
+ if not g.Snapshot.fields(bind,"progress:n sources:d") or g.state.phase!="battle" or bind.progress<0 or (bind.progress==0 and not bind.sources.has(g.RopeArt.MASTER)) or bind.progress>BIND_MAXIMUM or bind.sources.is_empty(): return "捕缚进度记录缺损。"
  for source_kind in bind.sources:
   var source=bind.sources[source_kind]
   var threshold=energy_threshold(g,source_kind)
-  if not g.Snapshot.fields(source,"enemy:s energy:i") or source.energy<0 or source.energy>=threshold: return "捕缚能量记录不合法。"
+  if not g.Snapshot.fields(source,"enemy:s energy:i") or source.energy<0 or source.energy>=threshold: return "捕缚能量记录有误。"
   var enemy=g._enemy(source.enemy)
   if enemy.is_empty() or enemy.gone or kind(g,enemy)!=source_kind: return "捕缚缺少存活的对应来源。"
  var allowed=allowed_postures(g)
- if not allowed.is_empty() and g.state.posture not in allowed: return "固定捕缚与当前姿态不一致。"
+ if not allowed.is_empty() and g.state.posture not in allowed: return "固定捕缚与当前姿态存在差异。"
  return ""

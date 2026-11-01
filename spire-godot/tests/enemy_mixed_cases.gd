@@ -31,7 +31,7 @@ static func run(t) -> void:
     t.check(delta==plan.count+prior.enemies[0].application_bonus and enemy.application_bonus==prior.enemies[0].application_bonus,"MIXED application uses current permanent bonus once: seed %d turn %d move %s delta %d expected %d" % [seed_value,turn,plan.move,delta,plan.count+prior.enemies[0].application_bonus])
     if plan.move=="roll": t.check(g.physical_pieces().any(func(p):return g.tier(p.durability,p.maximum)==3),"MIXED roll applies then reinforces an eligible piece")
    t.check(enemy.last_move==plan.move and enemy.move_streak<=g.Enemies.TYPES.mixed_bundle.weighted_moves[plan.move].limit,"MIXED actual executed history obeys consecutive limits")
-   t.check(g.physical_pieces().all(func(p):return p.grade==1) and g.validate()=="","MIXED generated equipment and resulting state are valid")
+   t.check(g.physical_pieces().all(func(p):return p.grade==1) and g.validate()=="","MIXED weak source only installs basic equipment and resulting state is valid")
   if seed_value==t.seed_values("enemy_cycle")[0]:
    Save.roundtrip(t,g,"mixed weighted history and bonus")
    var before=g.export_snapshot();var broken=before.duplicate(true)
@@ -42,4 +42,4 @@ static func run(t) -> void:
  t.check(pair.state.enemies.size()==2 and pair.state.enemies.all(func(e):return e.type=="mixed_bundle" and e.hp==56),"MIXED strong recipe produces two full-strength bundles")
  var twin=Save.roundtrip(t,pair,"mixed strong pair")
  Save.step_both(t,pair,twin,"end")
- t.check(pair.physical_pieces().size()+pair.state.links.size()==4,"MIXED both members independently execute their opening action")
+ t.check(pair.physical_pieces().size()+pair.state.links.size()==4 and pair.physical_pieces().all(func(p):return p.grade==1),"MIXED both weak members in a strong encounter independently install basic opening equipment")

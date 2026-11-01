@@ -86,7 +86,7 @@ static func run(t) -> void:
  prison_limits(t)
  var loc=preload("res://ui/localization.gd").new();loc.set_locale("en_US")
  t.check(loc.display("本回合已存入3次。")=="Already deposited 3 times this turn." and loc.display("本回合已取出3次。")=="Already withdrawn 3 times this turn.","FLASK English rejection reasons use current shared limit")
- t.check(loc.display("存入10魔力，战斗外不限次数。")=="Store 10 mana. Unlimited uses outside battle." and loc.display("本回合可取出2次")=="2 withdrawals remaining this turn","FLASK English detail distinguishes unlimited use and remaining withdrawals")
+ t.check(loc.display("存入10魔力，战斗外可反复操作。")=="Store 10 mana. Unlimited uses outside battle." and loc.display("本回合可取出2次")=="2 withdrawals remaining this turn","FLASK English detail distinguishes unlimited use and remaining withdrawals")
  t.check(loc.display(g.ManaFlask.withdraw_detail(g,{"drawn":10,"restored":10,"remaining":3,"limited":true}))=="Draw 10 mana to restore 10 mana. 3 withdrawals remaining this turn." and loc.display(g.ManaFlask.withdraw_detail(g,{"drawn":10,"restored":5,"limited":false}))=="Draw 10 mana to restore 5 mana. Unlimited uses outside battle.","FLASK complete English withdrawal tooltips preserve amounts and phase limits")
 
 static func outside_battle(t) -> void:

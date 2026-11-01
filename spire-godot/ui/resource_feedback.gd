@@ -68,12 +68,12 @@ func update_numbers() -> void:
  if host==null or not is_instance_valid(host.layout): return
  var mana=shown.get("mana",host.view.mana)
  var flask=host.layout.find_child("FlaskManaValue",true,false)
- if flask!=null: flask.text=host.game.number(shown.get("flask_mana",host.view.mana_flask.mana))
+ if flask!=null: flask.text=host.game.number(host.view.mana_flask.mana)
  for id in ["MainMana","HeroMana"]:
   var bar=host.layout.find_child(id,true,false)
   var label=host.layout.find_child(id+"Value",true,false)
   if bar!=null: bar.value=mana
   if label!=null:
-   label.text="%s/%s" % [str(snappedf(mana,0.1)).trim_suffix(".0"),str(host.view.mana_max).trim_suffix(".0")]
-   var temporary=shown.get("temporary_mana",host.view.temporary_mana)
+   label.text="%s/%s" % [host.game.number(host.view.mana),host.game.number(host.view.mana_max)]
+   var temporary=host.view.temporary_mana
    if temporary>0: label.text+=" · 临时"+host.game.number(snappedf(temporary,0.1))

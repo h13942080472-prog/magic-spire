@@ -119,7 +119,7 @@ static func run(t) -> void:
  ui.restart(42,true,"equipment");await t.frames()
  await t.inspect_body("wrist")
  var text=t.visible_text(ui.find_child("EquipmentDetails",true,false))
- t.check(text.contains("耐久 4 / 10") and text.contains("紧度1档"),"BODY UI equipment keeps explicit basic labels")
+ t.check(text.contains("耐久 3.20 / 8") and text.contains("紧度1档"),"BODY UI equipment keeps explicit basic labels")
  var single=ui.view.bodies.filter(func(body):return body.id=="wrist")[0].equipment[0].id
  var blocked=Queries.find(ui.view,"manual",{"target":single})
  t.check(not blocked.valid and text.contains(blocked.reason) and ui.candidate_buttons[blocked.key].disabled,"BODY UI single equipment opens its unavailable action and exact reason")
@@ -231,7 +231,7 @@ static func release_service(t) -> void:
  c=Queries.find(ui.view,"service_release",{"op":"release","target":kept.id})
  await Pointer.press(t,ui.candidate_buttons[c.key])
  await dismiss_payment(t)
- t.check(t.visible_text(ui.find_child("InformationDrawer",true,false)).contains("目前没有需要卸下"),"SHOP UI empty list after final removal")
+ t.check(t.visible_text(ui.find_child("InformationDrawer",true,false)).contains("当前全身自由"),"SHOP UI empty list after final removal")
  await t.close_information()
  var shop=ui.find_child("RoomServicePanel",true,false)
  var rect=shop.get_global_rect()

@@ -3,6 +3,10 @@ const Feedback=preload("res://ui/combat_feedback.gd")
 const Queries=preload("res://ui/target_queries.gd")
 
 static func run(t) -> void:
+ await preload("res://tests/girl_sound_ui_cases.gd").run(t)
+ await preload("res://tests/equipment_audio_ui_cases.gd").run(t)
+ await live_feed(t)
+ await capture_feed(t)
  await player_interactions(t)
  var ui=t.ui
  ui.restart(42);await t.frames()
@@ -17,7 +21,9 @@ static func run(t) -> void:
  var steps=Feedback.steps(before,ui.view)
  t.check(steps.any(func(step):return step.kind=="apply" and step.title=="施加装备" and not step.slots.is_empty()),"FEEDBACK unified application retains its title and actual affected positions")
  t.check(steps.size()>=2 and steps[0].enemy_id!=steps[-1].enemy_id,"FEEDBACK different enemy instances shown in actual order")
- t.check(presenter.current.enemy_id==steps[0].enemy_id and presenter.detail.text!="","FEEDBACK first enemy and actual result immediately readable")
+ t.check(presenter.current.enemy_id==steps[0].enemy_id and presenter.heading.text==steps[0].actor+" · "+steps[0].title,"FEEDBACK compact banner shows only the current orange action title")
+ var banner=presenter.find_child("EnemyActionBanner",true,false)
+ t.check(banner.size.x<=400 and banner.size.y<=48 and banner.position.y<170 and banner.find_children("*","Label",true,false).size()==1,"FEEDBACK top banner has a single compact title with no detail or counter")
  t.check(not presenter.highlights.is_empty(),"FEEDBACK active enemy and affected body have visual anchors")
  var next=ui.view.display_facts.filter(func(c):return c.valid)[0]
  ui.command_router.emit(String(next.payload.get("kind","")),next)
@@ -72,6 +78,76 @@ static func run(t) -> void:
  t.check(not is_instance_valid(ui.enemy_feedback) and ui.game.export_snapshot()==committed,"FEEDBACK batch presentation preserves committed state")
  ui.feedback_duration=0.04
  await t.frames()
+
+static func live_feed(t) -> void:
+ var ui=t.ui
+ ui.restart(42);await t.frames()
+ var feed=ui.battle_feed
+ var untouched=ui.game.export_snapshot()
+ t.check(is_instance_valid(feed) and feed.rows.is_empty() and feed.pending.is_empty(),"FEED fresh battle never replays startup history")
+ ui.render();await t.frames()
+ t.check(ui.battle_feed==feed and feed.rows.is_empty() and ui.game.export_snapshot()==untouched,"FEED ordinary redraw reuses the presenter without creating records")
+ var before=ui.view
+ ui.feedback_duration=1.3
+ var end=Queries.find(ui.view,"flow",{"kind":"end"})
+ ui.command_router.emit("end",end)
+ var committed=ui.game.export_snapshot()
+ var presenter=ui.enemy_feedback
+ presenter.set_process(false);feed.set_process(false)
+ var expected=[]
+ for i in range(before.logs.size(),ui.view.logs.size()):
+  var log=ui.view.logs[i]
+  if (log.kind!="mechanical" or log.data.has("enemy_action")) and ui.game.ActionCopy.result(log).strip_edges()!="": expected.append(i)
+ t.check(not expected.is_empty() and feed.seen_end==ui.view.logs.size(),"FEED actual committed events enter the queue once")
+ var first=presenter.current.key
+ for i in range(expected.size()): feed._process(0.23)
+ t.check(feed.pending.any(func(event):return event.key!="" and event.key!=first) and feed.rows.all(func(row):return Feedback.enemy_key(ui.view.logs[row.node.get_meta("log_id")].data.get("enemy_action",{})) in ["",first]),"FEED upcoming enemy results stay hidden until their presentation step")
+ presenter.finish()
+ for i in range(expected.size()): feed._process(0.23)
+ t.check(feed.pending.is_empty() and feed.rows.size()==mini(feed.MAX_ROWS,expected.size()),"FEED skip releases each remaining result and retains at most six rows")
+ var actual=feed.rows.map(func(row):return int(row.node.get_meta("log_id")))
+ t.check(actual==expected.slice(maxi(0,expected.size()-feed.MAX_ROWS)) and feed.rows.all(func(row):return row.node.get_meta("full_text")==ui.game.ActionCopy.result(ui.view.logs[row.node.get_meta("log_id")]).strip_edges()),"FEED repeated and distinct events retain exact committed order and text")
+ t.check(feed.position.x>=1280 and feed.position.x+feed.size.x<=1600 and feed.position.y+feed.size.y<410 and feed.mouse_filter==Control.MOUSE_FILTER_IGNORE,"FEED stays at the battlefield right edge above enemy nameplates without intercepting target input")
+ var ids=actual.duplicate()
+ ui.render();await t.frames(2,false)
+ feed.enqueue(before,ui.view)
+ t.check(feed.pending.is_empty() and feed.rows.map(func(row):return int(row.node.get_meta("log_id")))==ids,"FEED duplicate delivery and redraw cannot enqueue old events")
+ await t.capture("ui-battle-live-feed.png")
+ feed._process(feed.HOLD+feed.FADE+0.1)
+ t.check(feed.rows.is_empty() and feed.entry.is_visible_in_tree() and feed.entry.text!="≡" and ui.game.export_snapshot()==committed,"FEED faded rows leave the last icon and never modify committed state")
+ await press(t,"OpenBattleLog");await t.frames()
+ t.check(ui.show_log and ui.find_child("InformationDrawer",true,false)!=null and ui.game.export_snapshot()==committed,"FEED native icon click opens the existing read-only action history")
+ await t.close_information()
+ ui.restart(43);await t.frames()
+ t.check(feed.rows.is_empty() and feed.pending.is_empty() and feed.entry.text=="≡","FEED restart clears rows, queued events and retained icon")
+ ui._return_home();await t.frames()
+ t.check(not feed.visible and feed.pending.is_empty(),"FEED home hides the feed and clears pending presentation")
+
+static func capture_feed(t) -> void:
+ var ui=t.ui
+ ui.restart(42);await t.frames()
+ await t.start_practice("Practice_guard")
+ var enemy=ui.game.state.enemies[0]
+ ui.game.state.guard_bind={"progress":100.0,"sources":{"guard":{"enemy":enemy.id,"energy":0}}}
+ enemy.intent={"kind":"capture","text":"执行收押 · 可打断","delayed":false}
+ ui.render();await t.frames()
+ var before=ui.view
+ t.check(await t.click("end",{},false),"FEED capture uses the real end-turn action")
+ var committed=ui.game.export_snapshot()
+ var feed=ui.battle_feed
+ t.check(ui.view.phase=="captured" and is_instance_valid(ui.enemy_feedback) and feed.visible and feed.seen_end==ui.view.logs.size(),"FEED final enemy results survive the capture phase transition")
+ ui.enemy_feedback.finish();feed.set_process(false)
+ for i in range(ui.view.logs.size()-before.logs.size()): feed._process(0.23)
+ t.check(not feed.rows.is_empty() and feed.rows.any(func(row):return ui.view.logs[row.node.get_meta("log_id")].data.has("enemy_action")) and ui.game.export_snapshot()==committed,"FEED committed capture results remain readable after skipping the presentation")
+ ui.render();await t.frames(2,false)
+ t.check(feed.visible and not feed.rows.is_empty(),"FEED capture-screen redraw preserves pending final results")
+ feed._process(feed.HOLD+feed.FADE+0.1)
+ t.check(not feed.visible and feed.rows.is_empty() and ui.game.export_snapshot()==committed,"FEED terminal results fade before hiding their history entry")
+ # The capture illustration is a read-only acknowledgement before intake actions.
+ if ui.find_child("PrisonCaptureIntroContinue",true,false)!=null:
+  await press(t,"PrisonCaptureIntroContinue");await t.frames()
+  t.check(ui.game.export_snapshot()==committed,"FEED acknowledging capture artwork preserves the committed battle result")
+ t.check(await t.click("prison",{"action":"enter"}) and ui.view.phase=="prison" and not feed.visible and feed.pending.is_empty(),"FEED entering the cell clears the battle-only presenter")
 
 static func press(t, name: String) -> void:
  var button=t.ui.find_child(name,true,false)

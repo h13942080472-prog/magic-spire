@@ -53,7 +53,7 @@ func save() -> void:
  error=""
  if not persist: return
  var config=ConfigFile.new();config.set_value("keyboard","bindings",bindings);config.set_value("keyboard","hold_end",hold_end)
- if config.save(path)!=OK: error="键位未能保存，下次启动时需要重新设置。"
+ if config.save(path)!=OK: error="键位保存失败，请重试。"
 
 func match_key(key: int) -> String:
  for id in bindings:

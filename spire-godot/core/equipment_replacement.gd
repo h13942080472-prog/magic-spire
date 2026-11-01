@@ -5,14 +5,16 @@ extends RefCounted
 # Never persist a plan or expose its snapshots as a player command.
 static func plan(g, requests: Array, source: String, protected_ids: Array=[]) -> Dictionary:
  var original=g.state
+ var art_trial=g._rope_trial;g._rope_trial=true
  var feedback=g._resource_feedback
  g._resource_feedback=null
  g.state=original.duplicate(true)
  var result=_plan(g,requests,source,protected_ids)
  # Factories can displace equipment without explicit removal units in a direct plan.
  if result.ok and (result.removed+result.lost_links).any(func(id):return id in protected_ids):
-  result=_fail("本次不能替换刚安装的装备或附属件。")
+  result=_fail("刚安装的装备与附属件在本批次保留。")
  g.state=original
+ g._rope_trial=art_trial
  g._resource_feedback=feedback
  result.expectedVersion=original.version
  if result.ok:
@@ -34,6 +36,7 @@ static func execute(g, prepared: Dictionary) -> Dictionary:
  for key in ["_after","removed","installed","lost_links","comparisons"]:
   if fresh.get(key)!=prepared.get(key): return _fail("替换方案的预演结果已改变，需要重新检查。")
  _commit_changes(g,fresh._after)
+ g.RopeArt.replaced(g,fresh)
  return {"ok":true,"reason":"","removed":fresh.removed.duplicate(),"installed":fresh.installed.duplicate(true),"lost_links":fresh.lost_links.duplicate(),"comparisons":fresh.comparisons.duplicate(true)}
 
 # Some captures explicitly replace every removable special item covered by one
@@ -41,17 +44,20 @@ static func execute(g, prepared: Dictionary) -> Dictionary:
 # an absolute boundary, cleanup owns dependent pieces and links, and the normal
 # special factory owns the incoming item.
 static func force_special(g, type: String, tier: int, source: String) -> Dictionary:
- if not g.SpecialEquipment.DESIGNS.has(type) or tier not in [1,2,3]: return _fail("指定的特殊装备不合法。")
+ if not g.SpecialEquipment.DESIGNS.has(type) or tier not in [1,2,3]: return _fail("指定的特殊装备有误。")
  var original=g.state
+ var art_trial=g._rope_trial;g._rope_trial=true
  var feedback=g._resource_feedback
  g._resource_feedback=null
  g.state=original.duplicate(true)
  var result=_force_special_live(g,type,tier,source)
  var after=g.state.duplicate(true) if result.ok else {}
  g.state=original
+ g._rope_trial=art_trial
  g._resource_feedback=feedback
  if not result.ok: return result
  _commit_changes(g,after)
+ g.RopeArt.replaced(g,result)
  return result
 
 # Both replacement policies commit only changed fields. Keep unchanged enclosing
@@ -72,7 +78,7 @@ static func _force_special_live(g, type: String, tier: int, source: String) -> D
  if not blocking.is_empty(): g._cleanup(false)
  var installed=g._install_special(type,coverage[0],tier)
  if installed.is_empty(): return _fail("清理可替换装备后仍无法佩戴指定装备。")
- if g.SpecialEquipment.validate(g.state.special_equipment)!="" or g._capacity_issue(g.physical_pieces())!="": return _fail("替换后的特殊装备结构不合法。")
+ if g.SpecialEquipment.validate(g.state.special_equipment)!="" or g._capacity_issue(g.physical_pieces())!="": return _fail("替换后的特殊装备结构有误。")
  var live=g.action_targets().map(func(item):return item.id)
  var removed=old_targets.filter(func(item):return item.id not in live and item.template!="link_rope").map(func(item):return item.id)
  var lost_links=old_targets.filter(func(item):return item.id not in live and item.template=="link_rope").map(func(item):return item.id)
@@ -87,7 +93,7 @@ static func _normalize(g, requests: Array) -> Dictionary:
  for input in requests:
   if not input is Dictionary: return _fail("每件装备都需要具体安装规格。")
   var r=input.duplicate(true)
-  if r.get("kind","") not in ["install","assembly","special_install"]: return _fail("本次操作不是装备安装。")
+  if r.get("kind","") not in ["install","assembly","special_install"]: return _fail("本次操作需要装备安装指令。")
   for key in ["grade","tier","layer"]:
    if r.has(key) and not r[key] is int: return _fail("品质、紧度和层级必须使用整数。")
   if r.has("locked") and not r.locked is bool: return _fail("上锁要求必须明确为是或否。")
@@ -95,11 +101,11 @@ static func _normalize(g, requests: Array) -> Dictionary:
    if r.has(key) and not r[key] is String: return _fail("安装类型和具体位置必须使用名称。")
   if r.kind=="install":
    r.grade=r.get("grade",1);r.tier=r.get("tier",2);r.locked=r.get("locked",false);r.variant=r.get("variant",0)
-   if not r.variant is int or r.variant<0: return _fail("装备材质版本不合法。")
+   if not r.variant is int or r.variant<0: return _fail("装备材质版本有误。")
    var placement=g._prepare_installation(r.get("template",""),r.get("slot",""),r.grade,r.locked,r.get("point",""),r.get("layer",-1))
    if placement.reason!="" and not placement.get("capacity_full",false): return _fail(placement.reason)
    if r.tier not in [1,2,3]: return _fail("安装紧度必须为一至三档。")
-   if r.variant>=g.Equipment.MATERIALS[g.Equipment.TEMPLATES[r.template].material][r.grade].size(): return _fail("装备材质版本不合法。")
+   if r.variant>=g.Equipment.MATERIALS[g.Equipment.TEMPLATES[r.template].material][r.grade].size(): return _fail("装备材质版本有误。")
    var points=placement.points
    r.point=points[0] if g.Equipment.SEGMENTS.has(r.slot) else r.slot
   elif r.kind=="assembly":
@@ -108,24 +114,24 @@ static func _normalize(g, requests: Array) -> Dictionary:
    r.grade=r.get("grade",2);r.tier=r.get("tier",2);r.parts=r.get("parts",{}).duplicate(true) if r.get("parts",{}) is Dictionary else null
    if r.parts==null: return _fail("复合组件规格必须按组件列出。")
    var layout=g.Composites.spec(r.family,r.variant,r.straps)
-   if layout.is_empty(): return _fail("复合装备款式尚未定义。")
+   if layout.is_empty(): return _fail("复合装备款式待定义。")
    var issue=g._assembly_reason(layout,r.get("attached_to",""))
    if issue!="": return _fail(issue)
-   if r.grade not in g.Equipment.GRADES or r.grade<layout.minimum or r.tier not in [1,2,3]: return _fail("复合装备的品质或紧度不满足安装要求。")
+   if r.grade not in g.Equipment.GRADES or r.grade<layout.minimum or r.tier not in [1,2,3]: return _fail("请使用符合安装要求的品质与紧度。")
    for key in r.parts:
-    if key not in layout.parts or not r.parts[key] is Dictionary: return _fail("复合组件规格不属于这件装备。")
+    if key not in layout.parts or not r.parts[key] is Dictionary: return _fail("组件规格需归属于当前装备。")
     if r.parts[key].has("tier") and (not r.parts[key].tier is int or r.parts[key].tier not in [1,2,3]): return _fail("组件紧度必须为一至三档。")
-    if r.parts[key].has("locked") and not r.parts[key].locked is bool: return _fail("组件上锁要求不合法。")
+    if r.parts[key].has("locked") and not r.parts[key].locked is bool: return _fail("组件上锁要求有误。")
    if r.get("locked",false):
     for key in layout.parts:
      if not r.parts.has(key): r.parts[key]={}
      r.parts[key].locked=true
   else:
    r.type=r.get("type",r.get("template",""))
-   if not g.SpecialEquipment.DESIGNS.has(r.type): return _fail("这件特殊装备尚未定义。")
+   if not g.SpecialEquipment.DESIGNS.has(r.type): return _fail("这件特殊装备待定义。")
    var design=g.SpecialEquipment.DESIGNS[r.type]
    r.slot=r.get("slot",design.slots[0])
-   if r.slot!=design.slots[0]: return _fail("该装备不能安装在这个位置。")
+   if r.slot!=design.slots[0]: return _fail("请选择该装备支持的位置。")
    if r.get("locked",false) or (r.has("grade") and r.grade!=design.grade) or r.get("tier",2) not in [1,2,3] or r.get("variant",0)!=0:
     return _fail("这件特殊装备的品质和固定方式由自身款式决定。")
   normalized.append(r)
@@ -217,8 +223,9 @@ static func _plan(g, requests: Array, source: String, protected_ids: Array) -> D
   var family=g.SpecialEquipment.exclusive_family(request.type)
   for item in before.special_equipment:
    if g.SpecialEquipment.exclusive_family(item.type)!=family or item.id in mandatory_ids: continue
+   if g.RopeArt.locked(g,item): return _fail("本场战斗中，绳索拘束具不能解除。")
    if g.cursed_plate(item): return _fail(g.SpecialEquipment.CURSED_PLATE_REASON)
-   if item.id in protected_ids: return _fail("同一批次刚安装的特殊装备不能再次被替换。")
+   if item.id in protected_ids: return _fail("同批次新装特殊装备保留。")
    mandatory.append({"id":item.id,"pieces":[item.duplicate(true)],"counts":_counts(g,[item]),"composite":false})
    mandatory_ids.append(item.id)
  var direct=_trial(g,before,specs,source,[]) if mandatory.is_empty() else _fail("同族旧装备需要先完成替换。")
@@ -231,14 +238,14 @@ static func _plan(g, requests: Array, source: String, protected_ids: Array) -> D
  var prototypes=[]
  for r in specs:
   var item=_install(g,r,source)
-  if item.is_empty(): return _fail("本组安装规格本身不合法，或新装备之间存在冲突。")
+  if item.is_empty(): return _fail("本组安装规格本身有误，或新装备之间存在冲突。")
   new_pieces.append_array(_pieces(item))
   prototypes.append(item)
  for unit in mandatory:
   var old=unit.pieces[0]
   var family=g.SpecialEquipment.exclusive_family(old.type)
   var incoming=new_pieces.filter(func(piece):return g.SpecialEquipment.is_special(piece) and g.SpecialEquipment.exclusive_family(piece.type)==family)
-  if incoming.is_empty() or comparison_value(g,incoming[0])<comparison_value(g,old): return _fail("同族新装备的品质不足，不能替换现有装备。")
+  if incoming.is_empty() or replacement_value(g,incoming[0])<replacement_value(g,old): return _fail("替换需要更高品质的同族新装备。")
  var demand=_counts(g,new_pieces)
  g.state=before.duplicate(true)
  var existing=_counts(g,g.physical_pieces()+g.state.special_equipment)
@@ -254,7 +261,7 @@ static func _plan(g, requests: Array, source: String, protected_ids: Array) -> D
   var extra=existing.get(point,0)-mandatory_counts.get(point,0)+demand[point]-capacity
   if extra>0: deficit[point]=extra
  var units=_units(g,deficit)
- units=units.filter(func(unit):return not unit.pieces.any(func(piece):return g.cursed_eyes(piece) or g.cursed_plate(piece) or piece.id in protected_ids or piece.id in mandatory_ids))
+ units=units.filter(func(unit):return not unit.pieces.any(func(piece):return g.cursed_eyes(piece) or g.cursed_plate(piece) or g.RopeArt.locked(g,piece) or piece.id in protected_ids or piece.id in mandatory_ids))
  # Even the weakest eligible values, with no lost-link penalty or whole-root
  # restriction, must pass the SAME assignment rule. This is only an optimistic
  # rejection bound; actual minimal sets and complete trials remain authoritative.
@@ -270,7 +277,7 @@ static func _plan(g, requests: Array, source: String, protected_ids: Array) -> D
    var minimum_score=0
    for unit in selected:
     for piece in unit.pieces:
-     minimum_score+=comparison_value(g,piece)*_capacity_points(g,piece).filter(func(point):return point in deficit).size()
+     minimum_score+=replacement_value(g,piece)*_capacity_points(g,piece).filter(func(point):return point in deficit).size()
    # Losing links can only add to this score. Equal scores retain the first
    # complete plan, exactly as before, so these sets cannot improve the result.
    if minimum_score>=best.score: continue
@@ -285,7 +292,7 @@ static func _comparison_possible(g, units: Array, deficit: Dictionary, installed
   var values=[]
   for unit in units:
    for piece in unit.pieces:
-    if point in _capacity_points(g,piece): values.append(comparison_value(g,piece))
+    if point in _capacity_points(g,piece): values.append(replacement_value(g,piece))
   values.sort()
   if values.size()<deficit[point]: return false
   for i in range(deficit[point]): rows.append({"point":point,"old_value":values[i],"composite":false})
@@ -350,7 +357,7 @@ static func _trial(g, before: Dictionary, specs: Array, source: String, units: A
  var installed=[]
  for r in specs:
   var item=_install(g,r,source)
-  if item.is_empty(): return _fail("安装位置、容量或装备结构不满足本次要求。")
+  if item.is_empty(): return _fail("请检查安装位置、容量与装备结构。")
   installed.append(item)
  var new_anchors=[]
  for item in installed: new_anchors.append_array(_pieces(item))
@@ -367,7 +374,7 @@ static func _trial(g, before: Dictionary, specs: Array, source: String, units: A
   var checked=_compare(g,units,installed,deficit,before,option.lost+shoulder_losses)
   if checked.ok and (comparison.is_empty() or checked.score<comparison.score):
    transfer=option;comparison=checked
- if comparison.is_empty(): return _fail("新装备未通过替换强度或完整覆盖检查。")
+ if comparison.is_empty(): return _fail("新装备需满足替换强度与完整覆盖条件。")
  var lost=transfer.lost+shoulder_losses
  g.state.links.append_array(transfer.kept)
  for link in impacted:
@@ -376,12 +383,12 @@ static func _trial(g, before: Dictionary, specs: Array, source: String, units: A
  # Validate the equipment domain without requiring an enclosing enemy/event
  # action to have finished updating its own transient phase state.
  for e in g.state.equipment:
-  if g.Equipment.validate(e)!="" or g.Binding.validate(g,e)!="": return _fail("替换后的普通装备结构未通过检查。")
+  if g.Equipment.validate(e)!="" or g.Binding.validate(g,e)!="": return _fail("替换后的普通装备结构校验失败。")
  for root in g.state.composites:
-  if g.Composites.validate(root)!="": return _fail("替换后的复合装备结构未通过检查。")
- if g.Shoulders.validate(g)!="" or g.SpecialEquipment.validate(g.state.special_equipment)!="" or g._capacity_issue(g.physical_pieces())!="": return _fail("替换后的装备占位或依附关系未通过检查。")
+  if g.Composites.validate(root)!="": return _fail("替换后的复合装备结构校验失败。")
+ if g.Shoulders.validate(g)!="" or g.SpecialEquipment.validate(g.state.special_equipment)!="" or g._capacity_issue(g.physical_pieces())!="": return _fail("替换后的装备占位或依附关系校验失败。")
  for link in g.state.links:
-  if g.Links.validate(link,g.link_anchors(),g.state.links)!="": return _fail("替换后的链接结构未通过检查。")
+  if g.Links.validate(link,g.link_anchors(),g.state.links)!="": return _fail("替换后的链接结构校验失败。")
  if not units.is_empty() and _same_loadout(before,g.state): return _fail("替换后装备没有变化。")
  return {"ok":true,"reason":"","requests":specs,"removed":removed,"installed":installed.duplicate(true),"lost_links":lost,"comparisons":comparison.rows,"score":comparison.score,"_after":g.state.duplicate(true)}
 
@@ -428,12 +435,13 @@ static func _transfer_search(g, links: Array, options: Array, index: int, kept: 
    _transfer_search(g,links,options,index+1,kept+[candidate],lost,best)
  _transfer_search(g,links,options,index+1,kept,lost+[links[index].id],best)
 
-static func comparison_value(g, piece: Dictionary) -> int:
+static func replacement_value(g, piece: Dictionary) -> int:
+ if g.Equipment.is_shackle(piece): return g.Equipment.SHACKLE_RESTRAINT_VALUE
  # Special durability drives its own damage rules, not an ordinary tightness.
  var tightness=0
  if not g.SpecialEquipment.is_special(piece):
   tightness=piece.tier if piece.has("tier") else g.tier(piece.durability,piece.maximum)
- return int(piece.grade)+tightness+(1 if piece.get("locked",false) else 0)
+ return g.RestraintValue.from_profile(piece.grade,tightness)+(1 if piece.get("locked",false) else 0)
 
 static func _loss(g, piece: Dictionary, point: String, unit: Dictionary, before: Dictionary, lost: Array) -> int:
  var ids={}
@@ -464,12 +472,12 @@ static func _compare(g, units: Array, installed: Array, deficit: Dictionary, bef
     var incoming=singles.filter(func(piece):return point in _physical_points(g,piece))
     if incoming.is_empty(): strict=false
     for old in locals:
-     if incoming.any(func(piece):return comparison_value(g,piece)<=comparison_value(g,old)+_loss(g,old,point,unit,before,lost)): strict=false
+     if incoming.any(func(piece):return replacement_value(g,piece)<=replacement_value(g,old)+_loss(g,old,point,unit,before,lost)): strict=false
    strict_roots[unit.id]=strict
   for piece in unit.pieces:
    for point in _capacity_points(g,piece):
     if point not in deficit: continue
-    rows.append({"old_id":piece.id,"unit":unit.id,"point":point,"old_value":comparison_value(g,piece)+_loss(g,piece,point,unit,before,lost),"lost_link_bonus":_loss(g,piece,point,unit,before,lost),"composite":unit.composite})
+    rows.append({"old_id":piece.id,"unit":unit.id,"point":point,"old_value":replacement_value(g,piece)+_loss(g,piece,point,unit,before,lost),"lost_link_bonus":_loss(g,piece,point,unit,before,lost),"composite":unit.composite})
  # Incidental overlap from removing a whole root is not an extra voting ticket.
  rows.sort_custom(func(a,b):return a.old_value>b.old_value)
  var needed={};var selected=[]
@@ -494,7 +502,7 @@ static func _assign(g, rows: Array, installed: Array, strict_roots: Dictionary, 
   for piece in _pieces(item):
    var key=piece.id+":"+row.point
    if used.has(key) or row.point not in _capacity_points(g,piece): continue
-   var value=comparison_value(g,piece)
+   var value=replacement_value(g,piece)
    if not composite and value<row.old_value: continue
    var next_used=used.duplicate();next_used[key]=true
    var next_votes=votes.duplicate(true)

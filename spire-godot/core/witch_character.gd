@@ -85,7 +85,7 @@ static func register(g) -> void:
  s.witch_focus.self_faces.bound.effects[0]={"op":"witch_focus","amount":1}
  rules.BUFFS.witch_mana_circuit_bound.mana_spent.effects=[{"op":"witch_focus","amount":1}]
  rules.BUFFS.witch_mana_circuit_bound.detail="每累计消耗20魔力，精神集中1。计入临时魔力，可叠加。"
- for face in s.witch_pleasure_conversion.self_faces.values(): face.pressure_energy=15
+ s.witch_pleasure_conversion.self_faces={"bound":{"pressure_energy":15},"free":{"pressure_energy":15}}
  _basic(g,"witch_key","魔法钥匙",{"card_type":"magic","cost":1,"mode":"unlock","cast_free":true,"free_mana_cost":0.0,"mana_cost":0.0,"casting":{"parts":["mind"],"multiplier":1.0},"free_effects":[{"op":"reserve_mana","amount":4}]},["魔法","开锁1。","{free_effects}",""],"unlock")
  _basic(g,"witch_preparation","施法预备",{"card_type":"magic","cost":1,"mode":"self","casting":{"parts":["mind"],"multiplier":1.0},"self_faces":{"bound":{"cast":true,"mana_cost":20.0,"effects":[{"op":"reserve_mana","amount":4},{"op":"witch_focus","amount":2}]},"free":{"cast":true,"mana_cost":20.0,"effects":[{"op":"reserve_mana","amount":4},{"op":"witch_focus","amount":2}]}}},["魔法","{effects}","{effects}",""],"prepared_chant")
  rules.BUFFS.witch_accumulation={"name":"魔力积蓄","duration":"battle","stackable":true,"witch_mana_damage":0.01,"detail":"每有1点魔力，造成的伤害提高1%。计入自身与临时魔力，可叠加。"}
@@ -94,7 +94,7 @@ static func register(g) -> void:
  for id in ["witch_adaptability","witch_mana_circuit","witch_desire_rune"]:
   g.B.CARD_INFO[id][1]="{bound_buff}";g.B.CARD_INFO[id][2]="{self_free_buff}"
  g.B.CARD_INFO.witch_strain[2]="{free_effects}"
- g.B.CARD_INFO.witch_ready_to_strike[3]="所选手牌仅在施法成功时消耗。基础动作包括各部位施法预备和释放；减费不叠加。"
+ g.B.CARD_INFO.witch_ready_to_strike[3]="所选手牌仅在施法成功时消耗。基础动作包括各部位施法预备和释放；减费仅生效一次。"
  g.B.CARD_INFO.witch_mana_conversion[1]="{mana_cost}能量＋2。"
  rules.BUFFS.witch_mana_circuit_bound.name="魔力回路·精神集中"
  g.B.CARD_INFO.witch_mana_search=["魔法","{bound_effects}","{self_free_effects}",""]
@@ -185,7 +185,7 @@ static func attack_detail(g, args: Dictionary) -> String:
  var hits=int(args.get("hits",1))
  var all_targets=bool(args.get("all_targets",false))
  var focus=int(args.get("focus",0))
- var detail="获得1层%s施法预备。当前%d层。每回合预备次数不限。" % [NAMES[part],n] if charge else ("%s伤害%s×%d。%s" % ["全体" if all_targets else "",g.number(damage),hits,"消耗全部%d层%s施法预备。" % [n,NAMES[part]] if n>0 else "当前无施法预备。"])
+ var detail="获得1层%s施法预备。当前%d层。每回合可反复预备。" % [NAMES[part],n] if charge else ("%s伤害%s×%d。%s" % ["全体" if all_targets else "",g.number(damage),hits,"消耗全部%d层%s施法预备。" % [n,NAMES[part]] if n>0 else "当前无施法预备。"])
  if part=="legs" and not charge: detail="伤害1，打断。消耗全部腿部施法预备。"
  if not charge:
   detail+="每个部位每回合只能成功释放1次。"
@@ -320,17 +320,17 @@ static func relic_allowed(g, id: String, character: String="") -> bool:
  return id not in ["shining_lamp","olihakimi","mana_earring","break_bracer","ember","wrist_bracer"]
 
 static func validate(g, s: Dictionary) -> String:
- if not s.get("deck") is Array: return "卡组记录不完整。"
- if s.deck.any(func(card):return not card is Dictionary or not card.get("type") is String): return "卡牌记录不完整。"
- if s.get("character_id","original") not in ["original",ID]: return "角色记录不正确。"
+ if not s.get("deck") is Array: return "卡组记录缺损。"
+ if s.deck.any(func(card):return not card is Dictionary or not card.get("type") is String): return "卡牌记录缺损。"
+ if s.get("character_id","original") not in ["original",ID]: return "角色记录有误。"
  if s.get("character_id","original")!=ID:
   if s.deck.any(func(card):return str(card.type).begins_with("witch_")): return "卡组中含有其他角色的专属卡牌。"
   return ""
- if not s.get("witch_charges") is Dictionary or s.witch_charges.size()!=4: return "部位蓄力记录不完整。"
+ if not s.get("witch_charges") is Dictionary or s.witch_charges.size()!=4: return "部位蓄力记录缺损。"
  for part in PARTS:
-  if not s.witch_charges.get(part) is int or s.witch_charges[part]<0: return "部位蓄力层数不正确。"
- if not s.get("witch_focus") is int or s.witch_focus<0: return "精神集中层数不正确。"
- if not s.get("special_equipment") is Array: return "装备记录不完整。"
- if s.special_equipment.any(func(e):return not e is Dictionary or not e.has("type") or not g.SpecialEquipment.DESIGNS.has(e.type)): return "装备记录不正确。"
+  if not s.witch_charges.get(part) is int or s.witch_charges[part]<0: return "部位蓄力层数有误。"
+ if not s.get("witch_focus") is int or s.witch_focus<0: return "精神集中层数有误。"
+ if not s.get("special_equipment") is Array: return "装备记录缺损。"
+ if s.special_equipment.any(func(e):return not e is Dictionary or not e.has("type") or not g.SpecialEquipment.DESIGNS.has(e.type)): return "装备记录有误。"
  if s.special_equipment.any(func(e):return g.SpecialEquipment.occupied_slots(e).any(func(slot):return slot.begins_with("special_2"))): return "该角色没有这件装备所需的身体部位。"
  return ""

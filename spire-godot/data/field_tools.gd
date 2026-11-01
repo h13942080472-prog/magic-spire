@@ -26,21 +26,21 @@ static func operation(type: String) -> String:
 static func effect_description(type: String, damage: float, assisted: bool=false) -> String:
  var spec=TYPES[type]
  var lines: Array[String]=[]
- if spec.get("keep_on_capture",false): lines.append("进入监狱时不会丢失。")
+ if spec.get("keep_on_capture",false): lines.append("入狱时保留。")
  match operation(type):
   "cut":
    lines.append("切割：每次造成%s点真实伤害%s。" % [(str(int(damage)) if is_equal_approx(damage,roundf(damage)) else "%.2f" % damage),"（基础%s）" % str(spec.damage) if damage!=spec.damage else ""])
    lines.append("无视紧度、锁和堆叠减伤。适用材料："+"、".join(spec.materials.map(func(material):return preload("res://data/equipment.gd").MATERIAL_NAMES[material]))+"。")
    lines.append("目标须外露且可触及。" if not assisted else "触手朋友：固定工具对全身有效，无身体、姿态或触及限制。")
   "unlock":
-   lines.append("开锁：解除1把装备锁或牢门锁，不削减装备耐久。")
+   lines.append("开锁：解除1把装备锁或牢门锁，耐久保留。")
    lines.append("需要手腕、手指自由并能触及目标；牢门须站姿或坐姿。" if not assisted else "触手朋友：无需满足身体、姿态和触及条件。")
   "escape":
    lines.append("逃离：直接离开当前牢房，进入监狱外部路线。")
-   lines.append("仅安全等级1—4的牢房行动回合可用，使用后背包须不超量。")
+   lines.append("仅限安全等级1—4的牢房行动回合，使用后背包须在容量内。")
    if not assisted: lines.append("手指或脚趾任一部位自由即可使用。")
- lines.append("每次消耗1次使用次数，不耗能量或魔力。")
- if not spec.get("trigger_damage_types",[]).is_empty(): lines.append("安装1能量，取回免费，均不扣次数。")
+ lines.append("每次消耗1次使用次数，能量与魔力费用为0。")
+ if not spec.get("trigger_damage_types",[]).is_empty(): lines.append("安装1能量，取回免费，使用次数保留。")
  return "\n".join(lines)
 
 static func mount_label(mount: String) -> String:

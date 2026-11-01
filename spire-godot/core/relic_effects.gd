@@ -76,11 +76,11 @@ static func gain(g, id: String, source: String="") -> void:
   if cards.is_empty(): g._emit("event","欲望魔方 Pro Max：没有可获得的淫魔法稀有卡。")
 
 static func gain_reason(g, id: String) -> String:
- if not g.Character.relic_allowed(g,id): return "该遗物不适用于当前角色。"
+ if not g.Character.relic_allowed(g,id): return "请选择当前角色适用的遗物。"
  if g.Character.active(g):
   if id=="cursed_plate_lock": return "该角色没有此遗物所需的身体部位。"
-  if g.Relics.TYPES[id].get("pickup_cards",[]).any(func(type):return not g.Character.allowed_card(g,type)): return "该遗物提供的卡牌不适用于当前角色。"
- if id=="shining_lamp" and g.state.mana_max-50<g.B.MANA_MAX_FLOOR: return "魔力上限不足以降低50点。"
+  if g.Relics.TYPES[id].get("pickup_cards",[]).any(func(type):return not g.Character.allowed_card(g,type)): return "请选择提供当前角色卡牌的遗物。"
+ if id=="shining_lamp" and g.state.mana_max-50<g.B.MANA_MAX_FLOOR: return "需要至少50点魔力上限。"
  return ""
 
 static func boss_key(g, saturated: bool) -> void:
@@ -108,11 +108,13 @@ static func attribute(g, key: String, target: Dictionary={}, passive: bool=false
   var points=g.Equipment.slip_points(target)
   if points.any(func(point):return point in g.Equipment.points("thigh")+g.Equipment.points("calf")+g.Equipment.points("ankle")+g.Equipment.points("foot")+g.Equipment.points("toes")):
    total+=g.relic_value("leg_dexterity")
+ total-=g.RopeArt.active_value(g,"active")
  return maxf(0.0,total)
 
 static func begin_combat(g, destination: String="") -> void:
  if destination=="": destination=g.state.phase
  transform(g)
+ g.Enchantments.reset(g)
  g.state.combat={"serial":g.state.combat.serial+1,"active":true,"first_turn":true,"turn":0,"energy":0,"mana_spent":0.0,"mana_used":false,"attack_uses":{},"attack_started":{},"successful_spells":[]}
  g.state.pressure=cap_pressure(g,g.state.pressure)
  g.state.energy=0
@@ -199,7 +201,7 @@ static func end_turn(g) -> void:
  g.state.combat.energy=g.state.energy if g.relic_value("retain_energy")>0 else 0
  if g.state.phase=="prepare" and g.state.combat.active: _mana_hook(g,"preparation_turn_mana","整备回合结束")
  if g.state.phase in COMBAT_PHASES and g.state.combat.active and not g.state.combat.mana_used:
-  _mana_hook(g,"unspent_turn_mana","本回合未消耗魔力")
+  _mana_hook(g,"unspent_turn_mana","本回合耗魔为0")
  if g.state.phase=="battle" and g.state.combat.active: trigger(g,"turn_end")
 
 static func begin_turn(g) -> void:
@@ -319,7 +321,7 @@ static func view(g) -> Array:
    row.current="当前可保留%d点额外能量、%d层蓄力、%s点临时魔力。" % [g.retained_energy(),g.retained_charge(),g.number(g.retained_temporary_mana())]
   var spec=g.Relics.trigger(row.id,g.state.get("ditto_form",""))
   if not spec.is_empty() and spec.scope!="repeat":
-   row.current=("本次机会已使用。" if used(g,row.id) else "本次机会未使用。")+("每场战斗刷新。" if spec.scope=="battle" else "每玩家回合刷新。")
+   row.current=("本次机会已使用。" if used(g,row.id) else "本次机会保留。")+("每场战斗刷新。" if spec.scope=="battle" else "每玩家回合刷新。")
    if spec.get("op","")=="posture_discount" and row.id in posture_sources(g,spec.to):
     row.current+="\n本回合下次从%s转为%s少花%d能量。" % [g.B.POSE_NAMES[spec.from],g.B.POSE_NAMES[spec.to],spec.amount]
   if row.id=="ditto" and g.state.get("ditto_form","")!="":
@@ -349,8 +351,8 @@ static func toe_traction(g) -> Dictionary:
  var result={"base":0.0,"gain":0.0,"sources":[]}
  if g.relic_value("toe_cast")<=0: return result
  for piece in g.equipment_at("toes"):
-  var tightness=g.tier(piece.durability,piece.maximum)
-  var value=float(g.Relics.SECRET_WEAPON_TRACTION.get(int(piece.grade)+tightness,0.0))
+  var tightness=g.equipment_tier(piece)
+  var value=float(g.Relics.SECRET_WEAPON_TRACTION.get(g.RestraintValue.from_profile(piece.grade,tightness),0.0))
   value*=g.relic_value("toe_cast")
   result.base+=value
   result.sources.append({"id":piece.id,"name":g._equipment_name(piece),"grade":piece.grade,"tier":tightness,"base":value})
@@ -400,21 +402,21 @@ static func facts(g) -> Array:
  if g.state.phase in ["cleared","prison_end","captured","inspection"] or g.state.overloaded or not g.state.card_chain.is_empty() or g.state.pending_retain: return out
  for id in g.state.relics:
   if id=="doubao":
-   var toggle_reason="战斗、战后整备、休息及监狱中不能切换模式。" if g.state.phase in COMBAT_PHASES else ""
+   var toggle_reason="请在战斗、战后整备、休息及监狱之外切换模式。" if g.state.phase in COMBAT_PHASES else ""
    out.append(g._fact({"kind":"relic_toggle","relic":id},"切换为"+("DeepSeek" if g.state.relic_counters.get(id,0)==0 else "豆包"),{"kind":"relic.control_toggle","args":{}},0,0.0,toggle_reason,"","relic"))
   if definition(g,id).modifiers.get("skill_mana_cap",0)<=0: continue
-  var reason="尚未积攒点数。" if g.state.relic_counters.get(id,0)<=0 else ""
+  var reason="当前点数为0。" if g.state.relic_counters.get(id,0)<=0 else ""
   out.append(g._fact({"kind":"relic_discharge","relic":id},definition(g,id).name+" · 兑换魔力",{"kind":"relic.discharge","args":{"id":id}},0,0.0,reason,"","relic"))
  return out
 
 static func validate(g) -> String:
  var form_issue=g.Relics.form_issue(g.state)
  if form_issue!="": return form_issue
- if g.state.get("ditto_form","")!="" and not g.Character.relic_allowed(g,g.state.ditto_form): return "百变怪形态来源不正确。"
- if not g.state.get("cursed_plate_released") is bool: return "诅咒平板锁的解除记录不完整。"
+ if g.state.get("ditto_form","")!="" and not g.Character.relic_allowed(g,g.state.ditto_form): return "百变怪形态来源有误。"
+ if not g.state.get("cursed_plate_released") is bool: return "诅咒平板锁的解除记录缺损。"
  var cursed=g.state.special_equipment.filter(g.SpecialEquipment.is_cursed_plate)
  var pending="cursed_plate_lock" in g.state.relics and not g.state.cursed_plate_released
- if cursed.size()!=(1 if pending else 0): return "诅咒平板锁的佩戴记录不正确。"
+ if cursed.size()!=(1 if pending else 0): return "诅咒平板锁的佩戴记录有误。"
  if g.state.cursed_plate_released and "cursed_plate_lock" not in g.state.relics: return "专属钥匙记录缺少对应遗物。"
  if pending and (not cursed[0].locked or cursed[0].durability!=cursed[0].maximum or cursed[0].remaining!=0): return "诅咒平板锁必须保持三档、上锁且无限持续。"
  var bundle_issue=g.RelicBundle.validate(g,g.state)
@@ -424,46 +426,46 @@ static func validate(g) -> String:
   if masks.size()!=1: return "诅咒眼罩的永久佩戴记录损坏。"
   var mask=masks[0]
   if mask.template!="eye_leather" or mask.slot!="eyes" or mask.grade!=3 or not mask.locked or mask.durability!=mask.maximum: return "诅咒眼罩必须保持高级、三档且上锁。"
- if not g.state.get("relic_counters") is Dictionary: return "遗物累计进度不完整。"
+ if not g.state.get("relic_counters") is Dictionary: return "遗物累计进度缺损。"
  for id in g.state.relic_counters:
-  if id not in g.state.relics: return "累计进度对应的遗物未持有。"
+  if id not in g.state.relics: return "累计进度需对应已持有遗物。"
   var step=int(definition(g,id).get("modifiers",{}).get("turn_energy_step",0))
   step=maxi(step,int(definition(g,id).get("modifiers",{}).get("shuffle_energy_step",0)))
   step=maxi(step,int(definition(g,id).get("modifiers",{}).get("skill_mana_cap",0)))
   if id=="doubao": step=g.Relics.FIRST_TURN_MODES.size()
   var value=g.state.relic_counters[id]
   if definition(g,id).modifiers.get("climax_next_draw",0)>0:
-   if not value is int or value<0: return "遗物待抽牌数量不正确。"
+   if not value is int or value<0: return "遗物待抽牌数量有误。"
    continue
   if id=="ditto" and definition(g,id).modifiers.get("mana_energy_step",0)>0:
-   if not g.Snapshot.typed(value,"n") or value<0 or value>=definition(g,id).modifiers.mana_energy_step: return "百变怪累计魔力不正确。"
+   if not g.Snapshot.typed(value,"n") or value<0 or value>=definition(g,id).modifiers.mana_energy_step: return "百变怪累计魔力有误。"
    continue
   if id!="ditto" and definition(g,id).get("collectible",false):
    if not value is int or value<1: return "收藏遗物数量必须为正整数。"
    continue
-  if not value is int or value<0 or step<=0 or value>=step: return "遗物累计回合进度不正确。"
- if not g.Snapshot.fields(g.state.get("combat"),"serial:i active:b first_turn:b turn:i energy:i mana_spent:n mana_used:b"): return "战斗触发进度不完整。"
+  if not value is int or value<0 or step<=0 or value>=step: return "遗物累计回合进度有误。"
+ if not g.Snapshot.fields(g.state.get("combat"),"serial:i active:b first_turn:b turn:i energy:i mana_spent:n mana_used:b"): return "战斗触发进度缺损。"
  var control_issue=g.FirstTurnControl.validate(g)
  if control_issue!="": return control_issue
  var combat=g.state.combat
- if not combat.get("attack_started") is Dictionary: return "本回合首次攻击记录不完整。"
+ if not combat.get("attack_started") is Dictionary: return "本回合首次攻击记录缺损。"
  for type in combat.attack_started:
-  if not g.BasicAttacks.TYPES.has(type) or not g.BasicAttacks.TYPES[type][0].has("first_use_cost") or combat.attack_started[type] != true or not combat.attack_started[type] is bool: return "本回合首次攻击记录不正确。"
- if not combat.active and not combat.attack_started.is_empty(): return "场次结束后不能保留首次攻击记录。"
- if not combat.get("attack_uses") is Dictionary: return "本回合攻击次数记录不完整。"
+  if not g.BasicAttacks.TYPES.has(type) or not g.BasicAttacks.TYPES[type][0].has("first_use_cost") or combat.attack_started[type] != true or not combat.attack_started[type] is bool: return "本回合首次攻击记录有误。"
+ if not combat.active and not combat.attack_started.is_empty(): return "首次攻击记录须在场次结束时清空。"
+ if not combat.get("attack_uses") is Dictionary: return "本回合攻击次数记录缺损。"
  for type in combat.attack_uses:
   if g.Character.active(g) and type.trim_prefix("witch_") in g.Character.PARTS and type.begins_with("witch_"):
-   if not combat.attack_uses[type] is int or combat.attack_uses[type]!=1: return "本回合部位法术释放次数不正确。"
+   if not combat.attack_uses[type] is int or combat.attack_uses[type]!=1: return "本回合部位法术释放次数有误。"
    continue
-  if not g.BasicAttacks.TYPES.has(type) or not g.BasicAttacks.TYPES[type][0].has("uses_per_turn") or not combat.attack_uses[type] is int or combat.attack_uses[type]<0: return "本回合攻击次数记录不正确。"
- if not g.Snapshot.fields(combat,"successful_spells:z") or combat.successful_spells.any(func(spell):return spell not in g.Cards.Rules.FIXED_MAGIC or combat.successful_spells.count(spell)!=1): return "本回合成功施法记录不正确。"
- if not combat.active and not combat.successful_spells.is_empty(): return "场次结束后不能保留成功施法记录。"
- if not combat.active and not combat.attack_uses.is_empty(): return "场次结束后不能保留攻击次数。"
- if combat.serial<0 or combat.turn<0 or combat.energy<0 or combat.mana_spent<0: return "战斗触发进度不能为负数。"
- if g.state.relics.any(func(id):return not g.Relics.TYPES.has(id)): return "持有遗物的定义不存在。"
+  if not g.BasicAttacks.TYPES.has(type) or not g.BasicAttacks.TYPES[type][0].has("uses_per_turn") or not combat.attack_uses[type] is int or combat.attack_uses[type]<0: return "本回合攻击次数记录有误。"
+ if not g.Snapshot.fields(combat,"successful_spells:z") or combat.successful_spells.any(func(spell):return spell not in g.Cards.Rules.FIXED_MAGIC or combat.successful_spells.count(spell)!=1): return "本回合成功施法记录有误。"
+ if not combat.active and not combat.successful_spells.is_empty(): return "成功施法记录须在场次结束时清空。"
+ if not combat.active and not combat.attack_uses.is_empty(): return "攻击次数须在场次结束时清空。"
+ if combat.serial<0 or combat.turn<0 or combat.energy<0 or combat.mana_spent<0: return "战斗触发进度须为非负数。"
+ if g.state.relics.any(func(id):return not g.Relics.TYPES.has(id)): return "持有遗物的定义缺失。"
  var step=g.Relics.value(g.state.relics,"mana_energy_step")
- if step>0 and combat.mana_spent>=step: return "耳坠累计魔力尚未完整结算。"
- if not combat.active and (combat.first_turn or combat.energy!=0 or combat.mana_spent!=0 or combat.mana_used): return "战斗结束后不能保留本场触发进度。"
+ if step>0 and combat.mana_spent>=step: return "耳坠累计魔力待结算完毕。"
+ if not combat.active and (combat.first_turn or combat.energy!=0 or combat.mana_spent!=0 or combat.mana_used): return "本场触发进度须在战斗结束时清空。"
  for id in g.Relics.TYPES:
   var shop_issue=g.Relics.shop_reason(g.Relics.TYPES[id])
   if shop_issue!="": return shop_issue
@@ -527,8 +529,8 @@ static func strain_destroyed(g) -> void:
  trigger(g,"strain_destroyed")
 
 static func card_slipped(g, before: int, target: Dictionary) -> void:
- var after=g.tier(target.durability,target.maximum) if target.durability>0 else 0
- if after<before: trigger(g,"card_slipped",{"from_tier":before,"to_tier":after})
+ var after=g.equipment_tier(target) if target.durability>0 else 0
+ if after<before or (g.Equipment.is_shackle(target) and target.durability<=0): trigger(g,"card_slipped",{"from_tier":before,"to_tier":after})
 
 static func magic_paid(g, amount: float) -> void:
  if amount>0: trigger(g,"magic_paid",{"amount":amount})

@@ -24,6 +24,8 @@ extends RefCounted
 # with the corpus (docs/spec/check-routing-dependencies.md).
 
 const DOMAINS=[
+ {"path":"spire-godot/data/card_enchantments.gd","domains":["ENCHANT"],"reason":"附魔数据经核心注册表间接使用，由附魔行为用例验证"},
+ {"path":"spire-godot/ui/enchantment_screen.gd","domains":["ENCHANT"],"reason":"附魔界面经奖励页构建，由真实指针流程验证"},
  {"path":"spire-godot/core/action_replay.gd","domains":["REPEATED","ECHO"],"reason":"X 卡内部复读经门面触发，用例只断言复读结果"},
  {"path":"spire-godot/core/card_effects.gd","domains":["CARD","POWER","CAST"],"reason":"卡牌与施法效果的总实现，无直接 preload"},
  {"path":"spire-godot/core/consumables.gd","domains":["ITEM","POTION","FLASK"],"reason":"消耗品数值经门面查询，用例按 ITEM／POTION 断言"},
@@ -37,6 +39,7 @@ const DOMAINS=[
  {"path":"spire-godot/core/mana_flask.gd","domains":["FLASK","MANA"],"reason":"魔力小瓶是休息房选择，按 FLASK／MANA 断言"},
  {"path":"spire-godot/core/prison.gd","domains":["PRISON","REINFORCEMENTS"],"reason":"监狱回合与增援经门面推进，用例按 PRISON 断言"},
  {"path":"spire-godot/core/puppet_enemy.gd","domains":["PUPPET"],"reason":"傀儡召唤是遭遇内敌人行为，用例按 PUPPET 断言"},
+ {"path":"spire-godot/core/rope_master.gd","domains":["ROPE"],"reason":"绳艺首领规则经游戏门面执行，由 ROPE 前缀专项覆盖库存、阈值、助理与存档"},
  {"path":"spire-godot/core/relic_effects.gd","domains":["RELIC"],"reason":"遗物效果由遗物用例消费，无直接 preload"},
  {"path":"spire-godot/core/relic_rewards.gd","domains":["RELIC","RARITY"],"reason":"遗物稀有度分布由遗物／奖励用例断言"},
  {"path":"spire-godot/core/self_binding.gd","domains":["SELF","BIND"],"reason":"X 卡自缚效果经卡牌与束缚用例间接消费"},
@@ -55,6 +58,7 @@ const DOMAINS=[
  {"path":"spire-godot/data/pressure_sources.gd","domains":["SOURCE","PRESSURE"],"reason":"压力来源定义由压力／遗物用例断言"},
  {"path":"spire-godot/data/relics.gd","domains":["RELIC"],"reason":"遗物表被图鉴／遗物／奖励／服务用例消费"},
  {"path":"spire-godot/ui/art_inspection.gd","domains":["ART"],"reason":"立绘检查层由图鉴／美术面用例打开的查看层消费，无 ui.<成员> 调用"},
+ {"path":"spire-godot/ui/card_interaction.gd","domains":["CARD"],"reason":"卡牌翻面、悬停与拖放由 CARD 前缀的真实输入用例经主界面消费"},
  {"path":"spire-godot/ui/card_motion.gd","domains":["MOTION","REWARD"],"reason":"卡牌搬运动画由奖励／虹吸界面用例观察"},
  {"path":"spire-godot/ui/card_music.gd","domains":["MUSIC"],"reason":"曲目定义由能力卡／显示／首页界面用例消费"},
  {"path":"spire-godot/ui/chinese_collation.gd","domains":["BOOK"],"reason":"中文排序只服务图鉴与卡组浏览"},
@@ -65,6 +69,7 @@ const DOMAINS=[
  {"path":"spire-godot/ui/dungeon_backdrop.gd","domains":["DISPLAY"],"reason":"背景只参与显示模块的布局断言"},
  {"path":"spire-godot/ui/encyclopedia.gd","domains":["BOOK","CATALOG"],"reason":"图鉴界面由图鉴／界面／装备完成度用例打开"},
  {"path":"spire-godot/ui/enemy_feedback.gd","domains":["FEEDBACK","INTERACTION"],"reason":"敌人反馈层由敌人反馈／界面用例观察"},
+ {"path":"spire-godot/ui/battle_feed.gd","domains":["FEED"],"reason":"即时记录层由敌人反馈用例验证提交增量、时序、去重与生命周期"},
  {"path":"spire-godot/ui/equipment_lock.gd","domains":["LOCK"],"reason":"锁标记由装备／敌人／装备完成度界面用例消费"},
  {"path":"spire-godot/ui/equipment_target_face.gd","domains":["RELEASE","LOCK"],"reason":"装备目标面版由释放／装备完成度用例打开"},
  {"path":"spire-godot/ui/event_screen.gd","domains":["EVENT"],"reason":"事件界面由事件模块用例经真实事件步骤打开"},

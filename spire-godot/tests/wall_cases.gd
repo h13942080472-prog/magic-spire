@@ -173,14 +173,14 @@ static func true_bonus(t) -> void:
   var ordinary=g.escape_preview(a,mode,5)
   g.state.wall="rough"
   var rough=g.escape_preview(a,mode,5)
-  t.check(is_equal_approx(rough.damage-ordinary.damage,2.0) and rough.bonus==ordinary.bonus,"WALL true bonus is outside stack lock and tightness multipliers "+mode)
+  t.check(is_equal_approx(rough.damage-ordinary.damage,2.0) and rough.bonus==ordinary.bonus,"WALL true bonus bypasses stack lock and tightness multipliers in non-card previews "+mode)
   t.check(g._formula(rough).contains("＋2粗糙墙面真实加成") and not g._formula(rough).contains("属性与环境"),"WALL formula separates environment true bonus")
  g.state.equipment.clear()
  a=g.add_fixture("ankle",10)
  var preview=g.escape_preview(a,"slip",5)
- t.check(preview.immune and preview.scaled_damage==0 and preview.environment_true==2 and preview.damage==2,"WALL tier-three immunity only blocks ordinary slip")
+ t.check(preview.immune and preview.scaled_damage==0 and preview.environment_true==2 and preview.damage==2,"WALL tier-three immunity only blocks ordinary slip in non-card previews")
  var card=t.hand_card(g,"slip")
- t.check(t.action(g,"card",{"uid":card.uid,"slot":"ankle","target":a.id}).ok and g._equipment(a.id).durability==8,"WALL true bonus commits exact damage through ordinary card")
+ t.check(t.action(g,"card",{"uid":card.uid,"slot":"ankle","target":a.id}).ok and g._equipment(a.id).durability==7,"WALL true bonus commits exact damage through ordinary card")
  a=g._equipment(a.id)
  t.check(g.escape_preview(a,"slip",1,[],true).environment_true==0,"WALL passive movement has no added wall damage")
  g.state.posture="lie"

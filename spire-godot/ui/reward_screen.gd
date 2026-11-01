@@ -3,6 +3,9 @@ const Glyph=preload("res://ui/shop_glyph.gd")
 const Queries=preload("res://ui/target_queries.gd")
 
 static func build(ui) -> void:
+ if ui.show_enchantments and ui.view.phase=="rest_choice":
+  preload("res://ui/enchantment_screen.gd").build(ui)
+  return
  if ui.view.reward_panel.get("layout","")=="departure":
   preload("res://ui/departure_screen.gd").build(ui)
   return
@@ -46,14 +49,16 @@ static func build(ui) -> void:
  next.name="RewardContinue";ui._place(next,Rect2(658,693+footer_shift if footer.extra_keys.is_empty() else extra_y,284,54),root)
  ui.candidate_buttons[exit.key]=next
  if pending and footer.extra_keys.is_empty() and not rows.any(func(entry):return entry.get("hide_skip",false)):
-  var warning=ui._label("未领取的奖励将被放弃",13,ui.MUTED)
+  var warning=ui._label("放弃剩余奖励",13,ui.MUTED)
   warning.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
   ui._place(warning,Rect2(590,758+footer_shift,420,25),root)
 
 static func row(ui, root: Control, entry: Dictionary, rect: Rect2) -> void:
  var choices=entry.action_keys.map(func(id):return Queries.fact_by_key(ui.view,id))
  var click=func():
-  if entry.category=="card" and not entry.get("direct",false):
+  if entry.category=="enchant":
+   ui.show_enchantments=true;ui.selected_enchantment="";ui.render(ui.view)
+  elif entry.category=="card" and not entry.get("direct",false):
    ui.reward_card_row=entry.id;ui.show_reward_cards=true;ui.render(ui.view)
   elif entry.has("choices"):
    ui.show_reward_relics=true;ui.render(ui.view)
@@ -73,7 +78,7 @@ static func row(ui, root: Control, entry: Dictionary, rect: Rect2) -> void:
  elif entry.category=="relic":
   glyph=preload("res://ui/relic_icon.gd").new();glyph.relic={"id":entry.symbol}
  else:
-  glyph=Glyph.new();glyph.kind="tool" if entry.category=="item" else entry.category;glyph.symbol=entry.symbol
+  glyph=Glyph.new();glyph.kind="tool" if entry.category=="item" else ("card" if entry.category=="enchant" else entry.category);glyph.symbol=entry.symbol
  glyph.modulate=Color(1,1,1,0.4) if entry.claimed else Color.WHITE
  ui._place(glyph,Rect2(12,8,78,78),button)
  var name=ui._label(entry.name,23,ui.MUTED if entry.claimed else ui.TEXT)
@@ -81,7 +86,7 @@ static func row(ui, root: Control, entry: Dictionary, rect: Rect2) -> void:
  ui._place(name,Rect2(106,17,389,34),button)
  var subtitle=ui._label(entry.reason if entry.reason!="" else entry.subtitle,14,ui.RED if entry.reason!="" else ui.MUTED)
  ui._place(subtitle,Rect2(106,55,389,28),button)
- var action_text="已跳过" if entry.skipped else ("✓ 已领取" if entry.claimed else ("无法领取" if not entry.available else entry.get("action_label",("选择  ›" if (entry.category=="card" and not entry.get("direct",false)) or entry.has("choices") else "领取  ›"))))
+ var action_text="已跳过" if entry.skipped else (entry.get("claimed_label","✓ 已领取") if entry.claimed else ("领取受限" if not entry.available else entry.get("action_label",("选择  ›" if (entry.category=="card" and not entry.get("direct",false)) or entry.has("choices") else "领取  ›"))))
  var action=ui._label(action_text,18,ui.MUTED if entry.claimed or not entry.available else accent)
  action.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
  ui._place(action,Rect2(510,31,123,30),button)

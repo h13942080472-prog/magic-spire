@@ -10,9 +10,11 @@ var started_at=Time.get_ticks_msec()
 var external_mouse_events=0
 var mouse_position=Vector2.ZERO
 var drag_test_slot=""
-const UI_MODULES={"localization":"res://tests/localization_ui_cases.gd","card_power":"res://tests/card_power_ui_cases.gd","encyclopedia":"res://tests/encyclopedia_ui_cases.gd","home_persistence":"res://tests/home_persistence_ui_cases.gd","siphon":"res://tests/siphon_ui_cases.gd","card_splash":"res://tests/card_splash_ui_cases.gd","display":"res://tests/display_ui_cases.gd","basic_attacks":"res://tests/basic_attack_ui_cases.gd","trader":"res://tests/trader_ui_cases.gd","installed_tools":"res://tests/installed_tools_ui_cases.gd","exploration":"res://tests/exploration_ui_cases.gd","hand_assist":"res://tests/hand_assist_ui_cases.gd","shoulder":"res://tests/shoulder_ui_cases.gd","slip_motion":"res://tests/slip_motion_ui_cases.gd","torso_binding":"res://tests/torso_binding_ui_cases.gd",
+const UI_MODULES={"enchantments":"res://tests/enchantment_ui_cases.gd","localization":"res://tests/localization_ui_cases.gd","card_power":"res://tests/card_power_ui_cases.gd","encyclopedia":"res://tests/encyclopedia_ui_cases.gd","home_persistence":"res://tests/home_persistence_ui_cases.gd","siphon":"res://tests/siphon_ui_cases.gd","card_splash":"res://tests/card_splash_ui_cases.gd","display":"res://tests/display_ui_cases.gd","basic_attacks":"res://tests/basic_attack_ui_cases.gd","trader":"res://tests/trader_ui_cases.gd","installed_tools":"res://tests/installed_tools_ui_cases.gd","exploration":"res://tests/exploration_ui_cases.gd","hand_assist":"res://tests/hand_assist_ui_cases.gd","shoulder":"res://tests/shoulder_ui_cases.gd","slip_motion":"res://tests/slip_motion_ui_cases.gd","torso_binding":"res://tests/torso_binding_ui_cases.gd",
  "items":"res://tests/item_inventory_ui_cases.gd",
  "touch":"res://tests/touch_ui_cases.gd",
+ "card_interaction":"res://tests/card_interaction_ui_cases.gd",
+ "interaction_audio":"res://tests/interaction_audio_ui_cases.gd",
  "keyboard":"res://tests/keyboard_ui_cases.gd",
  "casting":"res://tests/casting_ui_cases.gd",
  "card_growth":"res://tests/concentration_ui_cases.gd",
@@ -244,7 +246,10 @@ func start_drag(uid: String, slot: String) -> void:
 func release_target(index: int=-1) -> void:
  if ui.drop_targets.is_empty():
   var destination=Vector2(1050,90)
-  if ui.drag_hints.any(func(hint):return hint.get_meta("target_id","")=="hero"):
+  var cast_zone=ui.find_child("CardCastZone",true,false)
+  if cast_zone!=null:
+   destination=cast_zone.get_global_rect().get_center()
+  elif ui.drag_hints.any(func(hint):return hint.get_meta("target_id","")=="hero"):
    destination=ui.actor_targets.hero.get_global_rect().get_center()
   await move_mouse(destination,true)
   await mouse_button(destination,MOUSE_BUTTON_LEFT,false)
@@ -399,8 +404,11 @@ func _actor_drag_tests() -> void:
  await capture("ui-09-actor-actions.png")
 
  ui.restart(20260906)
- await frames()
- var uid=ui.view.hand[0].uid
+ var wrist=ui.game.add_fixture("wrist",8)
+ ui.render();await frames()
+ var uid=ui.view.hand.filter(func(card):return card.type=="slip")[0].uid
+ if ui.card_faces.get(uid,false): await flip(uid)
+ check(Queries.find(ui.view,"card",{"uid":uid,"free":false,"target":wrist.id}).valid,"ACTOR bound escape fixture has a valid restraint target before rejecting an enemy")
  before=JSON.stringify(ui.game.state)
  await drop_card_on_actor(uid,"enemy_1")
  check(JSON.stringify(ui.game.state)==before and not ui.player_pick,"escape card cannot target enemy")

@@ -82,7 +82,6 @@ static func copy_missing_key_never_crashes(t) -> void:
  ui.game.add_fixture("wrist",4,10,false);ui.game.add_fixture("wrist",4,10,false)
  var card=preload("res://tests/curse_cases.gd").give(ui.game,"strain")
  ui.render();await t.frames()
- var free_detail=ui.game.candidate_detail(Queries.find(ui.view,"card",{"uid":card.uid,"free":true}))
  var before=ui.game.export_snapshot()
  var baseline={}
  for free_face in [false,true]:
@@ -90,7 +89,7 @@ static func copy_missing_key_never_crashes(t) -> void:
   ui.render();await t.frames()
   baseline[free_face]=await copy_drag_text(t,card.uid,"thigh")
  t.check(baseline[false].strip.contains("请右键切换到"),"COPY bound-face drag renders the drop strip face hint")
- t.check(baseline[true].ids.has("hero") and baseline[true].hints.contains(free_detail),"COPY free-face drag renders the hover hint with the candidate detail")
+ t.check(baseline[true].ids.has("cast") and not baseline[true].ids.has("hero") and baseline[true].hints.strip_edges()=="","COPY free-face drag uses an invisible play surface without repeating the card detail")
  t.check(ui.game.export_snapshot()==before and ui.projection_misses.is_empty(),"COPY complete projection renders no miss record and pays nothing")
  var copy=ui.game.get_view().duplicate(true)
  copy.card_texts.erase(card.type)
@@ -160,7 +159,7 @@ static func r4_pointer_paths(t) -> void:
   var invented=is_instance_valid(ui.term_popup) and ui.term_popup.has_meta("drag_reason") and String(ui.term_popup.get_meta("drag_reason",""))!=""
   t.check(not invented,"R4 self drag does not invent a rejection")
  else:
-  t.check(self_lit==bool(self_fact.valid),"R4 self highlight matches the self-target fact")
+  t.check(not self_lit,"R4 self-target cards do not add a hero frame")
   if not self_fact.valid:
    t.check(is_instance_valid(ui.term_popup) and t.visible_text(ui.term_popup).contains(String(self_fact.reason)),"R4 self drag shows the determination reason verbatim")
  await _cancel_drag(t)
@@ -219,7 +218,7 @@ static func r4_pointer_paths(t) -> void:
   var hit=sidebar if sidebar!=null else ui.actor_targets.guard_bind
   var point=hit.get_global_rect().position+Vector2(24,hit.size.y/2.0)
   await t.move_mouse(point,true)
-  t.check(is_instance_valid(ui.term_popup) and t.visible_text(ui.term_popup).contains("这张牌不能处理捕缚。"),"R4 capture-bar drag shows the original rejection")
+  t.check(is_instance_valid(ui.term_popup) and t.visible_text(ui.term_popup).contains("请选择可削减捕缚的卡牌。"),"R4 capture-bar drag shows the original rejection")
   await _cancel_drag(t)
   t.check(ui.game.export_snapshot()==before,"R4 cancelling a rejected capture drag commits nothing")
 
@@ -406,7 +405,7 @@ static func unavailable_body_hint(t) -> void:
    await t.move_mouse(anchor.get_global_rect().get_center(),true)
    var popup=ui.term_popup
    t.check(t.root.gui_is_dragging() and not anchor.get_meta("target_selectable",true) and ui.drop_panel==null and ui.drop_targets.is_empty(),"TARGET unavailable region remains dim and never creates an empty equipment grid")
-   t.check(is_instance_valid(popup) and t.visible_text(popup).strip_edges()=="这张牌不能用于%s。" % body.name and popup.size.x>=140 and popup.size.y<90,"TARGET rejection wraps horizontally with complete body-specific reason and no scroll strip")
+   t.check(is_instance_valid(popup) and t.visible_text(popup).strip_edges()=="请选择适用于%s的卡牌。" % body.name and popup.size.x>=140 and popup.size.y<90,"TARGET rejection wraps horizontally with complete body-specific reason and no scroll strip")
    if is_instance_valid(popup):
     var local_anchor=ui.layout.get_global_transform().affine_inverse()*anchor.get_global_rect()
     t.check(is_equal_approx(popup.position.x,local_anchor.end.x+12) and is_equal_approx(popup.position.y,local_anchor.position.y),"TARGET rejection uses the same canvas coordinates as its body anchor, including scaled layouts")

@@ -35,7 +35,7 @@
 | T1 | 各 UI 指令来源 → 指令路由 | 唯一前端指令入口 |
 | T2 | 指令路由 → 分类子路由 | 唯一分类点（`ROUTES`；表外拒绝） |
 | T3 | 分类子路由 → `core/game.gd::dispatch` | 唯一后端提交边（UI 侧 dispatch 调用点唯一） |
-| T4 | `core/game.gd::dispatch` → 唯一判定 | 提交侧强制复核（形状＋参数合法性＋判定）；`core/game.gd::command_fact` 可行动期经登记项取行（`core/command_registry.gd::point`：table 形＝该 kind 来源首条 params 命中；point 形＝`keys`／`build`／`member`），不经 `command_facts` 全表；接管期扫显式登记的整表；39 条 kind 唯一汇编于 `core/command_registry.gd` |
+| T4 | `core/game.gd::dispatch` → 唯一判定 | 提交侧强制复核（形状＋参数合法性＋判定）；`core/game.gd::command_fact` 可行动期经登记项取行（`core/command_registry.gd::point`：table 形＝该 kind 来源首条 params 命中；point 形＝`keys`／`build`／`member`），不经 `command_facts` 全表；接管期扫显式登记的整表；登记的 kind 唯一汇编于 `core/command_registry.gd` |
 | T5 | `core/game_view.gd::build` → 唯一判定 | 显示侧取可用／原因／风险／费用 |
 | T6 | 显示路径 → `core/game.gd::candidate_detail`／`core/game.gd::live_card_text`（经 `ui/main.gd::detail_of`／`ui/main.gd::card_entry`） | 文案按需现算 |
 | T7 | `core/game.gd::dispatch` → 执行与事务 | 现状不变（事务副本、全回滚、version 一次自增） |
@@ -61,6 +61,8 @@
 **判据的射程（不是「共享行只读」的证明）**：两条判据都是源码文本的写点计数钉，抓文本形态的写点，不是不变量的证明。①`tests/architecture_cases.gd::dispatch_fact_row_is_readonly`＝`core/game.gd::dispatch` 体内对局部 `chosen` 的成员／索引赋值（`chosen.<字段> …=`／`chosen["…"] …=`／`chosen.payload…=`；比较与传参不算）；②`tests/architecture_cases.gd::payload_write_sites_are_pinned`＝`core/`＋`data/` 全部 `.gd` 内、接收者**末段**恰为 `payload` 的写点（成员赋值 `.field=` 含 `+=` 等复合、索引赋值 `[…]=`、改字典内容的 `payload.merge(`／`erase(`／`clear(`），按写点**出现次数**恰等于字面白名单 `tests/architecture_cases.gd::PAYLOAD_WRITE_WHITELIST`（生产者侧构造：`core/card_effects.gd::card_point_fact` 两处、`core/prison.gd::add` 一处）。四条已知逃逸面与补偿（白名单计数变化即红＋审查）逐条登记在 `docs/spec/fact-lookup-dependencies.md` 禁止项。
 
 ## 输入域
+
+- 火堆附魔的 `enchant` 使用 `op／enchantment／uid／payment`，经 `rest` 子路由提交。候选唯一来源为 `core/card_enchantments.gd::facts`，表查入口 `core/game.gd::_rest_choice_kind_facts` 仅在 `rest_choice` 开放；执行与边界见[火堆附魔](../design/card-enchantments.md)。
 
 - `kind` 必须是声明表已声明的键；`params` 只用稳定 ID（type／uid／slot／target／item／enemy／mode…），
   不得用译文、名称、颜色或图片；`params` 不携带候选提交身份 id。

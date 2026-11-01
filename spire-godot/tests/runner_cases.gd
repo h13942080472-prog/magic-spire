@@ -14,6 +14,7 @@ static func run(t) -> void:
     t.check(name in Selection.resolve(t.SUITES.keys(),[area],true).selected,"RUNNER extracted feature keeps its former reward integration coverage: "+name+" / "+area)
  t.check(t.SUITES.values().all(func(suite):return suite==null or suite is String),"RUNNER registries contain resource paths so unselected suites are never preloaded")
  var names=t.SUITES.keys()
+ t.check("application" in Selection.resolve(names,["prison"],true).selected,"RUNNER prison mixed profiles include shared installer coverage")
  for area in ["card_power","card_expansion","relics","witch_character","persistence"]:
   t.check("basic_attacks" in Selection.resolve(names,[area],true).selected,"RUNNER basic attacks retain card, relic, character and first-use persistence integration: "+area)
  for area in ["relics","card_power","card_growth","witch_character"]:
@@ -28,6 +29,9 @@ static func run(t) -> void:
   t.check("enemies" in Selection.resolve(names,[area],true).selected,"RUNNER area damage sources include shared enemy barrier checks: "+area)
  for area in Selection.CROSS_AREAS.witch_character:
   t.check("witch_character" in Selection.resolve(names,[area],true).selected,"RUNNER witch character follows its affected boundary "+area)
+ for area in ["core","services","casting","card_power","persistence"]:
+  t.check("enchantments" in Selection.resolve(names,[area],true).selected,"RUNNER enchantments follow affected upstream: "+area)
+ t.check(["services","card_power","card_splash","casting","architecture"].all(func(name):return name in Selection.resolve(names,["enchantments"],true).selected),"RUNNER enchantment changes include affected integration suites")
  var direct=Selection.resolve(names,["casting","casting"])
  t.check(direct.ok and direct.selected==["casting"] and direct.reasons.casting=="requested","RUNNER focus mode executes only the named complete suite once")
  t.check(not Selection.resolve(names,["contact"]).ok and Selection.resolve(names,["contact"],true).ok,"RUNNER synthetic areas require explicit impact expansion")

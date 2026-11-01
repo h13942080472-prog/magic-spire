@@ -1,5 +1,62 @@
 # 验证记录（现行卷 · 2026-09-14 及以后）
 
+## 2026-11-01 皮革倍率收窄为卡牌
+
+- 域：`Cards.scale_card_preview`、`Cards.target_payload`、`CardSplash.options` 与公共逃脱预览。倍率移至卡牌缩放入口，由主目标及波及目标各自材质判断；公共预览和移动不增伤，缓存深复制保持隔离。更新上一批移动、墙面、辅助预期，新增卡牌／非卡牌对照与真实卡牌只乘一次检查。
+- `build/checks/20261031T205137790-37764`：card_splash、slip_motion、runner、hand_assist、wall、equipment共2790断言通过；recipe163断言，种子7、60提交／60步、stop=cap、exit=0；文档49份／2897引用通过，status=passed且before=after。状态读者表与检查索引经正式工具更新，差异空白检查通过。
+- 原审查者 `review_leather_slip` 只读复核非卡牌排除、波及倍率及缓存隔离，无重要问题。未跑完整回归、安卓真机或独立UI专项，未打包或发布。
+
+## 2026-11-01 皮革滑脱与驷马缚
+
+- 域：`Game._build_escape_preview`／`_formula`、`Balance.LEATHER_SLIP_MULTIPLIER`；装备、移动、墙面及手部辅助数值测试。驷马缚保留单物理实例，新增两端共用紧度、同时解除验证；原阈值测试覆盖50中级2档、80高级2档。新皮革测试覆盖普通／魔法／被动、墙面、挣扎反例、真实提交及陈旧版本拒绝。
+- `build/checks/20261031T201936373-42900`：rope_master、shoulder通过，slip_motion的33项旧皮革预期失败；更新预期后 `20261031T202025352-46824` 的slip_motion、equipment、links、composites通过，wall的3项旧预期失败。更新墙面预期后 `20261031T202750005-36068` 的rope_master、card_splash、installed_tools、shoulder、slip_motion、runner、wall、equipment、links、composites通过；hand_assist的6项旧皮革预期失败，recipe未执行。各失败项保留其原行为检查并更新倍率数值，没有删去判据。
+- 最终补验 `build/checks/20261031T203403457-47424`：runner及hand_assist共1997断言通过；recipe163断言，种子7、60提交／60步、stop=cap、exit=0；文档49份／2897引用通过。status=passed，before=after=`30EF1541929B8FAAFECEC123247344AD90284F5B357DDAE1019B6F944ED7B284`。最终轮仅改手部辅助测试预期与生成索引，复用上一轮其余已过分类证据。状态读者表和检查索引均经正式生成器更新，diff空白检查通过。
+- 独立只读审查 `review_leather_slip`（gpt-6.1-terra medium，指定旧型号不可用）及数值预期复核无重要问题。未跑全项目回归、安卓真机或独立UI专项；未打包、提交、推送或发布。
+
+## 2026-11-01 Profile A角色语音
+
+- 域：`core/resource_feedback.gd`／`core/game.gd` 的成功事务语音事实，`data/girl_sound_profile.gd` 的八个音频池，`ui/hero_voice.gd`／`ui/main.gd` 的单声部消费，以及普通、特殊、链接、复合、肩带与躯干连接的既有安装反馈入口。Profile A源目录与项目目录各186个OGG、12,353,823字节，逐文件名SHA256对照零缺失、零多余、零不一致；186个Godot导入均为不循环。清单摘要SHA256为 `5A20DA8197161E3B0311F1587E75DE7DA00A5AAE006E88FB4A9100459D84CF13`。
+- 首轮 `build/checks/20261031T161803061-46092` 的application有3条新断言失败：测试误把“魔力转化”当作快感增加，并把新增角色语音后的材质音效数组仍写成完全相等；修正夹具与断言而未改产品语义。`20261031T163316803-11612` 规则194条通过，UI测试又把回主页时“状态应保持”误写为“应变化”；修正测试后 `20261031T164016999-3816` 的enemy_feedback UI104条通过。自然等待音频结束及随机抽取覆盖加入后，`20261031T165709670-11448` 的application194、UI106条通过。
+- 独立只读审查 `review_profile_a_voice`（gpt-6.1-terra medium）指出卡牌提交期间的能力周期被动装备伤害可能误播 `struggle`。反馈收据随后区分直接与被动伤害；能力周期、高潮和移动损伤仍保留材质音效，但不作为卡牌直接伤害。新增真实“开信刀play”第三张技能触发周期伤害反例；`20261031T172715020-13300` 的application198条通过，原审查者复核确认问题解决且未发现重要副作用。
+- 正式生成器最终重建状态读者表（inputs SHA256 `24749B55CF03EC64DC410F6C4AE7AE9319AABC0AD6F0BA0DF4F6E2A9CF3254A7`）及检查索引（digest `664F599B6F7F87D2C5C855A57C91F4DF04FF1C041218BDE10424509148C0A5DF`）。最终冻结轮 `build/checks/20261031T173030182-8456`：Godot 4.7.2正式导入通过；application／runner共2031、enemy_feedback UI106、recipe163条断言通过；recipe种子7、60提交／60步、stop=cap；文档49份／2887引用通过；status=passed，before=after=`34D31C97C6E00839B82BEA64FD1F2CD9232E261354627C38E142E3FAC16E2D29`。
+- 覆盖同提交优先级、最终嘴部状态分池、播放中丢弃且不重抽／不重启／不排队、表现随机不影响玩法随机、真实UI卡牌伤害、重绘静默和主页／重开停止。未跑完整规则／UI回归、安卓真机或扬声器主观试听；未打包、提交、推送或发布。
+- 后续确认拘束具材质音效只对自身做忙时去重，不与角色语音或卡牌音乐互斥；补三播放器同帧并行断言。`build/checks/20261031T195135253-47980` 的enemy_feedback UI107条通过，文档49份／2895引用通过；检查索引由正式生成器重冻为 digest `15899D906421FB0D9EF012714F0FF12AFAD7208BC2745BB2D71469D823D45D6E`。产品播放器结构未改，未重复运行规则和60步配方。
+
+## 2026-10-31 快速复制种子与指定种子开局
+
+- 域：`ui/main.gd` 与 `ui/home_screen.gd` 的种子输入、复制及主页／局内入口。沿既有 `copy_seed`、`show_settings` 与 `restart` 扩展；核心随机、存档格式及规则未变。任务前相关文件副本位于 `build/seed-entry-before/`，保留其余在途修改。中英日语义文案新增5条，兼容目录由正式工具重建；状态读者表和检查索引亦由正式生成器更新。
+- 首轮 `build/checks/20261031T151826610-14388`：localization／runner共2131断言，UI home／route／keyboard共529断言通过；文档49份／2878引用通过。status=passed，before=after=`319EE0F4735D332C4E492FD133477CC826B56F483ED42A6C1E47C2D496A47003`。
+- 独立只读审查 `review_seed_entry` 指出原测试禁用持久化，不能证明取消对已有存档的保护。新增真实隔离目录存档后，取消核对快照、文件字节与修改时间不变，确认开局读回新种子，复制核对不写盘。复验 `20261031T152852603-6268`：runner1822、home UI188、recipe163断言通过，60提交／60步；before=after=`54BA2DE35545C90FF4FA570A1C3D0DB81948CBB5E152C32C8A0A430A2ECD94A1`。
+- 最后移除输入框静默截长，改为解析时明确拒绝128字符以上输入，并将粘贴中内部换行／制表符转为空格后拒绝；增加两条真实粘贴负例。最终 `20261031T153438532-25476`：runner1822、home UI192、recipe163断言通过，recipe种子7、60提交／60步、stop=cap；status=passed，before=after=`97EF379C27636EF7D31574BD2554190C07B466D95EF76F6F8C2BA250E3D5A325`。路线复制、键盘通用流程与本地化实现未受末轮输入边界修改影响，复用首轮证据，不宣称重新运行这些分类。
+- 随后仅补齐种子契约的128字符上限与多行处理说明，单独文档门禁49份／2878引用通过，日志 `build/seed-entry-docs-final.log`；最终引擎指纹对应补说明前版本，生产代码与测试字节未再变。只读审查采用gpt-6.1-terra medium（技能指定旧terra型号不在可用列表），已复核代码、测试缺口修补及最终摘要，无剩余代码阻塞。
+- 全部测试存档和显示设置位于隔离build路径，没有读写玩家存档。未跑全项目回归或安卓真机；只更新源码及文档，未打包、提交、推送或发布。
+
+## 2026-10-31 绳索与皮革装备音效
+
+- 域：实际装备伤害与安装的增量反馈、成功提交回执和独立音效播放器。素材按用户原始 MP3 字节接入；源与成品 SHA256 均为 `DBDC331704548813EE29D98CF4EABE4E195D930258ADE6170B7FF39255E448DA`，正式 Godot 导入成功。按实际 rope／leather 材质筛选，覆盖普通、特殊、链接、复合部件及肩带／躯干连接；不扫描全量装备。零伤害、直接解除、推演、重绘及失败回滚静默。
+- 首轮 `build/checks/20261031T141351524-36932`：application 184条断言中1项失败，伴随2条引擎错误；新测试错误地用不支持肩带生成的模板构造夹具。改用既有可用的 belt 模板，没有改动产品行为。复验 `20261031T141513190-26152`：application184、enemy_feedback UI79通过。
+- 补齐契约并按正式生成器重建状态读者表与检查索引后，最终 `build/checks/20261031T142728982-35448`：application／runner共2006、enemy_feedback UI79、recipe163条断言通过；recipe种子7、60提交／60步、stop=cap。文档49份／2874引用通过，status=passed，before=after=`733773916F7073DE3B6D370785DCE4A385165B248E26769624E612564BCFEA38`。
+- UI覆盖真实指令提交播放、同一提交合并、播放中不重启／不排队、播放结束后重触发、重绘静默和重开／回主页停止。规则负例覆盖版本不符和注入提交校验失败后的完整回滚。独立只读审查 `review_equipment_audio`（gpt-6-astra low）及最终契约／证据复核无阻塞问题。
+- 属于本批专项验证，未跑全项目回归、安卓真机或扬声器主观试听。仅更新源码、音频和文档，未打包、提交、推送或发布。
+
+## 2026-10-31 战斗前端视觉简化
+
+- 域：`ui/visual_theme.gd`、`ui/shell/header.gd`、`ui/shell/body_sidebar.gd`／场景、`ui/dungeon_backdrop.gd`、`ui/mana_flask.gd`、`ui/main.gd` 的按钮、动作栏与资源栏样式。沿既有呈现与提交边界，不改规则或存档。新增身体部位选择标记的真实点击检查，并适配行动记录测试的既有过场确认步骤。
+- 首轮 `build/checks/20261031T081222120-6476`：`-UIOnly -UISuite home,body_layout,basic_attacks,keyboard,enemy_feedback`；基础动作273、键盘87、主页140条断言通过，before=after=`5C56656C9F242197A7FF44FD2718F7255DB2ECD72D09FFFE4D39C3DAA80AAE9E`。`enemy_feedback` 在进入牢房前尚未确认已有入狱插画，原点击找不到入狱按钮而失败，body_layout未执行；该轮不是整体通过。测试补真实点击已有“继续”入口及快照守恒检查，保留原进入后清理断言；产品入狱流程未改。
+- 补验 `build/checks/20261031T082933973-37764`：`-UIOnly -UISuite body_layout,enemy_feedback`，行动记录68、身体栏231，共299条断言通过，exit=0、status=passed；before=after=`B619F063CD324064B89EE0AC8958D93E61F3C0408681EA2218223F48F308F07E`。后续仅改身体选中样式与上述测试，对首轮其他三个分类复用证据，不宣称重跑全部分类。
+- 连续操作 `build/checks/20261031T083928907-12872`：`-Suite recipe`，种子7、60次提交、60步、stop=cap，163条断言通过，exit=0、status=passed；before/after均为同轮摘要中的 `B619F063CD324064B89EE0AC8958D93E61F3C0408681EA2218223F48F308F07E`。覆盖战斗、奖励、整备、行进、事件、地图、休息及宝藏。文档门禁49份／2864引用通过。
+- 检查索引通过官方入口重生成后零漂移校验：`build/check-index-20261031T084116558.log`；状态读者表重生成后 `--verify` 通过（1302 cells、2133 sites、ui_reads=0）。局部 diff 空白检查通过。实际窗口查看 `build/hud-after.png`、`build/hud-details.png`、`build/hud-1280.png`，包含1600×900、1280×720及展开详情；预览使用正式练习初始化与固定立绘／测试卡图显示偏好，不写玩家存档。
+- 独立只读审查指出轻按钮丢失部位选中标记；修复并补真实 toes→ankle→toes 点击证据后原审查者复核无新阻塞。审查未重复运行已完成检查。
+- 未跑完整规则／UI回归、全语言逐屏视觉检查或安卓真机；未打包或发布。
+
+## 2026-10-31 淫纹连体丝高潮继续当前回合
+
+- 域：`Pressure._apply_overloads/forced_climax`、`Relics.TYPES.lewd_silk_bodysuit`、`lewd_relic_cases.gd::bodysuit`、中英日遗物说明与 `docs/design/content.md`。正例覆盖高潮后普通出牌可用、能量／手牌保留、快感为上限50%；反例覆盖扣魔、蓄力减半、下回合能量惩罚、捕缚增长和滑精仍生效；连续结算用真实 `double_unlock` 保留 `card_chain`、`play` 实例与第二目标候选，并完成后续解锁且不重复付款。
+- `20261030T175224439-4640`：`relics` 通过，但 `localization` 因另一批日文目录生成工作未完成而红，`pressure` 因旧中级耐久预期红，且运行期间源码变化；该轮不作本批通过证据。`20261030T175914730-54456` 的 1935 条遗物断言虽通过，但审查时共享工作区已变化，同样不作最终证据。
+- 最终冻结轮 `20261030T180326061-52132`：`relics` 1935 条断言通过，exit=0、status=passed；before／after／随后重算当前源码指纹均为 `810D99E3E1F2CECE625AFDD80689108F53A61F65083FE367BFAF21E3222C7571`。文档门禁 PASS（49份规则文档、2857处引用、允许清单3项）。检查索引重冻日志 `build/check-index-20261030T175913696.log`，随后零漂移校验通过；状态读者表重生成并零漂移校验通过。
+- 独立只读审查首次指出缺少连续卡牌直接覆盖及旧证据指纹失效；补真实两段连续开锁用例后，原审查者确认该用例能防止误调用 `Cards.cancel_chain`，其余实现符合规则。最终冻结轮在日文本地化并发写者停止后取得。差异检查无空白错误；新旧中英日连体丝说明定向核对通过。
+- 未跑完整规则／UI回归、安卓真机、打包或发布；本次未处理旧 `pressure` 耐久断言及其他在途日文本地化结构。
+
 ## 2026-09-21 图鉴原图检视
 
 - 域：`Encyclopedia._card_family/_inspect_card`、`ArtInspection`、`Main.modal_region/_input/_notification`、中英文按钮。复用当前卡面原始纹理、现有模态及触屏输入，不另行解析画风或正反面。
@@ -4288,6 +4345,137 @@ flowchart LR
 - P7「present 邻接表完整性下限」切片闭合：提案状态已改为已落地（`0e3aba7` 批内）。
 
 
+## 2026-10-01｜henshin拘束面解除限制项圈
+
+- 按用户确认，只补齐普通henshin拘束面成功施放后的全解除；心理暗示仍可豁免项圈的使用限制，成功后锁定／未锁定项圈均经既有解除入口移除。普通自由面伤害翻倍及完美版既有行为保持。
+- 本批范围：`spire-godot/core/card_effects.gd::resolve`、`spire-godot/tests/prison_cases.gd::henshin_collar_cases`及卡牌／监狱设计说明。测试经正式收押、监狱出牌、心理暗示、henshin提交，覆盖双面、两种锁状态、过期提交原子性与真实施法失败保留装备。
+- 验证：`tools/check.ps1 -Suite prison,card_power,card_expansion -TimeoutSeconds 300`；运行`20261001T105757365-23244`，card_power 2297、card_expansion 1683、prison 1437，共5417断言通过（daily采样）；文档35份／2503引用通过。退出码0，summary状态passed、所选规则complete，before与after均为`DE74169F8233D6AB72A4FED06E7D1F93947768D1195955A76DA4BA189C440432`。
+- 独立只读审查`review_henshin_collar`（Astra low）无阻塞发现；实现者已核对最终摘要及一致指纹。并行敌人与装备修改保留，不计作本批完成内容。未运行全量／UI或安卓真机验证，未打包、提交、推送。
+
+
+## 2026-10-01 敌人施加：后台拘束值
+
+- 范围：常规材质怪初始3／离场5、贩子①每件3与③4、警卫开场每件4、玩偶普通反击3、六缚双重束缚每件4、铁男普通皮革4→5→6及解除捕缚降级回退。`Equipment.profiles_for_value` 展开既有 profiles，正式选择／替换／快照通道不另建。界面不显示总值；更新对应品质紧度说明及英日译文。
+- 工作区存在另一任务的卡牌／监狱／镣铐并发修改。保留全部在途修改；以基线 `8e83876` 加本批差异建立隔离树 `G:/CodexProjects/tmp/magic-spire-wt-enemy-values`，以下通过证据仅对应该树，不代表主工作区的混合集成验收。
+- 首轮主树 `20261001T110002162-14876`：22分类通过，敌人分类7条失败和1条脚本错误；修正旧固定品质断言与新增夹具的练习ID。续轮 `20261001T110401301-36568`：2条失败及5条脚本错误；警卫池／图鉴受到并发镣铐改动影响，胶带夹具改为按真实容量填满手腕及手指再验证转口部。保留日志，不删除反例。隔离首轮 `20261001T110828463-38608` 导入失败：抽取时误带其他任务的镣铐池扩充；仅在隔离树剔除该外部依赖后重跑。
+- 隔离规则门禁：`tools/check.ps1 -Import -Suite enemies,application,guard,iron_man,trader,intent,localization,encyclopedia -Impact -Exhaustive -TimeoutSeconds 300 -KeepGoing`；`20261001T110905939-9008`，26分类全部通过，19,028断言，exit 0，文档门禁通过；前后指纹一致 `7D7B03AAB1394C95036BE2805E28EB9D9FB554382365CED6278206F355ED39F8`。随机矩阵为相关分类登记的全部16／24种子，新增值2—6安装各固定16种子；不称全项目回归。
+- 最后仅修铁男预告相邻字符串占位符与英日规格短语；`20261001T111346307-17592` 的 localization／intent／iron_man 共776断言通过，exit 0，文档门禁通过，前后指纹一致 `1288B8F7F4C9957B7A56BD430C3DEAA9D408CF4E39693D3E61B5B089CA2F21AA`。其余未受文本修改影响的行为复用前轮证据。
+- 新验证覆盖实际安装组合、最低品质过滤、强装备替换拒绝、准备就绪三档覆盖、满位位置优先级、只读预览、存档重放、铁男正式解除捕缚后的规格回退，以及真实预告的英日显示。独立只读审查 `review_enemy_values`（gpt-6-astra，low）初审与定向返修复核通过。
+- 日志位于相应工作树的 `spire-godot/build/checks/`。本批仅源码、译文与文档；未做UI窗口、主树并发集成、打包或发布验收，未提交／推送。隔离树导入生成的 `.import` 差异不属于本批交付。
+
+
+## 2026-10-01 拘束值接口对齐与已有消费者审计
+
+- 范围：`data/restraint_value.gd::from_profile`／`profiles`，敌人、自缚及已有品质＋紧度消费者；替换、镣铐常量和嘴部条件接口命名同步。新增实物耐久从三档到二档跨越阈值的联动用例，覆盖药剂取整、深呼吸、般若汤、查询不变、替换锁加值／特殊例外、镣铐固定值和自缚候选无随机副作用。
+- 验证源：`8e83876`＋主树在本批开始时全部在途差异，冻结到 `G:/CodexProjects/tmp/magic-spire-wt-restraint-interfaces` 后实施本批修改。该快照含并发镣铐／界面功能，本批不改其规则。任务差异经补丁合回主树，保留之后的并发改动；新出现的 `iron_man_cases.gd` 镣铐常量调用同步新名。
+- 首次导入 `20261001T112841532-38532` 缺少初次字体缓存，导入阶段失败；期间完善测试调用也导致 source_changed，此轮不是通过证据。字体导入完成后重新运行完整原选范围。
+- 任务后：`tools/check.ps1 -Import -Suite enemies,equipment,replacement,application,pressure,special_equipment,consumables,card_power,relics -Impact -Exhaustive -KeepGoing -TimeoutSeconds 300`，运行 `20261001T112928151-14788`；43分类运行完毕，38通过，29193断言中15失败。失败为 witch_character 2、architecture 1、equipment_complete 8、prison 2、iron_man 2；新拘束值回归所在 enemies 通过。summary=failed、exit 1；前后指纹均 `9D685F2589706DE01F663377C567C16596167EE7E064FBA4A9A60A78CAAC4399`。文档35份／2510引用通过。
+- 修改前对照：将同一隔离树的本批改动恢复至修改前，仅重跑上述5个失败分类，`20261001T113357103-36256`，7541断言／15失败；全部15条 ERROR 文本及失败分类与任务后逐字相同，包括G6快照基线哈希。前后指纹均 `39970AB51E670C04FB8B850D8EE4EE2383C4284ABA278C39BAE2A969989FD170`，summary=failed、exit 1。这证明本批未增加这些失败，不能称整体门禁通过。对照结束后已恢复任务后源码。
+- 独立只读审查 `review_restraint_interfaces`（gpt-6-astra，low）代码／文档及定向证据复核无本任务阻塞；直接核对稳定指纹和15条失败一致性。主树最终文档门禁通过，运行源码与测试无旧接口残留，任务文件 whitespace 检查通过。
+- 证据留在上述隔离树 `spire-godot/build/checks/`；任务前副本与任务补丁位于主树忽略的 `spire-godot/build/restraint-interface-before/`、`spire-godot/build/restraint-interfaces.patch`。未验证之后并发变化的混合主树完整集成，未跑UI／安卓真机，未打包、提交、推送。
+
+## 2026-10-01 镣铐接入与交互验证
+
+- 契约见 `docs/design/equipment-design.md`「镣铐」。模板事实复用普通物理件；成功开锁经 `Game._unlock_equipment` 清理，紧度消费者经 `Game.equipment_tier` 区分无紧度；固定减伤、替换和敌人候选均在原接口上扩展。准备就绪仍按成功施加件数消耗，不赋予镣铐紧度。新用例在 `tests/shackle_cases.gd`，并接入原装备及窗口分类。
+- 验证源为主树本批代码和前置敌人拘束值接口，冻结到 `G:/CodexProjects/tmp/magic-spire-wt-shackles`；主树同时有卡牌交互UI在途改动，冻结树的 `ui/main.gd` 仅纳入本批无紧度显示，其余使用HEAD。冻结清单与脚本留于主树忽略目录 `spire-godot/build/shackle-source-manifest.json`、`freeze_shackles.py`。最终比较相关复制源文件与主树逐字一致；不把冻结窗口检查称为并发UI整合验收。
+- 最终规则：`tools/check.ps1 -Suite equipment,application,replacement,enemies,iron_man,encyclopedia,persistence,localization,card_splash,events,services,prison,card_expansion,pressure,witch_character -UI -UISuite equipment_complete -Exhaustive -KeepGoing -TimeoutSeconds 300`，`20261001T113455832-46952`：15规则分类、14629断言全部通过；登记的敌人16／24随机样本全部运行。前后指纹同为 `770BC92CC38E593175DD5862024DEF8FEA30DBB3E5507D73466F2E54BA159994`。同次UI因新增测试误读取原始身体行的slots而失败，summary为failed，不能称整轮通过。
+- 仅将UI测试改用现有 `ui._body_at(...).targets` 后，`20261001T113805536-11424`：UIOnly equipment_complete 113断言通过、exit0，前后指纹同为 `BAC1786CA6E7042AD91894896CECC08222D1395AD9EB7BA815C0F4E908AA69B3`。规则源码不变，复用前轮规则证据。
+- 收尾核对邻任务失败记录，发现旧装备品质矩阵默认所有模板都支持2／3级；保留全部断言，改按模板min/max范围验证拒绝。`20261001T114027159-27232`：equipment_complete规则471断言通过、exit0、前后指纹一致。合计16规则分类15100断言与1窗口分类113断言；文档门禁35份／2510引用通过。不是全项目回归。
+- 修复过程保留失败证据：主树最初夹具误用候选id、旧事务引用、开锁针站姿触及条件和练习场景ID；扩大检查遇到存档pack即时saved_at跨秒导致逐字比较失败，未改存档契约，后续两次完整存档分类通过。独立审查发现并修复游丝指环主目标漏触发／波及误触发、开锁及伤害预览伪紧度、事件无紧度字段漏传；新正反例验证实际出牌、支付、损坏存档拒绝和事件投影。
+- 隔离首轮导入因首次字体缓存不存在失败，导入完成后复验；`112708822-39260`发现入狱全模板名单误纳入镣铐及铁箱旧固定品质／加固断言，已收紧源名单并按合法新池／实际余量验证。`113052527-32004`新负例初始security0、`113320597-1284`遗漏邻任务重命名的CardText依赖均已修复。主树窗口曾碰到并发card_failure接口半更新而超时，所有source_changed轮次均不作冻结通过证据。
+- 证据位于对应树的 `spire-godot/build/checks/`。独立只读审查 `review_shackles`（gpt-6-astra，low）初审及定向返修复核通过。未做主树并发UI全量集成、安卓真机、性能或发行验收；未打包、提交、推送。邻任务已登记的architecture G6混合快照基线失败尚未完整归因，不在本批通过范围；前置敌人profiles可改变哈希，但不能据此排除其他并发影响。未修改或删除该基线。
+
+## 2026-10-01 卡牌交互与结算表现适配
+
+- 范围：`ui/card_interaction.gd` 只读预览／翻面／瞄准，原 `card_face`／`touch_input`／`drag_targets`／`drop_target` 接入手势与提示；`card_motion`／`combat_feedback`／`resource_feedback` 消费正式结算结果；显示设置、三语言显式键、操作教学及输入／响应契约同步。本批不修改核心规则，保留并发敌人、拘束值、镣铐及其他在途差异。
+- 新 `tests/card_interaction_ui_cases.gd` 和原触屏用例覆盖：真实右键及触屏下滑，短滑／取消／单面卡，连续翻面，完整拖动预览与原生接收结果，无效落点不提交，无目标卡施放恰好一次，非卡牌挂钩抽屉仍能拖放，实际连续踢／五段挣扎逐段反馈，真实随机流下的施法失败和资源显示。预览与动效前后核对快照，不回放支付或效果。
+- 最终窗口门禁：`tools/check.ps1 -UIOnly -UISuite card_interaction,touch,keyboard,targeting,rewards,interface,encyclopedia,display,casting,enemy_feedback -KeepGoing -TimeoutSeconds 1200`，运行 `20261001T114540983-39796`，十分类2469断言全部通过，exit0、summary=passed、UI complete，前后指纹均为 `66FDE968432F50DF7A9E87BB4EBE22CEE64035984371EF950FD49E44D11C5A88`。分类数：encyclopedia248、display987、touch37、card_interaction35、keyboard87、casting59、enemy_feedback43、targeting178、interface434、rewards361。文档35份／2529引用通过。
+- 规则补查 `20261001T113845035-2316`：localization301通过；architecture4468断言中G6 `behavior_baseline_equivalence` 一项失败，summary=failed、前后指纹一致；该轮UI未运行，不计UI通过。本批不更新旧golden。`build/card-baseline-probe.gd` 仅载入规则夹具并调用 `r1_build`／`r1_record`，不实例化任何UI，独立复现相同battle:0快照差异；实际stdout保留 `build/card-baseline-probe.log`（当前snapshot `c621eff1b738fe2a42d788ed34127b2d`，基线 `3be5dc45ec07b61690681faf06edd849`）。该规则基线问题与本批UI隔离，不宣称整个工作区全绿。
+- 修复过程保留失败：初轮卡面夹具的draw_free、拖动预览绘制层次、自身目标施放区及反馈节点命名均已修正；独立审查发现非卡牌抽屉触屏起拖回归，恢复原分支并加真实挂钩用例。扩展轮发现翻面后词条提示暂时消失，在原局部刷新后立即更新当前面说明；`20261001T114442816-39424` casting59冻结通过，最终十分类再次覆盖。`112237164-41176`／`112830052-20016`／`114026236-27416`为source_changed，不作冻结通过；中间 `113618074-42868` touch与card_interaction66断言冻结通过，已被最终范围覆盖。
+- 本地检查了放大、翻面、目标线截图；仅为桌面真实窗口与模拟触屏事件，未进行安卓真机验证。`git diff --check`通过。独立只读审查 `review_card_presentation` 初审及定点返修复核，结论另见本条收尾记录；原要求模型不可调用，使用可用的gpt-6-astra low。
+- 证据留在主树 `spire-godot/build/checks/` 与上述探针文件。仅源码、文案与文档交付，未打包、提交、推送或发布；未重跑完整游戏回归。
+- 收尾审查：原审查者核实最终十分类摘要、一致指纹、文档门禁与无UI探针日志，本批代码／测试／文档无剩余阻塞；G6既有失配继续保留，未扩大通过口径。
+
+## 2026-10-01 卡牌表现收敛与拖动原卡隐藏
+
+- 用户续改：删除重复操作说明、自身效果框、成功出牌／资源流水、回合横幅；施放区缩为“使用”。拖牌隐藏原卡，取消／拒绝恢复原色调与位置；预览按实际缩放与抓取位置显示。范围为原卡牌表现、拖放、提示、三语言键和对应输入／响应契约，正式规则与提交通道保持。
+- 测试沿用原交互分类：新增原卡隐藏、取消恢复、翻面中起拖、无候选卡、减弱动效和1280×720缩放验证；成功播报和自身重复效果的旧断言按新契约改为不存在，仍保留真实出牌支付、目标效果、缺失投影重算与快照不变断言。测试助手只改为定位实际施放控件，不绕过原生拖放。
+- 验证：`tools/check.ps1 -Suite localization -UI -UISuite touch,card_interaction,keyboard,casting,targeting,baseline -Screenshots ui-card-concise-cast.png -KeepGoing -TimeoutSeconds 600`；运行 `20261001T120008384-12712`，localization301与六UI分类678断言全部通过（touch37、card_interaction48含截图1、keyboard87、casting59、baseline269、targeting178），exit0，summary=passed，所选范围complete。前后指纹均 `C515D8CD38B5F33C51CF8C9DD3EB32496DF086024629954A5E2598654D1A4142`；文档35份／2529引用通过，whitespace检查通过。
+- 已查看 `spire-godot/build/ui-card-concise-cast.png`，确认小型施放区、角色只高亮、拖动只留单张牌；截图与日志留忽略目录。原独立审查者 `review_card_presentation` 定向检查本批增量，静态无阻塞，最终证据复核见本条收尾。
+- 仅桌面窗口及模拟触屏验证；未跑全量或安卓真机，未打包、提交、推送。上条已隔离的G6规则快照问题不在本次修改范围，本轮不重跑或改写其基线。
+- 收尾：原审查者核实冻结摘要、通过范围及文档门禁，返修审查完成，无剩余阻塞；不扩展到真机、打包或发布。
+
+
+## 2026-10-01 拘束值剩余敌人、事件与监狱适配
+
+- 范围：剩余普通敌人施加（狱警循环、六缚、绳索／皮带团与堆、绳蛇、混合团、拘束盒／无人机及铁男支援）、事件普通随机装备和配方、监狱普通收押与巡视补装。统一使用 `data/restraint_value.gd::from_profile`／`profiles` 和 `core/equipment_application.gd`；复合／特殊规格保持固定，原材质／部位／替换权限继续生效，数值不进入玩家界面。
+- 结构：混合普通／复合来源先等权选合法池，再在普通合法规格间选取；批次复用来源声明并用 `excluded_points` 排除已用精确位置。事件 `free_slots` 只限制普通安装，不误排除链接；冻结具体事件请求后提交不重抽事件随机域。入狱普通规格过滤低于二档的组合，保留原最低紧度。图鉴、教学、5个内容包及英日目录／生成器同步。
+- 验证源：`8e83876`＋任务开始时主树全部在途修改，隔离于 `G:/CodexProjects/tmp/magic-spire-wt-restraint-rollout`。39个任务文件以修改前副本生成增量补丁；合回前任务文件无并发漂移，合回后逐一按文本核对一致，未覆盖其他任务修改。导入生成的 `.import` 不属于交付。
+- 首轮暴露旧固定等级／紧度测试假设、事件空槽位筛选误排除链接，以及两个遗漏的旧接口测试夹具。已修正逻辑并保留件数、部位、优先级、回滚与存档判据；无删除有效失败断言。新增混合池等权、非法排除／空槽位参数原子拒绝、监狱各等级规格、事件冻结重放用例；链接配方使用确定性真实工厂夹具。
+- 跨域命令 `tools/check.ps1 -Suite enemies,guard,prison,events,application,iron_man,runner,localization -Impact -Exhaustive -KeepGoing -TimeoutSeconds 600`：运行 `20261001T120515945-45996` 前11分类通过；architecture 的G6基线失败，installation_priority旧接口夹具脚本错误导致余下停止。前后指纹均 `917773EBCCD06F04207C9D3380397FE042477171322004DCF7744418B6E59390`。修正夹具后续跑 `20261001T120749803-7056` 又定位出缺少敌人type的旧夹具；仅修改该测试后继续。
+- 最终续跑 `20261001T120846961-11036`：剩余23分类全部通过，13242断言，exit0、summary=passed；前后指纹均 `211E8754A1311EC576A709676AFB68D3FEB50079A6A0DDDB7FF0B071084F8392`。此前11分类的源码和测试未被后续夹具修正影响，复用其证据。35个影响分类最终34通过、architecture一条既有G6断言失败，不能称全部门禁通过。
+- G6基线证据：错误全文及三个差异哈希，与接口任务修改前对照 `G:/CodexProjects/tmp/magic-spire-wt-restraint-interfaces/spire-godot/build/checks/20261001T113357103-36256/check-rules.log` 逐字一致。未修改基线或放宽架构断言。
+- 内容校验12包通过；文档35份／2533引用通过；英日生成器Python语法通过。独立只读审查 `review_restraint_rollout`（gpt-6-astra，low）初审发现修复后定点复核与最终冻结证据复核通过，无本批新增阻塞。
+- 证据和任务前副本留在上述隔离树的 `spire-godot/build/`。未跑UI窗口或设备验收；未打包、提交、推送或发布。整体混合工作区的全量回归不在本批验证范围。
+
+## 2026-10-01 自身卡战场松手使用与抓取位置修复
+
+- 按用户要求，移除人物拖放高亮框与额外“使用”按钮；自身／无具体目标牌在手牌上方战场松手使用，手牌、侧栏及顶部仍为取消范围。透明原生落点沿 `DragTargets.receiver` 的已有候选、载荷／版本校验与路由提交；不改人物素材、资源、卡牌判定或具体目标选择。
+- 主门禁：`tools/check.ps1 -Suite localization -UI -UISuite card_interaction,touch,targeting,keyboard,baseline -Screenshots ui-card-self-release.png -KeepGoing -TimeoutSeconds 600`，运行 `20261001T121739224-45540`；localization301及五UI630断言通过（touch37、card_interaction59含截图1、keyboard87、baseline269、targeting178），exit0、summary=passed、所选范围complete。前后指纹均 `F33D6C539169269677162C1AC795D4AB58091F9247C759D27D32454D0EB73173`，文档35份／2533引用通过。
+- 视觉复核发现旧拖影根位置被引擎复位，按下抓点变成卡牌左上角；新增真实抓点几何断言后 `122335155-45616` 恰好原尺寸／1280缩放两项失败，未删失败或放宽阈值。将偏移移至卡面子节点后 `122419720-29068` 仍有原尺寸一项失败；`122601215-5088` 记录回调局部点(80,97.46582)与实际按下(80,75)相差22.46582，来自按下到起拖之间的悬停位移。最终由卡面输入记录原左键按下局部点，起拖消费后清标记，子节点应用负偏移，根只保留界面缩放。
+- 偏移定向补验：`tools/check.ps1 -UIOnly -UISuite touch,card_interaction -Screenshots ui-card-self-release.png -TimeoutSeconds 180`，运行 `20261001T122656252-45828`；touch37＋card_interaction61共98断言通过，exit0、summary=passed；前后指纹均 `25D99643F95632B0EF2C6E98B7B6D221D9F5F08382B248A18245048A8B25D39D`，文档门禁通过。包含原尺寸／缩放抓点误差小于2像素、空白战场使用、鼠标／触屏落敌人上仍自身效果且仅提交一次、回手牌取消、费用不足不提交、具体目标牌不自动自用；未受抓点显示改动影响的路由／本地化复用前轮证据。
+- 原独立审查者 `review_card_presentation` 定点审查并核实最终冻结证据，无剩余阻塞。已复看 `spire-godot/build/ui-card-self-release.png`，无人物框／按钮，单张拖影抓点正确；whitespace检查通过。日志与失败证据均留对应 `build/checks/`。
+- 仅桌面窗口与模拟触屏验证，未跑全项目回归、安卓真机或打包；未提交、推送或发布。保留其他任务在途修改；既有G6规则快照失配状态不变。
+
+## 2026-10-01 基础动作按姿势显示
+
+- 连续踢在普通站姿时不显示／不进入切换列表，坐姿可切换；横扫与手部体术同样遵循原姿势条件。姿势改变后替换已不适用的选中形态，全部体术不可用时隐藏对应入口；无视姿势能力沿用原规则。能量、拘束、冷却等其他禁用原因继续显示。
+- `core/game.gd::kick_profile` 与 `_attack_offer_fact` 复用既有姿势判断产出 `posture_available`，经 `FACT_DISPLAY_FIELDS` 进入正式事实；`ui/main.gd::_action_fact_slice` 纳入缓存键，`_build_action_rail` 按事实过滤并用实际形态ID循环。未改支付、攻击效果、正式拒绝与版本校验。
+- 过程失败保留：`20261001T124952080-47424` 新测试误读原始事实的 `valid`，改用正式 `command_facts`；`125040568-17768` 暴露显示白名单未传递新字段，补入后修复，独立审查也指出此项。`125152672-47004` 唯一UI失败为战神能力失效后旧测试仍要求躺姿显示踢击；改为检查躺姿隐藏、实际坐起、过期扩展形态回落0，保留原复位验证目标。
+- 主检查：`tools/check.ps1 -Suite basic_attacks -UI -UISuite basic_attacks,keyboard,touch -KeepGoing -TimeoutSeconds 600`，运行 `20261001T125152672-47004`。规则454断言、touch37与keyboard87通过，基础动作UI仅上述旧断言失败；前后指纹均 `6626E9DC12D890E47957B534EB0E6B4500EB06B18F933872499DFBEE54B91994`。后续仅调整该UI测试，复用未受影响的规则与另外两个UI分类证据。
+- 定向续跑：`tools/check.ps1 -RerunFailed build/checks/20261001T125152672-47004 -TimeoutSeconds 600`，运行 `20261001T125407510-25756`。基础动作UI289断言通过，exit0、summary=passed、范围complete，前后指纹均 `F7CB4CEB3CC0C24DEE34E7DF82A8FD56CE0470F7F708BEA85FF6E4E138034415`。两轮文档35份／2541引用通过；本批差异whitespace检查通过。覆盖正式姿势转换、鼠标／键盘／模拟触屏切换、无视姿势能力生效与失效、隐藏动作非法提交回滚。
+- 独立只读审查 `review_action_posture`（指定日常模型不可用，采用gpt-6-astra low）核实白名单修复、旧断言适配及冻结证据，无剩余阻塞。仅本批源码与文档完成；未做安卓真机、全项目回归、打包、提交、推送或发布。日志保留对应忽略目录，其他任务在途修改保留。
+
+
+## 2026-10-05｜PR合并后的本地在途修改恢复（未提交）
+
+- main快进到PR #12／#13合并提交`6ac813f`；原102文件恢复为未提交改动，备份stash `3595024d9f523f9692798f4636d85ec6dca7610b`。不重复应用该stash。五个与PR重叠文件三方整合，其余原文件字节保留；下面额外适配的既有本地测试除外。
+- 在途预览功能适配增量手牌：`ui/main.gd::_card`复用PR既有`hover_entry`，预览工厂与翻面后详情读取当前卡片缓存，非手牌回退原数据。只改显示闭包；新增`tests/card_interaction_ui_cases.gd::refreshed_preview`，真实能量变化后核对按钮身份、更新后的预览及状态只读。此适配和所有原在途内容未进入本次PR推送。
+- 主检出`tools/check.ps1 -Suite architecture -UI -UISuite card_interaction,display -KeepGoing -TimeoutSeconds 600`，运行`20261004T145006021-41304`，architecture 1/4474失败，UI阶段未运行。唯一错误为G6行为快照基线；与已有`20261001T113845035-2316/check-rules.log`的G6 ERROR整行逐字相同（含哈希），未更改冻结基线。该主检出混合版本不能称架构全绿。
+- UI独立补跑`tools/check.ps1 -UIOnly -UISuite card_interaction,display -KeepGoing -TimeoutSeconds 600`，`20261004T145111662-40192`，display1082、card_interaction64，共1146断言PASS，exit0、before==after。文档36文件2737引用PASS。独立审查者只复核本地新增兼容差异与新回归用例，通过。
+- 本轮未扩查其余本地规则变更，未跑全量规则或UI、安卓真机、人工试玩、性能、打包。PR独立提交的验证结果见上面的PR集成记录，与本地混合树区分。
+
+
+## 2026-10-05｜普通拘束具最大耐久6／15／30
+
+- 修改`spire-godot/data/balance.gd`三级耐久常量，基础练习与组件链接练习保持原紧度比例；同步设计说明、链接练习本地化及受影响测试数值。测试中的连接绳改为新初级合法耐久；切割和蓄力伤害需要保留目标的夹具采用更高品质，以继续覆盖原来的后续解除与消耗判据。复合装备降档断言对应新阈值；躯干固缚加固夹具明确恢复二档后验证二升三。未改正式规则流程。
+- 过程检查保留：`20261004T161624521-50164`暴露旧初级链接8点超出新上限；`162126522-26040`、`162304040-46844`、`162412794-31052`暴露旧练习切割结果、相同替换夹具的旧数值；`162454184-33104`、`162624582-50092`、`162757528-41808`暴露连接测试目标已被击破或操作后旧引用；`162850001-3372`仅余复合装备旧档位预期，随后更新为实际二档。未删除失败案例。
+- 交叉检查：`tools/check.ps1 -Suite equipment -Impact -KeepGoing -TimeoutSeconds 600`，运行`20261004T162953489-45808`，31分类19205断言，3个失败：既有G6快照基线、图鉴旧高级24点文本、固缚加固夹具起始档位。其余28分类通过，前后指纹一致；随机仅日常样本（施加4/16种子），不是完整回归。
+- G6错误整行与本任务前`20261004T145006021-41304/check-rules.log`逐字一致，包含三个首次差异哈希；保留原断言及冻结基线，未将此混合工作区标为架构全绿。
+- 修正两处数值夹具后定向运行`tools/check.ps1 -Suite encyclopedia,torso_binding,localization -KeepGoing -TimeoutSeconds 300`，`20261004T163359115-41812`，图鉴650、固缚65、本地化309，共1024断言通过，exit0、summary=passed、前后指纹一致。复用其他未受影响分类证据。文档门禁36份／2740引用通过；本次改动差异空白检查通过。
+- 纯数值及相应说明／测试预期调整，按根规则免独立审查。未跑窗口测试（包括仅调整连接耐久夹具的特殊装备UI分类）、全量随机、全项目回归、安卓真机或打包；未提交、推送或发布。日志保留在各运行号对应的忽略目录。
+
+## 2026-10-05 弱怪非离场施加限制为初级
+
+- 在 `core/enemy_plans.gd::application_spec` 按敌人类型的弱怪分类统一过滤非离场施加；强怪组合、分裂产生的弱怪及无人机能量触发均适用。最终附着保留原规格，强怪、数量、紧度和加固不改；没有合法初级候选时保留正式失败且不降级强装。`data/first_floor_enemy_pools.gd::eligible` 复用同一规格入口；同步敌人设计、图鉴和英日文案。
+- 覆盖真实普通施加、混合团强遭遇、小型／强型法阵对照、无人机被动、离场安装后离开、中级最低品质模板拒绝、禁止规格不降级及失败无状态／随机副作用。旧小魔女诱导夹具使用弱怪却硬设中级装备，改为初级二档并保留原真实回合与诱导断言；其他品质诱导矩阵保持。
+- 首轮主树 `20261004T162347952-33604` 运行中受其他任务测试更新影响，状态为 source_changed、exit1，不能作冻结通过证据；3条失败中诱导夹具按上项适配，另外2条为已有耐久调整的旧预期。按门禁要求在隔离树 `G:/CodexProjects/tmp/magic-spire-wt-weak-grade-20261005` 复制当时完整在途源码后重跑全部原范围，不覆盖主树并发修改。
+- 冻结检查：`tools/check.ps1 -Suite enemies,localization -Impact -Exhaustive -KeepGoing -TimeoutSeconds 900`，运行 `20261004T163334319-36484`；24分类全部运行，22分类通过，18984断言中2条失败。enemies4812、witch_character786、localization309通过，敌人池24／24及行动循环16／16登记种子均运行；文档36份／2740引用通过。summary=failed、exit1、unrun为空；before与after同为 `9B437F2410D97D1DB7E0821B51A3668117E70B120790BA8E0DFCB097455CA93E`，不称整轮门禁或全项目回归通过。
+- 两条未处理失败均与本批规则无关：`tests/encyclopedia_cases.gd::run` 硬编码复合包裹耐久24，但当前高级耐久已为30；`tests/torso_binding_cases.gd::run` 初级耐久调整为6后，挣扎溅射将夹具从二档降为一档，旧断言仍假设后续一次加固能到三档。后者走警卫的普通加固，不经过弱怪施加入口。保留原失败案例，未修改其他任务的耐久实现或这两条断言。
+- 本地化清单生成成功；完整英文生成器因缺少离线翻译依赖且尚有26条其他未缓存源句而未完成，日文生成器受已有语义键集合断言阻止。仅把本批4条中文说明及人工译文同步至两份legacy目录与生成器映射，309条本地化检查通过；不声称全量翻译生成成功。
+- 日志保留于对应工作树 `spire-godot/build/checks/`；隔离树 `build/weak-grade-snapshot/` 保存复制清单及15份本任务文件逐字哈希对照。交付时运行源码、测试与本任务文档仍和隔离源一致；主树其他任务仅另外更新装备设计文档和记录。未跑UI、安卓真机、性能或完整回归；未打包、提交、推送或发布。
+- 独立只读审查 `review_weak_grade`（日常指定模型不可用，采用 gpt-6-astra low）完成实现、文档、失败归因及最终摘要复核，未发现本批阻塞代码问题；确认整轮仍为 failed，保留上述未验证范围。
+
+
+## 2026-10-30｜PR #15 与本地在途改动的衔接（未提交工作区）
+
+- 合入前 121 个在途文件已逐字备份至 `spire-godot/build/pr-check-20261030/local-backup/`，另保留 stash `c73bde867bde524a7d8427fd72cf9d0b125d7bda`。26 个重叠文件三方合并，其中 5 处冲突经审查处理；保留本地卡牌交互清理、姿势筛选、逐击反馈和两侧追加记录，提交展示载荷改从 `dispatch` 的 `fact` 读取，不恢复提交前重复查询。在途内容不混入 PR 推送。
+- 接入检查 `20261030T101246654-41176`：basic_attacks 通过；123152 断言中 5 条失败，分别为架构 K4 两条／G6 一条，以及测试运行器的重复用例归属、未声明索引盲点两条；前后指纹一致。正式失败判据和冻结基线未删除或覆盖。
+- 测试维护：女战神 UI 用例统一由 `card_power_ui_cases` 挂载，移除 `basic_attack_ui_cases` 的重复执行；卡牌交互模块补入 `check_index_edges` 的 CARD 域。`check_index.json`、`state_readers.json` 均经官方生成器更新；读者表含 131 文件／1265 单元／2077 读点、UI 读状态为 0。上述两条原失败是修正前负例；修正后 `20261030T101746244-43604` runner 1769 断言通过，summary=passed、before==after。
+- 基线对照：独立对照树在旧主线 `6ac813ff3eb767b9f202ffa9cae2ea92c88f36d8` 上恢复相同的 121 个备份文件，`20261030T101918158-50012` architecture 1／4474 失败，唯一错误为 G6。其 battle:0.snapshot 当前哈希 `c621eff1b738fe2a42d788ed34127b2d` 与合并后相同，期望仍为 `3be5dc45ec07b61690681faf06edd849`。本地混合树未宣称架构全绿；新 K4 亦报告冻结数据差异，未以直接重冻来掩盖。
+- 独立只读复核 `review_pr15_integration`（Astra low）确认冲突处理和上述两处测试维护无阻断；不扩大为 121 项在途业务的完整审查。全部原路径仍在，预期合并范围之外的原文件字节核对无意外变化；未进行安卓真机验收或打包。
+
+
 ## 2026-10-30｜PR #14／#15 集成与前端文案指导
 
 - 范围：以 PR #15 的 `b4f19ab907481736c7c4047eb78c0ea501e88bd7` 接入事实查询、按需投影、检查路由、状态读者表与呈现邻接表；`008e5054f9ef549fdbfa921fb3ce6af1d163696e`（PR #14）是其祖先，手牌内容标签回插修复一并接入。保留用户当前 AGENTS 规则、原验证册全文与本机发布签名约定，项目技能正文归入 `skills/`，移除作者机器路径与重复审查流程。公开版本仍为 `0.18.2.fix`；本批只同步源码，不打包、不打标签、不创建 Release。
@@ -4308,3 +4496,186 @@ flowchart LR
 - 新夹具配旧声明的针对性负例：`20261030T105352364-49584` display 1324 断言，唯一错误为真实 `reward_screen::row` 读取触发的 F3 漏组，before==after。补声明后的干净候选 `20261030T105636230-52404`：runner 1732、display 1324 断言通过，exit0、summary=passed、before==after。
 - 本地融合快照的同配方复验 `20261030T105915207-52456`：seed=7、60 提交／60 步、stop=cap，实际经过 rest_choice／rest／treasure，155 断言、exit0、summary=passed、before==after。与反例相比只改显示校验及其派生索引，复用上述三个 UI 分类的未受影响交互证据；并行附魔功能不在本批验收内。
 - 同一独立审查者 `review_pr15_integration`（Astra low）核对实际差异、非练习阶段前提与具名反例，无阻断意见。其余通过分类沿用同日记录的有效证据；旧 headless 长流程耗时、本地 K4／G6 基线失配保持登记，未宣称完整回归全绿。公开版本与发布边界不变。
+
+## 2026-10-30｜火堆附魔服务、结算与卡面
+
+- 按最终确认接入17种词条、实体卡单槽、双面资格与共用次数、每火堆一次、六回合服务预算、仅自身／魔瓶刷新及缺少品质补位；完整契约见 `docs/design/card-enchantments.md`。复用正式指令、候选、支付、卡牌结算与场次生命周期；新增三个生产模块分别负责词条数据、规则和界面，未增加第二套打牌通路。
+- 任务开始备份位于 `spire-godot/build/enchantment-before-20261030/`；保留其他在途改动及同批PR集成更新。最终检查基于主检出 `a6fb64903c69ec75f2d27e8c04a6dd8fa03ffb1a` 加未提交工作区，Godot 4.7.2；未以HEAD单独代表所测源码。
+- 初轮 `20261030T105116816-37240`：39个规则分类、147764断言、31失败，before==after，UI及配方未运行。暴露旧休息自动开始断言、附魔注册／读者索引缺口、非火堆练习错误携带服务记录，以及监狱静态路线比较未排除新运行字段；修复实现并保留相应负例，适配旧休息测试为显式开始。新增架构事实基线保留原11条事实哈希，另加32条附魔事实，未放宽旧事实判据。
+- 独立只读审查 `review_enchantments`（gpt-6-astra low）指出附魔固有扩大起手、实际卡面未展示附魔两项问题；修正后增加七张固有不扩起手、真实手牌／翻面／耗尽次数显示验证。复核两项通过；随后对监狱路线字段剔除、损坏服务拒绝及旧事实哈希保护单独复核，无剩余阻塞。
+- 最终定向门禁 `20261030T111027001-3640`：`enchantments,localization,card_power,card_expansion,relics,card_splash,runner,casting,services,persistence,rewards,prison` 共12分类、13431断言通过，随机矩阵使用 `-Exhaustive`；附魔、施法、奖励UI共446断言通过。seed7配方60提交／60步、stop=cap，155断言、exit0。summary=passed，源码前后均 `E4A9E2C90EF14C16D1E97E6A0E598B6ECA3D4192AE92D265CC9B0E5C587B6DC7`。文档48份／2842引用通过；实际消耗2卡面截图 `spire-godot/build/ui-enchantment-exhaust2.png` 已检查。新增附魔专项232断言含X费用、失败不触发、复制次数继承、满手回收、监狱途中附魔后读档、损坏记录原子拒绝和检查暂停次数保留。
+- 既有失败追溯：把任务开始备份恢复到独立临时工作树，`enchantment-before-probe-imported.log` 复现2条K4及1条G6旧基线失败；`enchantment-before-prison-pressure.log` 复现1条压力伤害旧断言失败。旧断言及基线均保留。监狱出口读档两条失败未在旧副本复现，确认属于新增服务记录兼容问题后修复，最终prison1437断言通过；未把它归为旧问题。
+- 英日附魔词条、界面与错误文案已同步现有目录及生成器手工映射，localization309断言通过。完整目录再生成未通过：英语生成器缺少离线翻译依赖并遇到25条非本批未缓存文本，日语生成器遇到既有语义键集合不一致；未宣称完成全目录重建。
+- 本批不是全项目回归或安卓真机验收；未打包、提交、推送或发布。日志保留对应忽略目录，`git diff --check` 通过。架构独立门禁结果续记如下。
+- 架构独立门禁 `20261030T111647183-45464`：121149断言、4失败，before==after且同上述 `E4A9…` 指纹；3条为已复现的旧K4／G6，另1条为新增enchant复用域入口后数量断言漏由23同步为24。仅修正该严格等号及两处说明，未改集合、边界、覆盖下限或生产源码。`enchantment-architecture-probe-fixed.log` 调用原 `point_sources_are_kind_limited`，10断言、0失败、0引擎错误、exit0；第一次临时探针误把错误计数整数当数组，已终止并修正探针，`enchantment-architecture-probe.log` 保留，不作为通过证据。
+- 索引重生成后 `20261030T112218834-20020`：runner1799断言及文档检查通过，summary=passed，前后均 `0233662A3DFF49A7329B81A973395A7DB59722175E5AF854A8715352602A21B2`。原审查者复核23→24是新增命令所需的严格计数更新，无判据放宽。全架构分类未因这一字面修正重跑，复用未受影响结果及上述针对性复验；旧3条基线失败保持未通过。生产代码、内容与UI在最终12分类门禁之后未再修改，复用其规则、UI和配方证据。
+
+## 2026-10-30｜进入火堆练习
+
+- 域：`data/equipment_catalog.gd::entries` 增加 `rest` 练习；`core/game.gd::_start_rest` 对声明 `start=rest` 的练习保留服务选择页，其他装备练习沿用直接开始。生产规则增量为配置三行及初始化条件一行。复用正式候选、付款、附魔、休息与结束通路，未增加资源或新指令。英日三条文案同步目录与生成器映射；其他并行本地化修改保留。任务前相关文件备份在 `spire-godot/build/campfire-practice-before-20261030/`。
+- 初轮 `20261030T133340176-43696`：3473断言中2失败，源于新增测试错误假设选择阶段能量必须归零。核实现行正式 `_start_rest` 没有此契约，改为验证 `rest_choice`、未开始回合、空手牌，以及正式 `dispatch(end)` 拒绝且快照不变；保留原装备练习对照，不修改生产能量规则。UI与配方未在该轮执行。
+- `20261030T133726243-46172`、`20261030T134020667-22432` 期间另一任务更新英日目录／生成器，分别62和63条本地化及服务断言失败，两轮均为 source_changed，不用作冻结通过证据。
+- 冻结规则复验 `20261030T134247810-46356`：enchantments243、equipment_complete474、services649、runner1799通过；localization309中2条日文敌人措辞断言失败（绳蛇打断例外、贩子第11次逮捕及体术限制），不属于本批火堆文案，未修改其测试或实现。整体exit1、summary=failed，before==after=`DDDBC3D092875FF409420FD06725CEF40855499602DA9A4E894C5463FDD19F8C`，不宣称全门禁通过。
+- 实际指针入口 `20261030T134044106-22432`：从 `Practice_rest` 进入，完成自身魔力刷新、附魔、原火堆奖励、开始休息与结束练习，UI29断言、exit0、summary=passed。配方 `20261030T134111375-22432`：seed7、60提交／60步、stop=cap，155断言、exit0、summary=passed；两轮各自before==after且均为 `C1B438014A212120522F8854A540855B75641BD0952D98420D0DF1CFD2F0C513`。之后仅有并行本地化目录／生成器变化，本批入口、交互测试及三条火堆译文未变，复用这些未受影响交互证据。文档门禁48份／2843引用通过。
+- 独立只读审查 `review_campfire_practice`（Astra low）复核初始化、阶段守卫、练习存档隔离、真实按钮测试及冻结证据，无本批阻塞发现；撤回了按错误能量断言反推实现的初审建议。未跑全项目回归、安卓真机，未打包、提交、推送或发布。既有差异保留，`git diff --check` 通过。
+
+## 2026-10-30｜英文与日文本地化文案优化
+
+- 域：英文／日文语义目录、旧式文本目录及其生成器。统一高频界面动词、资源和装备术语，人工重写赌牌、典当铺、平板锁、缚疗修女及魅魔相关玩家可见旧机翻；语义目录各83键，旧式目录最终各5570条。清理的典型污染包括把魅魔译成 devil／ghost、把肉棒译成 meat bar，以及混入无意义英语句子的旧缓存。未改中文源文案、规则数值或事件逻辑。
+- 生成器：`tools/build_japanese_catalog.py::indexed_override` 支持同类型占位符重排，并拒绝重复、遗漏、混入原始 printf 占位符或额外具名占位符；正例 `{p1} / {p0}` 与重复、混入 `%s`、混入 `{extra}` 三类负例探针通过。两次共享目录追加误用不存在的 `MANUAL` 覆盖表均已并回唯一的 `LEGACY_OVERRIDES` 入口。
+- 过程失败不作通过证据：初轮本地化门禁因一条旧式参数恢复错误出现59／309失败；修正后曾剩2条日文敌人措辞失败。独立复核期间又捕获门禁后并发加入的 `MANUAL.update` 导致日文生成器 `NameError`，以及索引格式可能混入残留占位符的契约缺口；均保留判据并修正实现，没有删除失败案例。
+- 最终构建与规则门禁：英文、日文生成器成功输出各5570条旧式文本；`tools/check.ps1 -Suite localization`，运行`20261030T141124247-55316`，309断言通过，文档48份／2843引用通过。
+- 最终UI门禁：`tools/check.ps1 -UIOnly -UISuite localization`，运行`20261030T141158718-29620`，52断言通过，文档检查同上。未进行截图测试。
+- 独立只读复核 `localization_review` 确认83个UI键、两份旧式目录的ID／源文本集合／占位符索引一致，人工覆盖未见明显数字、参数、术语或语义错误；占位符正反例契约成立，未覆盖无关在途修改。`git diff --check` 仅有现存换行提示。未跑全项目回归、安卓真机、性能或打包；未提交、推送或发布。
+
+## 2026-10-30｜主页语言入口与标题区整理
+
+- 域：主页与显示设置。`ui/main.gd::_language_selector` 复用既有 `_set_language` 唯一切换通路；`ui/home_screen.gd` 只在标题正下方创建 `LanguageSelection`。显示设置及游戏内设置不再生成重复入口。删除标题下原 `CharacterDescription` 蓝色说明及其刷新闭包，角色下拉框仍只更新下一局角色选择。
+- 当前目录按源文本确定性查找，不使用随机翻译；英文、日文旧式目录各5570条，语义目录各83键。现有本地化UI用例覆盖英文主页、商店、事件和战斗界面无中文残留，日文目录门禁检查已知简中残留；未来新增玩家可见源文仍须随目录生成和门禁同步，不能把当前覆盖误称为对未来文案的永久保证。
+- 初轮 `20261030T142000697-40060`：localization用例在返回主页后直接调用仅适用于游戏内界面的练习助手，出现6条脚本错误；修正为从主页继续当前局后再检查事件表面。续轮`20261030T142101605-19892`中localization 56断言通过，home因旧小魔女用例仍读取已删除说明节点失败；改为同时验证该节点不存在、语言入口仍在及角色选择状态未变。正式失败案例和行为断言均保留。
+- 最终规则门禁：`tools/check.ps1 -Suite localization`，运行`20261030T142323822-52096`，309断言通过；最终合并UI门禁：`tools/check.ps1 -UIOnly -UISuite home,localization`，运行`20261030T142526258-55832`，localization与home共196断言通过。两轮文档检查均为48份／2843引用通过，未进行额外截图测试。
+- 独立只读复核 `home_language_ui_review` 确认生产代码只剩主页一处选择器、切换仍保存偏好并整页刷新、设置抽屉无重复入口、角色选择与新局路径覆盖未弱化，且未覆盖`main.gd`其他在途修改；无 findings。未跑全项目回归、安卓真机、性能或打包；未提交、推送或发布。
+
+## 2026-10-30｜初级拘束具耐久6→8与胶带包裹图鉴合并
+
+- 域：装备数值、图鉴呈现。初级品质上限8，装备／链接练习保留40%及80%初始比例；图鉴每品质仅保留一个胶带包裹条目，实际左右手规则不变。任务前备份分别为 `spire-godot/build/basic-durability-before-20261030/`、`spire-godot/build/wrap-book-before-20261030/`。数值批次按根规则豁免独立审查；图鉴逻辑批次单独审查。
+- 主检出并行本地化修改导致 `20261030T135410773-56716`（137992断言、3项既有K4/G6失败）及配方 `20261030T140040558-48304`（60提交／60步、163断言、引擎exit0）均为 source_changed，不作为冻结通过证据。主检出重跑 `20261030T140203092-43536` 被主动终止，改用固定副本，不作为完成证据。
+- 隔离副本为 `G:/CodexProjects/tmp/magic-basic-durability-20261030`，HEAD `a6fb64903c69ec75f2d27e8c04a6dd8fa03ffb1a` 加工作区快照，Godot 4.7.2；复制清单为主检出 `spire-godot/build/basic-durability-frozen-manifest.json`。以下运行日志均在该副本的 `spire-godot/build/checks/`。
+- 冻结规则 `20261030T140434347-9928`：equipment／localization／runner 加 Impact，33分类137992断言；装备297、链接169、复合96、装备完整性474、肩部131、施加140、替换109及其余受影响玩法分类通过。整体6失败、exit1、summary=failed：3项既有K4/G6基线失败，另3项为工作树换行差异造成的读者表／检查索引指纹失配。before==after=`5371F1A52567598B12D5A24A95FBADC2301EAD82594293E7529164701E007A28`。未改旧基线、未删断言。
+- 同一固定源码配方 `20261030T141031566-9928`：seed7、60提交／60步、stop=cap、163断言、exit0、summary=passed，before==after 同上。随后逐字节对齐主检出的GDScript及索引，确认其余生产代码正文无变化，唯一新增生产正文变化为图鉴合并；换行差异清单见隔离副本 `spire-godot/build/wrap-book-overlay.json`。状态读者表 `--verify` 通过，日志 `build/wrap-book-state-readers-verify.log`。
+- 图鉴与指纹复验 `20261030T141232426-33340`：encyclopedia645、localization309、runner1799，共2753断言通过；图鉴真实输入UI249断言通过，含检索三个品质条目、点击详情及只读快照检查。exit0、summary=passed，before==after=`775A7731F8C2838DEA701E577C8C25336A58A4A005D133382B3F014CC227BFA4`。文档48份／2843引用通过。仅正文变化为图鉴呈现，复用未受影响玩法与配方证据；既有3项K4/G6失败仍保留，不宣称全项目全绿。
+- 独立只读审查 `review_wrap_book`（gpt-6.1-terra medium）复核任务前备份、实际左右定义和练习入口、代表条目图标、规则与UI证据，无可定位问题；八个本批文件SHA-256与所测副本一致，相关英日译文仍在主检出。`git diff --check` 通过。未跑全项目回归或安卓真机，未打包、提交、推送或发布。
+
+## 2026-10-30｜紧凑行动条与战斗即时记录
+
+- 域：战斗呈现。按所附拆解案2.6.2读取已有提交日志，在顶部显示单行橙色行动名，右侧显示最多6条上移、淡入与淡出的即时记录；末条图标打开既有行动日志。通过 `CombatFeedback.enemy_key` 与当前敌方动作同步，不新增规则写入口。重绘去重、跳过释放、重开清理及收押后最后结果均由专项用例验证。改前快照在 `spire-godot/build/combat-feed/before/`，保留其他任务在途差异。
+- 初轮UI `20261030T143000937-24400`：enemy_feedback 58断言通过。独立审查随后发现收押转阶段会遗漏最后结果，补充终止阶段排队与淡出处理。`20261030T143852000-10920` 的display分类通过，enemy_feedback因新增测试从主页调用游戏内练习助手而出现脚本错误，action_copy未跑；补上重开夹具后，续跑 `20261030T144249611-3716` 的enemy_feedback与action_copy共108断言通过，exit0、summary=passed。最终仅调整记录区高度及行高以避开敌人名牌，复用未受影响的display与action_copy证据。
+- 交叉规则 `20261030T143352610-38192`：runner通过，architecture共3项K4/G6快照基线失败；失败文本与本批之前 `20261030T140203092-43536/check-rules.log` 一致。总计122950断言，exit1、summary=failed，before==after；该轮UI和recipe没有执行。未改旧基线，未删除失败断言，不宣称全项目全绿。
+- 最终 `tools/check.ps1 -Suite runner,recipe -UI -UISuite enemy_feedback -Screenshots ui-100-enemy-action.png,ui-battle-live-feed.png -KeepGoing -TimeoutSeconds 600`：运行 `20261030T144813393-55860`，runner1801、enemy_feedback68、recipe163断言通过；配方seed7、60提交／60步、stop=cap、exit0。summary=passed，before==after=`F9E38EA466CA8F738AF823099E68FE2B2F79435E3AD442E6E9CD3BADB20740EA`。文档48份／2849引用通过；状态读者表及检查索引由正式生成器更新，零漂移校验通过。
+- 已查看 `spire-godot/build/ui-100-enemy-action.png` 与 `spire-godot/build/ui-battle-live-feed.png`：紧凑标题与右侧记录位置正确；记录静止底边402、入场期间不超过412，避开418起始的敌人名牌。独立只读审查 `review_battle_feed`（gpt-6.1-terra medium；技能所列旧型号不可用，使用同系列可用型号）复核收押修复、几何与最终证据，无剩余具体阻塞。
+- 未跑全项目回归、安卓真机或旧存档prison_end专门场景；prison_end是旧存档遗留分支，当前收押正式流程已覆盖。未打包、提交、推送或发布；本批差异格式检查通过。
+## 2026-10-30｜精简回合记录文案
+
+- 域：回合提示正文。删除正常可见时的“意图已公开”，保留回合数与行动顺序；视线受阻时继续保留必要提示。同步英文、日文人工模板与生成目录，只改文字及对应既有测试预期，未改行动或观察规则。
+- 初轮 `20261030T145627109-52104`：localization 309断言中1条失败，旧动态文案测试仍期待已删除模板；runner与recipe未运行。更新为当前正常／受阻模板后，`tools/check.ps1 -RerunFailed spire-godot/build/checks/20261030T145627109-52104 -TimeoutSeconds 600`，运行 `20261030T145712456-44692`：localization309、runner1801通过，recipe seed7、60提交／60步、stop=cap、163断言、exit0；文档48份／2849引用通过。summary=passed，before==after=`B283A59E7B0CC87F87DEB021C966CE6A0CD89D69D21BCB2FD75F14F8C96C2535`。
+- 状态读者表与检查索引按生成器更新，范围内diff格式检查通过。未做全项目回归、安卓真机或额外截图，未打包、提交、推送或发布。
+## 2026-10-31｜前端文案精简、旧交互用例适配与人物面板越界
+
+- 域：界面提示、卡牌与装备说明、规则原因、事件内容包及英日目录；将“不／未”式提示改为条件、状态或结果，保留对象专名与必要规则事实。卡牌悬停保留当前施法部位和实时成功率，完整公式沿用详情入口；练习、快捷挣脱及设置去除重复说明。没有增加运行时文字过滤器，也没有改变支付、合法性与回滚契约。现行文案规范见 `docs/guide/action-copy-guide.md`，悬停契约见 `docs/spec/card-terms.md`。
+- 基准与合并：隔离树 `G:/CodexProjects/tmp/magic-affirmative-copy-20261030`，HEAD `a6fb64903c69ec75f2d27e8c04a6dd8fa03ffb1a` 加任务前工作区快照，Godot 4.7.2。任务前字节在该树 `spire-godot/build/affirmative-copy-baseline/`。合入主检出时逐文件校验并保存旧字节到 `spire-godot/build/affirmative-copy-integration-before/`；保留并行绳艺大师逻辑和67条新增本地化记录，149个本批集成文件按清单校验。该并行功能的新设计与交互验证由其自身任务负责，不算入本批文案证据。生产增量除字符串外仅涉及 `core/game.gd::room_description` 的格式参数、`ui/main.gd` 的提示呈现和身体栏尺寸。
+- 用户截图复现：身体面板缩到300高后，立绘、分隔线和放大按钮仍使用固定高度；`ui/shell/body_sidebar.gd::_resize_regions` 改为按面板内容高度同步三处位置与尺寸，保留原图比例和节点。新增 `tests/body_layout_ui_cases.gd::portrait_resize` 覆盖短框包含全部控件、真实点击放大／收起、恢复尺寸以及状态不变；修复前探针3个具名失败，修复后7断言通过。首次探针脚本的计数变量和场景夹具错误已修正，不作产品证据。已查看 `build/ui-body-short.png` 与 `build/ui-body-restored.png`，人物、分隔线和放大按钮均在框内。
+- 旧交互测试按现行行为更新：选定真实目标牌并明确拘束面；坐姿列表跳过站姿横扫，一次右键选择连续踢；耐久显示改为3.20／8；链接夹具改为可承受首击并核对实际扣减；敌人伤害节点按目标元数据与实际生命差寻找；监狱自由面拖放按自用结算，随后正式重抽、翻面、开门；奖励链条使用当前末次解锁文案。保留错误目标拒绝、付款、伤害、回滚、开门和退出的行为断言，没有删除有效失败案例。
+- 冻表取证：先在未改规则／文案的 `magic-basic-durability-20261030` 副本复算旧哈希，再与本批相同夹具比较。分支表63状态、13个哈希更新，仅327处原因／详情文本变化；显示表R3的12状态和R4的24状态，原哈希全部吻合，仅613处原因／风险／详情及道具原因文本变化，键、长度、费用、可用性和其余字段一致。只更新受文案影响的冻结值，唯一判定逐字段比较保持原样。证据分别为隔离树 `build/affirmative-copy/branch-proof.json`、`display-baseline-proof.json`、`display-differences.json` 与双树 `build/copy-display-dump.json`。
+- 过程结果：首批宽范围 `20261030T150859812-20020` 的52规则分类148919断言中50失败，多数为旧文案断言；内容包12份通过。后续分批修正并取证，49个受测规则分类有通过记录，architecture／core／pressure仍保留8项任务前已存在的失败：3项K4／G6旧基线、4项长路线助手停在事件、1项压力夹具旧耐久值。原始副本重现了这些失败，未删判据；本批不宣称完整项目全绿。早期本地化占位符、译文和语义source失配均已修复，最终主检出本地化通过。
+- 交互续验：`20261030T160531207-38560` 的card_power392、casting59、special_equipment61、services288、interface478、guard92通过；该轮enemies／prison失败已由节点名与交互适配解决。`20261030T161743247-38920` 的enemies221、prison220、consumables65通过，仅余奖励末次解锁的旧短句。`20261030T162422104-51572` 的rewards361通过，display的19项文案冻表失败按上述差异证明处理；以上各轮before==after。累计22个受影响UI分类均取得通过记录，属于分批范围验证，非一次完整UI回归。
+- 最终隔离检查 `20261030T163337975-39416`：runner1801、display1324、body_layout229通过；recipe为seed7、60提交／60步、stop=cap、163断言、exit0。summary=passed，before==after=`F8569A7A92EFD8D87A8FECF833C24A7A14D1364BCCEBE375F9CA0ED0973D65E4`，文档48份／2849引用通过。另运行实际练习与卡牌悬停检查，0引擎错误；已查看悬停截图，当前施法部位／成功率及关键词显示正常。
+- 主检出集成后 `20261030T163858016-31764`：localization309、runner1809，共2118断言通过，文档49份／2854引用通过；summary=passed，before==after=`685DA2AA9B88DE831AED9A9668C928220CC63592211DBDD3330C4CE943EC8086`。状态读者表和检查索引按当前主检出正式生成器重建，不使用隔离树生成物覆盖并行新依赖；149个集成文件收尾哈希吻合，`git diff --check` 通过。
+- 独立只读审查 `review_affirmative_copy` 完成文案语义、旧测试适配、两类冻表证明及人物短框修复复核，无本批剩余阻塞。仅修改本地源码与文档；未跑完整项目回归、安卓真机、打包、提交、推送或发布。
+
+
+## 2026-10-31｜驷马缚升级与收押导致结束回合回滚
+
+- 域：躯干附着、绳艺大师、战斗结束与收押。按用户当前绳艺大师练习的存档副本（种子3364630912）复现：中级三档驷马缚升级为高级二档时，主体已升级，连接绳仍保留原品质与耐久上限；正式提交尾部校验拒绝并回滚结束回合。修复前第8次结束回合出现原截图错误，回滚后的快照与提交前一致。只读取并复制玩家存档，后续探针与交互均使用隔离数据。
+- 修复：`core/rope_master.gd::hogtie` 沿既有 `_refresh_equipment` 同步主体与附着；`core/torso_binding.gd::refresh` 在二档更新已有连接元数据，保持实际剩余耐久、耗尽状态与随机形式，只有三档加固补满连接。没有放宽校验或另建装备写入通道。截图报错改为“装备数据出错，请提交问题反馈。”，同步英日目录和生成器。
+- 继续复现发现收押时的第二处阻塞：战斗内清除免疫挡住了正式收押清理，遗留捕缚记录使阶段校验回滚。`core/capture_bind.gd::clear_bind` 增加生命周期清理标记，由 `core/guard.gd::capture` 与 `core/game.gd::_finish_battle` 传入；普通战斗内清除继续受免疫约束。战斗结束不再重新观察并生成已清除的捕缚。现行规则同步装备设计与绳艺大师设计文档。
+- 隔离树 `G:/CodexProjects/tmp/magic-torso-binding-fix-20261031`，HEAD `a6fb64903c69ec75f2d27e8c04a6dd8fa03ffb1a` 加任务前工作区快照，Godot 4.7.2。证据在该树 `spire-godot/build/torso-fix/`：`reproduce-before.log` 为原缺陷，`reproduce-detail.log` 为收押缺陷，`reproduce-fixed.log` 为同存档副本连续13次结束回合成功至收押。首次临时探针在已记录产品失败后误把Game对象传入SaveStore.pack而报脚本错误，改用export_snapshot后重跑；该探针错误不算产品失败或通过证据。
+- 专项用例覆盖两种附着形式、升级同步、部分耐久与零耐久保留、三档补满、库存差价、随机状态不变、真实存档恢复、完整结束回合与收押、战斗内免疫及正式投降。初次直接规则检查rope_master67、torso_binding65，共132断言通过。
+- 冻结影响范围门禁 `20261030T165959745-22332`：19规则分类8851断言通过，文档49份／2854引用通过；summary=passed，before==after=`7334E91D5F2AEA5628C234E6A949B668C1E663047522A91637CF2A59C9EB5779`。此后仅新增真实按钮交互用例及重建索引，生产规则保持相同字节。
+- 最终交互与配方 `20261030T170302360-48636`：runner1810、enemies UI235、recipe163断言通过。UI通过实际指针点击结束回合，逐次核对提交成功，并经历连接式驷马缚升级后打开收押画面。配方seed7、60提交／60步、stop=cap、exit0；summary=passed，before==after=`E5B15A9981F7BE9F94E0F80E250902F26C7E0742F4E105D0E61FE49871BED0D4`。
+- 集成逐文件核对任务前SHA-256，13个文件合入主检出，旧字节备份到 `spire-godot/build/torso-binding-fix-before-20261031/`，保留所有其他在途修改。主检出按正式生成器重建状态读者表与检查索引。集成复验 `20261030T170742062-38140`：rope_master、localization、torso_binding、runner共2251断言通过，文档49份／2854引用通过；summary=passed，before==after=`E5B15A9981F7BE9F94E0F80E250902F26C7E0742F4E105D0E61FE49871BED0D4`。13个集成文件与已测副本哈希一致。
+- 独立只读审查 `review_torso_turn_fix`（gpt-6-astra low）复核升级通路、生命周期清理、免疫边界、存档与真实按钮用例，无剩余发现。属于本批影响范围验证，未跑全项目回归、安卓真机；只修改本地源码与文档，未打包、提交、推送或发布。
+
+
+## 2026-10-31｜绳艺大师与助理 SVG
+
+- 域：原创敌人矢量美术及静态资源映射。新增 `assets/ui/enemies/rope_master.svg`、`assets/ui/enemies/rope_assistant.svg`（均640×840），并保留Godot正式导入生成的`.import`元数据；素材由路径、描边和渐变构成，透明背景，没有外链、嵌入位图或脚本。大师采用深紫长衣、银发卷须、单片眼镜和金色绳结；成年助理采用青绿工作服、铜发、绳盘与工具包。来源记录在 `spire-godot/assets/art/ART-NOTES.md`。
+- 复用 `data/enemies.gd` 的visual字段与 `ui/arena.gd::ILLUSTRATIONS`，两个敌人分别使用专属SVG，战斗与图鉴共享；仅增加两条静态纹理映射、替换两个visual值，规则、站位与输入通路保持原样。任务前文件备份在 `spire-godot/build/rope-art-20261031/before/`；状态读者表与检查索引按正式生成器重建。
+- Godot 4.7.2导入及SVG解析通过，透明边界位于画布内。大师SVG SHA256=`249863a75e15ff78ad0e9dccd3f93f27bf0a4adf42d0da87a4584fda015451af`；助理SVG SHA256=`81fee2bcd2b5e0f6328a02d10790764e734314a49b3be895913d3bffef5e5fb1`。已查看两张单图、双人预览和真实战斗画面，缩放与站位正常；图片保留在同一build目录。
+- 临时探针过程：第一次误调用不存在的图鉴函数导致解析错误；改用实际图鉴面板。第二次遗漏测试器的首次教程偏好，点击被教程覆盖拦截、助理尚未召唤；修正隔离夹具后，真实结束回合召唤助理、双人纹理及透明度、左右站位、实际图鉴纹理共12断言通过，0引擎错误，日志 `preview-ui-final.log`。这些过程失败没有改动产品逻辑。预览合图的首次Python尝试缺少Pillow，改用Godot Image生成。
+- 最终门禁 `20261030T171801227-20476`：rope_master67、runner1810，共1877规则断言；enemies UI235、recipe163断言通过。配方seed7、60提交／60步、stop=cap、exit0；文档49份／2854引用通过，summary=passed，before==after=`5A02D5EAE60BDDD059CA98181E27AD87A2E383EC8599BCDA02219C11677A089C`。九个产物哈希清单在 `build/rope-art-20261031/final-manifest.json`，范围内diff格式检查通过。仅本地素材与映射更新，未跑全项目回归或安卓真机，未打包、提交、推送或发布。
+
+
+## 2026-10-31｜绳艺大师玩家状态栏与强人锁女卡图
+
+- 域：状态只读投影与卡牌素材。正式绳艺大师练习种子3364630912复现：不可反抗已有1层、醉绳已有2层，但 `core/status_view.gd::entry` 的默认active=false且badge为空，左侧状态条按active筛选后遗漏两项。修复沿 `StatusView.mark` 补齐图标、真实层数与hero归属；同一循环中三种绳索附魔同步接入。该战斗状态循环限定战斗阶段，收押后保留的敌人记录继续用于回顾，但不会继续显示战斗状态。未改获得、消耗、清除或伤害规则。复现前后分别见 `spire-godot/build/rope-status-20261031/before.log`、`after.log`。
+- 卡图：新增原创 `assets/ui/cards/art_submission.svg`（480×320），绳结、锁扣与牌片构图，经 `ui/card_face.gd::ILLUSTRATIONS` 的art_submission静态映射接入；保留正式导入生成的`.import`。SVG解析、透明边界与外链／脚本／位图排除检查通过，SHA256=`cf2abaa66d0567a657b95c967b94914a222196649d6c277253c1e3fedac019a2`。已查看 `build/rope-status-20261031/art_submission.png` 与 `build/ui-rope-statuses.png`，左侧两个状态角标及真实手牌卡图显示正确。
+- 既有rope_master规则用例增加玩家归属与角标、优先消耗不可反抗、醉绳耗尽、真实抽牌、助理死亡移除、三种附魔、收押后清除呈现的断言；enemies真实交互沿原种子结束回合，检查层数更新、悬停说明、点击详情、查看前后快照与随机不变、真实抽到的卡图、退出战斗后图标消失。没有放宽或删除旧判据。
+- 正式门禁 `20261030T173401653-46212`，Godot4.7.2，HEAD `a6fb64903c69ec75f2d27e8c04a6dd8fa03ffb1a` 加当前在途源码：rope_master／status／runner共2187规则断言、enemies UI265、recipe163断言通过；配方seed7、60提交／60步、stop=cap、exit0。文档49份／2854引用通过，summary=passed，before==after=`30BCC7CAFC362148DC9FB20A32838EEE4ABB1EF98AE738B568FF9445D1F37F64`。状态读者表与检查索引由正式生成器重建；本批没有失败门禁，修复前显示遗漏保留为复现证据。任务前六文件字节及最终十文件哈希清单均在 `build/rope-status-20261031/`。
+- 独立只读审查 `review_rope_status_art`（gpt-6.1-terra medium，技能旧型号不可用时采用现有同系列型号）复核基准差异、状态来源及生命周期、交互用例和卡图接入，无阻塞发现。范围内diff检查通过。仅更新本地源码、素材与文档，未跑全项目回归或安卓真机，未打包、提交、推送或发布。
+
+
+## 2026-10-31｜驷马缚排除全部链接与三档固定绳
+
+- 域：链接端点与躯干附着资格。按用户明确规则，`data/links.gd::anchor_slots` 对 art_hogtie 返回空锚点，候选生成、默认与显式安装、双向端点和存档校验共用既有入口；`core/torso_binding.gd::eligible` 排除 art_hogtie，三档加固也不产生连接式或一体式固缚。普通手腕、脚踝及股绳规则保留；没有改变覆盖、容量、快照版本或玩家存档。规则真源更新 `docs/design/rope-master.md`，装备设计只增加链接。
+- 修复前后探针：ordinary_link=true／tier3_attachment=integrated 变为 false／none。替换错误要求驷马缚生成附着的旧用例；有效的品质同步、部分耐久与耗尽保留、三档补满和存档覆盖迁至普通装备夹具。新增正反向链接拒绝、股绳端点、候选只读、普通端点可用、随机与完整快照保持、非法附着恢复回滚；真实种子3364630912连续结束回合直到收押，检查全程驷马缚无附着及界面无对应固定绳目标。直接专项rope_master98、torso_binding72，共170断言通过。任务前字节、探针与主检出最终九文件哈希在 `spire-godot/build/hogtie-no-links-20261031/`。
+- 首轮主检出 `20261030T174659589-52768` 为source_changed：运行中其他在途改动使读者表与检查索引失配，合计6项失败，UI和recipe未执行；不将此轮计作冻结版本通过。改用独占树 `G:/CodexProjects/tmp/magic-hogtie-no-links-20261031`，HEAD `a6fb64903c69ec75f2d27e8c04a6dd8fa03ffb1a` 加主检出快照，Godot4.7.2正式导入后由生成器更新两表。
+- 隔离重跑原选范围 `20261030T175334929-8324`：15规则分类127065断言，14分类通过，architecture保留3项K4／G6基线失败，exit1、summary=failed。针对这两处既有基线函数，在独占副本中分别应用本批两个生产修改的改前／改后字节：全部26个记录与3条失败信息完全一致，源码随后逐字节恢复并核对SHA-256，证据为隔离树同名build目录的 `baseline-before.json`、`baseline-after.json`、`baseline-comparison.json`。没有重冻这些基线或删除其断言。
+- 界面与配方续验 `20261030T175749600-8324`：enemies UI285、recipe163断言通过，实际点击结束回合、驷马缚升级、收押及无固定绳目标均通过；配方seed7、60提交／60步、stop=cap、exit0，summary=passed。两轮隔离门禁before==after均为 `2EB2F38D64C5B4518AE4747AC4691AEFC54D0B1CEAAB7C8FBEB39545B1AB98FE`，文档49份／2857引用通过。
+- 主检出期间另有监狱UI测试变动，未回拷隔离树生成物；按主检出正式生成器重建两表。收尾 `20261030T180238050-46656`：rope_master、torso_binding、links、runner共2149断言通过，summary=passed，before==after=`B43BD66E34B08B762EE5CE45F369F0EF8E2D4C0EFEBF6E51FD5603810C72ADDB`。本批七个源码／文档与隔离取证文件字节一致，差异格式检查通过。独立只读审查 `review_hogtie_no_links`（gpt-6-astra low）核对全部增量、共享入口及保留的测试覆盖，无阻塞发现。仅更新本地源码与文档；未做完整项目回归、安卓真机、打包、提交、推送或发布。
+
+## 2026-10-31｜魔法少女收押前置页与拘束材质插图
+
+- 域：收押界面、只读装备投影、三张用户提供插图及英日本地化。原角色进入收押阶段时先显示单选项前置页；小魔女沿用原收押页。固定立绘或平板锁优先使用专图，否则按仍有效的皮革／绳索拘束具及链接所覆盖的不同身体部位计数，皮革严格较多时使用皮革图，其余使用绳索图；金属手铐不借皮革分类。继续按钮只切换当前界面步骤，不提交玩法指令。
+- 三张原图保持原始字节接入并记录来源、尺寸与SHA-256；Godot正式导入通过。语义目录增加标题、正文与继续按钮，旧式英日目录由唯一生成器入口重建为各5962条；本地化门禁 `20261030T180746113-18404` 通过309断言，文档49份／2857引用通过，未进行截图测试。
+- 最终专项 `20261030T182920827-50744`：prison规则1437、prison UI255断言通过，文档49份／2859引用通过。真实UI用例覆盖原角色前置页、唯一继续按钮、旧收押页后继流程、固定立绘／平板锁优先级、皮革严格较多与平局选绳索；投影用例覆盖部位去重、链接参与和仅有真实金属手铐时皮革／绳索集合均为空。状态读者表与检查索引按正式生成器更新并零漂移校验通过。
+- 结构门禁 `20261030T183313309-36364` 共121149断言，仍仅有任务前已存在的3项K4／G6基线失败；本批未修改或重冻其基线，不宣称结构分类全绿。独立只读审查 `capture_intro_review` 首轮发现手铐误归皮革，返修后又指出混合样本会被去重遮蔽；最终以真实手铐独立负例复核，两项均关闭，无剩余finding。仅更新本地源码、素材与文档；未跑完整项目回归、安卓真机，未打包、提交、推送或发布。
+
+## 2026-10-31｜收押绳索图替换与战斗驷马缚特殊姿势
+
+- 域：用户插图、收押绳索分支、只读人物姿势投影与战斗立绘。`prison-capture-intro-rope-v1.png` 替换为用户文件 `00014-1991231483.png`；`00003-71753615 (1).png` 使用本机 `isnet-anime` 模型移除白底并按透明边界裁切为 `hero-hogtie-pose-cutout-v1.png`，没有使用生成式改图。上一批皮革／绳索／平板锁三张收押图及本批驷马图均由Pillow重新编码，项目成品 `Image.info` 为空；三张收押图与对应当前源图逐像素一致。来源、尺寸、源与成品SHA-256见 `assets/art/ART-NOTES.md`。
+- `core/game_view.gd::build` 只在存在正耐久 `art_hogtie` 时向既有 `body_coverage` 投影 `special_pose=hogtie`；`ui/arena.gd::configure_hero` 仅为原角色的非固定战斗人物画面选择专图。身体侧栏、固定立绘、小魔女、驷马的装备／链接规则均保持原通路；零耐久及清理后恢复当前普通姿势。
+- 首轮 `20261030T191148125-32040`：Godot新增／替换素材导入通过，rope_master98、hero_art UI67断言通过。独立只读审查 `hogtie_pose_review` 指出固定立绘、小魔女、身体侧栏及零耐久边界断言不足；补齐边界及真实结束回合生成驷马后的专图断言。`20261030T192143488-40872` 的rope_master98通过，hero_art因测试错误假设小魔女必为躺姿而1项失败；实现实际保留其当前姿势，判据改为当前姿势与对应小魔女图片一致，没有反推修改产品规则。
+- 最终 `20261030T192437693-38468`：rope_master98、hero_art与enemies UI合计358断言通过，文档49份／2863引用通过；检查索引与状态读者表由正式生成器重建并零漂移校验通过。结构门禁 `20261030T192857708-36852` 共121149断言，仍仅有任务前相同的3项K4／G6基线失败，没有新增结构红灯。原审查会话复核确认边界finding关闭，无新的阻断项；解除恢复使用直接耗尽、正式清理与显式渲染，未另做真实玩家解除指令专项。没有新增截图断言，未跑完整项目回归、安卓真机，未打包、提交、推送或发布。
+
+
+## 2026-11-01 欲能转换自由面临时魔力
+
+- 普通版自由面改为当前每满2点快感获得1点临时魔力，向下取整且不消耗快感；拘束面及独立魔女版保留原能量效果。复用自用牌执行入口，增加正数间隔声明和校验，预览／日志与卡面、英日文案同步。
+- 边界覆盖0、1.99、2、59、99快感，验证临时魔力累加、自身魔力与能量及快感不变；非法0／负数／字符串参数拒绝；魔女自由面单独验证。
+- 初轮 `20261031T170048107-41452`：witch_character与localization通过；card_expansion一条失败来自101快感超出默认100上限的夹具，recipe未执行。将夹具改为合法99后，生产实现不变。
+- 最终 `20261031T170417401-14188`：card_expansion 1696断言通过；recipe真实输入60次提交、stop=cap、163断言、exit0；文档49份／2883引用通过。summary=passed，前后源码指纹 `C46399A4287ECCD47B2A45A0BAB3A09084557A1CF86673E752602369DCAE55B5` 一致。复用前轮未受夹具修改影响的魔女／本地化通过证据。
+- 独立只读审查review_pleasure_temp（gpt-6-astra，low）修复与证据复核通过。任务前副本及局部补丁留在忽略目录 `spire-godot/build/pleasure-conversion-before/`。保留其他在途修改；仅源码与文档，未全量回归、打包、提交或发布。
+
+
+## 2026-11-01｜施法失败仅返还自身魔力并向下取整
+
+- 域：默认施法失败返还。`core/card_effects.gd::failure_refund_rates` 的默认临时池比例改为0；`core/game.gd::_cast_magic` 仅对默认返还计算 floor(实际自身支付额×0.5)，继续沿原支付、事务、日志与资源反馈通道。魔路精通明示的0／100%特殊转换保留精确金额及次数规则。成功、拒绝提交和免费复放保持原流程。同步教程、默认提示、英日手工译文与生成器、设计真源；没有新增状态字段或存档迁移。
+- 隔离树 `G:/CodexProjects/tmp/magic-cast-refund-20261101`，HEAD `a6fb64903c69ec75f2d27e8c04a6dd8fa03ffb1a` 加开始时工作区快照，Godot4.7.2。证据在 `spire-godot/build/cast-refund-20261101/`：任务前字节、加载清单、before.log、targeted.log。用改前核心执行新casting判据得到37/656失败；恢复改后字节，witch_character／localization／card_power／casting／action_copy共4142断言通过。覆盖自身奇数、小数、零返还、混合／全临时支付、实际扣费与返还日志／飘字、存档、失败重试、魔瓶保持、复放和特殊全额小数返还。
+- 影响范围 `20261031T165503324-18168`：24规则分类136428断言、22失败。1条魔力转换旧断言仍期待临时魔力半返还，已按新规则更新，保留能量、留手及随机断言。其余21项为architecture的17项S5／K4／G6与core的4项长路线失败。改前／改后定向对照166断言均出现这21项失败，20条错误逐字相同，G6当前记录摘要随本批变更而变化；未重冻该基线、未删除断言。证据为隔离树baseline-before.json、baseline-after.json与baseline-comparison.json，不宣称完整回归通过。
+- 界面与配方 `20261031T170120181-18168`：casting59、action_copy40、recipe163断言通过。真实点击混合支付的卡牌，失败后临时池扣除、自身按整数返还、卡牌留手，再成功重试；配方seed7、60提交／60步、stop=cap、exit0。summary=passed；两轮隔离门禁before==after均为 `9B859917A2DDE960DA1C723D9E5A4731EFE05E55911BB03E74867F748443FCF7`。
+- 集成采用任务前字节对照与局部合并，保留主检出的语音链及快感转换等并行修改；两次无写入的预合并分别提示balance与生成器同段冲突，改为只合入本批短句和翻译条目。正式生成器重建两表。主检出 `20261031T171412282-35120`：7分类7672断言，6分类通过，仅回响旧断言仍将已更换自由面的快感转换视为相同牌面；改成不同牌面正例，保留另3个相同牌面负例及断言总数。该轮before==after=`377A8B8B0F5A61E312CEE14D3E04B29BC52CEAB6E1F11C86D23712F4C7199639`。
+- 收尾 `20261031T172157866-17476`：card_power／runner共4152断言通过，summary=passed，before==after=`447EE0E55B737EB9E8FA1A95EECFFA62D8A94F020BBFC140AF34A38A6CF511AF`。其余5分类复用生产字节未变的上轮证据；文档49份／2887引用通过。主检出26文件哈希与集成前字节保存在同名build目录，差异格式通过。独立只读审查 `review_cast_refund`（gpt-6-astra low）完成默认／特殊结算、测试覆盖、文档歧义修正及两处旧断言适配复核，无遗留阻塞。仅更新本地源码与文档；未跑全项目回归或安卓真机，未打包、提交、推送或发布。
+
+## 2026-11-01：第二版交互音效接入验证
+
+域：UI 音效、卡牌／触屏交互、偏好持久化与素材；无核心玩法改动。
+
+- 动手前保留在途修改；本任务差异和素材 SHA256 对照位于 `outputs/sfx-integration-baseline-20261101/integration.diff` 与 `outputs/sfx-integration-baseline-20261101/assets-check.json`。17 个运行时 WAV 与用户确认的试听版逐字节一致，导入归一化与循环均关闭；`git diff --check` 通过。
+- `-Import -UIOnly -UISuite interaction_audio`：`build/checks/20261031T183157700-40496`，导入／文档通过，音效 29 项断言通过，退出码 0、status=passed、before==after。覆盖真实开关窗、桌面与触屏翻面、拖牌取消／成功消耗、火球成功／失败、过期提交回滚、批内合并、静音与独立设置文件读写。
+- 正规重生成 `tests/check_index.json`、`tests/state_readers.json`。`-Suite runner,architecture -UI -UISuite interaction_audio,card_interaction,touch,home,localization -KeepGoing`：`build/checks/20261031T183535401-19128`，runner 1843 项通过；architecture 121149 项中 17 项失败，全轮退出码 1、status=failed，UI 阶段未执行。失败来自现有 E_SUBMIT_KEYS 漏列既有 sound_feedback，以及旧玩法／显示基线摘要差异；本批没有修改 core/ 与 tests/architecture_cases.gd，不改写或删除这些判据。
+- 单独补跑 `-UIOnly -UISuite interaction_audio,card_interaction,touch,home,localization -KeepGoing`：`build/checks/20261031T183947532-47536`；interaction_audio 29、card_interaction 64、touch 37、home 192 项均通过；localization 56 项中 7 项失败（旧新局模式／显示设置文案、英文“帧”“存”“取”等残留），全轮 378 项断言、退出码 1、status=failed。没有把这轮记作整体通过。
+- `-Suite recipe -TimeoutSeconds 1800`：`build/checks/20261031T184451605-44520`，163 项通过，`RECIPE seed=7 commits=60 steps=60 stop=cap`，exit=0、status=passed。上述扩展规则／UI／recipe 各轮 before==after，均为同一源码指纹 C68A559FE59067435CCBEC511CA6A9C681D98125DBD0A6308BE0C3E3660F1C61。
+- 独立审查：review_interaction_audio，gpt-6-astra / low，新会话、只读；初审及针对扩展失败和 recipe 证据的补核均未发现本批阻塞问题。确认架构及本地化失败不应被音效任务静默改写，交付保留未通过事实。
+- 未验证：安卓真机、运行时主观混音试听、完整回归、打包、发布。桌面触屏合成输入不等同安卓验收。本批只完成源码与素材接入。
+
+## 2026-11-01：拘束具音效分敌人步骤验证
+
+域：瞬时音效收据、装备材质播放器、敌方展示生命周期。
+
+- 本批基线与差异在 `outputs/equipment-audio-steps-baseline-20261101/task.diff`，相关源码 SHA256 清单在同目录 `validated-source.json`；保留原在途差异。`git diff --check` 通过。未改变返回键面，`sound_feedback` 内的敌方材质记录带身份，角色语音仍为原字符串。
+- 首轮 `-Suite application -UI -UISuite enemy_feedback,interaction_audio -KeepGoing -TimeoutSeconds 900`：`build/checks/20261101T105008959-47540`，2/202 项失败、status=failed、exit=1，UI 未执行；新正例错误地假定 seed 42 的默认两只怪都应触发绳皮材质声，实际第二只是扎带。已将双怪正例改为显式使用两次正式绳索施加意图，保留扎带、闪避、打断的静默规则。
+- 修正夹具后同命令：`build/checks/20261101T105358129-15056`，application 202 项、interaction_audio 29 项、enemy_feedback 115 项全部通过；文档 49 份／2905 引用通过，exit=0、status=passed，before==after=CD713B0C82A32F54B224E20DC9DA78F34BF4D5D9EF320BE523288B6D28A8BAF8。覆盖同操作去重、同敌不同操作及多敌身份分离、玩家与敌方事务回滚、真实结束回合逐怪播放、前一播放器仍在播放时下一段启动、四类播放器并行、跳过／重绘／闪避／主页与重置边界；原角色语音测试继续通过。
+- 正式生成器重冻 `tests/check_index.json` 和 `tests/state_readers.json` 后运行 `-Suite runner,recipe -TimeoutSeconds 1800`：`build/checks/20261101T110237311-37648`，runner 1843 项、recipe 163 项通过；`RECIPE seed=7 commits=60 steps=60 stop=cap`、exit=0、status=passed、before==after=FBE36328A559B0D9DE485568FC085D9CCA578710B5725DFB8ED87E99CD22BA78。与前一绿轮之间只更新派生索引，运行实现与测试保持不变，没有把两个不同指纹说成同一次冻结运行。
+- 独立审查 review_equipment_audio_steps（gpt-6-astra / low，新会话、只读）核对作用域、隐藏动作映射、步骤消费、玩家即时声音、跳过与回主页、事务失败及语音隔离，复用绿轮证据，未发现阻塞问题。隐藏准备的材质映射做了代码审查，未另构造专门音频用例。
+- 声部机制核对 [Godot AudioStreamPlayer 文档](https://docs.godotengine.org/en/stable/classes/class_audiostreamplayer.html)：同流重叠播放与达到 max_polyphony 后淘汰最早声部。测试验证旧 playback 在新播放开始后仍保持 playing。
+- 未验证：完整回归／完整随机矩阵、人工混音听感、安卓真机、安装包和发布。本批没有重跑或改写此前已记录的架构旧基线及本地化失败；上述通过只指本批列明范围。
+
+
+## 2026-11-01｜新增内容复核与音效本地化修复
+
+- 域：火堆附魔、绳艺大师、卡牌交互、装备／语音／交互音效、特殊立绘及当前校验。HEAD `a6fb64903c69ec75f2d27e8c04a6dd8fa03ffb1a` 加现有未提交改动；保留其他任务修改。本批任务前源码清单、四个修复文件的原始字节、最小差异与失败清单在 `spire-godot/build/new-content-review-20261101/`。未从零重审全部历史实现。
+- 确认并修复英日语义目录中两个交互音效条目的格式：原来错误使用中文源文的 `text/context`，使两份翻译包被正式加载器整包拒绝；改为正确的 `source/text`，保留译文和原校验。负例 `20261101T115106083-36624`：localization 5/309失败，含 `invalid_translation_entry`、覆盖率与实际语义翻译失败，exit1、summary=failed。修后 `20261101T115227630-39044`：localization／runner合计2152断言、localization／interaction_audio UI合计85断言全部通过，exit0、summary=passed，before==after=`E8A3A9931539B6E8FE3D7F3B01960F7B1F947467097EEDC65286DC0FD354A95F`。原英文界面中文残留断言保持有效，未删除或改弱。
+- 提交结果键面 `tests/architecture_cases.gd::E_SUBMIT_KEYS` 补齐既有 `sound_feedback`，声明原因同步，检查索引通过正式生成器更新。任务前 `20261101T114705156-42404`：architecture／runner合计122992断言，architecture有18条失败、runner1843通过；exit1、summary=failed，before==after=`FBE36328A559B0D9DE485568FC085D9CCA578710B5725DFB8ED87E99CD22BA78`。修后 `20261101T115338412-27220`：rope_master104、enchantments243、application202、runner1843通过；architecture121149断言中保留4条任务前同名失败，合计123541断言、exit1、summary=failed。漏列成功结果键导致的14条失败消除，未修改生产提交结构。
+- 剩余4条未通过项：`prefix_branch_tables_are_frozen` 的equipment_spell／relic_rows摘要漂移；`baseline_diff_is_declared` 两条历史字段／记录差异；`behavior_baseline_equivalence` 一条行为快照差异。保留冻结表与断言，本轮未对所有历史差异逐项裁定，不将其笼统视为可忽略误报，也不宣称架构全绿。
+- 界面与配方 `20261101T115738489-37320`：enchantments29、card_interaction64、enemy_feedback115、hero_art72、enemies286，共566断言通过；recipe163断言通过，seed7、60提交／60步、stop=cap、exit0，经过rest_choice／rest／treasure等阶段。summary=passed；此轮与修后规则轮before==after均为 `17C9BF30617D41C66D4C04B1498414D938F37090476BFE20D7C763C21352192C`。前轮本地化通过证据复用期间仅改变架构测试和派生索引。`tools/check-content.ps1` 校验12个内容包通过，日志在 `spire-godot/build/new-content-20261101-content.log`；各门禁的文档49份／2905引用通过。
+- 独立只读审查 `review_new_content_20261101`（gpt-6-astra low，新会话）核对新增功能的提交通道、增量状态、回滚与表现生命周期，并复核本批最小修复和负例／正例证据，无本批阻塞发现。装备音效既有8个文件的证据哈希与当前源码一致；本批未修改玩法实现。最小差异格式检查通过。仅更新本地资源、校验与记录；未做全项目回归、完整随机矩阵、人工混音试听或安卓真机，未打包、提交、推送或发布。

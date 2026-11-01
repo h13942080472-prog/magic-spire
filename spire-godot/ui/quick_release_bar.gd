@@ -132,15 +132,16 @@ static func update_tile(ui, button: Button, region_id: String, data: Dictionary)
  var equipment=selection.equipment
  var c=_candidate_for(ui,body,equipment,data) if not data.is_empty() else idle_candidate(ui,body,equipment.get("id",""))
  var title=ui.localization.display(selection.region.name)+" · "+ui.localization.display(body.name)
- var detail=message(ui,"empty","没有拘束具") if equipment.is_empty() else ui.localization.display(equipment.name)
+ var detail=message(ui,"empty","自由") if equipment.is_empty() else ui.localization.display(equipment.name)
  var status=""
  if not equipment.is_empty():
   status=message(ui,"durability","耐久 {current}/{maximum} · 紧度{tier}",{"current":ui.game.number(equipment.durability),"maximum":ui.game.number(equipment.maximum),"tier":equipment.tier})
+  if equipment.get("no_tightness",false): status=ui.localization.display("耐久 %s/%s · 无紧度" % [ui.game.number(equipment.durability),ui.game.number(equipment.maximum)])
   if equipment.locked: status+=" · "+ui.localization.display("已上锁")
  var reason=""
  if not data.is_empty():
   if data.get("version",-1)!=ui.view.version: reason=ui.localization.display("行动已失效，请重新选择。")
-  elif c.is_empty(): reason=message(ui,"wrong_card","这张牌不能用于当前选中的拘束具")
+  elif c.is_empty(): reason=message(ui,"wrong_card","请选择适用于当前拘束具的卡牌")
   elif not c.valid: reason=ui.localization.display(c.reason)
  elif not c.is_empty() and not c.valid: reason=ui.localization.display(c.reason)
  button.get_node("Title").text=title

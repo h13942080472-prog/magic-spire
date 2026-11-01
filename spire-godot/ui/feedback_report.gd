@@ -113,14 +113,14 @@ func _capture_save() -> void:
 # this draft carries no attachment. Every variant is player copy and reads its zh_CN source key.
 func save_status_text() -> String:
  if draft.context.is_empty(): return ""
- if save_declined: return host._text("ui.feedback.save.declined","当前反馈服务暂不支持附带存档。")
- if not draft.include_save: return host._text("ui.feedback.save.unchecked","未附带存档：已取消勾选。")
+ if save_declined: return host._text("ui.feedback.save.declined","当前反馈服务仅接收文字和截图。")
+ if not draft.include_save: return host._text("ui.feedback.save.unchecked","存档：已取消附带。")
  if save_attachment.is_empty():
   match save_reason:
-   SAVE_NONE: return host._text("ui.feedback.save.none","未附带存档：当前没有可附带的存档。")
-   SAVE_INVALID: return host._text("ui.feedback.save.invalid","未附带存档：当前进度存档校验未通过，未附带。")
-   SAVE_OVERSIZED: return host._text("ui.feedback.save.oversized","未附带存档：存档过大（超过 2 MB），未附带。")
-   _: return host._text("ui.feedback.save.uncaptured","未附带存档：本次草稿没有捕获到存档。")
+   SAVE_NONE: return host._text("ui.feedback.save.none","可附带存档：0份。")
+   SAVE_INVALID: return host._text("ui.feedback.save.invalid","存档校验失败，附件已跳过。")
+   SAVE_OVERSIZED: return host._text("ui.feedback.save.oversized","存档超过2 MB，附件已跳过。")
+   _: return host._text("ui.feedback.save.uncaptured","存档：请重新创建草稿以获取当前进度。")
  return host._text("ui.feedback.save.attached","将附带当前进度存档：{name}（{size} KB）",{"name":save_attachment.name,"size":"%.1f" % (float(save_attachment.bytes)/1024.0)})
 
 func _save_included() -> bool:
@@ -160,7 +160,7 @@ func build(column: VBoxContainer) -> void:
   var context=draft.context
   preview.add_child(host._label("版本%s · %s · %s · 第%s回合\n%s · %s · 种子%s" % [context.version,context.platform,context.floor,str(context.round),context.scene,context.phase,str(context.seed)],14,host.MUTED))
   if draft.include_logs: preview.add_child(host._label("行动日志：\n"+(draft.logs if not draft.logs.is_empty() else "暂无记录"),14,host.MUTED))
-  else: preview.add_child(host._label("未附带行动日志",14,host.MUTED))
+  else: preview.add_child(host._label("行动日志为空",14,host.MUTED))
  else:
   var tabs=HBoxContainer.new();tabs.add_theme_constant_override("separation",10);form.add_child(tabs)
   for kind in ["bug","suggestion"]:
@@ -192,7 +192,7 @@ func build(column: VBoxContainer) -> void:
   for button in [capture,attach]: button.size_flags_horizontal=Control.SIZE_EXPAND_FILL;button.add_theme_font_size_override("font_size",14)
  var gallery=host._scroll(attachments)
  if draft.images.is_empty():
-  var empty=host._label("＋\n\n尚未添加截图\n\nPNG / JPEG · 最多3张",18,host.MUTED)
+  var empty=host._label("＋\n\n添加截图\n\nPNG / JPEG · 最多3张",18,host.MUTED)
   empty.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;empty.custom_minimum_size.y=220;gallery.add_child(empty)
  else: _pictures(gallery,not confirming)
  attachments.add_child(host._label("点击截图可放大查看。" if confirming else "截图时会隐藏此窗口，图片自动压缩。",13,host.MUTED))
@@ -267,17 +267,17 @@ func load_image(path: String) -> void:
  if busy or draft.images.size()>=MAX_IMAGES: return
  var file=FileAccess.open(path,FileAccess.READ)
  if file==null or file.get_length()>12*1024*1024:
-  message="无法读取图片，或文件超过12MB。";refresh();return
+  message="请选择12 MB以内的可读图片。";refresh();return
  var bytes=file.get_buffer(file.get_length());var image=Image.new();var error=ERR_FILE_UNRECOGNIZED
  if path.get_extension().to_lower()=="png": error=image.load_png_from_buffer(bytes)
  elif path.get_extension().to_lower() in ["jpg","jpeg"]: error=image.load_jpg_from_buffer(bytes)
  if error!=OK:
-  message="图片无法解码，请选择PNG或JPEG截图。";refresh();return
+  message="请选择有效的PNG或JPEG截图。";refresh();return
  add_image(image)
 
 func add_image(image: Image) -> void:
  if busy or draft.images.size()>=MAX_IMAGES: return
- if image==null or image.is_empty(): message="未能获取截图，请重试。";refresh();return
+ if image==null or image.is_empty(): message="截图获取失败，请重试。";refresh();return
  var picture=image.duplicate()
  var scale=minf(1.0,1600.0/maxi(picture.get_width(),picture.get_height()))
  if scale<1: picture.resize(maxi(1,int(picture.get_width()*scale)),maxi(1,int(picture.get_height()*scale)),Image.INTERPOLATE_LANCZOS)
@@ -299,7 +299,7 @@ func submit() -> void:
  if not message.is_empty(): refresh();return
  var url=endpoint()
  if not url.begins_with("https://") or url.contains("@"):
-  message="反馈服务尚未开通，草稿已保留。";save_draft();refresh();return
+  message="反馈服务待开通，草稿已保留。";save_draft();refresh();return
  if draft.id.is_empty(): draft.id=Crypto.new().generate_random_bytes(16).hex_encode()
  save_draft();busy=true;response_redirects=0;checking_receipt=false;message="正在提交，请稍候…";refresh()
  # docs/spec/feedback-deployment.md「服务版本门控」: never attach the save before the
@@ -314,7 +314,7 @@ func submit() -> void:
 func _send_report(url: String) -> void:
  message="正在提交，请稍候…";refresh()
  var error=_send_request(url,HTTPClient.METHOD_POST,JSON.stringify(payload()))
- if error!=OK: busy=false;message="无法连接反馈服务，草稿已保留，请稍后重试。";refresh()
+ if error!=OK: busy=false;message="反馈服务连接失败，草稿已保留，请稍后重试。";refresh()
 
 func _send_request(url: String, method: int, body: String="") -> int:
  if transport.is_valid(): return transport.call(url,method,body)
@@ -350,7 +350,7 @@ func _completed(result: int, status: int, headers: PackedStringArray, body: Pack
  if reply is Dictionary and reply.get("ok")==true and reply.get("id")==draft.id:
   var id=draft.id;clear_draft();message="提交成功，邮件服务已接受。反馈编号："+id;refresh();return
  var code=reply.get("code","") if reply is Dictionary else ""
- message={"limited":"反馈服务今日额度已用完，请明天重试。","busy":"反馈服务繁忙，请稍后重试。","invalid":"反馈内容未通过检查，请返回修改后重试。"}.get(code,"未确认提交成功，请稍后重试；相同反馈会沿用原编号。")+"草稿已保留。"
+ message={"limited":"反馈服务今日额度已用完，请明天重试。","busy":"反馈服务繁忙，请稍后重试。","invalid":"请检查反馈内容后重试。"}.get(code,"提交结果待确认，请稍后重试；反馈编号保持原样。")+"草稿已保留。"
  save_draft();refresh()
 
 # The service version document is the only source of the schema level; a missing or

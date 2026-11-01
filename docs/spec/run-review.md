@@ -44,7 +44,7 @@ func _run_review_copy_text() -> String      # 未复制=_text("ui.run_review.cop
 
 复制显示态的属主仍是 `ui/main.gd::seed_copied_until` 与唯一刷新入口
 `ui/main.gd::_refresh_seed_chip()`（由 `_process` 每帧驱动，只在到期那一帧改写文本；函数名不改）：
-`copy_seed()` 写剪贴板与截止时间后立即经同一刷新入口改写两处视图（路线屏角标 + 回顾面板按钮），
+`copy_seed()` 写剪贴板与截止时间后立即经同一刷新入口改写存活的复制控件（路线屏角标、回顾面板按钮及局内菜单快速复制按钮），
 不另开计时器、不保留回调；面板隐藏或被重建后，旧指针由 `is_instance_valid` 守卫，不写入已释放控件；
 面板按钮被重建时按同一文本规则重读截止时间。Esc 与安卓返回键沿既有 `DRAWERS` 清单关闭，不新增关闭通道。
 

@@ -17,7 +17,7 @@ static func build(ui) -> void:
    choices[choice.payload.uid]=choice
   var browser=preload("res://ui/deck_browser.gd").new()
   ui._place(browser,Rect2(54,190,1492,510),root)
-  browser.setup(ui,panel.cards,false,"没有可复制的卡牌。",choices)
+  browser.setup(ui,panel.cards,false,"可复制卡牌：0张。",choices)
   var finish=Queries.fact_by_key(ui.view,panel.continue_key)
   var skip=ui._button(panel.continue_label,func():ui.command_router.emit(String(finish.payload.get("kind","")),finish),ui.MUTED)
   skip.name="BundleContinue";ui._place(skip,Rect2(625,720,350,48),root);ui.candidate_buttons[finish.key]=skip

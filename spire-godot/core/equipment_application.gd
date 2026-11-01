@@ -11,6 +11,13 @@ const Replacement=preload("res://core/equipment_replacement.gd")
 static func choose(g, spec: Dictionary, source: String, domain: String="enemy") -> Dictionary:
  var bands=_choice_bands(g,spec,source)
  if bands.is_empty(): return {}
+ # Mixed sources first choose a legal pool equally, then a legal ordinary profile.
+ if not spec.get("composites",[]).is_empty() and spec.has("profiles"):
+  var pools=[]
+  for composite in [false,true]:
+   var pool=bands.filter(func(band):return (band[0].kind=="assembly")==composite)
+   if not pool.is_empty(): pools.append(pool)
+  bands=pools[g._random_index(domain,pools.size())]
  # Equal weights per legal grade/tightness profile, not per template count.
  var primary=bands[g._random_index(domain,bands.size())]
  if spec.get("pool","ordinary")=="ordinary":
@@ -61,10 +68,11 @@ static func _choice_bands(g, spec: Dictionary, source: String) -> Array:
    current.templates=spec.fallback_templates
    choices=_choices(g,current,source)
   if not choices.is_empty(): bands.append(choices)
-  if mixed:
-   current.pool="composite";current.templates=spec.composites
-   choices=_choices(g,current,source)
-   if not choices.is_empty(): bands.append(choices)
+ if mixed:
+  var current=spec.duplicate(true)
+  current.pool="composite";current.templates=spec.composites
+  var choices=_choices(g,current,source)
+  if not choices.is_empty(): bands.append(choices)
  return bands
 
 static func execute(g, spec: Dictionary, source: String, domain: String="enemy") -> Dictionary:
@@ -127,7 +135,7 @@ static func execute_concrete(g, request: Dictionary, source: String, allow_repla
   if not planned.get("ok",false): return _failure(planned.get("reason","这组装备无法替换现有装备。"))
   if not voluntary and (evade(g,source) or g.Character.evade(g,requests,source)): return _evaded(requests.size())
   var committed=Replacement.execute(g,planned)
-  if not committed.get("ok",false): return _failure(committed.get("reason","装备替换未能完成。"))
+  if not committed.get("ok",false): return _failure(committed.get("reason","装备替换失败。"))
   var result=_result()
   result.installed=committed.get("installed",[]).duplicate(true)
   result.removed=committed.get("removed",[]).duplicate()
@@ -160,26 +168,29 @@ static func execute_concrete(g, request: Dictionary, source: String, allow_repla
   "shoulder":
    var host=g._equipment(p.target)
    if g.Shoulders.install(g,host,p.template,grade,source): items.append_array(g.Shoulders.attached(g,host))
- if items.is_empty(): return _failure("原定位置已不符合这件装备的安装要求。")
+ if items.is_empty(): return _failure("请重新选择符合安装要求的位置。")
  var result=_result()
  result.removed=removed
  result.installed=items.duplicate(true);result.count=1;result.ok=true
  return result
 
 static func _spec_reason(spec: Dictionary) -> String:
- if spec.has("allow_links") and not spec.allow_links is bool: return "链接绳范围必须明确为允许或不允许。"
+ if spec.has("free_slots") and not spec.free_slots is bool: return "空部位限制必须是布尔值。"
+ if spec.has("excluded_points"):
+  if not spec.excluded_points is Array or spec.excluded_points.any(func(point):return not point is String or point not in E.ANATOMY): return "排除位置列表有误。"
+ if spec.has("allow_links") and not spec.allow_links is bool: return "链接绳范围需要显式开关值。"
  if spec.has("profiles"):
-  if not spec.profiles is Array or spec.profiles.is_empty(): return "装备规格列表不能为空。"
+  if not spec.profiles is Array or spec.profiles.is_empty(): return "装备规格列表需要至少一项。"
   for profile in spec.profiles:
    if not profile is Dictionary or profile.size()!=2 or not profile.get("grade") is int or not profile.get("tier") is int: return "装备规格需要整数品质与紧度。"
-   if profile.grade not in [1,2,3] or profile.tier not in [1,2,3]: return "装备规格的品质或紧度不合法。"
+   if profile.grade not in [1,2,3] or profile.tier not in [1,2,3]: return "装备规格的品质或紧度有误。"
  if spec.get("pool","ordinary") not in ["ordinary","composite","special"]: return "本次没有指定有效的装备来源池。"
- if not spec.get("templates",[]) is Array or not spec.get("fallback_templates",[]) is Array: return "装备来源名单格式不正确。"
+ if not spec.get("templates",[]) is Array or not spec.get("fallback_templates",[]) is Array: return "装备来源名单格式有误。"
  if not spec.get("composites",[]) is Array or (spec.has("composites") and spec.get("pool","ordinary")!="ordinary"): return "复合追加名单只能由普通装备来源明确声明。"
- if not spec.get("required_slots",[]) is Array or spec.get("required_slots",[]).any(func(slot):return not slot is String): return "指定施加部位格式不正确。"
- if spec.get("count",1)<0 or spec.get("ready_layers",0)<0: return "施加数量和准备层数不能为负数。"
- if not E.GRADES.has(spec.get("grade",2)) or spec.get("tier",2) not in [1,2,3]: return "装备品质或紧度档位不合法。"
- if not spec.get("tiers",[]) is Array or not spec.get("variants",{}) is Dictionary: return "逐件紧度或材质版本要求格式不正确。"
+ if not spec.get("required_slots",[]) is Array or spec.get("required_slots",[]).any(func(slot):return not slot is String): return "指定施加部位格式有误。"
+ if spec.get("count",1)<0 or spec.get("ready_layers",0)<0: return "施加数量和准备层数须为非负数。"
+ if not E.GRADES.has(spec.get("grade",2)) or spec.get("tier",2) not in [1,2,3]: return "装备品质或紧度档位有误。"
+ if not spec.get("tiers",[]) is Array or not spec.get("variants",{}) is Dictionary: return "逐件紧度或材质版本要求格式有误。"
  for value in spec.get("tiers",[]):
   if value not in [1,2,3]: return "逐件紧度必须在一至三档之间。"
  return ""
@@ -192,6 +203,11 @@ static func _piece_spec(spec: Dictionary, index: int, ready_used: int) -> Dictio
 
 static func _choices(g, spec: Dictionary, source: String) -> Array:
  var raw=_raw(g,spec,source)
+ if not spec.get("excluded_points",[]).is_empty():
+  raw=raw.filter(func(request):
+   var points=request.get("contact_points",[]) if request.kind=="link" else (g._installation_points(request.slot,request.get("point","")) if request.kind=="install" else [])
+   return not points.any(func(point):return point in spec.excluded_points)
+  )
  var required_slots=spec.get("required_slots",[])
  if not required_slots.is_empty(): raw=raw.filter(func(request):return _slots(request).all(func(slot):return slot in required_slots) if request.kind=="link" else _slots(request).any(func(slot):return slot in required_slots))
  # An explicit preferred slot is checked for normal and authorized replacement
@@ -253,6 +269,7 @@ static func _raw(g, spec: Dictionary, source: String) -> Array:
     raw.append({"kind":"special_install","type":type,"slot":slot,"rank":g._priority(slot)})
  var result=[]
  for request in raw:
+  if request.kind=="install" and spec.get("free_slots",false) and g.occupied(request.slot): continue
   if request.kind=="link":
    if spec.has("slot") and not request.slots.all(func(slot):return slot==spec.slot): continue
    if spec.has("slots") and not request.slots.all(func(slot):return slot in spec.slots): continue
@@ -262,6 +279,9 @@ static func _raw(g, spec: Dictionary, source: String) -> Array:
   if spec.has("point") and request.get("kind","")=="install" and request.get("point","")!=spec.point: continue
   request.grade=grade;request.tier=_piece_spec(spec,0,0).tier;request.locked=locked;request.source=source
   if request.kind=="install":
+   if E.is_shackle(request):
+    if g.RestraintValue.from_profile(grade,spec.get("tier",2))!=E.SHACKLE_RESTRAINT_VALUE: continue
+    request.grade=1;request.tier=1;request.locked=true
    request.variant=spec.get("variants",{}).get(request.template,spec.get("variant",0))
    request.random_variant=not spec.has("variant") and not spec.get("variants",{}).has(request.template)
   elif request.kind=="assembly": request.overrides=spec.get("overrides",{}).duplicate(true)
@@ -300,35 +320,35 @@ static func _overrides(request: Dictionary) -> Dictionary:
 static func _request_reason(g, p: Dictionary, placement: bool=true, protected_ids: Array=[]) -> String:
  var grade=p.get("grade",2)
  var tier=p.get("tier",2)
- if not E.GRADES.has(grade) or tier not in [1,2,3]: return "装备品质或紧度档位不合法。"
+ if not E.GRADES.has(grade) or tier not in [1,2,3]: return "装备品质或紧度档位有误。"
  match p.get("kind",""):
   "install":
    var template=p.get("template","")
    var issue=E.definition_reason(template,p.get("slot",""),grade,p.get("locked",false))
    if issue!="": return issue
    var variant=p.get("variant",0)
-   if not variant is int or variant<0 or variant>=E.MATERIALS[E.TEMPLATES[template].material][grade].size(): return "指定的装备材质版本不存在。"
-   if g._installation_points(p.slot,p.get("point","")).is_empty(): return "指定位置不属于这件装备的安装部位。"
+   if not variant is int or variant<0 or variant>=E.MATERIALS[E.TEMPLATES[template].material][grade].size(): return "指定的装备材质版本缺失。"
+   if g._installation_points(p.slot,p.get("point","")).is_empty(): return "请选择该装备的安装部位。"
    if placement: return g._installation_reason(template,p.slot,grade,p.get("locked",false),p.get("point",""),p.get("layer",-1))
   "assembly":
    var layout=C.spec(p.get("family",""),p.get("variant",""),p.get("straps","straight"))
-   if layout.is_empty() or grade<layout.minimum: return "指定复合装备的结构或品质不合法。"
+   if layout.is_empty() or grade<layout.minimum: return "指定复合装备的结构或品质有误。"
    if p.get("locked",false) and not layout.parts.values().any(func(part):return E.TEMPLATES[part.template].lock): return "这件复合装备没有可上锁的位置。"
-   if placement and g._prepare_assembly(p.family,p.variant,p.get("source",""),grade,tier,_overrides(p),p.get("straps","straight"),p.get("attached_to","")).is_empty(): return "现有装备或固定位置不允许安装这件复合装备。"
+   if placement and g._prepare_assembly(p.family,p.variant,p.get("source",""),grade,tier,_overrides(p),p.get("straps","straight"),p.get("attached_to","")).is_empty(): return "请先清理安装位置及其固定结构。"
   "special_install":
-   if p.get("locked",false): return "这种特殊装备不支持上锁。"
-   if not E.Special.DESIGNS.has(p.get("type","")): return "这种特殊装备尚未定义。"
+   if p.get("locked",false): return "该特殊装备的锁孔为0。"
+   if not E.Special.DESIGNS.has(p.get("type","")): return "这种特殊装备待定义。"
    if placement:
     var issue=g._special_install_reason(p.type,p.get("slot",""))
     if issue!="": return issue
     if g.SpecialEquipment.is_chastity_type(p.type) and g.state.special_equipment.any(func(item):return item.id in protected_ids and g._chastity_displaces(p.type,item)):
-     return "本次不能替换刚安装的装备或附属件。"
+     return "刚安装的装备与附属件在本批次保留。"
   "link":
    if p.get("locked",false): return "链接绳没有可上锁的位置。"
    if p.get("ends",[]).size()!=2: return "链接绳需要两个真实连接位置。"
-   if placement and g._prepare_link(p.ends[0],p.ends[1],E.maximum(grade)*[0.0,0.4,0.8,1.0][tier],p.get("source",""),grade,p.get("blocked_slip",[]),p.get("slots",[]),p.get("contact_points",[])).is_empty(): return "原定连接位置已不能建立这条链接绳。"
+   if placement and g._prepare_link(p.ends[0],p.ends[1],E.maximum(grade)*[0.0,0.4,0.8,1.0][tier],p.get("source",""),grade,p.get("blocked_slip",[]),p.get("slots",[]),p.get("contact_points",[])).is_empty(): return "请重新选择可连接的两个位置。"
   "shoulder":
-   if p.get("locked",false): return "独立肩部附加不支持直接上锁安装。"
+   if p.get("locked",false): return "独立肩部附加需要以开锁状态安装。"
    if tier!=grade: return "独立肩部附加的初始紧度由其品质决定。"
    if placement: return g.Shoulders.install_reason(g,g._equipment(p.get("target","")),p.get("template",""),grade)
   _: return "本次没有指定有效的装备安装方式。"
@@ -363,14 +383,14 @@ static func _groups(g, raw: Array, spec: Dictionary, source: String) -> Array:
    var minimum=-1
    for piece in root.components:
     if piece.get("independent",false) or point not in E.physical_points(piece): continue
-    var cost=Replacement.comparison_value(g,piece)
+    var cost=Replacement.replacement_value(g,piece)
     if point=="upper_arm_top": cost+=root.components.filter(func(e):return E.is_shoulder(e)).size()
     minimum=maxi(minimum,cost)
    var requests=[]
    for entry in raw:
     if entry.kind!="install" or point not in g._installation_points(entry.slot,entry.get("point","")): continue
     var request=entry.duplicate(true);request.tier=local.tier
-    if Replacement.comparison_value(g,request)<=minimum: continue
+    if Replacement.replacement_value(g,request)<=minimum: continue
     requests.append(request)
    choices.append(requests)
   if choices.any(func(requests):return requests.is_empty()): continue

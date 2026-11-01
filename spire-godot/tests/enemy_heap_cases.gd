@@ -13,7 +13,7 @@ static func run(t) -> void:
  t.check(g.state==before and g.state.enemies[0].intent.kind=="turn_install" and active(g).is_empty(),"HEAP initial plan is readonly and does not activate effect early")
  var twin=Save.roundtrip(t,g,"heap first intent")
  Save.step_both(t,g,twin,"end")
- t.check(g.state.equipment.size()==1 and g.state.equipment[0].grade==1 and g.state.equipment[0].source==id and g.tier(g.state.equipment[0].durability,g.state.equipment[0].maximum)==2 and active(g).size()==1,"HEAP first pulse at next player start installs one basic tier two item and exposes source")
+ t.check(g.state.equipment.size()==1 and g.state.equipment[0].source==id and g.state.equipment[0].grade+g.equipment_tier(g.state.equipment[0])==3 and active(g).size()==1,"HEAP first pulse at next player start installs one value-three item and exposes source")
  Save.step_both(t,g,twin,"end")
  var plan=g._enemy(id).intent.duplicate(true)
  t.check(plan.kind=="equipment_batch" and plan.count==2 and not plan.tighten,"HEAP third action declares two installations")
@@ -21,12 +21,12 @@ static func run(t) -> void:
  twin=Save.roundtrip(t,g,"heap pair declaration")
  Save.step_both(t,g,twin,"end")
  t.check(g.state.equipment.size()+g.state.links.size()==5,"HEAP two installations and one separate next-round pulse")
- var pair=g.physical_pieces().filter(func(x):return x.id not in prior_ids and x.grade==2)
+ var pair=g.physical_pieces().filter(func(x):return x.id not in prior_ids and x.grade+g.equipment_tier(x)==4)
  var points=[]
  for piece in pair: points.append_array(g.Equipment.physical_points(piece))
  var unique={}
  for point in points: unique[point]=true
- t.check(pair.size()==2 and pair.all(func(x):return x.source==id and g.tier(x.durability,x.maximum)==2) and unique.size()==points.size(),"HEAP actual pair uses two distinct positions including real link contacts")
+ t.check(pair.size()==2 and pair.all(func(x):return x.source==id and x.grade+g.equipment_tier(x)==4) and unique.size()==points.size(),"HEAP actual pair uses two distinct positions including real link contacts")
  plan=g._enemy(id).intent.duplicate(true)
  t.check(plan.tighten and plan.count==2 and plan.tier==3,"HEAP fourth action declares two reinforcements to tier three")
  # Change equipment after declaration; actual survivors determine both targets.
@@ -58,7 +58,7 @@ static func run(t) -> void:
  g=Game.new(42,true,"rope_heap_solo");id=g.state.enemies[0].id
  e=g._enemy(id);e.stage=4;e.intent=g._plan(e)
  t.check(e.intent.kind=="apply","HEAP no reinforcement target at generation selects its existing pair application")
- t.check(t.action(g,"end").ok and g.physical_pieces().size()==2 and g.physical_pieces().all(func(x):return x.grade==2 and x.template in g.Enemies.TYPES.rope_heap.install_pool and g.tier(x.durability,x.maximum)==2) and g._enemy(id).stage==5,"HEAP generated application preserves two middle-grade tier-two installs")
+ t.check(t.action(g,"end").ok and g.physical_pieces().size()==2 and g.physical_pieces().all(func(x):return x.template in g.Enemies.TYPES.rope_heap.install_pool and x.grade+g.equipment_tier(x)==4) and g._enemy(id).stage==5,"HEAP generated application preserves two value-four installs")
 
  # Exact threshold, nearest safe value, rounding, lethal precedence, and saved children.
  g=Game.new(42,true,"rope_heap_solo");id=g.state.enemies[0].id
@@ -103,7 +103,7 @@ static func run(t) -> void:
   for point in points: unique[point]=true
   # Rope pools include legal links under the shared application rule.
   var new_links=g.state.links.filter(func(x):return not links.any(func(old):return old.id==x.id))
-  t.check(not added.is_empty() and added.all(func(x):return x.grade==2 and g.tier(x.durability,x.maximum)==3) and unique.size()==points.size() and links.all(func(x):return x in g.state.links) and new_links.all(func(x):return x.grade==2 and g.tier(x.durability,x.maximum)==3),"HEAP final burst installs middle tier three pieces and eligible links, preserving existing links")
+  t.check(not added.is_empty() and added.all(func(x):return x.grade+g.equipment_tier(x)==5) and unique.size()==points.size() and links.all(func(x):return x in g.state.links) and new_links.all(func(x):return x.grade+g.equipment_tier(x)==5),"HEAP final burst installs value-five pieces and eligible links, preserving existing links")
   t.check(g.state.enemies.size()==4 and g.state.enemies.slice(1).map(func(x):return x.max_hp)==[48.0,24.0,24.0] and active(g).is_empty() and g.state.enemies.slice(1).all(func(x):return x.stage==1),"HEAP automatic split uses half maximum, expires source and delays children")
   t.check(g.validate()=="" and g.state.phase=="battle" and g.state.reward_count==0,"HEAP full burst leaves valid ongoing encounter")
 
@@ -161,7 +161,7 @@ static func skin_cases(t) -> void:
     t.check(linked.ok and g.state.links.size()==count+1 and g.state.equipment.all(func(e):return e.template in g.Enemies.TYPES.belt.install_pool) and g.validate()=="","SKIN inherited leather link commits through the shared factory without ordinary rope pieces")
   else:
    Save.step_both(t,g,twin,"end")
-   t.check(g.state.equipment.size()==1 and g.state.equipment[0].grade==2 and g.state.equipment[0].template in g.Enemies.TYPES.belt.install_pool,"SKIN leather mass uses frozen middle-grade material pool")
+   t.check(g.state.equipment.size()==1 and g.state.equipment[0].grade+g.equipment_tier(g.state.equipment[0])==4 and g.state.equipment[0].template in g.Enemies.TYPES.belt.install_pool,"SKIN leather mass uses frozen value-four material pool")
    g._enemy(id).hp=1
    t.check(t.action(g,"attack",{"type":"strike","enemy":id}).ok and g.state.enemies.slice(1).all(func(e):return e.type=="belt" and e.hp==g.Enemies.TYPES.belt.hp),"SKIN leather mass death produces two ordinary floating belts")
  var g=Game.new(42,true,"belt_heap_solo")

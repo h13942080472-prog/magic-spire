@@ -18,7 +18,7 @@ static func prerequisite(t) -> void:
  var g=Game.new(42);g.state.energy=20
  var card=Cards.give(g,"embers");var before=g.export_snapshot()
  var c=t.find_action(g,"card",{"uid":card.uid,"free":false})
- t.check(not c.valid and c.reason.contains("尚未成功使用火球术") and not g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state==before,"EMBERS bound prerequisite rejects atomically before any fireball")
+ t.check(not c.valid and c.reason.contains("先成功使用火球术") and not g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state==before,"EMBERS bound prerequisite rejects atomically before any fireball")
  g.state.pressure=99;c=t.find_action(g,"attack",{"type":"fireball"})
  var rng=g.state.rng.magic
  while g._random_index("magic",g.B.CAST_ROLL_STEPS)<g.cast_view(g.Cards.cast_profile(g,"fireball")).winning_rolls: rng=g.state.rng.magic

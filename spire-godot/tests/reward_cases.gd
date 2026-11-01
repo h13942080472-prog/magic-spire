@@ -108,7 +108,7 @@ static func run(t) -> void:
 
  # Trigger only directly destroyed targets, queue reward after the complete card.
  g=setup();g.state.relics.append("break_bracer");a=g._install_template("rope","calf",1,10,false,"fixture",1,-1,0,"mid_calf");b=g.add_fixture("ankle",1)
- var link=g._install_link(a.id,b.id,8,"fixture",1,[])
+ var link=g._install_link(a.id,b.id,4.8,"fixture",1,[])
  card=give(t,g,"tear");play(t,g,card,"calf",a.id)
  t.check(g.state.charge==1 and g._equipment(link.id).is_empty(),"REWARD bracer grants once for direct destruction, not collateral link")
  g.state.energy=3;card=t.hand_card(g,"strain");play(t,g,card,"ankle",b.id)

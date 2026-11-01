@@ -28,7 +28,7 @@ color = Color(0.043, 0.086, 0.122, 1)
 [node name="Title" type="Label" parent="Canvas"]
 offset_right = 351.0
 offset_bottom = 30.0
-theme_override_font_sizes/font_size = 21
+theme_override_font_sizes/font_size = 17
 text = "身体与拘束具"
 
 [node name="EquipmentPortrait" parent="Canvas" instance=ExtResource("2")]

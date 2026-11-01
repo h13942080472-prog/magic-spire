@@ -74,7 +74,7 @@ static func run(t) -> void:
  timing_cases(t)
  var completed=[];IntentView.operation(completed,{})
  var idle=[];IntentView.operation(idle,{"kind":"idle"})
- t.check(completed[0].detail=="敌人本回合已行动，下一回合重新显示意图" and idle[0].detail=="敌人暂不行动","INTENT completed enemy turn and actual idle have distinct explanations")
+ t.check(completed[0].detail=="敌人本回合已行动，下一回合重新显示意图" and idle[0].detail=="敌人本次休息","INTENT completed enemy turn and actual idle have distinct explanations")
  var newborn=timing_battle(1)
  var child=newborn.state.enemies[0];child.spawned_round=newborn.state.round;child.intent={"kind":"charge"}
  t.check(IntentView.build(newborn,child,true)[0].detail!=completed[0].detail,"INTENT newly spawned enemy is not falsely described as having acted")

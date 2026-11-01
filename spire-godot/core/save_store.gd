@@ -79,7 +79,7 @@ static func pack(snapshot: Dictionary, map_drawings: Dictionary={}) -> String:
 
 static func unpack(text: String) -> Dictionary:
  var parser=JSON.new()
- if parser.parse(text)!=OK or not parser.data is Dictionary: return failure("存档文件不完整或无法读取。")
+ if parser.parse(text)!=OK or not parser.data is Dictionary: return failure("存档读取失败或文件缺损。")
  var envelope=parser.data
  if not envelope.has("format") or envelope.format!=FORMAT: return failure(Game.Snapshot.INCOMPATIBLE,"version")
  if not envelope.get("payload") is String or not envelope.get("checksum") is String or not envelope.get("saved_at") is String: return failure("存档缺少必要信息。")
@@ -110,14 +110,14 @@ static func unpack(text: String) -> Dictionary:
  return {"ok":true,"snapshot":result.value,"map_drawings":drawings,"saved_at":envelope.saved_at}
 
 func read_file(filename: String) -> Dictionary:
- if not FileAccess.file_exists(filename): return failure("尚无存档。")
+ if not FileAccess.file_exists(filename): return failure("存档槽为空。")
  var file=FileAccess.open(filename,FileAccess.READ)
  if file==null: return failure("无法打开存档文件。")
  var text=file.get_as_text();file.close()
  return unpack(text)
 
 func read_slot(slot: String) -> Dictionary:
- if slot not in Game.Snapshot.SLOTS: return failure("存档位置不存在。")
+ if slot not in Game.Snapshot.SLOTS: return failure("请创建存档目录。")
  var current=read_file(path(slot))
  if current.ok and current.snapshot.save_slot==slot:
   current.backup=false;return current
@@ -126,7 +126,7 @@ func read_slot(slot: String) -> Dictionary:
  var backup=read_file(path(slot)+".bak")
  if backup.ok and backup.snapshot.save_slot==slot:
   backup.backup=true;return backup
- return failure(current.get("error","存档所属模式不一致。")+" 没有可恢复的备份。")
+ return failure(current.get("error","存档所属模式存在差异。")+" 没有可恢复的备份。")
 
 # Read-only fixed point accessor for the feedback attachment (docs/spec/feedback-deployment.md):
 # no file access, no size check, no write, no state change; the single serialization stays pack(),
@@ -135,17 +135,17 @@ func fixed_point_text(game, map_drawings: Dictionary={}) -> Dictionary:
  var issue=game.validate()
  if issue!="": return failure("无法生成当前进度存档："+issue)
  var slot=game.state.save_slot
- if slot not in Game.Snapshot.SLOTS: return failure("存档位置不存在。")
+ if slot not in Game.Snapshot.SLOTS: return failure("请创建存档目录。")
  return {"ok":true,"slot":slot,"filename":slot+".json","text":pack(game.restart_snapshot(),map_drawings)}
 
 func write_game(game, replace_incompatible: bool=false, map_drawings: Dictionary={}) -> Dictionary:
  var issue=game.validate()
  if issue!="": return failure("保存失败："+issue)
  var slot=game.state.save_slot
- if slot not in Game.Snapshot.SLOTS: return failure("存档位置不存在。")
+ if slot not in Game.Snapshot.SLOTS: return failure("请创建存档目录。")
  var filename=path(slot)
  var old=read_file(filename)
- if not old.ok and old.get("code","")=="version" and not replace_incompatible: return failure("保存已暂停：原存档版本不兼容，只有明确开始新局才会替换。","version")
+ if not old.ok and old.get("code","")=="version" and not replace_incompatible: return failure("保存已暂停：原存档需匹配版本读取，开始新局后将替换原档。","version")
  var content=pack(game.restart_snapshot(),map_drawings)
  var absolute=ProjectSettings.globalize_path(directory)
  if DirAccess.make_dir_recursive_absolute(absolute)!=OK: return failure("保存失败：无法创建存档文件夹。当前游戏仍可继续。")
@@ -154,8 +154,8 @@ func write_game(game, replace_incompatible: bool=false, map_drawings: Dictionary
  if file==null: return failure("保存失败：无法写入存档。原存档保留。")
  file.store_string(content);file.flush()
  var write_error=file.get_error();file.close()
- if write_error!=OK: return failure("保存失败：写入未完成，原存档保留。")
- if not read_file(temp).ok: return failure("保存失败：写入校验未通过，原存档保留。")
+ if write_error!=OK: return failure("保存失败：写入中断，原存档保留。")
+ if not read_file(temp).ok: return failure("保存失败：写入校验失败，原存档保留。")
  if old.ok:
   if DirAccess.copy_absolute(filename,filename+".bak.tmp")!=OK or DirAccess.rename_absolute(filename+".bak.tmp",filename+".bak")!=OK: return failure("保存失败：无法更新备份，原存档保留。")
  if DirAccess.rename_absolute(temp,filename)!=OK: return failure("保存失败：无法替换存档，原存档保留。")

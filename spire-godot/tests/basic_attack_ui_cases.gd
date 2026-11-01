@@ -2,6 +2,7 @@ extends RefCounted
 const Queries=preload("res://ui/target_queries.gd")
 
 static func run(t) -> void:
+ await posture_visibility(t)
  await quick_selection_refresh(t)
  await quick_release_magic(t)
  await quick_equipment_navigation(t)
@@ -67,6 +68,38 @@ static func run(t) -> void:
  await third_kick(t)
  await continuous_kick(t)
 
+static func posture_visibility(t) -> void:
+ var ui=t.ui
+ var keys=preload("res://tests/keyboard_ui_cases.gd")
+ var touch=preload("res://tests/touch_ui_cases.gd")
+ ui.restart(42);ui.game.state.energy=8;ui.render();await t.frames()
+ var before=ui.game.export_snapshot()
+ for form in [1,2,0]:
+  var point=t.action_button("kick").get_global_rect().get_center()
+  await t.mouse_button(point,MOUSE_BUTTON_RIGHT,true);await t.mouse_button(point,MOUSE_BUTTON_RIGHT,false)
+  t.check(t.action_button("kick").drag_payload.form==form and ui.game.export_snapshot()==before,"POSTURE UI standing cycle skips seated-only combo without changing state")
+ t.check(await t.click("posture",{"dest":"sit","wall":false}),"POSTURE UI enters sitting through the actual action")
+ t.check(t.action_button("strike")==null and t.action_button("heavy")==null,"POSTURE UI sitting hides standing-only arm attacks")
+ before=ui.game.export_snapshot()
+ await keys.tap(t,KEY_X)
+ for form in [2,3]:
+  await keys.tap(t,KEY_R)
+  t.check(t.action_button("kick").drag_payload.form==form and ui.game.export_snapshot()==before,"POSTURE UI keyboard seated cycle skips sweep and reaches combo")
+ await keys.tap(t,KEY_ESCAPE)
+ t.check(await t.click("posture",{"dest":"stand","wall":false}),"POSTURE UI stands while combo was selected")
+ t.check(t.action_button("kick").drag_payload.form==0 and t.action_button("strike")!=null and t.action_button("heavy")!=null,"POSTURE UI standing restores arm attacks and replaces the stale seated form")
+ t.check(await t.click("posture",{"dest":"sit","wall":false}) and await t.click("posture",{"dest":"lie","wall":false}),"POSTURE UI reaches lying through both real posture steps")
+ t.check(t.action_button("kick")==null and t.action_button("strike")==null and t.action_button("heavy")==null and t.action_button("fireball")!=null,"POSTURE UI lying hides physical forms while retaining fireball")
+ await keys.tap(t,KEY_X)
+ t.check(ui.keyboard_input.selection.is_empty(),"POSTURE UI keyboard cannot select a hidden action")
+ t.check(await t.click("posture",{"dest":"sit","wall":false}),"POSTURE UI sitting up restores leg actions")
+ before=ui.game.export_snapshot()
+ for form in [2,3]:
+  var point=t.action_button("kick").get_global_rect().get_center()
+  await touch.hold(t,point);await touch.finger(t,point,false)
+  t.check(t.action_button("kick").drag_payload.form==form and ui.game.export_snapshot()==before,"POSTURE UI touch hold uses the same seated form cycle without attacking")
+ ui.restart(42);await t.frames()
+
 static func third_kick(t) -> void:
  var ui=t.ui
  ui.restart(42);await t.frames()
@@ -88,7 +121,7 @@ static func third_kick(t) -> void:
  ui.render();await t.frames()
  t.check(ui.find_child("BasicAttack_kick",true,false).disabled and t.visible_text(ui.find_child("BasicAttack_kick",true,false)).contains("4级"),"KICK UI full leg restraint shows specific disabled reason")
  var before=ui.game.export_snapshot()
- for form in [3,0,1,2]:
+ for form in [3,0,2]:
   var point=ui.find_child("BasicAttack_kick",true,false).get_global_rect().get_center()
   await t.mouse_button(point,MOUSE_BUTTON_RIGHT,true);await t.mouse_button(point,MOUSE_BUTTON_RIGHT,false)
   t.check(ui.attack_forms.kick==form and ui.game.export_snapshot()==before,"KICK UI disabled forms still cycle without spending resources or resetting cooldown")
@@ -99,7 +132,7 @@ static func continuous_kick(t) -> void:
  ui.game.state.enemies[0].hp=100;ui.game.state.enemies[0].max_hp=100
  ui.render();await t.frames()
  var before=ui.game.export_snapshot()
- for form in [1,2,3]:
+ for form in [2,3]:
   var point=t.action_button("kick").get_global_rect().get_center()
   await t.mouse_button(point,MOUSE_BUTTON_RIGHT,true);await t.mouse_button(point,MOUSE_BUTTON_RIGHT,false)
   t.check(ui.attack_forms.kick==form and ui.game.state==before,"CONTINUOUS KICK UI cycling reaches seated combo without changing state")
@@ -468,7 +501,7 @@ static func exploration_fireball(t) -> void:
  var target=ui.game.add_fixture("wrist",60,100)
  ui.render();await t.frames()
  var fire=ui.find_child("BasicAttack_fireball",true,false)
- t.check(fire!=null and fire.disabled and fire.tooltip_text.contains("尚未获得"),"FIRE exploration retains a disabled fireball with its missing-ability reason")
+ t.check(fire!=null and fire.disabled and fire.tooltip_text.contains("需要炫火自解"),"FIRE exploration retains a disabled fireball with its missing-ability reason")
  check_exploration_rail_alignment(t)
  await t.capture("ui-exploration-action-rail.png")
  ui.localization.set_locale("en_US");ui.render();await t.frames()
@@ -491,7 +524,7 @@ static func exploration_fireball(t) -> void:
  t.check(is_equal_approx(ui.game._equipment(target.id).durability,frozen.equipment[0].durability-c.payload.damage) and ui.view.energy==frozen.energy-c.cost and ui.view.mana<frozen.mana,"FIRE exploration drag to restraint pays official mana and energy and applies magic damage")
  ui.game.state.equipment.clear();ui.render();await t.frames()
  fire=ui.find_child("BasicAttack_fireball",true,false)
- t.check(fire.disabled and fire.tooltip_text.contains("没有拘束具"),"FIRE exploration empty-target placeholder retains the full reason")
+ t.check(fire.disabled and fire.tooltip_text.contains("可用目标为0"),"FIRE exploration empty-target placeholder retains the full reason")
  check_exploration_rail_alignment(t)
  ui.restart(42);await t.frames()
 

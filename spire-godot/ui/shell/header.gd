@@ -18,13 +18,14 @@ func configure(ui) -> void:
  if _key==_presentation_key(ui):
   return
  var view=ui.view
- $Trim.color=ui.GOLD.darkened(0.62)
- var info_style=ui._style(Color("121e27"),Color("35424a"),9);info_style.shadow_size=0
+ $Trim.color=ui.Palette.HAIRLINE
+ $Strip.color=ui.Palette.HUD
+ var info_style=StyleBoxEmpty.new()
  $HeaderInfo.add_theme_stylebox_override("panel",info_style)
- var location_style=ui._style(Color("302d25"),Color("65583e"),8);location_style.shadow_size=0
+ var location_style=ui.Palette.button_style("pressed",ui.GOLD,"quiet")
  $HeaderInfo/Location.add_theme_stylebox_override("panel",location_style)
  var tone=ui.RED if view.run_header.last else ui.CYAN
- var order_style=ui._style(tone.darkened(0.82),tone.darkened(0.62),6);order_style.shadow_size=0
+ var order_style=ui._style(Color(0,0,0,0),tone.darkened(0.62),3);order_style.shadow_size=0;order_style.set_border_width_all(0)
  $HeaderInfo/HeaderOrderBadge.add_theme_stylebox_override("panel",order_style)
  for entry in [["HeaderFloor",view.run_header.location,ui.GOLD],["HeaderRound",view.run_header.turn,ui.TEXT],["HeaderOrder",view.run_header.order,tone],["HeaderSecurity","警戒度%d级" % view.security,ui.GOLD],["WallPosition","距墙%d格" % view.wall_position.distance,ui.MUTED]]:
   var label=get_node("HeaderInfo/"+entry[0])
@@ -33,11 +34,8 @@ func configure(ui) -> void:
  _clear_buttons()
  var book=ui._button("教程书",func():ui._open_tutorial(),ui.GOLD)
  book.name="OpenTutorial"
- for state in ["normal","hover","pressed"]:
-  var glow=ui._style(Color("514127") if state=="normal" else Color("695433") if state=="hover" else Color("3c3020"),Color("e4c17e"),8)
-  glow.shadow_color=Color(0.79,0.65,0.34,0.22);glow.shadow_size=4
-  book.add_theme_stylebox_override(state,glow)
-  book.add_theme_color_override("font_color" if state=="normal" else "font_"+state+"_color",Color("ffe4a6"))
+ ui.Palette.style_button(book,ui.GOLD,"quiet")
+ book.add_theme_color_override("font_color",ui.GOLD)
  ui._place(book,Rect2(714,12,100,38),self)
  var status=ui._button("状态 !" if view.pressure.overloaded else "状态",func():ui._open_drawer("show_pressure"),ui.RED if view.pressure.overloaded else ui.CYAN)
  status.name="OpenStatus";ui._place(status,Rect2(830,12,144,38),self)
@@ -56,4 +54,7 @@ func configure(ui) -> void:
  ui._place(map,Rect2(1294,12,118,38),self)
  var menu=ui._button("菜单 !" if ui.save_failed else "菜单 ≡",func():ui._open_drawer("show_menu"),ui.RED if ui.save_failed else ui.MUTED)
  menu.name="OpenMenu";ui._place(menu,Rect2(1428,12,136,38),self)
+ for button in [status,items,deck,map,menu]: ui.Palette.style_button(button,ui.CYAN,"quiet")
+ if view.pressure.overloaded: status.add_theme_color_override("font_color",ui.RED)
+ if ui.save_failed: menu.add_theme_color_override("font_color",ui.RED)
  _key=_presentation_key(ui)

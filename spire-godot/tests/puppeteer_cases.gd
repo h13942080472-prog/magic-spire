@@ -35,7 +35,7 @@ static func run(t) -> void:
  t.check(t.find_action(g,"attack",{"type":"kick","form":1,"enemy":master_id}).valid,"PUPPET taunt does not block area attacks")
  var health=g._enemy(master_id).hp
  t.check(t.action(g,"attack",{"type":"strike","form":1,"enemy":id}).ok,"PUPPET real two-hit attack")
- t.check(g._enemy(master_id).hp==health-8 and g._enemy(id).hp==1 and g.physical_pieces().size()==2 and g.physical_pieces().all(func(e):return e.grade==1 and g.tier(e.durability,e.maximum)==2),"PUPPET two hits at one HP each transfer and install once")
+ t.check(g._enemy(master_id).hp==health-8 and g._enemy(id).hp==1 and g.physical_pieces().size()==2 and g.physical_pieces().all(func(e):return e.grade+g.tier(e.durability,e.maximum)==3),"PUPPET two hits at one HP each transfer and install once")
 
  g=start(t)
  master_id=g.state.enemies[0].id;id=doll(g).id

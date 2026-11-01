@@ -2,14 +2,14 @@ extends RefCounted
 
 # Card-only fixed cutting, using the existing world contact/material rules.
 static func reason(g, item: Dictionary, target: Dictionary) -> String:
- if not g.Tools.is_fixed(g,item) or item.uses<=0: return "工具尚未安装或次数已用完。"
+ if not g.Tools.is_fixed(g,item) or item.uses<=0: return "需要已安装且有剩余次数的工具。"
  var issue="" if g.Tools.assisted(g) else g.Prison.Space.mounted_reason(g,item)
  if issue!="": return issue
  if not g.Tools.assisted(g) and not g.wall_contact(): return "需要先靠到工具所在墙边。"
  if target.is_empty() or target.durability<=0: return "目标已经解除。"
  if g.SpecialEquipment.is_special(target): return g.SpecialEquipment.tool_reason(g,target,item)
- if g.Equipment.TEMPLATES[target.template].get("damage_factor",1.0)==0.0: return "这件固定结构不能被现有工具损伤。"
- if not g.Tools.TYPES[item.type].materials.has(target.material): return "工具不能切割这种材料。"
+ if g.Equipment.TEMPLATES[target.template].get("damage_factor",1.0)==0.0: return "需要适用于此固定结构的工具。"
+ if not g.Tools.TYPES[item.type].materials.has(target.material): return "需要适用于此材料的切割工具。"
  return g.Tools.contact_reason(g,target,item)
 
 static func select(g, target: Dictionary, damage_type: String, used: Array=[]) -> Dictionary:

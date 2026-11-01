@@ -29,4 +29,6 @@ static func run(t) -> void:
  ui.attack_forms.kick=choices[-1].payload.form
  ui.game._finish_battle();ui.game.RelicEffects.end_combat(ui.game);ui.game._start_battle()
  ui.render();await t.frames()
- t.check(ui.attack_forms.kick==0 and ui.find_child("BasicAttack_kick",true,false)!=null,"WAR GODDESS UI expired extra form resets to an available form next battle")
+ t.check(ui.view.posture=="lie" and ui.find_child("BasicAttack_kick",true,false)==null,"WAR GODDESS UI expired freedom hides all kicks while lying in the next battle")
+ t.check(await t.click("posture",{"dest":"sit","wall":false}),"WAR GODDESS UI sits up through the actual posture action after freedom expires")
+ t.check(ui.attack_forms.kick==0 and ui.find_child("BasicAttack_kick",true,false)!=null,"WAR GODDESS UI expired extra form resets when sitting restores available kicks")

@@ -2,8 +2,8 @@
 config_version=5
 
 [application]
-config/name="紧缚尖塔demo v0.18.2.fix"
-config/version="0.18.2.fix"
+config/name="紧缚尖塔demo v0.18.3"
+config/version="0.18.3"
 run/main_scene="res://main.tscn"
 run/max_fps=60
 config/features=PackedStringArray("4.4", "GL Compatibility")

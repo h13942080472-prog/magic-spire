@@ -36,7 +36,7 @@ static func options(g, p: Dictionary) -> Array:
    var covered=physical_points(g,target)
    if point not in covered: continue
    var preview=g.escape_preview(target,p.mode,p.preview.face_value*FACTOR,[],false,false,p.mode=="strain",true,p.preview.get("ignore_tightness_reduction",false))
-   g.Cards.scale_card_preview(g,preview,p.mode)
+   g.Cards.scale_card_preview(g,preview,p.mode,p.get("uid",""),target)
    if preview.reason!="" or preview.immune or preview.damage<=0: continue
    if p.mode!="strain":
     var tightness=g._effective_ratio(target)
@@ -59,7 +59,7 @@ static func apply(g, p: Dictionary, selected: Array) -> void:
  for choice in selected:
   var target=g._equipment(choice.target)
   if target.is_empty() or target.durability<=0: continue
-  var before=target.durability;var tier=g.tier(before,target.maximum)
+  var before=target.durability;var tier=g.equipment_tier(target)
   var kind=g.Cards.Rules.damage_type(p.type,p.get("free",false))
   g._apply_equipment_damage(target,choice.preview.damage,kind,false,false)
   if kind=="slip": g.RelicEffects.card_slipped(g,tier,target)

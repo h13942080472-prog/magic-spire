@@ -73,23 +73,22 @@ static func intake_equipment(g) -> Dictionary:
  var count=g.Cards.worn_count(g,false)
  var enough=not rule.is_empty() and count>=rule.floor
  var quota=0 if enough else (rule.floor-count+rule.extra if not rule.is_empty() else B.CAPTURE_EXTRA_BASE+g.state.security)
- var spec=equipment_spec(g,quota)
+ var spec=equipment_spec(g,quota,false,true)
  # Intake links have their own quota and must not consume ordinary/root slots.
  spec.allow_links=false
- if not rule.is_empty(): spec.tier=2
  var installed=g.Application.execute(g,spec,"prison","prison").installed
  if not rule.is_empty():
   # Components change tightness, but only whole roots consume intake slots.
   for piece in g.physical_pieces():
-   if g.Equipment.lock_only(piece): continue
-   var current=g.tier(piece.durability,piece.maximum)
+   if g.Equipment.lock_only(piece) or g.Equipment.is_shackle(piece): continue
+   var current=g.equipment_tier(piece)
    var desired=mini(3,current+1) if enough else maxi(2,current)
    if desired>current:
     piece.durability=piece.maximum*[0.0,0.4,0.8,1.0][desired]
     g._refresh_equipment(piece)
   # Tightening a host can create fresh straps; they share the intake minimum.
   for piece in g.physical_pieces():
-   if not g.Equipment.lock_only(piece) and g.tier(piece.durability,piece.maximum)<2:
+   if not g.Equipment.lock_only(piece) and not g.Equipment.is_shackle(piece) and g.equipment_tier(piece)<2:
     piece.durability=piece.maximum*0.8
     g._refresh_equipment(piece)
  var collar={}
@@ -105,18 +104,23 @@ static func intake_equipment(g) -> Dictionary:
 static func intake_label(g) -> String:
  var rule=B.PRISON_INTAKE.get(g.state.security,{})
  # Security five has no intake row: PRISON_SECURITY[5] alone drives the highest-grade quota.
- if rule.is_empty(): return "五级进入规格最高的普通牢房：追加高级3档普通／复合拘束具与特殊装备，巡视间隔最短、不自动出狱。"
- return "拘束具保底%d件，不足时补齐并额外增加%d件、全部至少2档；已达保底则不补装，全部收紧1档，最多3档。另加%d件2档特殊装备，空位不足不替换。" % [rule.floor,rule.extra,rule.special]
+ if rule.is_empty(): return "五级进入规格最高的普通牢房：追加高级3档普通／复合拘束具与特殊装备，巡视间隔最短，需自行逃脱。"
+ return "拘束具保底%d件，低于保底时补齐并额外增加%d件、全部至少2档；已达保底则保留件数，全部收紧1档，最多3档。另以2档填入至多%d件特殊装备，已有装备保留。" % [rule.floor,rule.extra,rule.special]
 
 # Intake and inspection share this source declaration; Application owns selection,
 # batch counting and legal replacement. Special equipment remains a separate source.
-static func equipment_spec(g, count: int, replace: bool=false) -> Dictionary:
+static func equipment_spec(g, count: int, replace: bool=false, intake: bool=false) -> Dictionary:
  var rule=B.PRISON_SECURITY[g.state.security]
- return {"pool":"ordinary","templates":g.Equipment.TEMPLATES.keys().filter(func(id):return not g.Equipment.TEMPLATES[id].slots.is_empty()),"composites":g.EquipmentOffers.assembly_specs() if rule.composites else [],"grade":rule.grade,"tier":rule.tier,"count":count,"replace":replace}
+ var tier=2 if intake and B.PRISON_INTAKE.has(g.state.security) else rule.tier
+ var profiles=g.RestraintValue.profiles(g.RestraintValue.from_profile(rule.grade,tier))
+ if intake: profiles=profiles.filter(func(profile):return profile.tier>=2)
+ return {"pool":"ordinary","templates":g.Equipment.TEMPLATES.keys().filter(func(id):return g.Equipment.TEMPLATES[id].get("generated",true) and not g.Equipment.TEMPLATES[id].slots.is_empty()),"composites":g.EquipmentOffers.assembly_specs() if rule.composites else [],"grade":rule.grade,"tier":tier,"profiles":profiles,"count":count,"replace":replace}
 
 static func equipment_label(g) -> String:
  var rule=B.PRISON_SECURITY[g.state.security]
- return "%s%s档%s拘束具" % [g.Equipment.GRADES[rule.grade],["","一","二","三"][rule.tier],"普通或复合" if rule.composites else "普通"]
+ var spec=equipment_spec(g,1)
+ var options=spec.profiles.map(func(profile):return "%s%d档" % [g.Equipment.GRADES[profile.grade],profile.tier])
+ return "普通拘束具（%s）" % "／".join(options)+("或%s%d档复合拘束具" % [g.Equipment.GRADES[rule.grade],rule.tier] if rule.composites else "")
 
 static func toy_spec(g, count: int, replace: bool=false) -> Dictionary:
  var rule=B.PRISON_SECURITY[g.state.security]
@@ -211,13 +215,13 @@ static func vent_kick_detail(_g, _args: Dictionary) -> String:
  return "合法坐姿踢击一次推进1次，共需%d次；每回合一次。" % B.PRISON_VENT_HITS
 
 static func vent_exit_detail(_g, _args: Dictionary) -> String:
- return "格栅开启后即可离开；不检查站姿移动速度。"
+ return "格栅开启后即可离开，无视站姿移动速度。"
 
 static func key_detail(_g, _args: Dictionary) -> String:
- return "钥匙不占道具容量；开门后可直接逃离，不检查行动速度。"
+ return "钥匙容量占用0；开门后可直接逃离，无视行动速度。"
 
 static func door_exit_detail(_g, _args: Dictionary) -> String:
- return "自行开锁后速度须至少1；狱警钥匙路线不检查速度。点击离开时重新判定。"
+ return "自行开锁后速度须至少1；狱警钥匙路线无视速度。点击离开时重新判定。"
 
 # 监狱显示事实（批 R5：行生产转发改显示事实构建，docs/spec/candidate-removal.md「接口」T5／T8）。
 static func facts(g) -> Array:
@@ -287,7 +291,7 @@ static func execute(g, c: Dictionary) -> String:
   "vent_kick":
    p.vent_hits+=1; p.vent_tick=g.state.tick
    g._consume_charge()
-   g._emit("event","你坐着踢向通风口格栅，进度%d/%d。%s" % [p.vent_hits,B.PRISON_VENT_HITS,"格栅已打开，可以逃离。" if p.vent_hits>=B.PRISON_VENT_HITS else "格栅尚未打开，下回合可再踢一次。"])
+   g._emit("event","你坐着踢向通风口格栅，进度%d/%d。%s" % [p.vent_hits,B.PRISON_VENT_HITS,"格栅已打开，可以逃离。" if p.vent_hits>=B.PRISON_VENT_HITS else "格栅仍关闭，下回合可再踢一次。"])
   "unlock": g.Cards.play(g,c)
   "key":
    p.door_open=true
@@ -320,7 +324,7 @@ static func execute(g, c: Dictionary) -> String:
     # pieces; fresh roots keep their security profile and factory attachments.
     for id in original_ids:
      var e=g._equipment(id)
-     if e.is_empty(): continue
+     if e.is_empty() or g.Equipment.is_shackle(e): continue
      e.durability=e.maximum
      g._refresh_equipment(e)
    var toy_outcome={"count":0,"installed":[],"removed":[],"lost_links":[]}
@@ -365,7 +369,7 @@ static func execute(g, c: Dictionary) -> String:
    g.RelicEffects.clear_temporary(g)
    g.Pressure.clear_penalties(g)
    g._spawn_enemies("guard_solo")
-   g._emit("event","你反抗巡视狱警，战斗开始。巡视暂停，消耗牌不会因反抗自动恢复。")
+   g._emit("event","你反抗巡视狱警，战斗开始。巡视暂停，消耗区保留。")
    g._emit("event","援军将在4回合后抵达，之后每4回合召来1名警卫；本场最多%d名。" % (1+g.state.security))
    g._start_round()
  return ""
@@ -374,7 +378,7 @@ static func won(g) -> void:
  if not g.state.prison.get("resisting",false): return
  g.state.prison.erase("reinforcements")
  g.state.prison.resisting=false; g.state.prison.key=true
- g._emit("event","击败巡视狱警，获得牢门钥匙；不占道具容量。奖励与整备后返回牢房，巡视继续暂停。")
+ g._emit("event","击败巡视狱警，获得牢门钥匙，容量占用0。奖励与整备后返回牢房，巡视继续暂停。")
 
 static func reinforcements_active(g) -> bool:
  return g.state.phase=="battle" and g.state.room=="prison" and g.state.prison.get("active",false) and g.state.prison.get("resisting",false) and not is_exit_battle(g)
@@ -396,9 +400,9 @@ static func reinforcement_issue(s: Dictionary) -> String:
  var p=s.prison
  if not p.has("reinforcements"):
   return "反抗战斗缺少援军进度，请重新开始此局。" if p.get("resisting",false) else ""
- if not p.reinforcements is int or p.reinforcements<0 or p.reinforcements>1+s.security: return "援军数量不正确。"
+ if not p.reinforcements is int or p.reinforcements<0 or p.reinforcements>1+s.security: return "援军数量有误。"
  if s.phase!="battle" or s.room!="prison" or not p.get("active",false) or not p.get("resisting",false): return "援军只能出现在牢房内的反抗战斗。"
- if p.reinforcements>int(maxi(0,s.round-1)/4): return "援军尚未到达对应回合。"
+ if p.reinforcements>int(maxi(0,s.round-1)/4): return "援军待对应回合到达。"
  return ""
 
 static func after_preparation(g) -> bool:
@@ -443,16 +447,16 @@ static func validate(g) -> String:
  var p=g.state.prison
  if g.state.phase in ["prison","inspection"] and not p.get("active",false): return "牢房流程缺少入狱记录。"
  if p.is_empty(): return ""
- if p.served_turns<0 or p.sentence_extra<0 or p.sentence_extra%B.PRISON_SENTENCE_PENALTY!=0 or p.sentence_extra>p.checks*B.PRISON_SENTENCE_PENALTY: return "出狱期限记录不正确。"
+ if p.served_turns<0 or p.sentence_extra<0 or p.sentence_extra%B.PRISON_SENTENCE_PENALTY!=0 or p.sentence_extra>p.checks*B.PRISON_SENTENCE_PENALTY: return "出狱期限记录有误。"
  var space_issue=Space.validate(g)
  if space_issue!="": return space_issue
- if p.left<0 or p.left>B.PRISON_INTERVALS[mini(B.PRISON_INTERVALS.size()-1,g.state.security-1)] or p.vent_hits<0 or p.vent_hits>B.PRISON_VENT_HITS: return "巡视或通风口进度不合法。"
+ if p.left<0 or p.left>B.PRISON_INTERVALS[mini(B.PRISON_INTERVALS.size()-1,g.state.security-1)] or p.vent_hits<0 or p.vent_hits>B.PRISON_VENT_HITS: return "巡视或通风口进度有误。"
  var discovery_ids=p.discoveries+p.found
  var expected=p.get("discovery_pool",[])
- if expected!=ACTIVE_DISCOVERIES: return "牢房发现池与当前版本不符。"
+ if expected!=ACTIVE_DISCOVERIES: return "牢房发现池与当前版本存在差异。"
  if discovery_ids.size()!=expected.size() or not expected.all(func(id):return discovery_ids.count(id)==1): return "牢房发现重复或缺失。"
- if p.vent_hits>0 and "vent" not in p.found: return "尚未发现通风口，不能有踢击进度。"
- if g.state.phase=="inspection" and (p.stage not in ["arrival","result","done"] or g.state.energy!=0): return "巡视阶段不合法。"
+ if p.vent_hits>0 and "vent" not in p.found: return "通风口踢击进度需要先发现通风口。"
+ if g.state.phase=="inspection" and (p.stage not in ["arrival","result","done"] or g.state.energy!=0): return "巡视阶段有误。"
  if p.resisting and g.state.phase!="battle": return "反抗必须处于战斗阶段。"
  return ""
 
@@ -490,7 +494,7 @@ static func sentence_limit(g) -> int:
 static func sentence_label(g) -> String:
  var served=int(g.state.prison.get("served_turns",0))
  var limit=sentence_limit(g)
- return "已服刑%d回合 · 不自动出狱" % served if limit==0 else "已服刑%d／%d回合 · 出狱剩余%d回合" % [served,limit,maxi(0,limit-served)]
+ return "已服刑%d回合 · 需自行逃脱" % served if limit==0 else "已服刑%d／%d回合 · 出狱剩余%d回合" % [served,limit,maxi(0,limit-served)]
 
 static func completed_turn(g) -> bool:
  if not g.state.prison.get("active",false): return false
@@ -524,7 +528,7 @@ static func release_inspection(g) -> bool:
  execute(g,{"payload":{"action":"accept","temporary":true}})
  p.stage=stage;p.missing=missing;p.special_missing=special_missing
  if p.sentence_extra==extra: return true
- g._emit("event","出狱检查未通过，刑期延长8回合。",{"sentence_delayed":{"limit":sentence_limit(g),"extension":p.sentence_extra-extra},"npc_copy":{"cue":"prison.guard.release_fail","visual":SENIOR_GUARD}})
+ g._emit("event","出狱检查失败，刑期延长8回合。",{"sentence_delayed":{"limit":sentence_limit(g),"extension":p.sentence_extra-extra},"npc_copy":{"cue":"prison.guard.release_fail","visual":SENIOR_GUARD}})
  return false
 
 static func start_room(room: Dictionary) -> bool:

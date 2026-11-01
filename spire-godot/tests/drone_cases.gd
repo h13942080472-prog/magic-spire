@@ -28,7 +28,7 @@ static func run(t) -> void:
   var broken=clean.duplicate(true);broken.guard_bind.sources.drone=invalid
   t.check(not g.restore_snapshot(broken).ok and g.state==clean,"CAPTURE malformed source state rejects restore atomically")
  Save.step_both(t,g,saved,"attack",{"type":"strike","enemy":id})
- t.check(g.state.guard_bind.sources.drone.energy==0 and is_equal_approx(g.state.guard_bind.progress,40.0-escape_damage) and g.state.equipment.any(func(e):return e.source==id and e.grade==1 and g.tier(e.durability,e.maximum)==2),"DRONE second paid energy applies tier-two tape and advances shared bar")
+ t.check(g.state.guard_bind.sources.drone.energy==0 and is_equal_approx(g.state.guard_bind.progress,40.0-escape_damage) and g.state.equipment.any(func(e):return e.source==id and e.grade==1 and g.equipment_tier(e)==2),"DRONE second paid energy applies basic tier-two tape and advances shared bar")
  var before=g.export_snapshot()
  var version=g.state.version
  t.check(not g.dispatch(g.command(strike.payload,version-1),version-1).ok and g.state==before,"DRONE rejected stale action preserves capture counters and random state")

@@ -130,7 +130,7 @@ static func run(t) -> void:
  bind(g,e)
  g.state.posture="stand"
  var down=t.find_action(g,"posture",{"dest":"sit","wall":false})
- t.check(not down.valid and down.reason.contains("不能反向切换"),"GUARD bind blocks standing to sitting")
+ t.check(not down.valid and down.reason.contains("躺姿→坐姿→站姿"),"GUARD bind blocks standing to sitting")
  g.state.posture="lie"
  var up=t.find_action(g,"posture",{"dest":"sit","wall":false})
  var before=g.state.guard_bind.progress
@@ -213,7 +213,7 @@ static func opening_fallback(t) -> void:
   t.check(t.action(g,"end").ok,"GUARD full-slot opening uses the formal enemy turn")
   for slot in original:
    if grade==1:
-    t.check(original[slot].any(func(item):return g._equipment(item.id).is_empty()) and g.equipment_at(slot).any(func(item):return item.grade==2 and g.tier(item.durability,item.maximum)==2),"GUARD opening upgrades weaker full-slot equipment through replacement: "+slot)
+    t.check(original[slot].any(func(item):return g._equipment(item.id).is_empty()) and g.equipment_at(slot).any(func(item):return item.grade+g.tier(item.durability,item.maximum)==4),"GUARD opening upgrades weaker full-slot equipment through replacement: "+slot)
    else:
     t.check(original[slot].all(func(item):return not g._equipment(item.id).is_empty()) and original[slot].filter(func(item):return g.tier(g._equipment(item.id).durability,item.maximum)==3).size()==1,"GUARD impossible replacement reinforces exactly one existing piece in its declared slot: "+slot)
   t.check(g._equipment(outside.id)==saved_outside and g.state.enemies[0].intent.kind=="bind_prepare","GUARD scoped fallback leaves other slots unchanged and advances once to preparation")

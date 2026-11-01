@@ -7,6 +7,7 @@ static func run(t) -> void:
  prepared_chant(t)
  fireball_failed_retries(t)
  failure_refunds(t)
+ failure_rounding_boundaries(t)
  unlock_zero_energy(t)
  retry_failed_cards(t)
  preload("res://tests/temporary_mana_cases.gd").run(t)
@@ -33,7 +34,7 @@ static func run(t) -> void:
   var result=g.state.logs.filter(func(x):return x.data.has("spell")).back().data.spell
   seen[result.success]=true
   t.check(g.state.rng.magic==1 and restored.state.rng.magic==1 and restored.state.logs.back().text==g.state.logs.back().text and restored._equipment(e.id).durability==g._equipment(e.id).durability,"CAST saved RNG reproduces result")
-  t.check(g.state.energy==before.energy-chosen.cost and is_equal_approx(g.state.mana,before.mana-chosen.mana*(1.0 if result.success else 0.5)) and (g.state.discard if result.success else g.state.hand).any(func(c):return c.uid==card.uid),"CAST failure refunds half mana and only success discards the card")
+  t.check(g.state.energy==before.energy-chosen.cost and is_equal_approx(g.state.mana,before.mana-chosen.mana+(0.0 if result.success else floorf(chosen.mana*0.5))) and (g.state.discard if result.success else g.state.hand).any(func(c):return c.uid==card.uid),"CAST failure refunds half mana and only success discards the card")
   t.check(g._equipment(e.id).durability==chosen.payload.after if result.success else g._equipment(e.id).durability==8,"CAST only successful spell changes durability")
   if not result.success: failed_game=g
  t.check(seen.has(true) and seen.has(false),"CAST deterministic sample covers both outcomes")
@@ -136,8 +137,8 @@ static func fireball_failed_retries(t) -> void:
   g.state.rng.magic=rng
   var before=g.export_snapshot()
   t.check(c.valid and c.cost==(1 if attempt==0 else 0),"FIREBALL failed retries preserve the existing first-attempt energy rule")
-  t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g._magic_failed and g.BasicAttacks.usage(g,"fireball").remaining==2 and g.state.enemies==before.enemies and is_equal_approx(g.state.mana,before.mana-c.mana*0.5),"FIREBALL repeated failures preserve all charges and refund half mana")
-  t.check(g.state.logs.any(func(log):return log.data.has("spell") and log.text.contains("次数未消耗")),"FIREBALL failure log explains preserved charges")
+  t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g._magic_failed and g.BasicAttacks.usage(g,"fireball").remaining==2 and g.state.enemies==before.enemies and is_equal_approx(g.state.mana,before.mana-c.mana+floorf(c.mana*0.5)),"FIREBALL repeated failures preserve all charges and refund half mana")
+  t.check(g.state.logs.any(func(log):return log.data.has("spell") and log.text.contains("次数保留")),"FIREBALL failure log explains preserved charges")
  g.state.sure_cast=true
  t.check(t.action(g,"attack",{"type":"fireball"}).ok and not g._magic_failed and g.BasicAttacks.usage(g,"fireball").remaining==1,"FIREBALL successful retry consumes exactly one charge")
 
@@ -156,12 +157,12 @@ static func failure_refunds(t) -> void:
    var before=g.export_snapshot();g.get_view();g.command_facts()
    t.check(c.valid and g.state==before and not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"REFUND preview and stale request preserve resources "+type)
    var result=g.dispatch(g.command(c.payload,g.state.version),g.state.version)
-   t.check(result.ok and g._magic_failed and is_equal_approx(g.state.mana,before.mana-c.mana_payment.mana*0.5) and is_equal_approx(g.state.temporary_mana,before.temporary_mana-c.mana_payment.temporary_mana*0.5),"REFUND half actual payment returns to each original pool "+type+str(temporary))
+   t.check(result.ok and g._magic_failed and is_equal_approx(g.state.mana,before.mana-c.mana_payment.mana+floorf(c.mana_payment.mana*0.5)) and is_equal_approx(g.state.temporary_mana,before.temporary_mana-c.mana_payment.temporary_mana),"REFUND only floored half of actual personal payment returns "+type+str(temporary))
    t.check(g.state.energy==before.energy-c.cost and g.state.hand==before.hand and g.state.flask_mana==before.flask_mana and g.state.enemies==before.enemies,"REFUND does not restore energy or apply success effects "+type)
    var spell=g.state.logs.filter(func(log):return log.data.has("spell")).back().data.spell
-   t.check(is_equal_approx(spell.mana_refund.mana,c.mana_payment.mana*0.5) and is_equal_approx(spell.mana_refund.temporary_mana,c.mana_payment.temporary_mana*0.5),"REFUND structured spell log reports both returned amounts")
-   for field in ["mana","temporary_mana"]:
-    if c.mana_payment[field]>0: t.check(result.resource_feedback.any(func(e):return e.field==field and is_equal_approx(e.after-e.before,c.mana_payment[field]*0.5)),"REFUND resource animation reports returned "+field)
+   t.check(is_equal_approx(spell.mana_refund.mana,floorf(c.mana_payment.mana*0.5)) and is_equal_approx(spell.mana_refund.temporary_mana,0),"REFUND structured spell log reports both returned amounts")
+   var returned=floorf(c.mana_payment.mana*0.5)
+   t.check(result.resource_feedback.filter(func(e):return e.field=="mana" and e.after>e.before).size()==(1 if returned>0 else 0) and not result.resource_feedback.any(func(e):return e.field=="temporary_mana" and e.after>e.before),"REFUND animation only reports an actual personal refund")
    if type=="fireball": t.check(g.BasicAttacks.usage(g,"fireball").used==0,"REFUND failed fireball preserves its cast count")
    t.check(is_equal_approx(g.state.combat.mana_spent,c.mana_payment.mana),"REFUND spending counters retain gross actual payment")
    t.check(g.validate()=="","REFUND fractional balances remain valid")
@@ -169,6 +170,21 @@ static func failure_refunds(t) -> void:
  var before=g.export_snapshot()
  g._cast_magic({"payload":{"type":"fireball","replay":true},"label":"额外火球术","mana_payment":{"mana":0.0}})
  t.check(g.state.mana==before.mana and g.state.temporary_mana==before.temporary_mana,"REFUND free replay cannot create mana")
+
+static func failure_rounding_boundaries(t) -> void:
+ # A ten-mana action spends temporary mana first; expected personal refunds are explicit.
+ for pair in [[0.0,5.0],[0.5,4.0],[3.0,3.0],[7.5,1.0],[8.0,1.0],[8.5,0.0],[10.0,0.0],[20.0,0.0]]:
+  var g=Game.new(42);g.state.pressure=99;g.state.mana=50;g.state.temporary_mana=pair[0]
+  var c=t.find_action(g,"attack",{"type":"fireball","enemy":g.state.enemies[0].id})
+  var before=g.export_snapshot()
+  var result=g.dispatch(g.command(c.payload,g.state.version),g.state.version)
+  var spell=g.state.logs.filter(func(row):return row.data.has("spell")).back().data.spell
+  t.check(result.ok and not spell.success and spell.mana_refund.mana==pair[1] and spell.mana_refund.temporary_mana==0,"REFUND ten-mana mixed payment has the explicit rounded personal refund "+str(pair))
+  t.check(is_equal_approx(g.state.mana,50-c.mana_payment.mana+pair[1]) and g.state.temporary_mana==maxf(0.0,pair[0]-10) and g.state.energy==before.energy-c.cost,"REFUND rounding preserves spent temporary mana and energy "+str(pair))
+  var rewards=result.resource_feedback.filter(func(row):return row.field=="mana" and row.after>row.before)
+  t.check(rewards.size()==(1 if pair[1]>0 else 0) and (rewards.is_empty() or is_equal_approx(rewards[0].after-rewards[0].before,pair[1])),"REFUND receipt equals the actual integer refund")
+  var copy=Game.new(0)
+  t.check(copy.restore_snapshot(g.export_snapshot()).ok and copy.state.mana==g.state.mana and copy.state.temporary_mana==g.state.temporary_mana,"REFUND new balances survive the real save roundtrip")
 
 static func retry_failed_cards(t) -> void:
  for type in ["rekindle","mana_surge"]:
@@ -322,7 +338,7 @@ static func prepared_chant(t) -> void:
  while g._random_index("magic",g.B.CAST_ROLL_STEPS)<g.cast_view(g.Cards.cast_profile(g,"prepared_chant")).winning_rolls: rng=g.state.rng.magic
  g.state.rng.magic=rng
  var before=g.export_snapshot()
- t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g._magic_failed and g.state.hand.any(func(x):return x.uid==card.uid) and g.state.exhaust.is_empty() and "prepared_chant" not in g.state.card_buffs and g.state.mana==before.mana-c.mana*0.5,"CHANT itself can fail, refunds normally and remains unexhausted without granting the buff")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g._magic_failed and g.state.hand.any(func(x):return x.uid==card.uid) and g.state.exhaust.is_empty() and "prepared_chant" not in g.state.card_buffs and g.state.mana==before.mana-c.mana+floorf(c.mana*0.5),"CHANT itself can fail, refunds normally and remains unexhausted without granting the buff")
  g.state.pressure=0;g.state.mana=9;g.state.temporary_mana=0
  before=g.export_snapshot()
  t.check(not t.action(g,"card",{"uid":card.uid,"free":true}).ok and g.state==before,"CHANT insufficient mana rejects atomically")

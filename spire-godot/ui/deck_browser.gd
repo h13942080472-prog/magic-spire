@@ -35,7 +35,7 @@ func setup(ui, physical_cards: Array, powers_only: bool=false, empty_message: St
  var search=LineEdit.new();search.name="DeckSearch";search.placeholder_text="搜索卡牌名称";search.clear_button_enabled=true;search.custom_minimum_size.x=250;toolbar.add_child(search)
  search.text_changed.connect(func(value):query=value;refresh())
  var costs=OptionButton.new();costs.name="DeckCostFilter";costs.custom_minimum_size.x=140;toolbar.add_child(costs)
- for label in ["全部费用","0能量","1能量","2能量","3能量及以上","不可打出"]: costs.add_item(label)
+ for label in ["全部费用","0能量","1能量","2能量","3能量及以上","被动牌"]: costs.add_item(label)
  costs.item_selected.connect(func(index):cost_filter=index;refresh())
  for filter_kind in ["type","rarity"]:
   var selector=OptionButton.new();selector.name="DeckTypeFilter" if filter_kind=="type" else "DeckRarityFilter";toolbar.add_child(selector)
@@ -55,7 +55,7 @@ func setup(ui, physical_cards: Array, powers_only: bool=false, empty_message: St
  for side in ["left","right","top","bottom"]: margin.add_theme_constant_override("margin_"+side,14)
  scroll.add_child(margin)
  var column=VBoxContainer.new();margin.add_child(column)
- empty=host._label("没有符合筛选条件的卡牌。",22,host.MUTED);empty.name="DeckEmpty";empty.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;column.add_child(empty)
+ empty=host._label("筛选结果：0张卡牌。",22,host.MUTED);empty.name="DeckEmpty";empty.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;column.add_child(empty)
  if cards.is_empty(): empty.text=empty_message
  var center=CenterContainer.new();center.size_flags_horizontal=Control.SIZE_EXPAND_FILL;column.add_child(center)
  grid=GridContainer.new();grid.name="DeckGrid";grid.columns=6;grid.add_theme_constant_override("h_separation",24);grid.add_theme_constant_override("v_separation",26);center.add_child(grid)

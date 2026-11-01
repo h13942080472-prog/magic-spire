@@ -12,6 +12,7 @@ static func is_crotch_anchor(target: Dictionary) -> bool:
  return Special.is_special(target) and Special.TYPES.get(target.get("type",""),{}).get("family","")=="crotch_rope"
 
 static func anchor_slots(target: Dictionary) -> Array:
+ if target.get("template","")=="art_hogtie": return []
  if is_crotch_anchor(target): return [CROTCH_CONTACT]
  return [] if Special.is_special(target) else E.contact_slots(target)
 
@@ -60,16 +61,16 @@ static func validate(link: Dictionary, equipment: Array, links: Array) -> String
  var physical=E.physical_reason(link)
  if physical!="": return physical
  var ends=link.get("ends",[])
- if ends.size()!=2 or ends[0]==ends[1]: return "链接绳需要连接两件不同装备。"
+ if ends.size()!=2 or ends[0]==ends[1]: return "链接绳需要连接两件各异装备。"
  var targets=equipment.filter(func(e):return e.id in ends and e.durability>0)
- if targets.size()!=2: return "链接绳连接的装备已经不存在。"
+ if targets.size()!=2: return "链接绳连接的装备已经缺失。"
  var slots=link.get("slots",[])
  var points=link.get("contact_points",[])
- if slots.size()!=2 or points.size()!=2 or not adjacent(points[0],points[1]): return "链接绳须连接同一区域的不同子部位，或相邻区域的边界位置；股绳可连接手腕或大腿根。"
+ if slots.size()!=2 or points.size()!=2 or not adjacent(points[0],points[1]): return "链接绳须连接同一区域的各异子部位，或相邻区域的边界位置；股绳可连接手腕或大腿根。"
  for i in range(2):
   var target=targets.filter(func(e):return e.id==ends[i])[0]
   if points[i] not in anchor_points(target,slots[i]): return "所选装备在该具体连接位置没有真实固定处。"
- if link.get("slot","") not in slots or link.get("slot","")==CROTCH_CONTACT: return "链接绳的显示部位与连接位置不符。"
+ if link.get("slot","") not in slots or link.get("slot","")==CROTCH_CONTACT: return "链接绳的显示部位与连接位置存在差异。"
  if targets[0].get("root_id",targets[0].id)==targets[1].get("root_id",targets[1].id): return "同一复合装备内部的连接须使用其自身组件。"
  for blocked in link.get("blocked_slip",[]):
   if blocked not in ends: return "链接绳只能限制所连接装备的滑脱。"

@@ -99,8 +99,10 @@ static func run(t) -> void:
  t.check(c.valid and ui.drop_targets.has(c.key),"CROTCH LINK UI special-side drag uses formal rope candidate")
  var damage=c.payload.preview.damage
  collateral=ui.game.Cards.Splash.select(ui.game,c.payload).filter(func(hit):return hit.target==anchor.id)[0].preview.damage
+ var initial_durability=[link.durability,anchor.durability,thigh.durability]
+ t.check(damage<initial_durability[0] and collateral<initial_durability[1],"CROTCH LINK UI fixture preserves both anchors for the opposite-side inspection")
  await t.release_target(await t.reveal_drop_target(c.key))
- t.check(is_equal_approx(ui.game._equipment(link.id).durability,8-damage) and is_equal_approx(ui.game._equipment(anchor.id).durability,8-collateral) and ui.game._equipment(thigh.id).durability==8,"CROTCH LINK UI charges the selected rope, splashes its shared position and preserves the other endpoint")
+ t.check(not ui.game._equipment(link.id).is_empty() and not ui.game._equipment(anchor.id).is_empty() and is_equal_approx(ui.game._equipment(link.id).durability,initial_durability[0]-damage) and is_equal_approx(ui.game._equipment(anchor.id).durability,initial_durability[1]-collateral) and ui.game._equipment(thigh.id).durability==initial_durability[2],"CROTCH LINK UI charges the selected rope, splashes its shared position and preserves the other endpoint")
  await t.inspect_body("thigh")
  t.check(t.visible_text(ui.find_child("EquipmentDetails",true,false)).contains(link.name),"CROTCH LINK UI opposite region displays same surviving rope")
 
@@ -144,4 +146,4 @@ static func run(t) -> void:
  await Pointer.press(t,cup_card.find_child("EquipmentCardDetailsToggle",true,false))
  await expand_description(t,cup_card)
  text=t.visible_text(details)
- t.check(text.contains("中级马眼全包榨精杯") and text.contains("中级榨精杯固定带") and text.contains("不能滑脱杯体") and not text.contains("状态：已上锁"),"CUP BAND UI shows the real owner, component and removal rule without lock controls")
+ t.check(text.contains("中级马眼全包榨精杯") and text.contains("中级榨精杯固定带") and text.contains("滑脱需先切断固定带") and not text.contains("状态：已上锁"),"CUP BAND UI shows the real owner, component and removal rule without lock controls")

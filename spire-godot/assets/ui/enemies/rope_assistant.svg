@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="640" height="840" viewBox="0 0 640 840">
+ <title>绳艺助理</title>
+ <defs>
+  <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#68a9a3"/><stop offset=".45" stop-color="#386e78"/><stop offset="1" stop-color="#203e53"/></linearGradient>
+  <linearGradient id="cloth" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f2e5c9"/><stop offset="1" stop-color="#a8bab5"/></linearGradient>
+  <linearGradient id="skin" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f6d3ae"/><stop offset="1" stop-color="#c18b72"/></linearGradient>
+  <linearGradient id="hair" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="#bc8061"/><stop offset=".4" stop-color="#824f49"/><stop offset="1" stop-color="#432e3b"/></linearGradient>
+  <linearGradient id="leather" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#96745b"/><stop offset="1" stop-color="#46383c"/></linearGradient>
+  <linearGradient id="rope" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="#f5dca3"/><stop offset=".5" stop-color="#ccaa73"/><stop offset="1" stop-color="#91704c"/></linearGradient>
+  <path id="coil" d="M184 355c-55-70-112-33-107 50 3 73 69 99 104 43 29-46 16-99-14-115-37-21-70 19-64 68 6 46 36 61 57 33 26-37 16-74-1-79-22-6-40 16-34 43 4 19 15 27 23 15"/>
+ </defs>
+ <g stroke-linejoin="round" stroke-linecap="round">
+  <!-- Supply spool and trailing rope establish the assistant's work. -->
+  <path d="M399 440c58 57 130 95 125 199-2 50-16 80-32 88-21 10-38-9-26-27 12-17 35-7 28 10" fill="none" stroke="#29313b" stroke-width="14"/>
+  <path d="M399 440c58 57 130 95 125 199-2 50-16 80-32 88-21 10-38-9-26-27 12-17 35-7 28 10" fill="none" stroke="#c4a16b" stroke-width="8"/>
+  <path d="M399 440c58 57 130 95 125 199-2 50-16 80-32 88-21 10-38-9-26-27 12-17 35-7 28 10" fill="none" stroke="#f4d89e" stroke-width="2.5" stroke-dasharray="3 7"/>
+  <!-- Adult proportions, full trousers and practical boots. -->
+  <path d="M235 510 383 511 409 576 380 677 386 758 335 766 313 666 300 602 277 668 259 764 210 754 218 668 212 571Z" fill="#293e4b" stroke="#182832" stroke-width="6"/>
+  <path d="m246 558-7 104m103-103 34 25-22 73m-48-49 5-38" fill="none" stroke="#5b7380" stroke-width="5"/>
+  <path d="m222 680 51 8-15 76c-15 22-50 33-88 28l-1-18 38-27Zm104 10 51-12 10 70 38 29-2 20c-40 4-70-6-83-29Z" fill="url(#leather)" stroke="#172832" stroke-width="6"/>
+  <path d="m219 701 49 7m63-1 48-11m-156 29 37 6m75-3 36-8M174 780c27 4 57-4 80-17m90 2c25 17 49 21 75 19" fill="none" stroke="#c4a883" stroke-width="3"/>
+  <path d="m234 703 18 3-2 14-19-3Zm111 1 17-5 4 14-18 5Z" fill="none" stroke="#e1c88e" stroke-width="3"/>
+  <!-- Copper hair tied back with a small knot. -->
+  <path d="M364 218c36-47 73-44 85-8 12 36-4 75 16 99-30 0-50-19-47-55-7 14-12 26-9 49-30-11-45-36-45-85Z" fill="url(#hair)" stroke="#2a2936" stroke-width="6"/>
+  <path d="M407 212c23 4 28 23 20 45m-13-30c-6 20-5 34 4 47" fill="none" stroke="#d49c74" stroke-width="4"/>
+  <path d="m386 206 21-11 8 12-22 11Z" fill="#82bab2" stroke="#244953" stroke-width="4"/>
+  <!-- Rolled sleeves and fitted work vest. -->
+  <path d="M267 320c-29-5-52 4-71 30l-35 31 23 44 51-24-13 92 155 17 12-108 43 33 28-35-42-52c-18-23-39-31-66-28Z" fill="url(#cloth)" stroke="#1b2d39" stroke-width="6"/>
+  <path d="m202 361-16 24m33-32 7 35m173-34 16 30m-16 7 19 20" fill="none" stroke="#8a9d9c" stroke-width="4"/>
+  <path d="M270 318 303 359 348 316 376 332 364 406 386 518 333 552 306 533 246 546 221 515 243 406 242 336Z" fill="url(#teal)" stroke="#192e3b" stroke-width="5"/>
+  <path d="m266 325 33 47-12 101m65-147-44 47 13 160" fill="none" stroke="#ddc797" stroke-width="4"/>
+  <path d="m253 391-8 48m104-43 8 47m-117 73 39-8m48 6 39 12" fill="none" stroke="#83b6af" stroke-width="3"/>
+  <g fill="#edc787" stroke="#244550" stroke-width="2"><circle cx="302" cy="395" r="4.5"/><circle cx="304" cy="422" r="4.5"/><circle cx="307" cy="449" r="4.5"/></g>
+  <path d="M282 292v32l21 26 33-29-4-32Z" fill="url(#skin)" stroke="#4a3540" stroke-width="4"/>
+  <path d="m282 302 22 17 28-13v-14Z" fill="#bc826b"/>
+  <path d="m272 321 8-12 24 33 30-32 17 14-17 36-29-17-18 20Z" fill="#e8ddc3" stroke="#42515a" stroke-width="3"/>
+  <path d="m299 341 11 1 9 27-13 17-13-17Z" fill="#aa6970" stroke="#503f50" stroke-width="3"/>
+  <!-- Belt, apron panel and repair kit. -->
+  <path d="m224 474 150 4 4 27-157-4Z" fill="url(#leather)" stroke="#192c37" stroke-width="5"/>
+  <rect x="290" y="474" width="31" height="30" rx="4" fill="none" stroke="#e4c38c" stroke-width="5"/>
+  <path d="m305 487 15 1" stroke="#e4c38c" stroke-width="3"/>
+  <path d="M248 505h104l13 74-59 24-65-26Z" fill="#3c6872" stroke="#223340" stroke-width="4"/>
+  <path d="m256 519-5 48 54 22 49-19-10-51" fill="none" stroke="#8bb6b0" stroke-width="2.5"/>
+  <path d="m273 542 53 1 1 24q-27 16-54-1Z" fill="#2d525f" stroke="#d4bd8c" stroke-width="2.5"/>
+  <path d="m218 500-19 16-4 62 39 11 14-72Z" fill="url(#leather)" stroke="#1b2c37" stroke-width="4"/>
+  <path d="m209 516 23 7-5 23-24-6Z" fill="#a78461" stroke="#302e39" stroke-width="3"/>
+  <circle cx="217" cy="531" r="3" fill="#ebce8d"/>
+  <path d="m364 503 7 39m9-36 9 42" stroke="#d4b478" stroke-width="8"/>
+  <path d="m364 504-5-19m21 24 4-23" stroke="#c1d4cd" stroke-width="5"/>
+  <path d="m357 529 39-8 7 33-38 8Z" fill="url(#leather)" stroke="#25303c" stroke-width="4"/>
+  <!-- The large coil is held in front of the rolled left sleeve. -->
+  <path d="m163 379 30 39-19 15-30-37Z" fill="#f0e4c9" stroke="#32424a" stroke-width="4"/>
+  <path d="m158 406-26 20c-11 8-7 24 3 28l29 4c8 1 12-6 5-10l-15-6 24-13Z" fill="url(#skin)" stroke="#4a3741" stroke-width="4"/>
+  <use xlink:href="#coil" fill="none" stroke="#26303b" stroke-width="22"/>
+  <use xlink:href="#coil" fill="none" stroke="url(#rope)" stroke-width="15"/>
+  <use xlink:href="#coil" fill="none" stroke="#f7dfaf" stroke-width="3" stroke-dasharray="3 7"/>
+  <path d="M181 420c8-8 14-8 19-2l8 10c4 6 0 13-6 10l-9-5c-13 18-30 19-37 8-4-6-1-13 6-12l13 1Z" fill="url(#skin)" stroke="#49383f" stroke-width="4"/>
+  <path d="M163 355c6 33 21 48 26 63" fill="none" stroke="#a86f60" stroke-width="12"/>
+  <path d="M163 355c6 33 21 48 26 63" fill="none" stroke="#d1a38c" stroke-width="4"/>
+  <path d="m148 361 38-13 7 14-37 13Z" fill="#8e5d59" stroke="#38323e" stroke-width="3"/>
+  <!-- Raised right palm presents a compact wooden rope spool. -->
+  <path d="m428 397 33-17 17 29-29 25Z" fill="#f0e4c9" stroke="#33444e" stroke-width="4"/>
+  <path d="m451 401 19-30 7-22c3-8 12-5 10 4l-2 19 17-11 20 4c9 3 7 11 0 12l-12-1 10 8c6 5 2 12-5 10l-11-4c-6 17-17 29-34 28Z" fill="url(#skin)" stroke="#48353f" stroke-width="4"/>
+  <g transform="translate(482 326) rotate(18)">
+   <path d="M-29-39h58v78h-58Z" fill="#8c624d" stroke="#28323c" stroke-width="5"/>
+   <path d="M-29-29h58v58h-58Z" fill="url(#rope)"/>
+   <path d="M-27-23h54m-54 9h54m-54 9h54m-54 9h54m-54 9h54m-54 9h54" stroke="#88684b" stroke-width="3"/>
+   <path d="M-38-44h76v15h-76ZM-38 29h76v15h-76Z" fill="#aa7a54" stroke="#28323c" stroke-width="4"/>
+   <path d="M-29-38h58m-58 74h58" stroke="#e0b97b" stroke-width="3"/>
+  </g>
+  <!-- Attentive adult face with a side-swept bob. -->
+  <path d="M245 260c-23-21-22-61-7-85 12-26 31-43 63-39 40-22 80 12 82 47 18 33 6 81-9 111l-30-22-77 15Z" fill="url(#hair)" stroke="#282936" stroke-width="6"/>
+  <path d="M250 234c-19-10-21 16-7 29l13 1m104-32c21-9 24 17 10 30l-15 1" fill="url(#skin)" stroke="#46333e" stroke-width="4"/>
+  <path d="M253 201c20 8 56-2 75-29 7 25 18 37 34 42l-4 43c-3 28-21 48-49 55-30-8-51-24-55-52Z" fill="url(#skin)" stroke="#453340" stroke-width="4.5"/>
+  <path d="M246 190c4 43-9 64-7 94 17-7 29-27 29-51l-1-16c28 0 53-28 64-48-26 21-62 26-85 21Z" fill="url(#hair)" stroke="#43313c" stroke-width="4"/>
+  <path d="M256 177c18-15 42-14 59-25m-64 47c20 3 45-6 57-17m33-12c4 20 16 32 28 36" fill="none" stroke="#d59b77" stroke-width="4"/>
+  <path d="m272 233 17-3m39-1 18 3" stroke="#704a45" stroke-width="4"/>
+  <path d="m270 246q11-8 22-1m34-1q11-7 22 2" fill="none" stroke="#44303d" stroke-width="4"/>
+  <ellipse cx="283" cy="247" rx="4.5" ry="6" fill="#346473"/><ellipse cx="336" cy="247" rx="4.5" ry="6" fill="#346473"/>
+  <circle cx="284" cy="245" r="1.6" fill="#fff4d9"/><circle cx="337" cy="245" r="1.6" fill="#fff4d9"/>
+  <path d="m307 249-4 16 8 2m-15 15q14 9 27-2" fill="none" stroke="#a46a59" stroke-width="2.5"/>
+  <path d="m269 265 12 3m55 0 12-3" stroke="#cb8875" stroke-width="4" opacity=".7"/>
+  <path d="m348 205 13 9m-11-16 16 10" stroke="#b8d5c3" stroke-width="4"/>
+  <circle cx="367" cy="270" r="5" fill="#e7c68e" stroke="#6a5050" stroke-width="2"/>
+ </g>
+</svg>

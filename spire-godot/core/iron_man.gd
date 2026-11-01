@@ -1,4 +1,5 @@
 extends RefCounted
+const RestraintValue=preload("res://data/restraint_value.gd")
 
 const Replacement=preload("res://core/equipment_replacement.gd")
 const Bind=preload("res://core/capture_bind.gd")
@@ -85,7 +86,11 @@ static func plan(g, e: Dictionary) -> Dictionary:
   "iron_stunned": text="机械减伤失效 · 发呆"
   "bind_apply": text="施加捕缚 · 初始%s/100" % g.number(capture_start(e))
   "iron_bind_gain": text="捕缚＋%s" % g.number(CAPTURE_GAIN) if g.CaptureBind.has_bind(g,"iron_man") else "重新施加捕缚 · 初始%s/100" % g.number(capture_start(e))
-  "iron_restraints": text="施加%d件%s%d档皮革拘束具%s" % [facts.count,g.Equipment.GRADES[facts.grade],facts.tier," · 加固%d档" % facts.reinforce if facts.reinforce>0 else ""]
+  "iron_restraints":
+   var profiles=RestraintValue.profiles(RestraintValue.from_profile(facts.grade,facts.tier))
+   var options=profiles.map(func(p):return "%s%d档" % [g.Equipment.GRADES[p.grade],p.tier])
+   text="施加%d件皮革拘束具 · %s" % [facts.count,"／".join(options)]
+   if facts.reinforce>0: text+=" · 加固%d档" % facts.reinforce
   "iron_composite": text="施加%s%d档复合皮革拘束具%s%s" % [g.Equipment.GRADES[facts.grade],facts.tier," · 特殊装备×%d" % facts.special if facts.special>0 else ""," · 上锁×%d" % facts.locks if facts.locks>0 else ""]
   "iron_recharge": text="佩戴／替换特殊装备 · 补满电量"
   "iron_upgrade": text="强化捕缚系统"
@@ -94,7 +99,9 @@ static func plan(g, e: Dictionary) -> Dictionary:
 
 static func installation_intents(g, e: Dictionary) -> Array:
  var mods=modifiers(e)
- var ordinary=g.EnemyPlans.application(LEATHER_POOL,mini(3,2+mods.grade),mini(3,2+mods.tier),2+mods.ordinary)
+ var grade=mini(3,2+mods.grade)
+ var tier=mini(3,2+mods.tier)
+ var ordinary=g.EnemyPlans.application(LEATHER_POOL,grade,tier,2+mods.ordinary,false,RestraintValue.from_profile(grade,tier))
  ordinary.replace=true;ordinary.shoulders=true;ordinary.tighten_missing=true
  var composite={"kind":"apply","pool":"composite","templates":COMPOSITE_POOL.duplicate(),"grade":mini(3,2+mods.grade),"tier":mini(3,2+mods.tier),"count":1,"locked":false,"final":false,"replace":true,"text":"施加复合皮革拘束具","delayed":false}
  var result=[ordinary,composite]
@@ -145,7 +152,7 @@ static func energy_trigger(g, e: Dictionary) -> void:
  for item in active_special(g).duplicate(): g._remote_special(item,e.name+"的捕缚",false)
 
 static func drone_energy_trigger(g, drone: Dictionary) -> void:
- g._enemy_operation(drone,g.EnemyPlans.application(TAPE_POOL,1,2,1))
+ g._enemy_operation(drone,g.EnemyPlans.application(TAPE_POOL,1,2,1,false,3))
  g.CaptureBind.gain_bind(g,DRONE_CAPTURE_GAIN,drone.name+"的捕缚")
  var powered=active_special(g)
  if not powered.is_empty():
@@ -203,23 +210,23 @@ static func validate(g, e: Dictionary, enemies: Array=[], snapshot: Dictionary={
   for key in ["iron_enhancements","iron_stun_turns","iron_armor_break_turns","iron_support_ids"]:
    if e.has(key): return "非铁男敌人带有铁男专属记录。"
   return ""
- if not g.Snapshot.fields(e,"iron_enhancements:i iron_stun_turns:i iron_armor_break_turns:i iron_support_ids:z"): return "铁男强化记录不完整。"
- if e.iron_enhancements<0 or e.iron_stun_turns not in [0,1] or e.iron_armor_break_turns<0 or e.iron_armor_break_turns>2: return "铁男强化或破甲回合不合法。"
+ if not g.Snapshot.fields(e,"iron_enhancements:i iron_stun_turns:i iron_armor_break_turns:i iron_support_ids:z"): return "铁男强化记录缺损。"
+ if e.iron_enhancements<0 or e.iron_stun_turns not in [0,1] or e.iron_armor_break_turns<0 or e.iron_armor_break_turns>2: return "铁男强化或破甲回合有误。"
  var expected_enhancements=0 if e.stage==1 else int((e.stage-2)/CYCLE_LENGTH)
- if e.iron_enhancements>expected_enhancements: return "铁男强化次数与行动阶段不一致。"
+ if e.iron_enhancements>expected_enhancements: return "铁男强化次数与行动阶段存在差异。"
  var roster=g.state.enemies if enemies.is_empty() else enemies
  if e.iron_support_ids.size()!=2 or e.iron_support_ids[0]==e.iron_support_ids[1] or e.iron_support_ids.any(func(id):
   var matches=roster.filter(func(enemy):return enemy.id==id)
   var support={} if matches.is_empty() else matches[0]
-  return support.is_empty() or support.type not in ["iron_drone","binding_box"]): return "铁男随行单位记录不合法。"
+  return support.is_empty() or support.type not in ["iron_drone","binding_box"]): return "铁男随行单位记录有误。"
  var support_types=e.iron_support_ids.map(func(id):return roster.filter(func(enemy):return enemy.id==id)[0].type)
  support_types.sort()
- if support_types!=["binding_box","iron_drone"]: return "铁男随行单位类型不完整。"
+ if support_types!=["binding_box","iron_drone"]: return "铁男随行单位类型缺损。"
  var current_state=g.state if snapshot.is_empty() else snapshot
  # Completed battles retain the last announced intent, not a live cycle prediction.
  if current_state.phase=="battle" and not e.gone and not e.intent.is_empty():
   var expected=intent_facts(e,current_state)
-  if e.intent.get("kind","")!=expected.get("kind",""): return "铁男意图与当前行动阶段不一致。"
+  if e.intent.get("kind","")!=expected.get("kind",""): return "铁男意图与当前行动阶段存在差异。"
   for key in ["count","grade","tier","reinforce","special","locks"]:
-   if e.intent.has(key)!=expected.has(key) or (expected.has(key) and e.intent[key]!=expected[key]): return "铁男意图数值与当前强化阶段不一致。"
+   if e.intent.has(key)!=expected.has(key) or (expected.has(key) and e.intent[key]!=expected[key]): return "铁男意图数值与当前强化阶段存在差异。"
  return ""

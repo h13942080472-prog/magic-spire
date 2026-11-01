@@ -137,7 +137,7 @@ static func run(t) -> void:
  var fresh=preload("res://core/game.gd").new(42)
  t.check(fresh.state.items.size()==1 and fresh.state.items[0].type=="return_seal" and fresh.state.items[0].uses==1,"SEAL normal new game carries one single-use teleport scroll")
  t.check(fresh.get_view().items[0].name=="传送符" and fresh.get_view().items[0].category=="卷轴","SEAL initial inventory uses renamed scroll presentation")
- t.check(fresh.Tools.description(fresh,"return_seal").contains("进入监狱时不会丢失。") and not fresh.Tools.description(fresh,"shard").contains("进入监狱时不会丢失。"),"SEAL shared item description exposes intake protection only for the seal")
+ t.check(fresh.Tools.description(fresh,"return_seal").contains("入狱时保留。") and not fresh.Tools.description(fresh,"shard").contains("入狱时保留。"),"SEAL shared item description exposes intake protection only for the seal")
  var restored=preload("res://core/game.gd").new(77)
  t.check(restored.restore_snapshot(fresh.restart_snapshot()).ok and restored.state.items.size()==1,"SEAL scene restore never duplicates initial scroll")
  patrol_period_cases(t)
@@ -209,7 +209,7 @@ static func run(t) -> void:
  t.action(g,"prison",{"action":"accept"})
  var additions=g.state.equipment.filter(func(e):return e.source=="prison")
  t.check(g._equipment(body.id).durability==body.maximum and g.state.equipment.size()==count+3 and g.state.items.is_empty(),"PRISON one missing component adds three ordinary pieces and confiscates all tools")
- t.check(additions.size()==3 and additions.all(func(e):return e.grade==2 and g.tier(e.durability,e.maximum)==2),"PRISON security two punishment applies medium tier-two ordinary roots")
+ t.check(additions.size()==3 and additions.all(func(e):return e.grade+g.equipment_tier(e)==4),"PRISON security two punishment applies value-four ordinary roots")
  t.check(g.state.security==2 and g.state.prison.vent_hits==1 and g.state.prison.baseline==g.equipment_targets().map(func(e):return e.id) and g.validate()=="","PRISON punishment does not increment security or reset vent, and updates actual baseline")
  punishment_cases(t)
 
@@ -431,11 +431,11 @@ static func security_cases(t) -> void:
   g.state.security=level-1
   Guard.capture(g,g.state.enemies[0])
   var grade=expected[level-1][0];var tier=expected[level-1][1]
-  t.check(handbook.category=="prison" and handbook.text.contains("%d级：%s，%d档，%s。" % [level,g.Equipment.GRADES[grade],tier,"普通或复合" if level>=3 else "仅普通"]),"PRISON handbook explains the actual security equipment table")
-  var roots=(g.state.equipment+g.state.composites).filter(func(e):return e.id in g.state.capture.added)
+  t.check(handbook.category=="prison" and handbook.text.contains("%d级：普通（" % level) and g.Prison.equipment_spec(g,1).profiles.all(func(profile):return handbook.text.contains("%s%d档" % [g.Equipment.GRADES[profile.grade],profile.tier])),"PRISON handbook explains the actual security equipment table")
+  var roots=(g.state.equipment+g.state.composites+g.state.links).filter(func(e):return e.id in g.state.capture.added)
   var intake_quota=B.PRISON_INTAKE[level].floor+B.PRISON_INTAKE[level].extra if level<5 else level+B.CAPTURE_EXTRA_BASE
   t.check(roots.size()==intake_quota and g.state.capture.baseline==g.equipment_targets().map(func(e):return e.id),"PRISON security %d counts roots for intake and physical components for registration" % level)
-  t.check(g.equipment_targets().filter(func(e):return not g.Equipment.lock_only(e)).all(func(e):return e.grade==grade and g.tier(e.durability,e.maximum)==(tier if e.template=="link_rope" else (maxi(2,grade) if g.Equipment.is_shoulder(e) and level<5 else (2 if level<5 else (grade if g.Equipment.is_shoulder(e) else tier))))),"PRISON intake uses tier two independently from inspection and link profiles")
+  t.check(g.state.equipment.filter(func(e):return not g.Equipment.lock_only(e)).all(func(e):return e.grade+g.equipment_tier(e)==grade+(2 if level<5 else tier) and g.equipment_tier(e)>=2) and g.state.composites.all(func(root):return root.components.all(func(e):return e.grade==grade and g.equipment_tier(e)==(maxi(2,grade) if g.Equipment.is_shoulder(e) else (2 if level<5 else tier)))) and g.state.links.all(func(link):return link.grade==grade and g.equipment_tier(link)==tier),"PRISON intake preserves per-piece values and minimum tier while composite/link profiles stay fixed")
   t.check(g.state.equipment.filter(func(e):return g.Equipment.lock_only(e)).size()==(1 if level>=3 else 0),"PRISON restriction collar starts exactly at security three")
   t.check(level>=3 or g.state.composites.is_empty(),"PRISON below security three excludes even basic composite wraps")
   var toy_pool=g.SpecialEquipment.prison_pool(grade,level>=3)
@@ -462,9 +462,9 @@ static func security_cases(t) -> void:
    preload("res://tests/persistence_cases.gd").step_both(t,g,saved,"prison",{"action":"accept"})
   else: t.action(g,"prison",{"action":"accept"})
   var event=g.state.logs.filter(func(log):return log.data.has("inspection"))[-1].data.inspection
-  roots=(g.state.equipment+g.state.composites).filter(func(e):return e.id in event.installed)
-  t.check(roots.size()==event.installed.size() and roots.size()<=quota and roots.all(func(root):return root.grade==grade if not root.has("components") else root.components.all(func(e):return e.grade==grade)),"PRISON mixed inspection quota counts actual roots, not component count")
-  t.check(roots.all(func(root):return g.tier(root.durability,root.maximum)==tier if not root.has("components") else root.components.all(func(e):return g.tier(e.durability,e.maximum)==(grade if g.Equipment.is_shoulder(e) else tier))),"PRISON fresh inspection equipment keeps its profile instead of being tightened with old gear")
+  roots=(g.state.equipment+g.state.composites+g.state.links).filter(func(e):return e.id in event.installed)
+  t.check(roots.size()==event.installed.size() and roots.size()<=quota and roots.all(func(root):return root.grade+g.equipment_tier(root)==grade+tier if not root.has("components") else root.components.all(func(e):return e.grade==grade)),"PRISON mixed inspection quota counts actual roots, not component count")
+  t.check(roots.all(func(root):return root.grade+g.equipment_tier(root)==grade+tier if not root.has("components") else root.components.all(func(e):return g.tier(e.durability,e.maximum)==(grade if g.Equipment.is_shoulder(e) else tier))),"PRISON fresh inspection equipment keeps its profile instead of being tightened with old gear")
   t.check(g.state.prison.baseline==g.equipment_targets().map(func(e):return e.id) and g.validate()=="","PRISON mixed replacement leaves a complete valid component manifest")
 
 static func intake_floor_cases(t) -> void:
@@ -502,7 +502,7 @@ static func collar_cases(t) -> void:
  t.check(not g.EquipmentOffers.ordinary(g,3).any(func(p):return p.template=="restriction_collar"),"COLLAR excluded from random ordinary offers")
  t.check(g._install_template("restriction_collar","neck",1.0,1.0,true,"fixture",3).is_empty(),"COLLAR repeated installation rejected")
  var view=g.View.equipment_entry(g,collar,"neck")
- t.check(view.lock_only and view.description.contains("无耐久") and not view.description.contains("1/1") and view.tier==0 and ResourceLoader.exists(view.image),"COLLAR view has icon and no fabricated durability/tightness")
+ t.check(view.lock_only and view.description.contains("耐久：无") and not view.description.contains("1/1") and view.tier==0 and ResourceLoader.exists(view.image),"COLLAR view has icon and no fabricated durability/tightness")
  for free in [false,true]:
   var normal=Cards.give(g,"henshin")
   var c=t.find_action(g,"card",{"uid":normal.uid,"free":free})
@@ -537,6 +537,31 @@ static func collar_cases(t) -> void:
   g.state.sure_cast=true
   var perfect=Cards.give(g,"hannya_henshin")
   t.check(t.action(g,"card",{"uid":perfect.uid,"free":free}).ok and g._equipment(collar.id).is_empty() and g.validate()=="","COLLAR perfect henshin can play either face and directly remove locked collar")
+ henshin_collar_cases(t)
+
+static func henshin_collar_cases(t) -> void:
+ var Cards=preload("res://tests/curse_cases.gd")
+ for locked in [false,true]:
+  for free in [false,true]:
+   var g=intake(t,3);clear_fixture(g)
+   var collar=g._install_template("restriction_collar","neck",1.0,1.0,locked,"fixture",3)
+   var ankle=g.add_fixture("ankle",8)
+   g.state.energy=12;g.state.pressure=50;g.state.mana=100;g.state.sure_cast=true
+   var suggestion=Cards.give(g,"psychological_suggestion")
+   t.check(t.action(g,"card",{"uid":suggestion.uid,"free":false}).ok and g.Cards.action_ignores_restraints(g),"COLLAR prison casts suggestion through the formal card path")
+   var card=Cards.give(g,"henshin")
+   var c=t.find_action(g,"card",{"uid":card.uid,"free":free})
+   var before=g.export_snapshot()
+   t.check(c.valid and not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"COLLAR suggestion permits henshin but stale submission preserves all equipment and its waiver")
+   var result=g.dispatch(g.command(c.payload,g.state.version),g.state.version)
+   t.check(result.ok and not result.spell_failed and not g.Cards.action_ignores_restraints(g),"COLLAR successful henshin consumes the suggestion waiver")
+   t.check(g._equipment(collar.id).is_empty()==not free and g._equipment(ankle.id).is_empty()==not free and g.validate()=="","COLLAR bound henshin clears locked or unlocked collar with ordinary restraints; free face preserves equipment")
+   if free: t.check("henshin_free" in g.state.card_buffs,"COLLAR free henshin retains its damage multiplier")
+   else:
+    t.check(g.restore_snapshot(before).ok,"COLLAR restore before casting to exercise genuine spell failure")
+    g.state.sure_cast=false;g.state.pressure=80;g.state.rng.magic=0
+    result=t.action(g,"card",{"uid":card.uid,"free":false})
+    t.check(result.ok and result.spell_failed and not g._equipment(collar.id).is_empty() and not g._equipment(ankle.id).is_empty(),"COLLAR failed henshin cannot remove collar or ordinary equipment")
 
 static func toy_inspection_cases(t) -> void:
  var g=intake(t,1);clear_fixture(g)
@@ -575,10 +600,10 @@ static func punishment_cases(t) -> void:
  for id in ids: g._equipment(id).durability=0
  g._cleanup()
  inspect(t,g);t.action(g,"prison",{"action":"inspect"})
- t.check(g.state.prison.missing==ids and g.state.prison.report.contains("5件初级二档"),"PRISON three missing physical pieces declare five additions at the current security profile")
+ t.check(g.state.prison.missing==ids and g.state.prison.report.contains("5件"+g.Prison.equipment_label(g)),"PRISON three missing physical pieces declare five additions at the current security profile")
  var saved=preload("res://tests/persistence_cases.gd").roundtrip(t,g,"violation quota")
  preload("res://tests/persistence_cases.gd").step_both(t,g,saved,"prison",{"action":"accept"})
- t.check(g.state.equipment.size()==5 and g.state.equipment.all(func(e):return e.grade==1 and g.tier(e.durability,e.maximum)==2),"PRISON restored inspection commits the same five elementary tier-two roots")
+ t.check(g.state.equipment.size()==5 and g.state.equipment.all(func(e):return e.grade+g.equipment_tier(e)==3),"PRISON restored inspection commits the same five value-three roots")
  var baseline=g.state.prison.baseline.duplicate()
  t.action(g,"prison",{"action":"resume"});g.state.prison.left=1;inspect(t,g);t.action(g,"prison",{"action":"inspect"})
  t.check(g.state.prison.missing.is_empty() and g.state.prison.baseline==baseline,"PRISON new baseline does not charge again for already replaced or removed items")
@@ -589,7 +614,7 @@ static func punishment_cases(t) -> void:
  one.durability=0;g._cleanup()
  g.state.prison.left=1 # Isolate repeat registration from the independently tested sentence.
  inspect(t,g);t.action(g,"prison",{"action":"inspect"})
- t.check(g.state.prison.missing==[one.id] and g.state.prison.report.contains("3件初级二档"),"PRISON next check counts only the one new loss instead of accumulating previous losses")
+ t.check(g.state.prison.missing==[one.id] and g.state.prison.report.contains("3件"+g.Prison.equipment_label(g)),"PRISON next check counts only the one new loss instead of accumulating previous losses")
 
  # All ordinary locations are full and stronger than the incoming three-point value,
  # except the single mouth slot. Its new replacement must not be replaced twice.

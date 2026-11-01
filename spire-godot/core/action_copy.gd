@@ -8,7 +8,7 @@ static var texts: Dictionary={}
 
 # Compact log numbers only; keep full precision in state and calculation records.
 static func number(value: float) -> String:
- if value>0.0 and value<0.005: return "不足0.01"
+ if value>0.0 and value<0.005: return "小于0.01"
  var text="%.2f" % value
  return text.trim_suffix("0").trim_suffix("0").trim_suffix(".") if text.contains(".") else text
 

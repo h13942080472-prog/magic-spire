@@ -8,8 +8,6 @@ var index=-1
 var elapsed=0.0
 var current={}
 var heading: Label
-var detail: Label
-var counter: Label
 var highlights: Array[Rect2]=[]
 var actor: Control
 var origin=Vector2.ZERO
@@ -20,19 +18,17 @@ func _ready() -> void:
  set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  mouse_filter=Control.MOUSE_FILTER_STOP
  var panel=PanelContainer.new()
- panel.position=Vector2(650,110);panel.size=Vector2(650,150)
- var style=StyleBoxFlat.new();style.bg_color=Color("142330")
- style.border_color=Color("dfbd80");style.set_border_width_all(2);style.set_corner_radius_all(12)
- style.content_margin_left=20;style.content_margin_right=20
- style.content_margin_top=12;style.content_margin_bottom=12
+ panel.name="EnemyActionBanner"
+ panel.position=Vector2(800,118);panel.size=Vector2(380,42)
+ var style=StyleBoxFlat.new();style.bg_color=Color(0.05,0.075,0.10,0.93)
+ style.border_color=Color("bc9663");style.border_width_bottom=2;style.set_corner_radius_all(4)
+ style.content_margin_left=14;style.content_margin_right=14
+ style.content_margin_top=6;style.content_margin_bottom=6
  panel.add_theme_stylebox_override("panel",style);add_child(panel)
- var column=VBoxContainer.new();column.add_theme_constant_override("separation",8);panel.add_child(column)
- var row=HBoxContainer.new();column.add_child(row)
- heading=ui._label("",23,ui.GOLD);heading.size_flags_horizontal=Control.SIZE_EXPAND_FILL;row.add_child(heading)
- counter=ui._label("",14,ui.MUTED);counter.autowrap_mode=TextServer.AUTOWRAP_OFF;counter.custom_minimum_size.x=60;row.add_child(counter)
- detail=ui._label("",17,ui.TEXT);detail.custom_minimum_size=Vector2(600,60)
- detail.max_lines_visible=4;detail.text_overrun_behavior=TextServer.OVERRUN_TRIM_ELLIPSIS
- column.add_child(detail)
+ heading=ui._label("",20,ui.GOLD);heading.name="EnemyActionTitle"
+ heading.autowrap_mode=TextServer.AUTOWRAP_OFF;heading.text_overrun_behavior=TextServer.OVERRUN_TRIM_ELLIPSIS
+ heading.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;heading.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
+ panel.add_child(heading)
  var skip=ui._button("跳过展示",finish,ui.CYAN)
  skip.name="SkipEnemyFeedback";skip.position=Vector2(1320,525);skip.size=Vector2(200,40);add_child(skip)
  _next()
@@ -44,14 +40,13 @@ func _next() -> void:
   closing=true;current={}
   heading.text="轮到你行动" if ui.view.phase=="battle" else {"reward":"选择战斗奖励","prepare":"进入战后整备","captured":"进入监狱","prison_end":"本次试炼结束"}.get(ui.view.phase,"敌方行动结束")
   if ui.view.pressure.overloaded: heading.text="高潮 · 先缓过这一回合"
-  detail.text="能量 %s · 魔力 %s/%s" % [ui.game.number(ui.view.energy),ui.game.number(ui.view.mana),ui.game.number(ui.view.mana_max)]
-  detail.tooltip_text=""
-  counter.text=""
+  heading.text=ui.localization.display(heading.text)
+  if is_instance_valid(ui.battle_feed): ui.battle_feed.release_remaining()
   queue_redraw();return
  current=queue[index]
- heading.text=current.actor+" · "+current.title
- counter.text="%d / %d" % [index+1,queue.size()]
- detail.text="\n".join(current.texts);detail.tooltip_text=detail.text
+ ui.equipment_audio.consume(current.get("sound_feedback",[]))
+ heading.text=ui.localization.display(current.actor)+" · "+ui.localization.display(current.title)
+ if is_instance_valid(ui.battle_feed): ui.battle_feed.release_step(current.key)
  var id=current.enemy_id
  if ui.actor_targets.has(id): highlights.append(ui.actor_targets[id].get_global_rect().grow(8))
  if current.kind in ["apply","install","assembly","tighten","lock","capture"]:
@@ -90,5 +85,6 @@ func _restore_actor() -> void:
 func finish() -> void:
  set_process(false)
  _restore_actor()
+ if is_instance_valid(ui.battle_feed): ui.battle_feed.release_remaining()
  if ui.enemy_feedback==self: ui.enemy_feedback=null
  hide();queue_free()

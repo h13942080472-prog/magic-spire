@@ -233,7 +233,7 @@ static func skip_rewards(t) -> void:
   t.check(t.action(g,"reward",{"type":"skip"}).ok and g.state.phase=="prepare","SKIP continue still enters ordinary preparation")
  var rest=Game.new(42);rest.state.room="rest";rest._start_rest()
  var panel=rest.get_view().reward_panel;var deck=rest.state.deck.duplicate(true)
- t.check(panel.active and panel.rows.size()==3 and panel.rows[0].action_keys.size()==3 and panel.rows.slice(1).all(func(row):return row.action_keys.size()==1 and row.direct) and panel.extra_keys.is_empty() and t.action(rest,"rest_begin").ok and rest.state.rest_left==rest.B.REST_TURNS and rest.state.deck==deck,"SKIP rest uses three common reward rows and keeps all rest turns when declining")
+ t.check(panel.active and panel.rows.size()==4 and panel.rows[-1].category=="enchant" and panel.rows[0].action_keys.size()==3 and panel.rows.slice(1,3).all(func(row):return row.action_keys.size()==1 and row.direct) and panel.extra_keys.is_empty() and t.action(rest,"rest_begin").ok and rest.state.rest_left==rest.B.REST_TURNS and rest.state.deck==deck,"SKIP rest uses three reward rows plus enchantment and keeps all rest turns when declining")
 
 static func magnifying_glass(t) -> void:
  var Save=preload("res://tests/persistence_cases.gd")

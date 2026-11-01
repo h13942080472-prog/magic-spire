@@ -65,5 +65,5 @@ static func overflow_runtime(t) -> void:
  for remaining in ui.view.items.duplicate(true):
   await Navigation.press(t,"ToolItem_"+remaining.id)
   await Navigation.press(t,"ItemDiscard")
- t.check(ui.view.items.is_empty() and ui.find_child("ItemDiscard",true,false)==null and t.visible_text(ui.drawer_layer).contains("尚未携带道具"),"INVENTORY discarding the final item rebuilds a clean empty state")
+ t.check(ui.view.items.is_empty() and ui.find_child("ItemDiscard",true,false)==null and t.visible_text(ui.drawer_layer).contains("道具栏为空"),"INVENTORY discarding the final item rebuilds a clean empty state")
  await t.close_information()

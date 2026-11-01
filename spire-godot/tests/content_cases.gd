@@ -259,7 +259,7 @@ static func event_chain_hold_keys_fail_closed(t) -> void:
  foreign.data.nodes[0].choices[0].effects=[]
  foreign.data.cleanup_effects=[{"op":"restore_held","key":"removed_gear"}]
  var borrowed=Catalog.compile(g,[source,foreign])
- t.check(not borrowed.ok and borrowed.tables.is_empty() and str(borrowed.errors).contains("cleanup_effects 引用了从未建立的暂存 key") and Catalog.tables(g)==baseline,"EVENT CHAIN HOLD a cleanup naming another definition's key is rejected as one batch: "+str(borrowed.errors))
+ t.check(not borrowed.ok and borrowed.tables.is_empty() and str(borrowed.errors).contains("cleanup_effects 的暂存 key 需先建立") and Catalog.tables(g)==baseline,"EVENT CHAIN HOLD a cleanup naming another definition's key is rejected as one batch: "+str(borrowed.errors))
  t.check(Catalog.tables(g)==baseline,"EVENT CHAIN HOLD static validation leaves the registries untouched")
 
 # The pack root is one constant behind one accessor: the development value is the project path,

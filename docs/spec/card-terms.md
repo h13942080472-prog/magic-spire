@@ -36,9 +36,9 @@
 
 ## 接口
 
-- `ui/main.gd::_card_tooltip(button, card)`：不再把 `card.face_keywords[side]` 拼进 `detail` 文本行；
-  改按原顺序把该集合作为 `entry.terms` 传给呈现入口。其余行（溢出正文、`施法成功率 · …`、`card.note`）与
-  今日一致，仍走 `entry.label`／`entry.detail`。
+- `ui/main.gd::_card_tooltip(button, card)`：将 `card.face_keywords[side]` 按原顺序作为 `entry.terms` 传给呈现入口。
+  溢出正文、实际施法部位与当前成功率及 `card.note` 走 `entry.label`／`entry.detail`；简要悬停将实际施法部位与成功率合为一行，
+  完整公式由魔力／施法详情提供。失败返还规则见教程及对应能力说明，避免在卡牌悬停中写死默认比例。
 - `ui/main.gd::_show_term(anchor, entry)`：`entry` 允许可选键 `terms: Array`，元素是 `face_keywords[side]` 的
   原始字典，不复制、不重排、不改写。`terms` 为空或缺省时**逐字保持今日的单面板行为**（其它调用者
   `ui/touch_input.gd::show_details`、`ui/main.gd::_drag_rejection` 因此不受影响）。

@@ -42,7 +42,7 @@ static func link_installation(t) -> void:
  g._install_template("rope","forearm",8,10,false,"fixture",1,-1,0,"mid_forearm")
  g._install_template("belt","wrist",8,10,false,"fixture")
  Events.arrive(g,"binding_cleric")
- t.check(g.Events.ordinary(g,2,false,["belt"]).any(func(e):return e.op=="link") and g.Events.ordinary(g,2,false,["belt"],true).all(func(e):return e.op=="install"),"EVENT rope/belt recipes include links while explicitly locked recipes preserve lockability")
+ t.check(g.Events.ordinary(g,4,true,["link_rope"]).op=="link" and g.Events.ordinary(g,4,false,["belt"],true).op=="install","EVENT rope/belt recipes include links while explicitly locked recipes preserve lockability")
  var before=g.export_snapshot()
  var frozen=g.Events.freeze_effects(g,[{"op":"install_random","templates":["link_rope"],"count":1,"grade":2,"tier":2,"locked":false}])
  t.check(frozen.issue=="" and frozen.effects.size()==1 and frozen.effects[0].op=="link" and g.state.links.is_empty() and g.state.equipment==before.equipment,"EVENT generated link freezes without installing or rejecting its structure")
@@ -88,7 +88,7 @@ static func plate_lock_copy(t) -> void:
    t.check(gamble.state.room_event.report.contains("姐姐连那根杂鱼肉棒都没碰哦") and gamble.state.room_event.report.contains("算你赢"),"EVENT COPY winning flat-lock result includes the approved humiliation and payout")
   else:
    saw_failure=true
-   t.check(gamble.state.room_event.report.contains("奶子和小穴一碰却能连着射两次") and gamble.state.room_event.report.contains("你的杂鱼肉棒还真是不争气❤"),"EVENT COPY losing flat-lock result includes the approved two-climax humiliation")
+   t.check(gamble.state.room_event.report.contains("奶子和小穴一碰却能连着射两次") and gamble.state.room_event.report.contains("你的杂鱼肉棒还真是软弱❤"),"EVENT COPY losing flat-lock result includes the approved two-climax humiliation")
   if saw_success and saw_failure: break
  t.check(saw_success and saw_failure,"EVENT COPY deterministic seeds cover both flat-lock gamble outcomes")
 
@@ -319,7 +319,7 @@ static func bound_dream_guest_room(t) -> void:
  t.check(choices.map(func(candidate):return candidate.payload.choice)==["sleep","take_core"] and choices.all(func(candidate):return candidate.valid),"GUEST ROOM exposes exactly the two authored trades")
  var sleep=sleeper.state.room_event.options.filter(func(option):return option.id=="sleep")[0]
  var installs=sleep.effects.filter(func(effect):return effect.op=="install")
- t.check(sleep.effects.any(func(effect):return effect.op=="mana_restore_full") and installs.size()==3 and installs.all(func(effect):return effect.grade==2 and effect.tier==1 and not effect.locked) and not sleep.effects.any(func(effect):return effect.op=="link"),"GUEST ROOM freezes full restoration and exactly three medium tier-one single restraints")
+ t.check(sleep.effects.any(func(effect):return effect.op=="mana_restore_full") and installs.size()==3 and installs.all(func(effect):return effect.grade+effect.tier==3 and not effect.locked) and not sleep.effects.any(func(effect):return effect.op=="link"),"GUEST ROOM freezes full restoration and exactly three value-three single restraints")
  var equipment_before=sleeper.state.equipment.size()
  t.check(t.action(sleeper,"event",{"action":"choose","choice":"sleep"}).ok and sleeper.state.mana==sleeper.state.mana_max and sleeper.state.equipment.size()==equipment_before+3,"GUEST ROOM sleep commits full mana and all three restraints atomically")
  t.check(installs.all(func(effect):return sleeper.state.room_event.report.contains(sleeper.Equipment.wear_text(sleeper.Equipment.name_for(effect.template,effect.slot,effect.grade,effect.get("variant",0)),effect.slot,"animated"))) and not sleeper.state.room_event.report.contains("她把") and not sleeper.state.room_event.report.contains("她合拢"),"GUEST ROOM sleep result uses autonomous body-specific wear prose")
@@ -345,7 +345,7 @@ static func bound_dream_guest_room(t) -> void:
 
  var floor_case=Game.new(107,true,"bound_dream_guest_room")
  floor_case.state.mana_max=8;floor_case.state.mana=8
- t.check(floor_case.Events.probe(floor_case,[{"op":"mana_max_loss","amount":8}]).contains("不足以承受") and floor_case.state.mana_max==8 and floor_case.state.mana==8,"GUEST ROOM generic maximum-mana loss refuses crossing the positive floor without mutation")
+ t.check(floor_case.Events.probe(floor_case,[{"op":"mana_max_loss","amount":8}]).contains("足够的魔力上限") and floor_case.state.mana_max==8 and floor_case.state.mana==8,"GUEST ROOM generic maximum-mana loss refuses crossing the positive floor without mutation")
 
 static func mysterious_woman_statue(t) -> void:
  var g=Game.new(109,true,"mysterious_woman_statue")
@@ -406,7 +406,7 @@ static func maze_survey_team(t) -> void:
  t.check(not authored.contains("金币") and not authored.contains("生命") and authored.contains("独自探险") and authored.contains("结伴而行"),"SURVEY TEAM replaces source gold and health language with the two confirmed choices")
  var solo=g.state.room_event.options.filter(func(option):return option.id=="solo")[0]
  var installs=solo.effects.filter(func(effect):return effect.op=="install")
- t.check(solo.effects.any(func(effect):return effect.op=="flask_mana_gain" and effect.amount==100) and installs.size()==2 and installs.all(func(effect):return effect.grade==2 and effect.tier==2 and not effect.locked) and not solo.effects.any(func(effect):return effect.op=="link"),"SURVEY TEAM freezes one hundred flask mana and two medium tier-two single restraints")
+ t.check(solo.effects.any(func(effect):return effect.op=="flask_mana_gain" and effect.amount==100) and installs.size()==2 and installs.all(func(effect):return effect.grade+effect.tier==4 and not effect.locked) and not solo.effects.any(func(effect):return effect.op=="link"),"SURVEY TEAM freezes one hundred flask mana and two value-four single restraints")
  var frozen=g.export_snapshot();g.get_view();g.command_facts();g.route_view()
  t.check(g.export_snapshot()==frozen,"SURVEY TEAM viewing and probing do not reroll either restraint")
  var flask_before=g.state.flask_mana;var deposits_before=g.state.flask_deposits;var equipment_before=g.state.equipment.size()
@@ -884,7 +884,7 @@ static func run(t) -> void:
  var entered_finale=g.dispatch(g.command(rope_choice.payload,version),version)
  t.check(entered_finale.ok and g.state.room_event.stage=="finale","EVENT FLOW generated effects commit and advance")
  t.check(entered_finale.get("resource_feedback",[]).is_empty() and g.state.mana==restored_before.mana,"EVENT FLOW freezing an unchosen future cost emits no payment or refund receipt")
- t.check(g.state.equipment.size()==2 and g.state.equipment.all(func(e):return e.template=="rope" and g.tier(e.durability,e.maximum)==2),"EVENT FLOW batch random install reuses ordinary equipment factory")
+ t.check(g.state.equipment.size()==2 and g.state.equipment.all(func(e):return e.template=="rope" and e.grade+g.tier(e.durability,e.maximum)==3),"EVENT FLOW batch random install reuses ordinary equipment factory")
  var finished=t.action(g,"event",{"action":"choose","choice":"finish"})
  t.check(finished.ok and g.state.room_event.stage=="result","EVENT FLOW final stage uses normal pressure effect")
  var payments=finished.get("resource_feedback",[]).filter(func(event):return event.field=="mana")
@@ -1056,7 +1056,7 @@ static func run(t) -> void:
  shop_climax_before=blocked.state.overload_total
  t.check(t.action(blocked,"event",{"action":"choose","choice":"large_trade"}).ok and blocked.state.overload_total-shop_climax_before==2 and blocked.state.room_event.stage=="reward","PAWNSHOP large trade remains usable and causes exactly two climaxes")
 
- for row in [{"id":"small_trade","climaxes":1,"copy":"才揉几下奶子、摸摸小穴就流出来了"},{"id":"large_trade","climaxes":2,"copy":"姐姐还差一瓶呢"},{"id":"extra_spice","climaxes":2,"copy":"你答应的是两次，可不能少哦"}]:
+ for row in [{"id":"small_trade","climaxes":1,"copy":"才揉几下奶子、摸摸小穴就流出来了"},{"id":"large_trade","climaxes":2,"copy":"姐姐还差一瓶呢"},{"id":"extra_spice","climaxes":2,"copy":"你答应的是两次，要凑齐哦"}]:
   var locked_shop=Game.new(640+row.climaxes)
   t.check(not locked_shop._install_special("negative_plate_lock_medium","special_2_a").is_empty(),"PAWNSHOP COPY fixture equips a real flat lock for "+row.id)
   Events.arrive(locked_shop,"succubus_magic_pawnshop")
@@ -1077,7 +1077,7 @@ static func run(t) -> void:
  t.check(cleric_choices.map(func(c):return c.payload.choice)==["restore","purify","leave_free"] and cleric_choices.all(func(c):return c.valid),"CLERIC exposes exactly two services and one free exit")
  var restore=cleric.state.room_event.options.filter(func(option):return option.id=="restore")[0]
  var installs=restore.effects.filter(func(effect):return effect.op=="install")
- t.check(installs.size()==2 and restore.effects.any(func(effect):return effect.op=="mana_gain" and effect.amount==20) and installs.all(func(effect):return effect.grade==1 and effect.tier==2 and not effect.locked),"CLERIC freezes two initial tier-two single restraints and twenty mana")
+ t.check(installs.size()==2 and restore.effects.any(func(effect):return effect.op=="mana_gain" and effect.amount==20) and installs.all(func(effect):return effect.grade+effect.tier==3 and not effect.locked),"CLERIC freezes two value-three single restraints and twenty mana")
  t.check(not restore.effects.any(func(effect):return effect.op=="link"),"CLERIC explicit ordinary-only range excludes generated links")
  var cleric_restore_before=cleric.export_snapshot()
  t.check(t.action(cleric,"event",{"action":"choose","choice":"restore"}).ok and cleric.state.mana==65 and cleric.state.equipment.size()==2,"CLERIC restoration and both installations commit atomically")
@@ -1144,7 +1144,7 @@ static func run(t) -> void:
  if succeeded!=null:
   var equipment_before=succeeded.state.equipment.size();var relics_before=succeeded.state.relics.size()
   t.check(t.action(succeeded,"event",{"action":"choose","choice":"reach"}).ok and succeeded.state.room_event.stage=="result" and succeeded.state.equipment.size()==equipment_before+1 and succeeded.state.relics.size()==relics_before+1,"BOUND ADVENTURER success keeps the attempt restraint and grants one real relic")
-  t.check(succeeded.state.room_event.report.contains("她身上的拘束具仍原封不动"),"BOUND ADVENTURER success copy never describes transferring the captive's restraints")
+  t.check(succeeded.state.room_event.report.contains("她身上的拘束具仍保持原样"),"BOUND ADVENTURER success copy never describes transferring the captive's restraints")
 
  trapped=Game.new(82,true,"bound_adventurer_relic")
  Events.arrive(trapped,"bound_adventurer_relic")

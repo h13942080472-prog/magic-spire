@@ -1,6 +1,15 @@
 extends RefCounted
 const Queries=preload("res://ui/target_queries.gd")
 
+static func practice_copy(t) -> void:
+ var ui=t.ui;ui.restart(42,true,"advanced");await t.frames()
+ var before=ui.game.export_snapshot()
+ ui.show_route=true;ui.render(ui.view);await t.frames()
+ var text=t.visible_text(ui.layout)
+ t.check(text.count(ui.view.practice_hint)==1,"COPY practice overview displays its exercise hint exactly once")
+ t.check(text.contains("6回合") and text.contains("挂钩3次") and text.contains("仅限拘束面"),"COPY practice overview preserves time, tools and face requirements")
+ t.check(ui.game.export_snapshot()==before,"COPY opening practice overview preserves resources and action state")
+
 static func feedback(t) -> void:
  var ui=t.ui;ui.restart(42);await t.frames()
  var report=ui.feedback_report;report.clear_draft()
@@ -40,7 +49,7 @@ static func feedback(t) -> void:
  t.check(not t.visible_text(ui.drawer_layer).contains("gmail.com"),"FEEDBACK confirmation also hides recipient")
  var old_endpoint=ProjectSettings.get_setting("feedback/endpoint",null)
  ProjectSettings.set_setting("feedback/endpoint","");await press(t,"FeedbackSend");await t.frames()
- t.check(report.message.contains("尚未开通") and not report.busy,"FEEDBACK missing endpoint preserves report instead of claiming success")
+ t.check(report.message.contains("待开通") and not report.busy,"FEEDBACK missing endpoint preserves report instead of claiming success")
  var requests=[]
  report.transport=func(url,method,body):requests.append({"url":url,"method":method,"body":body});return OK
  ProjectSettings.set_setting("feedback/endpoint","https://feedback.invalid/exec")
@@ -153,7 +162,7 @@ static func feedback_save(t) -> void:
  report._completed(HTTPRequest.RESULT_SUCCESS,200,PackedStringArray(),JSON.stringify({"service":"spire-feedback","schema":1}).to_utf8_buffer());await t.frames()
  var old_format=posted.call(1)
  t.check(requests.size()==2 and old_format is Dictionary and not old_format.has("save"),"FEEDBACK old service schema submits without the save: the payload keeps the old format")
- t.check(t.visible_text(ui.drawer_layer).contains("当前反馈服务暂不支持附带存档。"),"FEEDBACK old service schema submits without the save: the page explains the downgrade")
+ t.check(t.visible_text(ui.drawer_layer).contains("当前反馈服务仅接收文字和截图。"),"FEEDBACK old service schema submits without the save: the page explains the downgrade")
  report._completed(HTTPRequest.RESULT_SUCCESS,200,PackedStringArray(),JSON.stringify({"ok":true,"id":report.draft.id}).to_utf8_buffer());await t.frames()
  t.check(not report.busy and report.message.contains("提交成功"),"FEEDBACK old service schema submits without the save: the report still reaches the old service")
 
@@ -183,7 +192,7 @@ static func feedback_save(t) -> void:
   await t.frames()
   var degraded=posted.call(1)
   t.check(requests.size()==2 and degraded is Dictionary and not degraded.has("save"),"FEEDBACK probe failure degrades without blocking: "+failure+" still submits without the save")
-  t.check(t.visible_text(ui.drawer_layer).contains("当前反馈服务暂不支持附带存档。"),"FEEDBACK probe failure degrades without blocking: "+failure+" shows the downgrade notice")
+  t.check(t.visible_text(ui.drawer_layer).contains("当前反馈服务仅接收文字和截图。"),"FEEDBACK probe failure degrades without blocking: "+failure+" shows the downgrade notice")
   report._completed(HTTPRequest.RESULT_TIMEOUT,0,PackedStringArray(),PackedByteArray());await t.frames()
   t.check(not report.busy and ui.game.export_snapshot()==before,"FEEDBACK probe failure degrades without blocking: "+failure+" leaves the draft and the game state")
 
@@ -195,7 +204,7 @@ static func feedback_save(t) -> void:
   report.clear_draft()
   report.draft={"id":"","kind":"bug","title":"旧草稿","description":"上一进程保留的草稿。","include_logs":false,"include_save":include_save,"context":restored_context.duplicate(true),"logs":"","images":[]}
  restored_draft.call(true)
- t.check(not report.save_captured and not report.payload().has("save") and report.save_status_text().contains("没有捕获到存档") and not report.save_status_text().contains("当前没有可附带的存档。"),"FEEDBACK restored draft before its first use names the real reason: an uncaptured draft never claims no save exists")
+ t.check(not report.save_captured and not report.payload().has("save") and report.save_status_text().contains("请重新创建草稿") and not report.save_status_text().contains("可附带存档：0份。"),"FEEDBACK restored draft before its first use names the real reason: an uncaptured draft never claims no save exists")
  var restored_before=ui.game.restart_snapshot()
  report.open();await t.frames()
  # Reopening a draft of another build refreshes `context.version` and clears the old submission id
@@ -208,7 +217,7 @@ static func feedback_save(t) -> void:
  var restored_text=Marshalls.base64_to_raw(String(restored_body.get("save",{}).get("data",""))).get_string_from_utf8()
  var restored_decoded=Store.unpack(restored_text)
  t.check(restored_body.has("save") and String(restored_body.save.name)=="tower.json" and restored_decoded.ok and restored_decoded.snapshot==restored_before,"FEEDBACK restored draft captures at its first use: the attachment is this run's current fixed point")
- t.check(t.visible_text(ui.drawer_layer).contains("tower.json") and not t.visible_text(ui.drawer_layer).contains("当前没有可附带的存档。"),"FEEDBACK restored draft captures at its first use: the page shows the attachment instead of a missing save")
+ t.check(t.visible_text(ui.drawer_layer).contains("tower.json") and not t.visible_text(ui.drawer_layer).contains("可附带存档：0份。"),"FEEDBACK restored draft captures at its first use: the page shows the attachment instead of a missing save")
  var restored_json=JSON.stringify(restored_body)
  var drawings_before=ui.map_drawings
  ui.map_drawings={"probe":[PackedVector2Array([Vector2(3,4)])]}
@@ -229,9 +238,9 @@ static func feedback_save(t) -> void:
   ui.saves=old_saves
   await t.frames()
   requests.clear()
-  t.check(not report.payload().has("save") and t.visible_text(ui.drawer_layer).contains("未附带存档"),"FEEDBACK oversized or missing save never blocks: "+reason+" is visible and attaches nothing")
-  var named={"none":"当前没有可附带的存档。","rejected":"当前进度存档校验未通过","oversized":"超过 2 MB"}[reason]
-  t.check(t.visible_text(ui.drawer_layer).contains(named) and not (reason!="none" and t.visible_text(ui.drawer_layer).contains("当前没有可附带的存档。")),"FEEDBACK every missing save names its own reason: "+reason+" shows "+named+" and never claims no save exists")
+  t.check(not report.payload().has("save") and not report.save_status_text().is_empty() and t.visible_text(ui.drawer_layer).contains(report.save_status_text()),"FEEDBACK oversized or missing save never blocks: "+reason+" is visible and attaches nothing")
+  var named={"none":"可附带存档：0份。","rejected":"存档校验失败","oversized":"超过2 MB"}[reason]
+  t.check(t.visible_text(ui.drawer_layer).contains(named) and not (reason!="none" and t.visible_text(ui.drawer_layer).contains("可附带存档：0份。")),"FEEDBACK every missing save names its own reason: "+reason+" shows "+named+" and never claims no save exists")
   report.review();report.submit();await t.frames()
   t.check(requests.size()==1 and requests[0].method==HTTPClient.METHOD_POST and report.busy,"FEEDBACK oversized or missing save never blocks: the report submits without a probe")
   report._completed(HTTPRequest.RESULT_TIMEOUT,0,PackedStringArray(),PackedByteArray());await t.frames()
@@ -243,7 +252,7 @@ static func feedback_save(t) -> void:
  if include!=null:
   include.button_pressed=false;include.toggled.emit(false);await t.frames()
  requests.clear()
- t.check(not report.draft.include_save and not report.payload().has("save") and t.visible_text(ui.drawer_layer).contains("未附带存档：已取消勾选。"),"FEEDBACK unchecked save is omitted but submit still works: the reason is visible and nothing is attached")
+ t.check(not report.draft.include_save and not report.payload().has("save") and t.visible_text(ui.drawer_layer).contains("存档：已取消附带。"),"FEEDBACK unchecked save is omitted but submit still works: the reason is visible and nothing is attached")
  report.review();report.submit();await t.frames()
  t.check(requests.size()==1 and requests[0].method==HTTPClient.METHOD_POST and report.busy,"FEEDBACK unchecked save is omitted but submit still works: the report posts without a probe")
  report._completed(HTTPRequest.RESULT_SUCCESS,200,PackedStringArray(),JSON.stringify({"ok":true,"id":report.draft.id}).to_utf8_buffer());await t.frames()
@@ -259,7 +268,7 @@ static func feedback_save(t) -> void:
 # wording pins in tests/card_text_cases.gd; product code keeps TERMS as the only wording source.
 const TERM_PINS={
  "mana_search":{"bound":[{"name":"检索","detail":"从抽牌堆抽取指定类型的牌。"}],
-  "free":[{"name":"检索","detail":"从抽牌堆抽取指定类型的牌。"},{"name":"束缚等级","detail":"上身或腿部综合受限程度（0—4级）。0级不等于各部位自由。"}]},
+  "free":[{"name":"检索","detail":"从抽牌堆抽取指定类型的牌。"},{"name":"束缚等级","detail":"上身或腿部综合受限程度（0—4级）。各部位的使用条件另行判断。"}]},
  "witch_escape_practice":{"bound":[{"name":"挣扎","detail":"受力量、蓄力和挣扎倍率影响。卡牌以卡面伤害的50%波及同位置其他拘束具，各自计算倍率。"}],
   "free":[{"name":"滑脱","detail":"受灵巧、蓄力和滑脱倍率影响；三档免疫。卡牌波及同大部位其他位置：各选最松的可滑脱装备1件，并列随机；基础为卡面伤害的50%，各自计算倍率。"}]}}
 
@@ -432,6 +441,7 @@ static func card_face_incremental(t) -> void:
  face.free()
 
 static func run(t) -> void:
+ await practice_copy(t)
  await feedback(t)
  await feedback_save(t)
  await run_header(t)
@@ -625,7 +635,7 @@ static func tutorial(t) -> void:
  var search=ui.find_child("TutorialSearch",true,false)
  for query in ["光滑的丝袜","施法动作教程","余烬护符","火焰精通"]:
   search.text=query;search.text_changed.emit(query);await t.frames()
-  t.check(t.visible_text(book.results).contains("没有匹配条目"),"BOOK search does not resurface specific card or relic explanations: "+query)
+  t.check(t.visible_text(book.results).contains("匹配结果：0项"),"BOOK search does not resurface specific card or relic explanations: "+query)
  search.text="乌龟壳";search.text_changed.emit(search.text);await t.frames()
  t.check(t.visible_text(book.results).contains("跨战能量") and t.visible_text(book.results).contains("30点") and t.visible_text(book.results).contains("4层"),"BOOK shared resource rules remain searchable by their turtle-shell modifier")
  search.text="力量与灵巧";search.text_changed.emit(search.text);await t.frames()
@@ -639,7 +649,7 @@ static func tutorial(t) -> void:
  t.check(search.has_focus() and search.text=="肩带" and t.visible_text(book.results).contains("单手套") and not t.visible_text(book.results).contains("余烬护符"),"BOOK native search preserves typing focus and filters across categories")
  await t.capture("ui-93-tutorial-search.png")
  search.text="不存在的测试词";search.text_changed.emit(search.text);await t.frames()
- t.check(t.visible_text(book.results).contains("没有匹配条目"),"BOOK empty search has visible recovery hint")
+ t.check(t.visible_text(book.results).contains("匹配结果：0项"),"BOOK empty search has visible recovery hint")
  var escape=InputEventKey.new();escape.keycode=KEY_ESCAPE;escape.pressed=true;t.root.push_input(escape,true);escape=escape.duplicate();escape.pressed=false;t.root.push_input(escape,true);await t.frames()
  t.check(not ui.show_tutorial and ui.game.export_snapshot()==before,"BOOK browsing/search/Escape never changes gameplay or random state")
 
@@ -669,9 +679,10 @@ static func posture_controls(t) -> void:
  t.check(ui.view.posture=="lie" and ui.find_child("PostureChoices",true,false).get_child_count()==2 and ui.find_child("Posture_stand",true,false)==null,"POSTURE lying shows only ordinary and wall sitting, no direct standing")
  await t.capture("ui-87-posture-choices-lying.png")
  ui.restart(42);ui.game.state.energy=2;ui.render();await t.frames();await press(t,"Posture_sit")
- for i in range(2):
-  var kick_point=ui.find_child("BasicAttack_kick",true,false).get_global_rect().get_center()
-  await t.mouse_button(kick_point,MOUSE_BUTTON_RIGHT,true);await t.mouse_button(kick_point,MOUSE_BUTTON_RIGHT,false)
+ var kick_point=ui.find_child("BasicAttack_kick",true,false).get_global_rect().get_center()
+ await t.move_mouse(kick_point)
+ await t.mouse_button(kick_point,MOUSE_BUTTON_RIGHT,true);await t.mouse_button(kick_point,MOUSE_BUTTON_RIGHT,false)
+ t.check(ui.find_child("BasicAttack_kick",true,false).drag_payload.form==2,"POSTURE right click skips the standing-only sweep and selects seated kick before paying energy")
  for i in range(2): t.check(await t.click("attack",{"type":"kick","form":2}),"POSTURE spend energy through actual seated kick")
  t.check(ui.view.energy==0 and ui.find_child("Posture_stand",true,false).disabled and ui.find_child("Posture_stand",true,false).text.contains("能量"),"POSTURE unaffordable adjacent choice remains visible with reason")
  t.check(not ui.find_child("Posture_stand_wall",true,false).disabled,"POSTURE discounted wall choice can remain usable")

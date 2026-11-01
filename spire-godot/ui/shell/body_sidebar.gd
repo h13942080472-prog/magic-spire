@@ -33,7 +33,7 @@ static func expand_applied(ui, before: Dictionary, after: Dictionary) -> void:
    ui.expanded_body_regions.append(region.id)
 
 func _ready() -> void:
- add_theme_stylebox_override("panel",Palette.window_frame())
+ add_theme_stylebox_override("panel",Palette.hud_surface())
  for state in ["normal","hover","pressed","focus","disabled"]:
   var style=Palette.button_style(state,Palette.CYAN)
   for side in [SIDE_LEFT,SIDE_TOP,SIDE_RIGHT,SIDE_BOTTOM]: style.set_content_margin(side,4)
@@ -43,6 +43,11 @@ func _ready() -> void:
 
 func _resize_regions() -> void:
  if portrait_expanded: return
+ # Artwork shares the panel's height budget with the region list.
+ var canvas_height=size.y-get_theme_stylebox("panel").get_minimum_size().y
+ $Canvas/EquipmentPortrait.size.y=maxf(0.0,canvas_height-$Canvas/EquipmentPortrait.position.y-8.0)
+ $Canvas/Divider.size.y=maxf(0.0,canvas_height-$Canvas/Divider.position.y-18.0)
+ $Canvas/ExpandPortrait.position.y=canvas_height-50.0
  if is_instance_valid(_ui) and not is_equal_approx(size.y,_last_height): configure(_ui)
 
 func _expand_portrait() -> void:
@@ -119,8 +124,8 @@ func _presentation_key(ui) -> Array:
 func configure(ui) -> void:
  _ui=ui;_last_height=size.y
  $Canvas/Title.text=ui.localization.display("身体与拘束具")
- $Canvas/Title.add_theme_color_override("font_color",ui.GOLD)
- $Canvas/Divider.color=ui.GOLD.darkened(0.65)
+ $Canvas/Title.add_theme_color_override("font_color",ui.MUTED)
+ $Canvas/Divider.color=Palette.HAIRLINE
  $Canvas/EquipmentPortrait.configure(ui.view,ui.EquipmentPortrait.uses_fixed_portrait(ui.view,ui.display_settings.fixed_hero_portrait))
  $Canvas/ExpandPortrait.tooltip_text=ui.localization.text("ui.portrait.expand","放大立绘")
  if portrait_expanded:
@@ -145,6 +150,7 @@ func configure(ui) -> void:
  for region in ordered_regions:
   var region_id=region.id
   var header=ui._button(region.name+"  "+str(region.count)+"  ›",func():_toggle(ui,region_id),ui.GOLD,true)
+  Palette.style_button(header,ui.GOLD,"quiet")
   header.name="BodyRegion_"+region.id;header.custom_minimum_size=Vector2(COLUMN_WIDTH,40)
   header.clip_text=true
   header.add_theme_font_size_override("font_size",11 if header.text.length()>14 else 16)
@@ -161,6 +167,7 @@ func configure(ui) -> void:
     ui.show_body=not ui.show_body if ui._body_at(ui.selected_slot).id==body_id else true
     ui.selected_slot=body_id;ui.selected_candidate="";ui.player_pick=false;ui.render(ui.view),ui.CYAN if body.id==ui._body_at(ui.selected_slot).id else (ui.GOLD if body.occupied else ui.MUTED.darkened(0.5)),true)
    button.name="BodySlot_"+body.id;button.custom_minimum_size=Vector2(0,32);button.clip_text=true
+   Palette.style_button(button,ui.CYAN,"quiet")
    button.add_theme_font_size_override("font_size",14)
    for state in ["normal","hover","pressed","focus","disabled"]:
     var style=button.get_theme_stylebox(state).duplicate()
@@ -172,6 +179,11 @@ func configure(ui) -> void:
     var style=button.get_theme_stylebox("normal").duplicate()
     style.bg_color=Color("254b50");style.border_color=ui.CYAN
     button.add_theme_stylebox_override("normal",style);button.tooltip_text+=" · 可一键解除"
+   if body.id==ui._body_at(ui.selected_slot).id:
+    var selected_style=button.get_theme_stylebox("normal").duplicate()
+    selected_style.bg_color=Color("293b40");selected_style.border_color=ui.CYAN
+    selected_style.border_width_left=3
+    button.add_theme_stylebox_override("normal",selected_style)
    button.set_meta("can_release",body.can_release)
    _drop_callbacks(ui,button,body.id);column.add_child(button)
    children.append({"body":body,"button":button})
@@ -189,7 +201,7 @@ func configure(ui) -> void:
   var row=rows[id];var active=id in ui.expanded_body_regions
   var header=row.header
   header.text=ui.localization.display(row.region.name+"  "+str(row.region.count)+("  −" if active else "  ›"))
-  if active: header.add_theme_stylebox_override("normal",Palette.button_style("normal",ui.CYAN))
+  if active: header.add_theme_stylebox_override("normal",Palette.button_style("pressed",ui.GOLD,"quiet"))
   header.position=Vector2(COLUMN_X,y);header.size=Vector2(COLUMN_WIDTH,row.header_height)
   ui.body_buttons[id]=header;y+=row.header_height
   row.scroller.visible=active

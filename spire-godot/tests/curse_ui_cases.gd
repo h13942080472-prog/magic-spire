@@ -18,7 +18,7 @@ static func run(t) -> void:
  ui.render();await t.frames()
  t.check(ui.view.hand.size()==2 and ui.view.hand[0].cost=="1" and ui.view.hand[1].cost=="—","CURSE UI cost and unplayable cost mark")
  var text=t.visible_text(ui.card_buttons[sensitive])
- t.check(text.contains("保留") and text.contains("不可打出") and text.contains("1.2"),"CURSE UI sensitive complete card text")
+ t.check(text.contains("保留") and text.contains("被动牌") and text.contains("1.2"),"CURSE UI sensitive complete card text")
  await t.capture("ui-curse-cards.png")
  var before=ui.game.export_snapshot()
  await t.flip(sensitive)

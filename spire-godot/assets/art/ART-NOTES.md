@@ -1,5 +1,16 @@
 # 本批美术提示词与来源
 
+## 2026-10-31 强人锁女 SVG 卡图
+
+- 用户要求简洁SVG卡面，直接绘制 `assets/ui/cards/art_submission.svg`（480×320）。以绳索绑合的牌片、黄铜锁扣与中断的攻击符号构图，沿用深紫、金色和青绿配色；无外部素材、位图嵌入、文字字体或脚本依赖。
+- 接入 `ui/card_face.gd::ILLUSTRATIONS` 的 `art_submission`，手牌、悬停及图鉴复用同一纹理，卡牌规则保持原样。
+
+## 2026-10-31 绳艺大师与助理 SVG
+
+- 按用户要求直接绘制原创矢量角色，素材为 `assets/ui/enemies/rope_master.svg` 与 `assets/ui/enemies/rope_assistant.svg`，均为640×840透明画布；由路径、描边与渐变构成，无外部图片、字体或脚本依赖。
+- 大师采用银发卷须、单片眼镜、深紫长衣和金色绳结，双手呈展示动作；成年助理采用铜色短发、青绿工作服、绳盘和工具包。沿用已有敌人图的深轮廓、金色与青绿色配色。
+- 经 `data/enemies.gd` 的 `visual` 字段与 `ui/arena.gd::ILLUSTRATIONS` 接入既有战斗及图鉴显示通路，替换原借用的绳堆与绳索形象；战斗规则与站位保持原样。
+
 ## 2026-09-21 股绳差分运行时接入
 
 - 后续接入覆盖普通受限站姿与平板锁受限站姿；所有包含单手套的组合（含单手套＋平板锁）按用户最终要求沿用原底图及原加强带，不应用本次差分。此前两节是素材准备记录。
@@ -455,3 +466,12 @@ assets/ui/relics/masochist_mark.svg、doubao.svg、deepseek.svg 为本次手工�
 使用用户提供的两张1536×2304对齐原图，通过 `tools/build_equipment_material_layers.py` 本地像素差异、既有抠图与RGBA替换函数处理，没有生成新画面；32张PNG均无嵌入元数据。皮带源 `C:/Users/16563/Downloads/00169-825092941.png`，SHA-256 `b07a285599e8700b86cb097bc9e057d55c4f8a93980d07be4f80702dd03f8964`；红绳源 `C:/Users/16563/Downloads/00163-4122631836.png`，SHA-256 `056d6f16b6058560b24e6ef32b1a6e216bff3f9e7389e49e07a834602b28f2d6`。
 
 成品来源、尺寸、坐标及哈希集中于 `equipment-material-layers.json`。普通／平板锁、股绳有无与上身两种材质共8张底图；七个腿锚点各有红绳／皮带／自由切片，大腿根另有平板锁版本，共24张。连续分界采用源图y=1180、1325、1480、1625、1800、1965、2135、2304。皮革版只从两张源图的差异中保留9个大面积深色皮带组件及窄抗锯齿边缘，再合成到自由切片的统一皮肤底图；皮带掩膜不得触及横切片分界。这样相邻部位混用红绳、皮带或自由状态时不会切换整段皮肤色调，也不会形成横向黑线。红绳与自由切片重建逐可见像素保持原有成品。单腿套生成器复用这些边界，单手套仍使用其专用旧切片，避免恢复旧手臂像素。显示选择契约见 `docs/spec/release-interface.md`。
+
+## 2026-10-31｜魔法少女被捕过场插图
+
+以下成人向插图均由用户直接提供。项目内PNG统一以 Pillow 重新编码，不保留源文件的 `parameters` 或其它附加元数据；没有使用生成式改图。
+
+- `assets/art/prison-capture-intro-leather-v1.png`：皮革拘束分支；源文件 `codex-clipboard-d9d3fa4f-ed04-4009-bb03-0c0b7315d056.png`，1472×2432，源SHA-256 `4552CFAFBFCE29F41F72A11A868CACB3A1123AD718B9FC8D880DC9D68CE19A0D`；无元数据成品SHA-256 `83430FA3E3DC2D6E2B8DBC06A24EE6E73D2ABC8A214279848C1A62223022438A`。
+- `assets/art/prison-capture-intro-rope-v1.png`：绳索拘束分支；替换源文件 `00014-1991231483.png`，1536×2304，源SHA-256 `F965871847E7BCFF6BA5B57AADA807928B5DBD8EA3B9D0C1236D4B61539B56B4`；无元数据成品SHA-256 `B6870F64469FB74FDE2579B4BC9F64FAFD2B7F7E2DE2C0F818D96712B63A2287`。
+- `assets/art/prison-capture-intro-flat-lock-v1.png`：固定主角立绘／平板锁分支；源文件 `codex-clipboard-8f829d7c-c094-4258-8aca-1d26458c4155.png`，1536×2304，源SHA-256 `5A6D98B02F21797319AF9941ED43A49665BCA3EAB227EFC234BF41DA2290DA51`；无元数据成品SHA-256 `C07AD907E9ACE1BCD784894B4110E9B98E9D59277513E80AF2A5AF00AB89EA91`。
+- `assets/art/hero-hogtie-pose-cutout-v1.png`：仅用于战斗中的驷马缚特殊姿势；源文件 `00003-71753615 (1).png`，1920×1920，源SHA-256 `3792F84EFE76618D7B18686B91539CCF90E9CC9EF3AD68E1D524CC73C6D50F3A`。使用本地 `isnet-anime` 模型移除白底并按非透明边界留24像素裁切，成品1892×1101、RGBA、SHA-256 `B2CF0136BB6D7C5C2CDACAC9AE9BAF24B57FD9D4DE5D4FA6B41107C224D0788D`，无附加元数据。

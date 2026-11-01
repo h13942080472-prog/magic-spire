@@ -27,6 +27,7 @@ static func equipment_choices(ui, data: Dictionary, body: Dictionary) -> Array:
  return Queries.equipment_choices(ui.view,data,ui.view.version,body)
 
 static func clear(ui, refresh_quick: bool=true) -> void:
+ if is_instance_valid(ui.card_interaction): ui.card_interaction.clear()
  for entry in ui.drag_hints:
   if is_instance_valid(entry): entry.hide();entry.queue_free()
  ui.drag_hints.clear()
@@ -52,7 +53,9 @@ static func begin(ui, data: Dictionary) -> void:
  ui.active_drag=data.duplicate(true)
  var available=choices(ui,data)
  focus_bodies(ui,data)
- if available.is_empty(): return
+ if available.is_empty():
+  if data.has("card_uid"): ui._card_interaction().begin_drag(data,true)
+  return
  # Menus remain intact and return after cancel; only their visible layer is hidden.
  if is_instance_valid(ui.drawer_layer) and ui.drawer_layer.visible:
   ui.drag_hidden.append(ui.drawer_layer);ui.drawer_layer.hide()
@@ -68,6 +71,7 @@ static func begin(ui, data: Dictionary) -> void:
   elif p.get("target","")=="guard_bind": actors.guard_bind=c
   elif p.get("self_target",false) or data.has("self_action_key") or (p.kind=="card" and ui._card_is_free(p.uid,p.get("free",false))): actors.hero=c
  for id in actors:
+  if id=="hero": continue
   if not ui.actor_targets.has(id): continue
   var actor=ui.actor_targets[id];var c=actors[id]
   highlight(ui,actor)
@@ -91,6 +95,15 @@ static func begin(ui, data: Dictionary) -> void:
   var bounds=ui.layout.get_global_transform().affine_inverse()*button.get_global_rect()
   var panel=hint(ui,"hand_"+uid,button.display_name,"消耗这张牌",Rect2(bounds.position.x,530,142,60))
   receiver(ui,panel,"HandDragTarget_"+uid,c,data)
+ if data.has("card_uid"):
+  var untargeted=actors.has("hero") and available.all(func(c):return c.payload.get("enemy","")=="" and (c.payload.get("self_target",false) or c.payload.get("target","")==""))
+  if untargeted:
+   # The battlefield is the native receiver; the hand, sidebar and header stay cancel space.
+   var zone=Control.new();zone.name="SelfCardPlayArea";zone.z_index=220
+   zone.mouse_filter=Control.MOUSE_FILTER_IGNORE;zone.set_meta("target_id","cast")
+   ui._place(zone,Rect2(384,74,1200,546));ui.drag_hints.append(zone)
+   receiver(ui,zone,"CardCastZone",actors.hero,data)
+  ui._card_interaction().begin_drag(data,not untargeted)
 
 static func focus_bodies(ui, data: Dictionary) -> void:
  preload("res://ui/quick_release_bar.gd").refresh(ui,data)
@@ -135,7 +148,8 @@ static func hint(ui, id: String, title: String, detail: String, rect: Rect2) -> 
  panel.add_theme_stylebox_override("panel",style)
  ui._place(panel,Rect2(rect.position,Vector2(rect.size.x,0)))
  var column=VBoxContainer.new();column.add_theme_constant_override("separation",3);panel.add_child(column)
- column.add_child(ui._label(title,14,ui.CYAN));column.add_child(ui._label(detail,12,ui.TEXT))
+ column.add_child(ui._label(title,14,ui.CYAN))
+ if detail!="": column.add_child(ui._label(detail,12,ui.TEXT))
  ui._ignore_mouse(panel);ui.drag_hints.append(panel)
  panel.minimum_size_changed.connect(func(): fit_hint.call_deferred(panel,rect))
  fit_hint.call_deferred(panel,rect)

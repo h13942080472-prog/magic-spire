@@ -11,7 +11,7 @@ static func potion_amount(g, value: float) -> float:
  if not g.occupied("mouth"): return value
  var severity=0
  for piece in g.equipment_at("mouth"):
-  severity=maxi(severity,piece.grade+g.tier(piece.durability,piece.maximum))
+  severity=maxi(severity,g.RestraintValue.from_profile(piece.grade,g.tier(piece.durability,piece.maximum)))
  return floorf(value/2.0) if severity>4 else ceilf(value/2.0)
 
 static func description(g, type: String) -> String:
@@ -24,23 +24,23 @@ static func effect_description(type: String, value: int, assisted: bool=false, n
  var spec=Tools.TYPES[type]
  var text=""
  match spec.effect:
-  "mana": text="恢复%d魔力，不超过上限。" % value
+  "mana": text="恢复%d魔力，至多恢复至上限。" % value
   "energy": text="本回合获得%d能量。" % value
   "charge": text="获得%d层蓄力。" % value
   "draw": text="抽%d张牌，最多抽到%d张手牌。" % [value,preload("res://data/balance.gd").HAND_LIMIT]
   "reserve_mana": text="获得%d点临时魔力，优先抵扣法术和卡牌耗魔。" % (value*preload("res://data/card_rules.gd").RESERVE_MANA_VALUE)
   "sure_cast": text="本场战斗下一次合法施法成功率100%，费用照常。"
-  "slip_boost": text="选择一个部位，组内全部位置可滑脱3级紧度的拘束具，滑脱最终伤害×%d。本场战斗或整备结束时失效，重复不叠加。" % value
+  "slip_boost": text="选择一个部位，组内全部位置可滑脱3级紧度的拘束具，滑脱最终伤害×%d。本场战斗或整备结束时失效，同源仅生效一次。" % value
  if spec.get("unrestricted_use",false):
-  text+="不受身体和姿势限制。"
+  text+="无视身体和姿势限制。"
  elif noncombat:
-  text+="非战斗与探索阶段不受身体和姿势限制。"
+  text+="战斗与探索之外，无视身体和姿势限制。"
  elif spec.category=="potion":
-  if spec.get("unrestricted_outside_battle",false): text+="非战斗与探索阶段不受身体和姿势限制；战斗中："
-  text+="触手朋友协助饮用，不受身体和姿势限制。" if assisted else "上肢拘束分值小于1可站着喝，0.5也可；达到1时须坐下或躺下。坐躺时无需手指握持。"
+  if spec.get("unrestricted_outside_battle",false): text+="战斗与探索之外，无视身体和姿势限制；战斗中："
+  text+="触手朋友协助饮用，无视身体和姿势限制。" if assisted else "上肢拘束分值小于1可站着喝，0.5也可；达到1时须坐下或躺下。坐躺时无需手指握持。"
  else: text+="触手朋友协助展开，无需手指或脚趾自由。" if assisted else "手指或脚趾任一部位自由即可使用。"
- if spec.category=="potion": text+="嘴部不自由时效果减半；整数按嘴部装备等级＋紧度≤4向上取整，>4向下取整。" if spec.get("mouth_reduction",true) else "不受口部减效影响。"
- return text+("使用1次后消失" if spec.uses==1 else "每瓶可用%d次，每次消耗1次" % spec.uses)+"，不消耗能量或魔力。"
+ if spec.category=="potion": text+="嘴部受限时效果减半；整数按嘴部装备等级＋紧度≤4向上取整，>4向下取整。" if spec.get("mouth_reduction",true) else "口部受限时仍保留完整效果。"
+ return text+("使用1次后消失" if spec.uses==1 else "每瓶可用%d次，每次消耗1次" % spec.uses)+"，能量与魔力费用为0。"
 
 static func scroll_reason(g) -> String:
  if not Tools.assisted(g) and not ["fingers","toes"].any(func(slot):return ["left","right"].any(func(side):return not g.hand_blocked(slot,side))): return "手指和脚趾均被拘束，无法展开卷轴。"
@@ -59,7 +59,7 @@ static func reason(g, type: String) -> String:
   if g.state.draw.is_empty() and g.state.discard.is_empty(): return "抽牌堆和弃牌堆均没有牌。"
  if spec.effect=="sure_cast":
   if g.state.phase not in g.RelicEffects.COMBAT_PHASES: return "定咒卷轴只能在战斗或特殊战斗中使用。"
-  if g.state.sure_cast: return "本场战斗已有一次必定成功的施法尚未使用。"
+  if g.state.sure_cast: return "本场战斗仍有一次必定成功的施法。"
  return ""
 
 # 道具使用事实（道具域，批 R4 起、R5 收口）：显示事实的唯一来源（docs/spec/candidate-removal.md「接口」T5／T8）。
@@ -99,12 +99,12 @@ static func slip_multiplier(g, target: Dictionary) -> float:
  return result
 
 static func validate_buffs(g, buffs: Variant) -> String:
- if not buffs is Array: return "部位药剂效果记录不完整。"
+ if not buffs is Array: return "部位药剂效果记录缺损。"
  var seen=[]
  var groups=g.Equipment.panel_groups().map(func(group):return group.id)
  for buff in buffs:
-  if not g.Snapshot.fields(buff,"type:s group:s") or not Tools.TYPES.has(buff.type): return "部位药剂效果记录不正确。"
-  if Tools.TYPES[buff.type].get("target_scope","")!="body_group" or buff.group not in groups: return "部位药剂的作用位置不正确。"
+  if not g.Snapshot.fields(buff,"type:s group:s") or not Tools.TYPES.has(buff.type): return "部位药剂效果记录有误。"
+  if Tools.TYPES[buff.type].get("target_scope","")!="body_group" or buff.group not in groups: return "部位药剂的作用位置有误。"
   var key=buff.type+":"+buff.group
   if key in seen: return "同一部位的药剂效果重复。"
   seen.append(key)

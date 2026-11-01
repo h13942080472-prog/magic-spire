@@ -18,12 +18,12 @@ static func summary(g, type: String) -> String:
     "draw": return "抽%d张牌。" % value
     "reserve_mana": return "获得%d点临时魔力。" % (value*g.Cards.Rules.RESERVE_MANA_VALUE)
     "sure_cast": return "本场下一次施法成功率100%。"
-    "slip_boost": return "本场所选部位滑脱伤害×%d，可滑脱紧度3档拘束具。重复不叠加。" % value
+    "slip_boost": return "本场所选部位滑脱伤害×%d，可滑脱紧度3档拘束具。仅生效一次。" % value
  return ""
 
 static func note(g, type: String) -> String:
  var spec=g.Tools.TYPES[type]
- if spec.get("unrestricted_use",false): return "不受身体限制，不受口部减效影响。"
+ if spec.get("unrestricted_use",false): return "无视身体限制，口部受限时保留完整效果。"
  if g.Tools.assisted(g): return "触手朋友协助展开。" if spec.get("category","")=="scroll" else ""
  if spec.get("category","")=="potion" and spec.get("mouth_reduction",true) and g.occupied("mouth"):
   return "已计入口部受限的药效折损。"

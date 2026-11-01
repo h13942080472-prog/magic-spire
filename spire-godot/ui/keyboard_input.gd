@@ -134,7 +134,7 @@ func refresh_choices() -> void:
  host.selected_candidate=""
  if choices.is_empty():
   var anchor=host.card_buttons.get(selection.get("uid",""),host.find_child("BasicAttack_"+selection.get("type",""),true,false))
-  if anchor!=null: host._show_term(anchor,{"label":"","detail":matches[0].reason if not matches.is_empty() else "当前阶段不能使用。"})
+  if anchor!=null: host._show_term(anchor,{"label":"","detail":matches[0].reason if not matches.is_empty() else "请在可行动阶段使用。"})
  draw_targets()
 
 func selection_data() -> Dictionary:

@@ -35,7 +35,7 @@ static func run(t) -> void:
  var forearm=Replace.install(linked,Replace.request("forearm",1,1,"mid_forearm"))
  var wrist=Replace.install(linked,Replace.request("wrist",1,1))
  var count_before_link=linked.Cards.worn_count(linked)
- var link=linked._install_link(forearm.id,wrist.id,8.0,"fixture",1,[],["forearm","wrist"],["mid_forearm","wrist"])
+ var link=linked._install_link(forearm.id,wrist.id,4.8,"fixture",1,[],["forearm","wrist"],["mid_forearm","wrist"])
  t.check(not link.is_empty() and linked.Cards.worn_count(linked)==count_before_link and linked.RelicEffects.attribute(linked,"strength")==count_before_link,"BINDING ENTHUSIAST excludes connection ropes from equipped-item count")
 
  var sensitive=Cards.give(g,"sensitive")

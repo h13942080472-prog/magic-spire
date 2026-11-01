@@ -12,7 +12,7 @@ static func run(t) -> void:
  t.check(g.state.equipment.is_empty(),"BOX newly applied capture skips the first upkeep installation")
  t.check(not t.find_action(g,"posture",{"dest":"stand","wall":false}).valid,"BOX fixed sitting blocks standing")
  t.check(t.action(g,"end").ok and g._enemy(e.id).intent.kind=="charge" and g.state.guard_bind.progress==50,"BOX first cycle action advances to preparation and triggers one passive")
- t.check(g.state.equipment.size()==3 and g.state.equipment[-1].grade==2 and g.tier(g.state.equipment[-1].durability,g.state.equipment[-1].maximum)==2 and g.state.equipment[-1].material=="leather","BOX following upkeep installs real medium tier-two leather after the two cycle pieces")
+ t.check(g.state.equipment.size()==3 and (g.Equipment.is_shackle(g.state.equipment[-1]) and preload("res://core/equipment_replacement.gd").replacement_value(g,g.state.equipment[-1])==4 or g.state.equipment[-1].grade+g.equipment_tier(g.state.equipment[-1])==4 and g.state.equipment[-1].material=="leather"),"BOX following upkeep installs value-four leather or the permitted fixed-value shackle after two cycle pieces")
  t.check(t.action(g,"end").ok and g._enemy(e.id).intent.kind=="carried_apply" and g._enemy(e.id).carried_indices.size()==3,"BOX preparation preserves stock and announces composite installation")
  var h=Save.roundtrip(t,g,"box prepared stock and sitting capture")
  Save.step_both(t,g,h,"end")

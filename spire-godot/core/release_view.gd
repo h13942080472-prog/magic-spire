@@ -43,9 +43,12 @@ static func preview(g, c: Dictionary) -> Dictionary:
  if target.is_empty(): return {}
  var result={"valid":c.valid,"reason":c.reason,"headline":"","change":"","note":"","method":{"strain":"挣扎","slip":"滑脱","magic_slip":"魔法滑脱","lower":"降低紧度"}.get(p.get("mode",""),""),"modifiers":[],"before":target.durability,"after":target.durability}
  if not c.valid: return result
- if p.get("mode","")=="unlock" or p.get("op","")=="unlock":
+ if p.get("mode","")=="unlock" or p.get("op","")=="unlock" or (p.kind=="item_use" and g.Tools.operation(g._item(p.item).get("type",""))=="unlock"):
+  if g.Equipment.is_shackle(target):
+   result.headline="开锁 → 整件取下";result.after=0.0
+   return result
   result.headline="已上锁 → 已开锁"
-  result.note="开锁后，双臂自由时可取下。" if g.Equipment.lock_only(target) else "耐久与紧度不变。"
+  result.note="开锁后，双臂自由时可取下。" if g.Equipment.lock_only(target) else "耐久与紧度保留。"
   return result
  if g.Equipment.lock_only(target):
   if p.kind=="manual": result.headline="整件取下"
@@ -76,7 +79,7 @@ static func preview(g, c: Dictionary) -> Dictionary:
  result.change="−"+g.number(result.before-result.after)
  if result.after==0:
   if result.note=="": result.note="解除连接" if target.template=="link_rope" or target.has("parent_id") else ("解除该部件" if target.get("root_id","")!="" and target.get("part","")!="body" else "整件取下")
- elif not target.has("parent_id"):
+ elif not target.has("parent_id") and not g.Equipment.is_shackle(target):
   var before_tier=g.tier(result.before,target.maximum);var after_tier=g.tier(result.after,target.maximum)
   if before_tier!=after_tier: result.note=(result.note+" · " if result.note!="" else "")+"紧度 %d档 → %d档" % [before_tier,after_tier]
  if c.mana>0: result.note=(result.note+" · " if result.note!="" else "")+"施法成功时"

@@ -132,17 +132,21 @@ static func empty_point_priority(t) -> void:
  # Whole-slot regional level can already be four while a precise segment is still empty.
  for slot in ["forearm","palm","thigh","calf","ankle","foot","toes"]: g.add_fixture(slot,8)
  t.check(g.level("arms")==4 and g.level("legs")==4,"EMPTY PRIORITY fixture has full regional degrees")
- var scoped=g.Events.ordinary(g,1,false,["rope"]).filter(func(o):return o.get("slot")=="forearm")
- var effect=g.Events.pick(g,scoped)
+ # Leave one real physical vacancy; selection now returns one frozen request.
+ for slot in g.B.ARM_SLOTS+g.B.LEG_SLOTS:
+  for point in g.Equipment.points(slot):
+   if point=="mid_forearm" or g.physical_pieces().any(func(e):return point in g.Equipment.physical_points(e)): continue
+   g._install_template(g.Equipment.default_template(slot),slot,8,10,false,"fixture",1,-1,0,point if g.Equipment.SEGMENTS.has(slot) else "")
+ var effect=g.Events.ordinary(g,3,false,["rope"])
  t.check(effect.get("op")=="install" and effect.get("point")=="mid_forearm","EMPTY PRIORITY event fills the empty subpoint even when its region is already four")
  var used=[]
  for slot in g.B.ARM_SLOTS+g.B.LEG_SLOTS:
   for point in g.Equipment.points(slot):
    if point!="mid_forearm": used.append(point)
- var enemy=g.EnemyPlans.batch_choice(g,{"id":"fixture"},1,2,false,["rope"],used)
+ var enemy=g.EnemyPlans.batch_choice(g,{"id":"fixture","type":"rope_heap"},1,2,false,["rope"],used)
  t.check(enemy.get("point")=="mid_forearm","EMPTY PRIORITY enemy batch uses the shared physical-point preference")
  used.append("mid_forearm")
- t.check(g.EnemyPlans.batch_choice(g,{"id":"fixture"},1,2,false,["rope"],used).is_empty(),"EMPTY PRIORITY batch exclusion never reopens used points")
+ t.check(g.EnemyPlans.batch_choice(g,{"id":"fixture","type":"rope_heap"},1,2,false,["rope"],used).is_empty(),"EMPTY PRIORITY batch exclusion never reopens used points")
  # Composite bodies really cover their small parts, even if they cost no ordinary capacity.
  g=Game.new(43)
  for slot in ["mouth","wrist","fingers"]: g.add_fixture(slot,8)

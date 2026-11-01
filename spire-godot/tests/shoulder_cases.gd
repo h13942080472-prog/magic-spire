@@ -45,7 +45,7 @@ static func run(t) -> void:
  var cost=g.state.energy;var version=g.state.version
  t.check(hit(t,g,"slip",left).ok and g.state.version==version+1 and g.state.energy==cost-1,"SHOULDER actual card pays and removes selected left")
  host=g._equipment(host.id);right=g._equipment(right.id)
- t.check(g.Shoulders.attached(g,host).size()==1 and is_equal_approx(right.durability,12.8-collateral),"SHOULDER right survives left slip with same-group splash")
+ t.check(g.Shoulders.attached(g,host).size()==1 and is_equal_approx(right.durability,12.0-collateral),"SHOULDER right survives left slip with same-group splash")
  var half=g.escape_preview(host,"magic_slip",5)
  right.durability=0;g._cleanup()
  var full=g.escape_preview(host,"magic_slip",5)

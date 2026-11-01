@@ -6,7 +6,9 @@ const CYAN=Color("89d6d2")
 const TEXT=Color("eee8d9")
 const MUTED=Color("a5b3bd")
 const RED=Color("ed9393")
-const INK=Color("111d29")
+const INK=Color("17191f")
+const HUD=Color("101217")
+const HAIRLINE=Color("383b43")
 # Committed-feedback border tokens (ui/impact_feedback.gd): one per trigger family,
 # so a colour is never written inline at the effect site.
 const BORDER_CALM=Color("f2ede0")
@@ -31,18 +33,42 @@ static func surface(bg: Color=INK, border: Color=GOLD.darkened(0.5), radius: int
  s.shadow_size=4;s.shadow_offset=Vector2(0,2)
  return s
 
-static func window_frame() -> StyleBoxTexture:
- var s=StyleBoxTexture.new();s.texture=preload("res://assets/ui/window-frame.svg")
- for side in [SIDE_LEFT,SIDE_TOP,SIDE_RIGHT,SIDE_BOTTOM]: s.set_texture_margin(side,24)
- s.content_margin_left=12;s.content_margin_right=12;s.content_margin_top=8;s.content_margin_bottom=8
+static func window_frame() -> StyleBoxFlat:
+ var s=surface(INK,HAIRLINE,8)
+ s.border_width_top=2
+ s.shadow_size=12;s.shadow_color=Color(0,0,0,0.32)
  return s
 
-static func button_style(state: String, accent: Color=GOLD) -> StyleBoxFlat:
- var backgrounds={"normal":Color("182733"),"hover":Color("29434c"),"pressed":Color("244b52"),"disabled":Color("121d27"),"focus":Color(0,0,0,0)}
- var edge=accent.darkened(0.42) if state=="normal" else (Color("394750") if state=="disabled" else accent)
- var s=surface(backgrounds[state],edge,8)
- s.shadow_size=2 if state=="normal" else 0
- if state in ["hover","pressed"]: s.border_width_left=3
+static func button_style(state: String, accent: Color=GOLD, role: String="default") -> StyleBoxFlat:
+ var backgrounds={"normal":Color("22252d"),"hover":Color("333741"),"pressed":Color("3d3b35"),"disabled":Color("191b21"),"focus":Color(0,0,0,0)}
+ var s=surface(backgrounds[state],HAIRLINE if state=="disabled" else accent.darkened(0.5),5)
+ s.shadow_size=0;s.set_border_width_all(0)
+ s.border_width_bottom=1
+ if role=="quiet":
+  if state=="normal": s.bg_color=Color(0,0,0,0)
+  s.border_width_bottom=0
+ if role=="primary":
+  s.set_corner_radius_all(40)
+  if state not in ["disabled","focus"]:
+   s.bg_color=GOLD.darkened(0.15 if state=="normal" else 0.02 if state=="hover" else 0.3)
+   s.border_color=GOLD.lightened(0.25);s.set_border_width_all(1)
+   s.shadow_color=Color(0.78,0.64,0.38,0.12);s.shadow_size=8
+ if state in ["hover","pressed"]:
+  s.border_color=accent;s.border_width_bottom=2
+ if state=="focus":
+  s.border_color=CYAN;s.set_border_width_all(2)
+ return s
+
+static func style_button(button: Button, accent: Color=GOLD, role: String="default") -> void:
+ for state in ["normal","hover","pressed","focus","disabled"]:
+  button.add_theme_stylebox_override(state,button_style(state,accent,role))
+ for key in ["font_color","font_hover_color","font_pressed_color"]:
+  button.add_theme_color_override(key,HUD if role=="primary" else TEXT)
+
+static func hud_surface(separator: bool=false) -> StyleBoxFlat:
+ var s=surface(HUD,HAIRLINE,0)
+ s.set_border_width_all(0);s.shadow_size=0
+ if separator: s.border_width_top=1
  return s
 
 static func controls() -> Theme:

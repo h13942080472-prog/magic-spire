@@ -175,7 +175,7 @@ static func initial_seed_uses_the_shared_field_check(t) -> void:
  var reference=clean.duplicate(true)
  reference.round="broken"
  var wording=String(g.restore_snapshot(reference).get("error",""))
- t.check(wording=="无法继续这份存档：基础数值类型不正确。","SAVE initial_seed uses the shared field check: the reference wording comes from an existing integer field: "+wording)
+ t.check(wording=="无法继续这份存档：基础数值类型有误。","SAVE initial_seed uses the shared field check: the reference wording comes from an existing integer field: "+wording)
  for broken in ["42",42.0]:
   var saved=clean.duplicate(true)
   saved.initial_seed=broken
@@ -256,6 +256,7 @@ static func save_writes_when_prepare_finishes(t) -> void:
  g.state.room="rest"
  g._start_rest()
  t.check(String(submit(t,g,store_rest,"rest_flask").get("checkpoint",""))=="","SAVE choosing a rest reward is not a fixed point")
+ submit(t,g,store_rest,"rest_begin")
  g.state.rest_left=1
  var last=submit(t,g,store_rest,"end")
  t.check(String(last.get("checkpoint",""))=="prepare_end","SAVE the last rest turn leaves preparation through the same declared checkpoint: "+str(last.get("checkpoint","")))
@@ -312,6 +313,7 @@ static func save_skips_representative_non_points(t) -> void:
  g.state.room="rest"
  g._start_rest()
  submit_sample(t,g,store,"N9 rest reward","rest_flask")
+ submit_sample(t,g,store,"N9 begin remaining rest","rest_begin")
  g.state.rest_left=3
  submit_sample(t,g,store,"N9 rest turn","end")
  g=Game.new(42)
@@ -387,7 +389,7 @@ static func save_fixed_point_preserves_failure_and_format_contract(t) -> void:
  file.store_string(JSON.stringify(envelope));file.close()
  var before=stamp(store,"tower")
  var refused=store.write_game(g)
- t.check(not refused.ok and refused.get("code","")=="version" and String(refused.get("error",""))=="保存已暂停：原存档版本不兼容，只有明确开始新局才会替换。","SAVE the fixed point write keeps the existing incompatible refusal wording: "+str(refused.get("error","")))
+ t.check(not refused.ok and refused.get("code","")=="version" and String(refused.get("error",""))=="保存已暂停：原存档需匹配版本读取，开始新局后将替换原档。","SAVE the fixed point write keeps the existing incompatible refusal wording: "+str(refused.get("error","")))
  var after=stamp(store,"tower")
  t.check(after.main==before.main and after.backup==before.backup,"SAVE the refused fixed point write keeps both files untouched")
  t.check(store.write_game(g,true).ok and store.read_slot("tower").ok,"SAVE the explicit new run still replaces an incompatible primary")
@@ -890,7 +892,7 @@ static func run(t) -> void:
  t.check(not blocked.write_game(g).ok and FileAccess.get_file_as_string(store.path("tower"))==tower_bytes,"SAVE write failure retains original save and live game")
  envelope=JSON.parse_string(tower_bytes);envelope.format=999
  file=FileAccess.open(store.path("tower"),FileAccess.WRITE);file.store_string(JSON.stringify(envelope));file.close()
- t.check(not store.read_slot("tower").ok and store.read_slot("tower").error.contains("版本不兼容"),"SAVE newer primary never silently falls back to old backup")
+ t.check(not store.read_slot("tower").ok and store.read_slot("tower").error.contains("需要匹配的游戏版本"),"SAVE newer primary never silently falls back to old backup")
  var incompatible=FileAccess.get_file_as_string(store.path("tower"))
  t.check(not store.write_game(g).ok and FileAccess.get_file_as_string(store.path("tower"))==incompatible,"SAVE incompatible file appearing mid-session cannot be overwritten automatically")
  t.check(store.write_game(Game.new(42),true).ok and store.read_slot("tower").ok,"SAVE explicit new run can replace incompatible primary")

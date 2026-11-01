@@ -14,6 +14,9 @@ const SPECIAL={"urethral_rod":"focus-c-silicone-urethral-rod"}
 
 static func path(e: Dictionary) -> String:
  if Equipment.lock_only(e): return "res://assets/ui/equipment/restriction-collar.svg"
+ if Equipment.is_shackle(e):
+  var proxy=e.duplicate();proxy.template="fine_belt" if e.template in ["finger_cuffs","toe_cuffs"] else "belt";proxy.material="leather"
+  return path(proxy)
  var template=Equipment.base_template(e.template)
  if template=="special":
   var family=Equipment.Special.TYPES.get(e.get("type",""),{}).get("family","")

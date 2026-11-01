@@ -6,7 +6,7 @@ const E=preload("res://data/equipment.gd")
 
 static func unchanged_replacement(t) -> void:
  var g=Game.new(42)
- var old=g._install_template("mouth_band","mouth",8,10,false,"fixture",1,-1,0)
+ var old=g._install_template("mouth_band","mouth",E.maximum(1)*0.8,E.maximum(1),false,"fixture",1,-1,0)
  var spec={"pool":"ordinary","templates":["mouth_band"],"grade":1,"tier":2,"count":1,"replace":true,"variant":0}
  var before=g.export_snapshot()
  t.check(not A.can_apply(g,spec,"another_enemy") and g.state==before,"APPLY identical fixed variant is unavailable without changing state or random counters")
@@ -37,6 +37,9 @@ static func excluded_links(t) -> void:
  t.check(g.anchor_queries==0,"APPLY explicitly excluded links never enumerate physical anchors")
 
 static func run(t) -> void:
+ preload("res://tests/girl_sound_cases.gd").run(t)
+ preload("res://tests/equipment_audio_cases.gd").run(t)
+ preload("res://tests/restraint_rollout_cases.gd").run(t)
  unchanged_replacement(t)
  excluded_links(t)
  var materials={}

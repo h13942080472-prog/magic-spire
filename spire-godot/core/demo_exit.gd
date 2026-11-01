@@ -29,7 +29,7 @@ static func continue_detail(g, args: Dictionary) -> String:
 static func continue_run(g) -> void:
  for target in g.action_targets():
   if g.cursed_eyes(target) or g.cursed_plate(target) or g.Equipment.lock_only(target): continue
-  target.locked=false
+  g._unlock_equipment(target)
   g._apply_manual_release(target,0.0)
  g._cleanup()
  g.CaptureBind.clear_bind(g)
@@ -50,7 +50,7 @@ static func continue_run(g) -> void:
  g._emit("event","新的塔路已展开。第%s阶段：怪物基础生命×%s，可解除的装备已解除，魔力已补满；快感降低%s，姿势变为站立。" % [["一","二","三"][g.state.demo_cycle],g.number(health_multiplier(g.state)),g.number(pressure_before-g.state.pressure)],{"demo_cycle":g.state.demo_cycle,"pressure_before":pressure_before,"pressure_after":g.state.pressure,"posture_before":posture_before,"posture_after":"stand"})
 
 static func validate(state: Dictionary) -> String:
- if not state.get("demo_cycle") is int or state.demo_cycle<0 or state.demo_cycle>2 or not state.get("demo_finished") is bool: return "游玩阶段记录不正确。"
+ if not state.get("demo_cycle") is int or state.demo_cycle<0 or state.demo_cycle>2 or not state.get("demo_finished") is bool: return "游玩阶段记录有误。"
  if state.demo_finished and (state.get("phase")!="cleared" or state.get("practice")!=false or state.get("room")!="exit"): return "已结束的游戏必须位于出口。"
- if state.get("practice",false) and state.demo_cycle!=0: return "练习不能进入后续阶段。"
+ if state.get("practice",false) and state.demo_cycle!=0: return "练习已结束。"
  return ""

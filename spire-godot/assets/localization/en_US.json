@@ -2,86 +2,356 @@
   "schema_version": 1,
   "locale": "en_US",
   "messages": {
-    "ui.art.inspect.fit": {"source": "适应屏幕", "text": "Fit to screen"},
-    "ui.art.inspect.native": {"source": "1:1 原图", "text": "1:1 original"},
-    "ui.art.test": {"source": "测试版画风", "text": "Test artwork"},
-    "ui.art.formal": {"source": "正式版·跟随模式", "text": "Formal · Follow mode"},
-    "ui.art.original": {"source": "正式版·原图", "text": "Formal · Original"},
-    "ui.art.fixed": {"source": "正式版·扶她出去", "text": "Formal · Futa Off"},
-    "ui.shop.refresh": {"source": "刷新 · {price}魔力", "text": "Refresh · {price} Mana"},
-    "ui.portrait.expand": {"source": "放大立绘", "text": "Enlarge portrait"},
-    "ui.flask.deposit_uses": {"source": "存 {dots}", "text": "In {dots}"},
-    "ui.flask.withdraw_uses": {"source": "取 {dots}", "text": "Out {dots}"},
-    "ui.quick_release.previous": {"source": "上一个拘束具（←）", "text": "Previous restraint (Left)"},
-    "ui.quick_release.next": {"source": "下一个拘束具（→）", "text": "Next restraint (Right)"},
-    "ui.quick_release.fire_locked": {"source": "尚未获得用火球术解除拘束具的能力。", "text": "Requires the ability to cast Fireball on restraints."},
-    "ui.quick_release.fire_empty": {"source": "没有拘束具可供火球术选为目标。", "text": "No restraints to target with Fireball."},
-    "ui.quick_release.empty": {"source": "没有拘束具", "text": "No restraints"},
-    "ui.quick_release.durability": {"source": "耐久 {current}/{maximum} · 紧度{tier}", "text": "Durability {current}/{maximum} · Tier {tier}"},
-    "ui.quick_release.help": {"source": "先选部位再点牌，或直接拖牌；右键切小部位，左右箭头切换拘束具。", "text": "Select a body part, then click or drag a card. Right-click to cycle parts; Left/Right cycles restraints."},
-    "ui.quick_release.wrong_card": {"source": "这张牌不能用于当前选中的拘束具", "text": "This card cannot be used on the selected restraint."},
-    "ui.quick_release.tools": {"source": "道具使用", "text": "Use items"},
-    "ui.quick_release.to_actions": {"source": "切换至动作栏", "text": "Switch to actions"},
-    "ui.quick_release.to_release": {"source": "切换至快捷挣脱栏", "text": "Switch to quick escape"},
-    "ui.quick_release.exploration": {"source": "切换至快捷挣脱栏，可对选中的拘束具使用解除牌，也可使用已安装道具。", "text": "Switch to quick escape to use release cards on the selected restraint and access installed items."},
-    "ui.home.character.original": {"source": "魔法少女(futa)", "text": "Magical Girl (futa)"},
-    "ui.home.character.witch": {"source": "小魔女·测试版", "text": "Little Witch · Test Version"},
-    "ui.home.disclaimer": {"source": "免责声明：本游戏为爱发电，免费发布。\n如果你花钱购买了本游戏，说明你上当了。", "text": "Disclaimer: This game is a passion project, released free of charge.\nIf you paid for this game, you were scammed."},
-    "ui.settings.frame_limit": {"source": "帧率上限", "text": "Frame Rate Limit"},
-    "ui.settings.frame_unlimited": {"source": "无上限", "text": "Unlimited"},
-    "ui.settings.frame_value": {"source": "{fps}帧", "text": "{fps} FPS"},
-    "ui.settings.vsync": {"source": "垂直同步", "text": "Vertical Sync"},
-    "ui.settings.vsync_note": {"source": "开启垂直同步可减少画面撕裂；即使选择无上限，帧率仍可能受显示器刷新率限制。", "text": "Vertical sync reduces screen tearing. Even with Unlimited selected, the display refresh rate may still limit FPS."},
-    "ui.home.title": {"source": "紧缚尖塔", "text": "Bound Spire"},
-    "ui.home.masochist_mode": {"source": "抖M专用版", "text": "Masochist Mode"},
-    "ui.home.continue_practice": {"source": "继续练习", "text": "Continue Practice"},
-    "ui.home.continue": {"source": "继续游戏", "text": "Continue Game"},
-    "ui.home.new_game": {"source": "开始新游戏", "text": "New Game"},
-    "ui.home.encyclopedia": {"source": "图鉴", "text": "Compendium"},
-    "ui.home.tutorial": {"source": "教程书", "text": "Tutorial"},
-    "ui.home.practice": {"source": "练习与自定义", "text": "Practice & Custom"},
-    "ui.home.quit": {"source": "退出游戏", "text": "Quit Game"},
-    "ui.home.saves": {"source": "存档与继续", "text": "Saves & Continue"},
-    "ui.common.close": {"source": "关闭 ×", "text": "Close ×"},
-    "ui.settings.title": {"source": "设置", "text": "Settings"},
-    "ui.settings.tab.display": {"source": "显示", "text": "Display"},
-    "ui.settings.tab.audio": {"source": "声音", "text": "Audio"},
-    "ui.settings.tab.keys": {"source": "键位", "text": "Key Bindings"},
-    "ui.settings.language": {"source": "语言", "text": "Language"},
-    "ui.settings.language.zh_cn": {"source": "简体中文", "text": "Simplified Chinese"},
-    "ui.settings.language.en_us": {"source": "English", "text": "English"},
-    "ui.settings.language.ja_jp": {"source": "日本語", "text": "Japanese"},
-    "ui.settings.mobile": {"source": "横屏 · 长按查看详情／切换", "text": "Landscape · Hold for details / switch"},
-    "ui.settings.mode": {"source": "显示模式", "text": "Display Mode"},
-    "ui.settings.mode.windowed": {"source": "窗口", "text": "Windowed"},
-    "ui.settings.mode.borderless": {"source": "无边框窗口", "text": "Borderless Window"},
-    "ui.settings.mode.fullscreen": {"source": "全屏", "text": "Fullscreen"},
-    "ui.settings.resolution": {"source": "分辨率", "text": "Resolution"},
-    "ui.settings.native_resolution": {"source": "全屏使用显示器原生分辨率。", "text": "Fullscreen uses the display's native resolution."},
-    "ui.settings.feedback_speed": {"source": "敌方行动展示速度", "text": "Enemy Action Speed"},
-    "ui.settings.speed.fast": {"source": "快速", "text": "Fast"},
-    "ui.settings.speed.normal": {"source": "标准", "text": "Standard"},
-    "ui.settings.speed.slow": {"source": "舒缓", "text": "Relaxed"},
-    "ui.settings.music_enabled": {"source": "打出卡牌时播放音乐", "text": "Play music when playing cards"},
-    "ui.settings.music_volume": {"source": "音乐音量 · {percent}%", "text": "Music Volume · {percent}%"},
-    "ui.map.seed": {"source": "初始种子 {initial} · 第 {iteration} 次塔路", "text": "Initial seed {initial} · Route {iteration}"},
-    "ui.map.seed_copied": {"source": "已复制", "text": "Copied"},
-    "ui.feedback.save.attached": {"source": "将附带当前进度存档：{name}（{size} KB）", "text": "Will attach the current progress save: {name} ({size} KB)"},
-    "ui.feedback.save.declined": {"source": "当前反馈服务暂不支持附带存档。", "text": "The current feedback service does not support save attachments yet."},
-    "ui.feedback.save.unchecked": {"source": "未附带存档：已取消勾选。", "text": "No save attached: the checkbox is cleared."},
-    "ui.feedback.save.none": {"source": "未附带存档：当前没有可附带的存档。", "text": "No save attached: there is no save to attach right now."},
-    "ui.feedback.save.uncaptured": {"source": "未附带存档：本次草稿没有捕获到存档。", "text": "No save attached: this draft did not capture a save."},
-    "ui.feedback.save.invalid": {"source": "未附带存档：当前进度存档校验未通过，未附带。", "text": "No save attached: the current progress save did not pass validation."},
-    "ui.feedback.save.oversized": {"source": "未附带存档：存档过大（超过 2 MB），未附带。", "text": "No save attached: the save is larger than 2 MB."},
-    "ui.run_review.title": {"source": "本局回顾", "text": "Run Review"},
-    "ui.run_review.identity": {"source": "本局标识", "text": "Run identity"},
-    "ui.run_review.route": {"source": "节点概况", "text": "Route overview"},
-    "ui.run_review.deck": {"source": "卡组", "text": "Deck"},
-    "ui.run_review.progress": {"source": "已到达第 {floor} 层 · 已走过 {nodes} 个节点", "text": "Reached floor {floor} · {nodes} nodes travelled"},
-    "ui.run_review.no_route": {"source": "没有可回顾的路线数据。", "text": "No route data to review."},
-    "ui.run_review.deck_empty": {"source": "卡组为空。", "text": "The deck is empty."},
-    "ui.run_review.copy": {"source": "复制本局标识", "text": "Copy run identity"},
-    "ui.settings.doubao_voice_enabled": {"source": "播放豆包语音", "text": "Play Doubao voice"},
-    "ui.settings.doubao_voice_volume": {"source": "豆包语音音量 · {percent}%", "text": "Doubao Voice Volume · {percent}%"}
+    "ui.settings.interaction_audio_enabled": {"source": "播放交互音效", "text": "Play interaction sounds"},
+    "ui.settings.interaction_audio_volume": {"source": "音效音量 · {percent}%", "text": "Sound effects volume · {percent}%"},
+    "ui.seed.open": {"source": "种子开局", "text": "Seeded run"},
+    "ui.seed.copy": {"source": "复制本局种子", "text": "Copy run seed"},
+    "ui.seed.paste": {"source": "粘贴", "text": "Paste"},
+    "ui.seed.help": {"source": "从初始局面开始，使用当前角色与开局选项。新局会覆盖塔路存档。", "text": "Start from the beginning with the current character and starting options. This replaces the tower save."},
+    "ui.seed.invalid": {"source": "请输入有效的整数种子。", "text": "Enter a valid integer seed."},
+    "ui.prison_capture_intro.title": {
+      "source": "你被抓住了！",
+      "text": "You've been caught!"
+    },
+    "ui.prison_capture_intro.body": {
+      "source": "“老实点！”\n\n魅魔狱警拽了拽牵引绳，等待你的，将会是一段牢狱生活。",
+      "text": "“Behave!”\n\nThe succubus guard gives the lead a tug. A stay behind bars awaits you."
+    },
+    "ui.prison_capture_intro.continue": {
+      "source": "继续",
+      "text": "Continue"
+    },
+    "ui.card.use_failed": {
+      "source": "施法失败 · {card}",
+      "text": "Cast failed · {card}"
+    },
+    "ui.settings.reduced_card_motion": {
+      "source": "减弱卡牌动效",
+      "text": "Reduce card motion"
+    },
+    "ui.art.inspect.fit": {
+      "source": "适应屏幕",
+      "text": "Fit to screen"
+    },
+    "ui.art.inspect.native": {
+      "source": "1:1 原图",
+      "text": "1:1 original"
+    },
+    "ui.art.test": {
+      "source": "测试版画风",
+      "text": "Test artwork"
+    },
+    "ui.art.formal": {
+      "source": "正式版·跟随模式",
+      "text": "Final · Follow Mode"
+    },
+    "ui.art.original": {
+      "source": "正式版·原图",
+      "text": "Final · Original Art"
+    },
+    "ui.art.fixed": {
+      "source": "正式版·扶她出去",
+      "text": "Final · Futa Hidden"
+    },
+    "ui.shop.refresh": {
+      "source": "刷新 · {price}魔力",
+      "text": "Refresh · {price} Mana"
+    },
+    "ui.portrait.expand": {
+      "source": "放大立绘",
+      "text": "Enlarge portrait"
+    },
+    "ui.flask.deposit_uses": {
+      "source": "存 {dots}",
+      "text": "Deposit {dots}"
+    },
+    "ui.flask.withdraw_uses": {
+      "source": "取 {dots}",
+      "text": "Withdraw {dots}"
+    },
+    "ui.quick_release.previous": {
+      "source": "上一个拘束具（←）",
+      "text": "Previous restraint (Left)"
+    },
+    "ui.quick_release.next": {
+      "source": "下一个拘束具（→）",
+      "text": "Next restraint (Right)"
+    },
+    "ui.quick_release.fire_locked": {
+      "source": "需要炫火自解。",
+      "text": "Requires Fire Self-Release."
+    },
+    "ui.quick_release.fire_empty": {
+      "source": "当前可用目标为0。",
+      "text": "Available targets: 0."
+    },
+    "ui.quick_release.empty": {
+      "source": "自由",
+      "text": "No restraints"
+    },
+    "ui.quick_release.durability": {
+      "source": "耐久 {current}/{maximum} · 紧度{tier}",
+      "text": "Durability {current}/{maximum} · Tightness {tier}"
+    },
+    "ui.quick_release.help": {
+      "source": "先选部位再点牌，或直接拖牌；右键切小部位，左右箭头切换拘束具。",
+      "text": "Select a body part, then click or drag a card. Right-click cycles subparts; Left/Right cycles restraints."
+    },
+    "ui.quick_release.wrong_card": {
+      "source": "请选择适用于当前拘束具的卡牌",
+      "text": "Choose a card suitable for the selected restraint"
+    },
+    "ui.quick_release.tools": {
+      "source": "道具使用",
+      "text": "Use items"
+    },
+    "ui.quick_release.to_actions": {
+      "source": "切换至动作栏",
+      "text": "Switch to actions"
+    },
+    "ui.quick_release.to_release": {
+      "source": "切换至快捷挣脱栏",
+      "text": "Switch to quick escape"
+    },
+    "ui.quick_release.exploration": {
+      "source": "快捷挣脱",
+      "text": "Quick Release"
+    },
+    "ui.home.character.original": {
+      "source": "魔法少女(futa)",
+      "text": "Magical Girl (futa)"
+    },
+    "ui.home.character.witch": {
+      "source": "小魔女·测试版",
+      "text": "Little Witch · Test Version"
+    },
+    "ui.home.disclaimer": {
+      "source": "免责声明：本游戏为爱发电，免费发布。\n如果你花钱购买了本游戏，说明你上当了。",
+      "text": "Disclaimer: This game is a passion project, released free of charge.\nIf you paid for this game, you were scammed."
+    },
+    "ui.settings.frame_limit": {
+      "source": "帧率上限",
+      "text": "Frame Rate Limit"
+    },
+    "ui.settings.frame_unlimited": {
+      "source": "无上限",
+      "text": "Unlimited"
+    },
+    "ui.settings.frame_value": {
+      "source": "{fps}帧",
+      "text": "{fps} FPS"
+    },
+    "ui.settings.vsync": {
+      "source": "垂直同步",
+      "text": "Vertical Sync"
+    },
+    "ui.settings.vsync_note": {
+      "source": "开启垂直同步可减少画面撕裂；即使选择无上限，帧率仍可能受显示器刷新率限制。",
+      "text": "Vertical sync reduces screen tearing. Even with Unlimited selected, the display refresh rate may still limit FPS."
+    },
+    "ui.home.title": {
+      "source": "紧缚尖塔",
+      "text": "Bound Spire"
+    },
+    "ui.home.masochist_mode": {
+      "source": "抖M专用版",
+      "text": "Masochist Mode"
+    },
+    "ui.home.continue_practice": {
+      "source": "继续练习",
+      "text": "Continue Practice"
+    },
+    "ui.home.continue": {
+      "source": "继续游戏",
+      "text": "Continue Game"
+    },
+    "ui.home.new_game": {
+      "source": "开始新游戏",
+      "text": "New Game"
+    },
+    "ui.home.encyclopedia": {
+      "source": "图鉴",
+      "text": "Compendium"
+    },
+    "ui.home.tutorial": {
+      "source": "教程书",
+      "text": "Tutorial"
+    },
+    "ui.home.practice": {
+      "source": "练习与自定义",
+      "text": "Practice & Customization"
+    },
+    "ui.home.quit": {
+      "source": "退出游戏",
+      "text": "Quit Game"
+    },
+    "ui.home.saves": {
+      "source": "存档与继续",
+      "text": "Saves & Resume"
+    },
+    "ui.common.close": {
+      "source": "关闭 ×",
+      "text": "Close ×"
+    },
+    "ui.settings.title": {
+      "source": "设置",
+      "text": "Settings"
+    },
+    "ui.settings.tab.display": {
+      "source": "显示",
+      "text": "Display"
+    },
+    "ui.settings.tab.audio": {
+      "source": "声音",
+      "text": "Audio"
+    },
+    "ui.settings.tab.keys": {
+      "source": "键位",
+      "text": "Key Bindings"
+    },
+    "ui.settings.language": {
+      "source": "语言",
+      "text": "Language"
+    },
+    "ui.settings.language.zh_cn": {
+      "source": "简体中文",
+      "text": "Simplified Chinese"
+    },
+    "ui.settings.language.en_us": {
+      "source": "English",
+      "text": "English"
+    },
+    "ui.settings.language.ja_jp": {
+      "source": "日本語",
+      "text": "Japanese"
+    },
+    "ui.settings.mobile": {
+      "source": "横屏 · 长按查看详情／切换",
+      "text": "Landscape · Hold to view details or switch"
+    },
+    "ui.settings.mode": {
+      "source": "显示模式",
+      "text": "Display Mode"
+    },
+    "ui.settings.mode.windowed": {
+      "source": "窗口",
+      "text": "Windowed"
+    },
+    "ui.settings.mode.borderless": {
+      "source": "无边框窗口",
+      "text": "Borderless Window"
+    },
+    "ui.settings.mode.fullscreen": {
+      "source": "全屏",
+      "text": "Fullscreen"
+    },
+    "ui.settings.resolution": {
+      "source": "分辨率",
+      "text": "Resolution"
+    },
+    "ui.settings.native_resolution": {
+      "source": "全屏使用显示器原生分辨率。",
+      "text": "Fullscreen uses the display's native resolution."
+    },
+    "ui.settings.feedback_speed": {
+      "source": "敌方行动展示速度",
+      "text": "Enemy Action Speed"
+    },
+    "ui.settings.speed.fast": {
+      "source": "快速",
+      "text": "Fast"
+    },
+    "ui.settings.speed.normal": {
+      "source": "标准",
+      "text": "Standard"
+    },
+    "ui.settings.speed.slow": {
+      "source": "舒缓",
+      "text": "Relaxed"
+    },
+    "ui.settings.music_enabled": {
+      "source": "打出卡牌时播放音乐",
+      "text": "Play music when playing cards"
+    },
+    "ui.settings.music_volume": {
+      "source": "音乐音量 · {percent}%",
+      "text": "Music Volume · {percent}%"
+    },
+    "ui.map.seed": {
+      "source": "初始种子 {initial} · 第 {iteration} 次塔路",
+      "text": "Initial Seed {initial} · Route {iteration}"
+    },
+    "ui.map.seed_copied": {
+      "source": "已复制",
+      "text": "Copied"
+    },
+    "ui.feedback.save.attached": {
+      "source": "将附带当前进度存档：{name}（{size} KB）",
+      "text": "Will attach current save: {name} ({size} KB)"
+    },
+    "ui.feedback.save.declined": {
+      "source": "当前反馈服务仅接收文字和截图。",
+      "text": "Feedback currently accepts text and screenshots."
+    },
+    "ui.feedback.save.unchecked": {
+      "source": "存档：已取消附带。",
+      "text": "Save attachment deselected."
+    },
+    "ui.feedback.save.none": {
+      "source": "可附带存档：0份。",
+      "text": "Save attachments available: 0."
+    },
+    "ui.feedback.save.uncaptured": {
+      "source": "存档：请重新创建草稿以获取当前进度。",
+      "text": "Create a new draft to capture the current save."
+    },
+    "ui.feedback.save.invalid": {
+      "source": "存档校验失败，附件已跳过。",
+      "text": "Save validation failed; attachment skipped."
+    },
+    "ui.feedback.save.oversized": {
+      "source": "存档超过2 MB，附件已跳过。",
+      "text": "Save exceeds 2 MB; attachment skipped."
+    },
+    "ui.run_review.title": {
+      "source": "本局回顾",
+      "text": "Run Review"
+    },
+    "ui.run_review.identity": {
+      "source": "本局标识",
+      "text": "Run ID"
+    },
+    "ui.run_review.route": {
+      "source": "节点概况",
+      "text": "Route Overview"
+    },
+    "ui.run_review.deck": {
+      "source": "卡组",
+      "text": "Deck"
+    },
+    "ui.run_review.progress": {
+      "source": "已到达第 {floor} 层 · 已走过 {nodes} 个节点",
+      "text": "Reached Floor {floor} · {nodes} nodes visited"
+    },
+    "ui.run_review.no_route": {
+      "source": "路线记录为空。",
+      "text": "No route data to review."
+    },
+    "ui.run_review.deck_empty": {
+      "source": "卡组为空。",
+      "text": "The deck is empty."
+    },
+    "ui.run_review.copy": {
+      "source": "复制本局标识",
+      "text": "Copy Run ID"
+    },
+    "ui.settings.doubao_voice_enabled": {
+      "source": "播放豆包语音",
+      "text": "Play Doubao voice"
+    },
+    "ui.settings.doubao_voice_volume": {
+      "source": "豆包语音音量 · {percent}%",
+      "text": "Doubao Voice Volume · {percent}%"
+    }
   }
 }

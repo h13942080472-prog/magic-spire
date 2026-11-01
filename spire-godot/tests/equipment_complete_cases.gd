@@ -69,6 +69,7 @@ static func run(t) -> void:
   if spec.has("event"): correct_phase=g.state.phase=="event" and g.state.room_event.id==spec.event
   if spec.get("start","")=="prison": correct_phase=g.state.phase=="prison" and g.state.prison.left==g.B.PRISON_INTERVALS[0] and g.state.posture=="lie"
   if spec.get("start","")=="shop": correct_phase=g.state.phase=="shop" and g.state.energy==0 and not g.room_data(g.state.room).stock.is_empty()
+  if spec.get("start","")=="rest": correct_phase=g.state.phase=="rest_choice" and g.state.rest_left==6 and g.state.combat.turn==0 and g.room_data(g.state.room).enchantments.offers.size()==3
   var links_match=g.state.links.size()==spec.get("links",[]).size()+spec.get("component_links",[]).size()
   if intake:
    correct_phase=g.state.phase=="battle" and g.Prison.is_exit_battle(g) if spec.start=="prison_gate_exit" else g.state.phase=="captured"
@@ -85,8 +86,8 @@ static func run(t) -> void:
    var maximum=1.0 if definition.get("lock_only",false) else E.maximum(grade)
    var durability=1.0 if definition.get("lock_only",false) else maximum*0.4
    var e=g._install_template(template,definition.slots[0],durability,maximum,false,"fixture",grade)
-   if grade<definition.get("min_grade",1):
-    t.check(e.is_empty() and g.validate()=="","GRADE rejects below template minimum "+template+str(grade))
+   if grade<definition.get("min_grade",1) or grade>definition.get("max_grade",3):
+    t.check(e.is_empty() and g.validate()=="","GRADE rejects outside the template quality range "+template+str(grade))
    else: t.check(not e.is_empty() and e.grade==grade and g.validate()=="","GRADE actual legal material/grade "+template+str(grade))
 
  for variant in C.LEGS:
@@ -231,7 +232,7 @@ static func run(t) -> void:
  for args in [["glove","long"],["leg","toes"],["jacket","standard"],["wrap","left"]]:
   g=Game.new(42)
   root=g._install_assembly(args[0],args[1],"fixture",3,3)
-  t.check(not root.is_empty() and root.components.all(func(e):return e.maximum==24 and e.grade==3) and g.state.mana==100,"GRADE high assembly uses registered temporary values only")
+  t.check(not root.is_empty() and root.components.all(func(e):return e.maximum==30 and e.grade==3) and g.state.mana==100,"GRADE high assembly uses registered temporary values only")
 
 static func assembly_preparation(t) -> void:
  for occupied in [false,true]:

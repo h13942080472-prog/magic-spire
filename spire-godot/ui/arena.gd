@@ -3,6 +3,8 @@ extends Control
 const Art=preload("res://ui/pixel_art.gd")
 const EquipmentPortrait=preload("res://ui/equipment_portrait.gd")
 const ILLUSTRATIONS={
+ "rope_master":preload("res://assets/ui/enemies/rope_master.svg"),
+ "rope_assistant":preload("res://assets/ui/enemies/rope_assistant.svg"),
  "iron_man":preload("res://assets/ui/enemies/iron_man.svg"),
  "puppeteer":preload("res://assets/ui/enemies/puppeteer.svg"),
  "puppet":preload("res://assets/ui/enemies/puppet.svg"),
@@ -20,6 +22,7 @@ var inactive=false
 var has_restraint_level=false
 var fixed_portrait=false
 var character_id="original"
+var special_pose=""
 var hero_view: Dictionary={}
 var hero_sprite: TextureRect
 var enemy_sprite: TextureRect
@@ -27,12 +30,13 @@ var appearance: Array=[]
 
 func configure_hero(view: Dictionary, fixed: bool) -> void:
  var next_character=view.get("character_id","original")
- var next_pose="stand" if fixed else view.posture
+ var next_special_pose="" if fixed or next_character!="original" else view.get("body_coverage",{}).get("special_pose","")
+ var next_pose="lie" if next_special_pose=="hogtie" else ("stand" if fixed else view.posture)
  var details=[] if fixed or next_character=="witch" else (EquipmentPortrait.visual_facts(view) if next_pose=="stand" else [view.has_restraint_level])
- var next_appearance=[next_character,next_pose,fixed,details]
+ var next_appearance=[next_character,next_pose,fixed,next_special_pose,details]
  if appearance==next_appearance:return
  appearance=next_appearance
- mode="hero";pose=next_pose;fixed_portrait=fixed;character_id=next_character
+ mode="hero";pose=next_pose;fixed_portrait=fixed;character_id=next_character;special_pose=next_special_pose
  has_restraint_level=view.has_restraint_level
  # Retain visual facts only, not the entire game view or its display facts.
  hero_view=EquipmentPortrait.snapshot(view)
@@ -78,7 +82,7 @@ func _refresh_hero() -> void:
   else:hero_sprite.configure(hero_view,false,true)
  else:
   if fixed_portrait:pose="stand"
-  var image=EquipmentPortrait.FREE if fixed_portrait else Art.hero_texture(pose,has_restraint_level,character_id)
+  var image=Art.HERO_SPECIAL_POSES[special_pose] if Art.HERO_SPECIAL_POSES.has(special_pose) else (EquipmentPortrait.FREE if fixed_portrait else Art.hero_texture(pose,has_restraint_level,character_id))
   if not is_instance_valid(hero_sprite):hero_sprite=_sprite(image,"HeroPose")
   elif hero_sprite.texture!=image:hero_sprite.texture=image
  hero_sprite.texture_filter=CanvasItem.TEXTURE_FILTER_LINEAR

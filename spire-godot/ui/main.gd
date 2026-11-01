@@ -19,12 +19,19 @@ const CombatFeedback=preload("res://ui/combat_feedback.gd")
 const ImpactFeedback=preload("res://ui/impact_feedback.gd")
 const Queries=preload("res://ui/target_queries.gd")
 const SaveStore=preload("res://core/save_store.gd")
+const PRISON_CAPTURE_INTRO_ART={
+ "leather":preload("res://assets/art/prison-capture-intro-leather-v1.png"),
+ "rope":preload("res://assets/art/prison-capture-intro-rope-v1.png"),
+ "flat_lock":preload("res://assets/art/prison-capture-intro-flat-lock-v1.png")}
 var saves=SaveStore.new()
 var persistence_enabled=true
 var touch_input: Node
 var keyboard_input: Node
 var options_tab="display"
 var card_music
+var equipment_audio
+var hero_voice
+var interaction_audio
 var save_notice=""
 var save_failed=false
 var save_suspended=false
@@ -47,9 +54,11 @@ const HERO_STAGE_RECT=Rect2(442.1,170.5,295.8,331.5)
 const HERO_STATUS_RECT=Rect2(386,196,52,306)
 
 var enemy_feedback: Control
+var battle_feed: Control
 var resource_feedback: Control
 var impact_feedback: Control
 var card_motion: Control
+var card_interaction: Control
 var attack_forms: Dictionary={}
 var selected_character="original"
 var feedback_duration=1.3
@@ -79,6 +88,8 @@ var selected_enemy=""
 var selected_candidate=""
 var notice=""
 var show_route=false
+var show_enchantments=false
+var selected_enchantment=""
 var show_reward_cards=false
 var reward_card_row=""
 var show_reward_relics=false
@@ -102,6 +113,7 @@ var body_buttons={}
 var end_button: Button
 var seed_field: LineEdit
 var show_settings=false
+var settings_seed_only=false
 var show_menu=false
 var show_shop_service=false
 var shop_service_mode="release"
@@ -133,6 +145,7 @@ var selected_item=""
 var selected_item_slot=""
 var item_help=false
 var prison_detail=""
+var capture_intro_acknowledged=false
 var show_hook=false
 var show_pressure=false
 var status_filter="all"
@@ -153,6 +166,7 @@ var seed_chip: Button
 # Second view of the same copy entry (docs/spec/run-review.md): the run review panel button.
 # It owns no timer and no text; only _refresh_seed_chip writes both view texts.
 var run_review_copy: Button
+var quick_seed_copy: Button
 var seed_copied_until=0
 const SEED_COPIED_MS=1200
 var speech_id=""
@@ -202,6 +216,10 @@ func _ready() -> void:
  localization.set_locale(display_settings.locale)
  card_music=preload("res://ui/card_music.gd").new();add_child(card_music)
  card_music.configure(display_settings.card_music_enabled,display_settings.card_music_volume)
+ equipment_audio=preload("res://ui/equipment_audio.gd").new();add_child(equipment_audio)
+ hero_voice=preload("res://ui/hero_voice.gd").new();add_child(hero_voice)
+ interaction_audio=preload("res://ui/interaction_audio.gd").new();interaction_audio.host=self;add_child(interaction_audio)
+ interaction_audio.configure(display_settings.interaction_audio_enabled,display_settings.interaction_audio_volume)
  theme=Palette.controls()
  _restore_startup()
  render(view)
@@ -220,8 +238,12 @@ func _restore_startup() -> void:
   save_failed=true;save_suspended=true;save_notice=save_summaries.tower.text
 
 func _return_home() -> void:
+ if is_instance_valid(interaction_audio): interaction_audio.stop_all()
+ if is_instance_valid(equipment_audio): equipment_audio.stop()
+ if is_instance_valid(hero_voice): hero_voice.stop()
  map_auto_travel=false
  if is_instance_valid(enemy_feedback): enemy_feedback.finish()
+ if is_instance_valid(battle_feed): battle_feed.clear()
  _clear_impact_feedback()
  _close_drawers();_clear_drop_targets();_clear_player_picker();_hide_term()
  show_home=true;notice=""
@@ -246,6 +268,9 @@ func _close_drawers() -> void:
 func _open_drawer(field: String, zone: String="deck") -> void:
  if view.phase=="travel": map_auto_travel=false
  var was_open=bool(get(field)) and (field!="show_deck" or deck_zone==zone)
+ if field=="show_settings":
+  was_open=bool(show_settings) and settings_seed_only==(zone=="seed")
+  settings_seed_only=zone=="seed"
  if field=="show_deck": deck_zone=zone
  _close_drawers()
  set(field,not was_open)
@@ -295,12 +320,18 @@ func _drawer_presentation_key() -> Array:
  return [bool(save_failed),bool(view.get("demo_finished",false)),bool(show_items),String(selected_item),String(selected_item_slot),bool(item_help),int(view.carried_items),view.capacity,items,item_facts,reachable]
 
 func _menu_drawer() -> void:
- var content=_drawer_shell("游戏菜单",Rect2(1090,78,474,474))
+ var content=_drawer_shell("游戏菜单",Rect2(1090,78,474,554))
  var save=_button("存档异常 · 查看" if save_failed else "存档 / 继续",_open_saves,RED if save_failed else CYAN)
  save.name="OpenSaves";content.add_child(save)
  var quick=_button("快速SL" if not view.demo_finished else "快速SL · 本局已结束",_quick_sl,CYAN)
  quick.name="QuickSL";quick.disabled=view.demo_finished
  quick.tooltip_text="回到当前场景开始，恢复初始手牌与资源。";content.add_child(quick)
+ var seed_row=HBoxContainer.new();content.add_child(seed_row)
+ quick_seed_copy=_button(_quick_seed_copy_text(),func():copy_seed(true),CYAN)
+ quick_seed_copy.name="QuickCopySeed";quick_seed_copy.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ quick_seed_copy.tooltip_text=str(int(view.initial_seed));seed_row.add_child(quick_seed_copy)
+ var seeded=_button(_text("ui.seed.open","种子开局"),func():_open_drawer("show_settings","seed"))
+ seeded.name="OpenSeedGame";seed_row.add_child(seeded)
  var log_button=_button("行动日志",func():_open_drawer("show_log"));log_button.name="OpenLog";content.add_child(log_button)
  var restart_button=_button("重开 / 练习",func():_open_drawer("show_settings"));restart_button.name="OpenRestart";content.add_child(restart_button)
  var options=_button(_text("ui.settings.title","设置"),func():_open_drawer("show_options"));options.name="OpenOptions";content.add_child(options)
@@ -392,6 +423,16 @@ func _set_language(language: String) -> void:
  theme=Palette.controls()
  render(view)
 
+func _language_selector() -> OptionButton:
+ var language=OptionButton.new();language.name="LanguageSelection"
+ language.add_item(_text("ui.settings.language.zh_cn","简体中文"))
+ language.add_item(_text("ui.settings.language.en_us","English"))
+ language.add_item(_text("ui.settings.language.ja_jp","日本語"))
+ for index in range(localization.LOCALES.size()): language.set_item_metadata(index,localization.LOCALES[index])
+ language.select(localization.LOCALES.find(display_settings.locale))
+ language.item_selected.connect(func(index):_set_language(language.get_item_metadata(index)))
+ return language
+
 func _label(text: String, fs: int=16, color: Color=TEXT) -> Label:
  var l=Label.new()
  text=localization.display(text)
@@ -405,8 +446,7 @@ func _label(text: String, fs: int=16, color: Color=TEXT) -> Label:
 func _button(text: String, fn: Callable, color: Color=GOLD, drop_zone: bool=false) -> Button:
  var b=DropTarget.new() if drop_zone else Button.new()
  b.text=localization.display(text)
- for state in ["normal","hover","pressed","focus","disabled"]:
-  b.add_theme_stylebox_override(state,Palette.button_style(state,CYAN if state=="focus" else color))
+ Palette.style_button(b,color)
  b.add_theme_color_override("font_color",TEXT)
  b.add_theme_color_override("font_disabled_color",Color("8c99a3"))
  b.custom_minimum_size.y=36
@@ -456,8 +496,11 @@ func render(snapshot: Dictionary={}) -> void:
  DragTargets.clear(self,false)
  _hide_term()
  view=game.get_view() if snapshot.is_empty() else snapshot
+ if view.phase!="captured": capture_intro_acknowledged=false
+ CombatFeedback.sync_feed(self)
  projection_misses=[]
  if is_instance_valid(card_music): card_music.sync_phase(view.phase,show_home)
+ if view.phase!="rest_choice" or view.reward_panel.get("enchantments",{}).get("used",false): show_enchantments=false;selected_enchantment=""
  if not view.reward_panel.active or view.battle_rewards.any(func(entry):return entry.category=="card" and entry.claimed): show_reward_cards=false
  if not view.reward_panel.active or view.battle_rewards.any(func(entry):return entry.category=="relic" and entry.claimed): show_reward_relics=false
  if show_event_selection and (view.phase!="event" or event_selection.get("version",-1)!=view.version): show_event_selection=false
@@ -829,6 +872,7 @@ func present(dirty: Array=["*"], snapshot: Dictionary={}) -> void:
  if dirty.size()!=1 or String(dirty[0])!="notice":
   _hide_term()
  if not snapshot.is_empty(): view=snapshot
+ CombatFeedback.sync_feed(self)
  for section in PRESENT_SECTIONS:
   if not dirty.has(section): continue
   if section=="header":
@@ -939,6 +983,7 @@ func _release_candidate_controls(root: Control) -> void:
 
 # Information panels own only their overlay. Keep the scene, hand, focus and map alive.
 func _refresh_drawers() -> void:
+ interaction_audio.sync_windows(DRAWERS.filter(func(field):return bool(get(field))))
  _hide_term()
  if is_instance_valid(drawer_layer):
   _release_candidate_controls(drawer_layer)
@@ -1139,7 +1184,7 @@ func _status_strip(owner: String, rect: Rect2, parent: Control=null, vertical: b
 # Living enemies in presentation order; combat and target IDs retain their original order.
 func _enemy_row() -> Array:
  var living=view.enemies.filter(func(e):return not e.gone)
- return living.filter(func(e):return e.template=="iron_drone")+living.filter(func(e):return e.template not in ["puppeteer","iron_man","iron_drone"])+living.filter(func(e):return e.template in ["puppeteer","iron_man"])
+ return living.filter(func(e):return e.template=="iron_drone")+living.filter(func(e):return e.template not in ["puppeteer","iron_man","iron_drone","rope_master"])+living.filter(func(e):return e.template in ["puppeteer","iron_man","rope_master"])
 
 # One routine owns the row geometry (fit scale, row width, start and each group's position
 # and scale) for the full battle page and the ["scene_instances"] local refresh, so a kill
@@ -1399,7 +1444,7 @@ func _action_presentation_key() -> Array:
 
 func _action_fact_slice(c: Dictionary) -> Array:
  var casting=c.get("casting",{})
- return [TargetQueries.fact_key(c),bool(c.valid),String(c.reason),c.cost,String(c.label),String(c.get("body_part","")),casting.duplicate(true) if casting is Dictionary else casting,String(c.get("brief","")),String(c.risk)]
+ return [TargetQueries.fact_key(c),bool(c.valid),String(c.reason),c.cost,String(c.label),String(c.get("body_part","")),casting.duplicate(true) if casting is Dictionary else casting,String(c.get("brief","")),String(c.risk),bool(c.get("posture_available",true))]
 
 func _action_key_hit(key) -> bool:
  if _action_key!=key: return false
@@ -1416,6 +1461,7 @@ func _build_action_rail() -> void:
   _place(container,Rect2(0,0,1600,900))
   var rail=_panel(Rect2(384,550,1195,72),container)
   rail.name="BasicActionRail";rail.mouse_filter=Control.MOUSE_FILTER_IGNORE
+  rail.add_theme_stylebox_override("panel",StyleBoxEmpty.new())
   var switcher=_button("⇄",func():preload("res://ui/quick_release_bar.gd").toggle(self),CYAN)
   switcher.name="ActionRailToggle"
   switcher.tooltip_text=preload("res://ui/quick_release_bar.gd").message(self,"to_actions","切换至动作栏") if quick_release_open else preload("res://ui/quick_release_bar.gd").message(self,"to_release","切换至快捷挣脱栏")
@@ -1424,7 +1470,7 @@ func _build_action_rail() -> void:
    preload("res://ui/quick_release_bar.gd").build(self,container,218.6)
    _action_key=_action_presentation_key()
    return
-  var attack_choices=TargetQueries.facts(view,"attack").filter(func(c):return String(c.payload.get("kind",""))=="attack" and String(c.payload.get("enemy",""))==selected_enemy)
+  var attack_choices=TargetQueries.facts(view,"attack").filter(func(c):return String(c.payload.get("kind",""))=="attack" and String(c.payload.get("enemy",""))==selected_enemy and c.get("posture_available",true))
   for type in attack_forms.keys():
    var forms=attack_choices.filter(func(c):return c.payload.type==type).map(func(c):return c.payload.form)
    if not forms.is_empty() and attack_forms[type] not in forms: attack_forms[type]=forms[0]
@@ -1443,9 +1489,9 @@ func _build_action_rail() -> void:
   offers.append_array(TargetQueries.facts(view,"pressure").filter(func(c):return String(c.payload.get("kind",""))=="calm"))
   var width=218.6
   if view.phase!="battle":
-   _place(_label(preload("res://ui/quick_release_bar.gd").message(self,"exploration","切换至快捷挣脱栏，可对选中的拘束具使用解除牌，也可使用已安装道具。"),15,MUTED),Rect2(402,565,650,38),container)
+   _place(_label(preload("res://ui/quick_release_bar.gd").message(self,"exploration","快捷挣脱"),15,MUTED),Rect2(402,565,650,38),container)
   if view.phase!="battle" and view.character_id!="witch" and not offers.any(func(c):return c.payload.kind=="attack"):
-   var reason=preload("res://ui/quick_release_bar.gd").message(self,"fire_locked","尚未获得用火球术解除拘束具的能力。") if not view.equipment_fireball_unlocked else preload("res://ui/quick_release_bar.gd").message(self,"fire_empty","没有拘束具可供火球术选为目标。")
+   var reason=preload("res://ui/quick_release_bar.gd").message(self,"fire_locked","需要炫火自解。") if not view.equipment_fireball_unlocked else preload("res://ui/quick_release_bar.gd").message(self,"fire_empty","当前可用目标为0。")
    var empty_fire=_button("",func():pass,CYAN)
    empty_fire.name="BasicAttack_fireball";empty_fire.disabled=true;empty_fire.tooltip_text=reason
    empty_fire.clip_contents=true
@@ -1475,7 +1521,8 @@ func _build_action_rail() -> void:
     if alternatives.size()>1:
      btn.gui_input.connect(func(event):
       if event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_RIGHT and event.pressed:
-       attack_forms[c.payload.type]=(c.payload.form+1)%alternatives.size()
+       var forms=alternatives.map(func(choice):return choice.payload.form)
+       attack_forms[c.payload.type]=forms[(forms.find(c.payload.form)+1)%forms.size()]
        btn.accept_event();render(view))
    else: btn.name="DeepBreath"
  _action_key=_action_presentation_key()
@@ -1490,7 +1537,7 @@ func _basic_action_tile(c: Dictionary, rect: Rect2, parent: Control, summary: St
  _place(btn,rect,parent);candidate_buttons[display_key(c.payload)]=btn
  _attack_tile_labels(btn,c,rect.size,summary,tags,accent)
  var tooltip="部位："+c.body_part+"\n消耗%d能量。\n" % c.cost+("当前施法成功率："+c.casting.percent+"\n" if c.has("casting") else "")+detail_of(c)
- if c.has("casting"): tooltip+="\n失败返还本次耗魔的50%，能量照扣。"+("蓄力保留，精神集中失去1层。" if c.payload.get("witch_action",false) else "火球术次数不消耗。")
+ if c.has("casting"): tooltip+="\n失败返还50%自身耗魔，向下取整；临时魔力返还0，能量照扣。"+("蓄力保留，精神集中失去1层。" if c.payload.get("witch_action",false) else "火球术次数保留。")
  if not c.valid: tooltip+="\n"+c.reason
  if c.risk!="": tooltip+="\n"+c.risk
  if can_flip: tooltip+="\n右键切换招式"
@@ -1558,13 +1605,13 @@ func _attack_tile_labels(btn: Button, c: Dictionary, bounds: Vector2, summary: S
 # Short display copy only; eligibility and full hover text stay with the candidate.
 func _basic_action_reason(c: Dictionary) -> String:
  var short={
-  "双臂活动受限达到三级，无法完成"+c.label+"。":"双臂受限达到三级",
+  "需要双臂束缚≤2级："+c.label+"。":"双臂受限达到三级",
   "近身短打需要双腿活动自由。":"需要双腿活动自由",
   "正义飞踢需要双腿活动自由。":"需要双腿活动自由",
   "站着踢需要双腿活动自由。":"需要双腿活动自由",
-  "腿部严密度达到4级，无法坐着踢。":"腿部严密度达到4级",
-  "双腿无法独立活动，不能横扫。":"双腿无法独立活动",
-  "无力化：本回合不能使用基础攻击。":"无力化，无法攻击",
+  "坐着踢需要腿部束缚≤3级。":"腿部严密度达到4级",
+  "横扫需要双腿独立活动。":"需要双腿独立活动",
+  "无力化：本回合体术暂停。":"无力化：体术暂停",
   "本回合"+c.label+"次数已用完。":"本回合次数已用完",
   c.label+"需要站姿。":"需要站姿",
  }
@@ -1717,6 +1764,10 @@ func _card(card: Dictionary, rect: Rect2, fn: Callable, rotation_value: float=0,
    card.merge(view.get("card_instances",{}).get(card.get("physical_uid",card.uid),{}),true)
  else:
   card=merged
+ # Reused cards must supply current values to every deferred presentation callback.
+ var hover_entry=func() -> Dictionary:
+  var live=_hand_cards.get(String(card.uid),{})
+  return live.get("data",card) if hand_interaction and not live.is_empty() else card
  var button=CardFace.new()
  button.art_settings=display_settings
  button.localize=localization.display
@@ -1737,12 +1788,24 @@ func _card(card: Dictionary, rect: Rect2, fn: Callable, rotation_value: float=0,
  button.pivot_offset=Vector2(rect.size.x/2,rect.size.y)
  button.rotation=rotation_value
  button.pressed.connect(fn)
+ if hand_interaction: button.pressed.connect(func():interaction_audio.request("card_pickup"))
+ button.preview_factory=func(owner, height):
+  var ghost=_card(hover_entry.call(),Rect2(Vector2.ZERO,CardFace.dimensions(height)),func():pass,0,owner,false,false,false)
+  _ignore_mouse(ghost)
+  return ghost
+ if lift:
+  button.inspect_requested=func(raised):
+   if raised: _card_interaction().inspect(button)
+   elif is_instance_valid(card_interaction): card_interaction.close_inspection(button)
  if hand_interaction and not card.uid.begins_with("reward_") and not card.get("unplayable",false):
   button.drag_payload={"card_uid":card.uid,"free":button.free_face,"version":view.version}
   button.drag_began.connect(func(_data): selected_card=""; selected_candidate=""; _clear_drop_targets(); _clear_player_picker())
  button.flip_requested.connect(func():
   if hand_interaction and _selecting_hand(): return
   if card.get("single_face",false): return
+  interaction_audio.request("card_flip")
+  var presentation=_card_interaction()
+  var old_face=presentation.capture_flip(button)
   card_faces[card.uid]=not card_faces.get(card.uid,false)
   player_pick=false
   selected_candidate=""
@@ -1752,7 +1815,10 @@ func _card(card: Dictionary, rect: Rect2, fn: Callable, rotation_value: float=0,
   else: _refresh_card_face(button,card)
   if hand_interaction:
    _clear_player_picker();_clear_drop_targets()
-   _refresh_body_details())
+   _refresh_body_details()
+  presentation.flip(button,old_face)
+  var hovered=get_viewport().gui_get_hovered_control()
+  if button.has_focus() or (hovered!=null and (hovered==button or button.is_ancestor_of(hovered))): _card_tooltip(button,hover_entry.call()))
  var cost=_label(card.cost,23,TEXT);cost.name="CardCost"; cost.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
  _place(cost,Rect2(0,1,38,37),button)
  var title=_label(card.name,17,TEXT);title.name="CardTitle"
@@ -1777,9 +1843,6 @@ func _card(card: Dictionary, rect: Rect2, fn: Callable, rotation_value: float=0,
  button.add_child(requirements)
  # 悬停／聚焦详情读**当前**数据：手牌卡经 `_hand_cards[uid].data` 取（与翻面闭包同一入口），
  # 其余调用方仍读构建期 `card`。`_hand_apply_card` 每次都换入新的合并字典，构建期快照会过期。
- var hover_entry=func() -> Dictionary:
-  var live=_hand_cards.get(String(card.uid),{})
-  return live.get("data",card) if hand_interaction and not live.is_empty() else card
  if merged.is_empty(): _refresh_card_face(button,card)
  button.mouse_entered.connect(func():_card_tooltip(button,hover_entry.call()))
  button.mouse_exited.connect(_hide_term)
@@ -1787,6 +1850,11 @@ func _card(card: Dictionary, rect: Rect2, fn: Callable, rotation_value: float=0,
  button.focus_exited.connect(_hide_term)
  _ignore_mouse(textbox)
  return button
+
+func _card_interaction() -> Control:
+ if not is_instance_valid(card_interaction):
+  card_interaction=preload("res://ui/card_interaction.gd").new();card_interaction.host=self;add_child(card_interaction)
+ return card_interaction
 
 # Catalog, shop and deck use the hand face with no gameplay drag or hover displacement.
 func _display_card(type: String, parent: Node, fn: Callable=Callable(), key: String="", dimensions: Vector2=Vector2(226,290), physical_uid: String="", live_state: bool=true, source: Dictionary={}) -> Button:
@@ -1855,14 +1923,15 @@ func _card_tooltip(button: Button, card: Dictionary) -> void:
   for label in button.get_node("CardRequirements").get_children(): lines.append(label.text)
  if card.cast_faces[side] and card.has("casting"):
   var casting=card.get("face_casting",{}).get(side,card.casting)
-  lines.append("施法成功率 · "+casting.percent+"\n"+casting.formula)
-  lines.append("失败返还50%耗魔。")
+  lines.append("施法部位：%s · %s" % ["脚趾" if casting.source_part=="toes" else game.Cards.Rules.CAST_PART_NAMES[casting.part],casting.percent])
  if card.note!="": lines.append(card.note)
  # Rule terms are read straight from the face metadata and travel as their own boxes
- # (docs/spec/card-terms.md「接口」): every other line keeps today's wording and order.
+ # (docs/spec/card-terms.md「接口」); the summary keeps the selected body route and live success chance.
  var terms=card.face_keywords[side]
  if lines.is_empty() and terms.is_empty(): _hide_term();return
- _show_term(button,{"label":card.name+("" if card.single_face else (" · "+card.face_names[side])),"detail":"\n".join(lines),"terms":terms})
+ var anchor=button
+ if is_instance_valid(card_interaction) and card_interaction.inspected==button and is_instance_valid(card_interaction.preview): anchor=card_interaction.preview
+ _show_term(anchor,{"label":card.name+("" if card.single_face else (" · "+card.face_names[side])),"detail":"\n".join(lines),"terms":terms})
 
 func _remove_local_panel(node_name: String) -> void:
  var panel=layout.get_node_or_null(node_name)
@@ -2329,12 +2398,12 @@ func _build_resource_bar(include_tools: bool=true) -> void:
  var has_turn_controls=not show_route and view.phase in ["battle","prepare","rest","prison"]
  var resource_back=Panel.new();resource_back.mouse_filter=Control.MOUSE_FILTER_IGNORE
  resource_back.name="MainResourcePanel"
- var resource_style=_style(Color("0e1923"),Color("293e47"),10);resource_style.shadow_size=0;resource_style.set_border_width_all(1)
+ var resource_style=Palette.hud_surface(true)
  resource_back.add_theme_stylebox_override("panel",resource_style)
  _place(resource_back,Rect2(0,599,375,96))
  if include_tools:
   var tool_back=Panel.new();tool_back.mouse_filter=Control.MOUSE_FILTER_IGNORE
-  var tool_style=_style(Color("101c27"),Color("615439"),14);tool_style.set_border_width_all(1);tool_style.shadow_size=3
+  var tool_style=Palette.hud_surface(true)
   tool_back.add_theme_stylebox_override("panel",tool_style)
   tool_back.name="ResourceToolsPanel"
   _place(tool_back,Rect2(0,699,375,201))
@@ -2358,7 +2427,7 @@ func _build_resource_bar(include_tools: bool=true) -> void:
   _resource_meter(meter.id,Rect2(90,center-bar_height/2,269,bar_height),meter.value,meter.maximum,meter.color)
   if meter.id=="MainGuardBind": _guard_bind_drop_target(Rect2(12,center-14,351,28),"SidebarGuardBindTarget")
  var mana_bar=find_child("MainMana",true,false)
- mana_bar.mouse_filter=Control.MOUSE_FILTER_STOP;mana_bar.tooltip_text="嘴部施法成功率 · "+view.casting.percent+"\n临时魔力优先抵扣法术和卡牌耗魔，不受上限限制；不能存瓶或购物，本场结束清空。"
+ mana_bar.mouse_filter=Control.MOUSE_FILTER_STOP;mana_bar.tooltip_text="嘴部施法成功率 · "+view.casting.percent+"\n临时魔力优先抵扣法术和卡牌耗魔，上限无限；存瓶使用自身魔力；购物使用自身或魔瓶魔力。本场结束清空。"
  if include_tools: preload("res://ui/mana_flask.gd").build(self)
  if not has_turn_controls:
   _resource_key=_resource_presentation_key()
@@ -2383,6 +2452,7 @@ func _build_resource_bar(include_tools: bool=true) -> void:
   candidate_buttons[display_key(c.payload)]=b
   if c.payload.kind=="end":
    end_button=b;b.name="EndTurnButton";b.add_theme_font_size_override("font_size",24)
+   Palette.style_button(b,GOLD,"primary")
    b.disabled=not c.valid;b.tooltip_text=c.reason
    if view.end_turn_locked:
     var seal=TextureRect.new();seal.name="EndTurnLockPattern"
@@ -2396,8 +2466,8 @@ func _build_resource_bar(include_tools: bool=true) -> void:
  if not surrender.is_empty():
   var button=_button("确定要投降吗" if surrender_version==view.version else "投降",func():pass,RED)
   button.name="SurrenderButton";button.add_theme_font_size_override("font_size",16)
-  button.add_theme_stylebox_override("normal",_style(Color("4a2228"),RED,8))
-  button.add_theme_stylebox_override("hover",_style(Color("683039"),RED,8))
+  Palette.style_button(button,RED,"quiet")
+  button.add_theme_color_override("font_color",RED)
   button.pressed.connect(func():
    if surrender_version==view.version:
     surrender_version=-1;command_router.emit(String(surrender.payload.get("kind","")),surrender)
@@ -2652,7 +2722,7 @@ func _equipment_card_face(box: Node,e: Dictionary,location: String,accent: Color
   box.add_child(_label("耐久 %s / %s" % [game.number(e.durability),game.number(e.maximum)],12,TEXT))
   var meter=_bar(e.durability,e.maximum,accent);meter.custom_minimum_size.y=6;box.add_child(meter)
  var tightness=HBoxContainer.new();box.add_child(tightness)
- var tier_label=_label("无耐久" if e.get("lock_only",false) else "紧度 %d档" % e.tier,12,accent)
+ var tier_label=_label("无耐久" if e.get("lock_only",false) else ("无紧度" if e.get("no_tightness",false) else "紧度 %d档" % e.tier),12,accent)
  tier_label.autowrap_mode=TextServer.AUTOWRAP_OFF
  tightness.add_child(tier_label)
  _equipment_lock(tightness,e.locked,e.id,e.lockable)
@@ -2720,9 +2790,12 @@ func _practice_screen() -> void:
  if view.phase=="cleared":
   v.add_child(_button("再次练习",func(): restart(view.seed,true,view.practice_kind)))
   v.add_child(_button("从入口开始塔路",func(): restart(view.seed)))
- v.add_child(_label(view.summary,16,MUTED))
+ if view.phase!="rest": v.add_child(_label(view.summary,16,MUTED))
 
 func _capture_screen() -> void:
+ if capture_intro_required(view,capture_intro_acknowledged):
+  _capture_intro_screen()
+  return
  var panel=_panel(Rect2(405,158,895,652));panel.name="PrisonIntakePanel"
  var row=HBoxContainer.new();row.add_theme_constant_override("separation",24);panel.add_child(row)
  var left=VBoxContainer.new();left.custom_minimum_size.x=300;row.add_child(left)
@@ -2757,6 +2830,34 @@ func _capture_screen() -> void:
  else:
   left.add_child(_button("重新开始",func(): restart(view.seed),CYAN))
  left.add_child(_button("其他练习",func():_open_drawer("show_settings")))
+
+static func capture_intro_required(snapshot: Dictionary, acknowledged: bool) -> bool:
+ return snapshot.get("character_id","original")=="original" and not acknowledged
+
+static func capture_intro_art_key(snapshot: Dictionary, fixed_portrait: bool) -> String:
+ if fixed_portrait or "flat_lock" in snapshot.get("equipment_portrait_layers",[]): return "flat_lock"
+ var material_points=snapshot.get("body_coverage",{}).get("material_points",{})
+ var leather=material_points.get("leather",[]).size()
+ var rope=material_points.get("rope",[]).size()
+ return "leather" if leather>rope else "rope"
+
+func _capture_intro_screen() -> void:
+ var art_key=capture_intro_art_key(view,display_settings.fixed_hero_portrait)
+ var panel=_panel(Rect2(405,158,895,652));panel.name="PrisonCaptureIntroPanel"
+ var row=HBoxContainer.new();row.add_theme_constant_override("separation",28);panel.add_child(row)
+ var artwork_frame=PanelContainer.new();artwork_frame.custom_minimum_size=Vector2(370,620)
+ artwork_frame.add_theme_stylebox_override("panel",_style(Color("111923"),GOLD.darkened(0.5)));row.add_child(artwork_frame)
+ var artwork=TextureRect.new();artwork.name="PrisonCaptureIntroArtwork";artwork.texture=PRISON_CAPTURE_INTRO_ART[art_key]
+ artwork.set_meta("variant",art_key);artwork.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;artwork.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;artwork.mouse_filter=Control.MOUSE_FILTER_IGNORE
+ artwork_frame.add_child(artwork)
+ var content=VBoxContainer.new();content.size_flags_horizontal=Control.SIZE_EXPAND_FILL;content.add_theme_constant_override("separation",20);row.add_child(content)
+ var title=_label(localization.text("ui.prison_capture_intro.title","你被抓住了！"),32,RED);title.name="PrisonCaptureIntroTitle";content.add_child(title)
+ content.add_child(HSeparator.new())
+ var body=_label(localization.text("ui.prison_capture_intro.body","“老实点！”\n\n魅魔狱警拽了拽牵引绳，等待你的，将会是一段牢狱生活。"),21,TEXT);body.name="PrisonCaptureIntroText";body.size_flags_vertical=Control.SIZE_EXPAND_FILL;content.add_child(body)
+ var continue_button=_button(localization.text("ui.prison_capture_intro.continue","继续"),func():
+  capture_intro_acknowledged=true
+  render(view),CYAN)
+ continue_button.name="PrisonCaptureIntroContinue";content.add_child(continue_button)
 
 func _inspection_screen() -> void:
  if view.phase in ["pack","prison_end"]:
@@ -2922,7 +3023,7 @@ func _prison_location_details(parent: Node,site: Dictionary) -> void:
  targets.sort_custom(func(a,b):return a.valid and not b.valid)
  var grid=GridContainer.new();grid.columns=2;grid.add_theme_constant_override("h_separation",8);grid.add_theme_constant_override("v_separation",8);scroll.add_child(grid)
  for c in targets: _tool_target_card(grid,c)
- if selected_actions.is_empty() and kind=="item": scroll.add_child(_label("这件工具已用完或不在身边。",14,MUTED))
+ if selected_actions.is_empty() and kind=="item": scroll.add_child(_label("请重新选择可用工具。",14,MUTED))
 
 func _compact_action(parent: Node,c: Dictionary,caption: String="",show_free_cost: bool=true) -> void:
  var label=c.label if caption=="" else caption
@@ -2971,7 +3072,7 @@ func _route_screen() -> void:
  map_column.size_flags_horizontal=Control.SIZE_EXPAND_FILL
  map_column.add_theme_constant_override("separation",4);row.add_child(map_column)
  if view.tower_start_pending:
-  var title=_label("选择出狱起点 · 第10—11层非休息、非宝箱区域 · 不消耗回合",20,GOLD)
+  var title=_label("选择出狱起点 · 第10—11层战斗、事件或商店 · 0回合",20,GOLD)
   title.name="PrisonStartTitle";map_column.add_child(title)
  var relic_strip=layout.find_child("RelicStrip",true,false)
  if relic_strip!=null:
@@ -3100,8 +3201,8 @@ func _queue_map_step() -> void:
 func seed_report_text() -> String:
  return "紧缚尖塔 · 初始种子 %d · 第 %d 次塔路 · 当前塔路种子 %d（精确复现需同批上传的存档）" % [int(view.initial_seed),int(view.tower_generation)+1,int(view.seed)]
 
-func copy_seed() -> String:
- var text=seed_report_text()
+func copy_seed(plain: bool=false) -> String:
+ var text=str(int(view.initial_seed)) if plain else seed_report_text()
  DisplayServer.clipboard_set(text)
  seed_copied_until=Time.get_ticks_msec()+SEED_COPIED_MS
  _refresh_seed_chip(true)
@@ -3116,6 +3217,10 @@ func _run_review_copy_text() -> String:
  if seed_copied_until>Time.get_ticks_msec(): return _text("ui.map.seed_copied","已复制")
  return _text("ui.run_review.copy","复制本局标识")
 
+func _quick_seed_copy_text() -> String:
+ if seed_copied_until>Time.get_ticks_msec(): return _text("ui.map.seed_copied","已复制")
+ return _text("ui.seed.copy","复制本局种子")
+
 # Polled like speech: the deadline expires on its own frame, and a stale deadline can never
 # rewrite a replaced run or a closed screen (no callback is kept at all, and a rebuilt control
 # re-reads the deadline when it is created). copy_seed() forces the same writer so both views
@@ -3126,6 +3231,7 @@ func _refresh_seed_chip(force: bool=false) -> void:
   seed_copied_until=0
  if is_instance_valid(seed_chip): seed_chip.text=_seed_chip_text()
  if is_instance_valid(run_review_copy): run_review_copy.text=_run_review_copy_text()
+ if is_instance_valid(quick_seed_copy): quick_seed_copy.text=_quick_seed_copy_text()
 
 func _restore_travel_messages(scroll: ScrollContainer, offset: int) -> void:
  await get_tree().process_frame
@@ -3213,7 +3319,7 @@ func _log_drawer() -> void:
  var v=_drawer_shell("行动日志",Rect2(650,150,870,560))
  var back=_button("返回菜单",func():_open_drawer("show_menu"),MUTED);back.name="LogBackToMenu";v.add_child(back)
  var scroll=_scroll(v)
- if view.action_log.is_empty(): scroll.add_child(_label("尚无行动记录。",14,MUTED))
+ if view.action_log.is_empty(): scroll.add_child(_label("行动记录为空。",14,MUTED))
  for i in range(view.action_log.size()-1,-1,-1):
   var note=view.action_log[i]
   scroll.add_child(_label(note.actor+" · 第%d回合" % note.round,13,CYAN))
@@ -3522,6 +3628,7 @@ func _submit(cmd: Dictionary, takeover: bool=false) -> void:
    previous_absent[section]=_present_needs_full_render([section])
  surrender_version=-1
  if show_home or is_instance_valid(enemy_feedback): return
+ if is_instance_valid(card_interaction): card_interaction.clear()
  # 显示数据（M-V）：判定行随提交结果返回（唯一判定出口直出）；不参与提交复核。
  var kind=String(cmd.get("kind",""))
  var previous=view
@@ -3570,6 +3677,7 @@ func _submit(cmd: Dictionary, takeover: bool=false) -> void:
  if result.ok and kind=="demo_end":
   _return_home()
   return
+ interaction_audio.consume(result,previous,updated)
  if result.ok:
   if not is_instance_valid(resource_feedback):
    resource_feedback=preload("res://ui/resource_feedback.gd").new();resource_feedback.host=self;add_child(resource_feedback)
@@ -3580,7 +3688,10 @@ func _submit(cmd: Dictionary, takeover: bool=false) -> void:
   _impact_feedback(result.get("resource_feedback",[]),payload,updated)
   _animate_cards(result.get("card_feedback",[]),previous_cards)
   card_music.consume(result.get("music_feedback",[]),updated.phase,show_home)
-  CombatFeedback.play(self,previous,payload)
+  equipment_audio.consume(result.get("sound_feedback",[]))
+  hero_voice.consume(result.get("sound_feedback",[]))
+  CombatFeedback.play(self,previous,payload,result.get("sound_feedback",[]))
+  if kind=="card": CombatFeedback.card_result(self,previous,payload,result)
 
 func _demo_exit_screen() -> void:
  if is_instance_valid(card_motion): card_motion.clear()
@@ -3611,6 +3722,7 @@ func restart(seed_value: int, practice: bool=false, practice_kind: String="equip
 
 func _animate_cards(events: Array, before: Dictionary) -> void:
  if events.is_empty(): return
+ interaction_audio.transfers(events)
  if not is_instance_valid(card_motion):
   card_motion=preload("res://ui/card_motion.gd").new();card_motion.host=self;add_child(card_motion)
  card_motion.enqueue(events,before)
@@ -3628,6 +3740,10 @@ func _clear_impact_feedback() -> void:
  impact_feedback=null
 
 func _reset_interface(initial: Dictionary) -> void:
+ if is_instance_valid(interaction_audio): interaction_audio.stop_all()
+ if is_instance_valid(equipment_audio): equipment_audio.stop()
+ if is_instance_valid(hero_voice): hero_voice.stop()
+ if is_instance_valid(card_interaction): card_interaction.clear()
  if is_instance_valid(layout) and is_instance_valid(layout.body): layout.body.set_portrait_expanded(false)
  if is_instance_valid(card_music): card_music.stop_music()
  if is_instance_valid(keyboard_input): keyboard_input.clear()
@@ -3638,6 +3754,7 @@ func _reset_interface(initial: Dictionary) -> void:
  shop_performance_seen=""
  shop_last_chatter=""
  show_reward_cards=false;show_reward_relics=false;reward_card_row=""
+ show_enchantments=false;selected_enchantment=""
  attack_forms.clear()
  if is_instance_valid(card_motion):
   card_motion.clear();remove_child(card_motion);card_motion.queue_free();card_motion=null
@@ -3645,12 +3762,14 @@ func _reset_interface(initial: Dictionary) -> void:
   remove_child(resource_feedback);resource_feedback.queue_free();resource_feedback=null
  _clear_impact_feedback()
  event_read_page=""
+ capture_intro_acknowledged=false
  show_home=false;session_started=true
  if is_instance_valid(enemy_feedback): enemy_feedback.finish()
+ if is_instance_valid(battle_feed): battle_feed.clear()
  map_auto_travel=false;travel_log_scroll=-1;travel_log_count=0
  _clear_drop_targets()
  _close_drawers()
- seed_text=str(initial.seed)
+ seed_text=str(initial.initial_seed)
  status_filter="all"
  selected_card=""; selected_candidate=""; selected_slot=initial.practice_focus if initial.practice else "wrist"; selected_enemy=""
  quick_release_open=false;quick_release_region="";quick_release_parts.clear();quick_release_targets.clear();quick_release_inspected=""
@@ -3669,6 +3788,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
  if event.is_action_pressed("ui_cancel"):
   if DRAWERS.any(func(field):return bool(get(field))):
    _close_drawers();_refresh_drawers();return
+  if show_enchantments:
+   if selected_enchantment!="": selected_enchantment=""
+   else: show_enchantments=false
+   render(view);get_viewport().set_input_as_handled();return
   if show_reward_cards or show_reward_relics:
    show_reward_cards=false;show_reward_relics=false;render(view);get_viewport().set_input_as_handled();return
   _close_drawers()
@@ -3706,10 +3829,15 @@ func _notification(what: int) -> void:
    _clear_player_picker();selected_card="";render(view);return
   if DRAWERS.any(func(field):return bool(get(field))):
    _close_drawers();_refresh_drawers();return
+  if show_enchantments:
+   if selected_enchantment!="": selected_enchantment=""
+   else: show_enchantments=false
+   render(view);return
   if show_reward_cards or show_reward_relics:
    show_reward_cards=false;show_reward_relics=false;render(view);return
   _open_drawer("show_menu")
  if what==NOTIFICATION_DRAG_END:
+  if is_instance_valid(card_interaction) and not card_interaction.drag.is_empty() and not get_viewport().gui_is_drag_successful(): interaction_audio.request("cancel")
   DragTargets.clear(self)
   if is_instance_valid(term_popup) and term_popup.has_meta("drag_reason"): _hide_term()
   _clear_drop_targets()
@@ -3727,7 +3855,7 @@ func _show_drop_targets(slot: String, data: Dictionary, click_to_use: bool=false
  if choices.is_empty():
   _clear_drop_targets()
   _remove_local_panel("EquipmentDetails")
-  var reason=("这张牌不能用于%s。" if data.has("card_uid") else "该动作不能用于%s。") % body.name
+  var reason=("请选择适用于%s的卡牌。" if data.has("card_uid") else "请选择适用于%s的动作。") % body.name
   if data.get("version",-1)!=view.version: reason="行动已失效，请重新选择。"
   _drag_rejection(body_buttons[slot],reason)
   return
@@ -3855,7 +3983,7 @@ func _guard_bind_drop_target(rect: Rect2, node_name: String) -> Button:
  target.tooltip_text=view.guard_bind.detail
  target.hover_card=func(data):
   var c=_guard_bind_card_candidate(data)
-  _drag_rejection(target,"这张牌不能处理捕缚。" if c.is_empty() else ("" if c.valid else c.reason))
+  _drag_rejection(target,"请选择可削减捕缚的卡牌。" if c.is_empty() else ("" if c.valid else c.reason))
  target.accept_card=func(data):return _guard_bind_card_candidate(data).get("valid",false)
  target.receive_card=func(data):
   var c=_guard_bind_card_candidate(data)
@@ -3905,7 +4033,7 @@ func _player_drag_preview(data: Dictionary) -> void:
   return
  if _card_is_free(data.get("card_uid",""),data.get("free",false)):
   var c=_free_player_candidate(data)
-  _drag_rejection(actor_targets.hero,"没有可用的自由部位。" if c.is_empty() else ("" if c.valid else c.reason))
+  _drag_rejection(actor_targets.hero,"需要对应部位自由。" if c.is_empty() else ("" if c.valid else c.reason))
   return
  _drag_rejection(actor_targets.hero,"")
 
@@ -3962,7 +4090,7 @@ func free_card_source(source: Dictionary, expected_version: int) -> Dictionary:
  var data={"card_uid":String(source.get("uid","")),"free":bool(source.get("free",false)),"version":expected_version}
  var c=_free_player_candidate(data)
  if not c.is_empty() and bool(c.valid): return c.payload
- notice="没有可用的自由部位。" if c.is_empty() else String(c.reason)
+ notice="需要对应部位自由。" if c.is_empty() else String(c.reason)
  render(view)
  return {}
 
@@ -3975,7 +4103,7 @@ func quick_release_source(source: Dictionary, expected_version: int) -> Dictiona
  if not quick.is_empty() and bool(quick.valid): return quick.payload
  var matching=TargetQueries.select(view,"card",{"uid":uid,"free":free})
  if matching.any(func(c):return c.payload.get("mode","") in TargetQueries.RELEASE_MODES):
-  notice=String(quick.reason) if not quick.is_empty() else preload("res://ui/quick_release_bar.gd").message(self,"wrong_card","这张牌不能用于当前选中的拘束具")
+  notice=String(quick.reason) if not quick.is_empty() else preload("res://ui/quick_release_bar.gd").message(self,"wrong_card","请选择适用于当前拘束具的卡牌")
   selected_card=uid;selected_candidate="";show_body=false
   render(view)
  return {}
@@ -4086,7 +4214,7 @@ func _rest_controls() -> void:
  v.add_child(button)
  v.add_child(_label("免费 · 紧度－1档",14,MUTED))
  v.add_child(_label("剩余%d回合休息" % view.rest_left,22,GOLD))
- _place(_label("自由效果禁用 · 不自然回魔"+(" · 练习工具已预置" if view.practice else ""),17,CYAN),Rect2(805,497,730,36))
+ _place(_label("仅限拘束面 · 魔力由道具与卡牌补充"+(" · 练习工具已预置" if view.practice else ""),17,CYAN),Rect2(805,497,730,36))
 
 func _hook_drawer() -> void:
  var v=_drawer_shell(view.hook_location+" · 剩余%d次" % view.hook_uses,Rect2(650,150,870,560))
@@ -4094,7 +4222,7 @@ func _hook_drawer() -> void:
  content.add_child(_label(view.hook_environment_name+" · "+view.hook_contact,14,CYAN))
  var targets=TargetQueries.facts(view,"hook")
  for c in targets: _action_row(content,c)
- if targets.is_empty(): content.add_child(_label("当前没有需要处理的装备。",17,MUTED))
+ if targets.is_empty(): content.add_child(_label("该部位自由。",17,MUTED))
 
 func _pressure_drawer() -> void:
  var entries=view.statuses.filter(func(e):return status_filter=="all" or e.category==status_filter)
@@ -4111,7 +4239,7 @@ func _pressure_drawer() -> void:
  if not entries.any(func(e):return e.id==selected_status) and not entries.is_empty(): selected_status=entries[0].id
  for e in entries:
   grid.add_child(_status_control(e,false))
- if entries.is_empty(): content.add_child(_label("当前没有这类状态。",16,MUTED))
+ if entries.is_empty(): content.add_child(_label("当前状态：0项。",16,MUTED))
  else:
   var selected=entries.filter(func(e):return e.id==selected_status)[0]
   var detail_panel=PanelContainer.new();detail_panel.name="StatusDetail"
@@ -4153,7 +4281,7 @@ func _items_drawer() -> void:
  var needs_space=view.items.any(func(item):return item.id==selected_item and item.target_scope=="body_group")
  var v=_drawer_shell("道具 · %d / %d格" % [view.carried_items,view.capacity],Rect2(582,156,820,190 if view.items.is_empty() else (540 if needs_space else 420)))
  if view.items.is_empty():
-  v.add_child(_label("尚未携带道具。",17,MUTED))
+  v.add_child(_label("道具栏为空。",17,MUTED))
   return
  var row=HBoxContainer.new(); row.size_flags_vertical=Control.SIZE_EXPAND_FILL; row.add_theme_constant_override("separation",16); v.add_child(row)
  var left=_scroll(row);left.name="InventoryList";left.get_parent().custom_minimum_size.x=224
@@ -4257,7 +4385,7 @@ func _item_details(right: VBoxContainer, footer: HBoxContainer) -> void:
  for c in item_actions:
   if c.payload.kind=="item_discard":
    var discard=_button("丢弃",func():command_router.emit(String(c.payload.get("kind","")),c),MUTED);discard.name="ItemDiscard";discard.custom_minimum_size=Vector2(90,32)
-   discard.add_theme_font_size_override("font_size",14);discard.tooltip_text="丢弃后无法取回。";discard.disabled=not c.valid
+   discard.add_theme_font_size_override("font_size",14);discard.tooltip_text="丢弃将永久移除。";discard.disabled=not c.valid
    footer.add_child(discard);candidate_buttons[TargetQueries.fact_key(c)]=discard
 
 func _options_drawer() -> void:
@@ -4265,22 +4393,13 @@ func _options_drawer() -> void:
  var tabs=HBoxContainer.new();content.add_child(tabs)
  for id in (["display","audio"] if display_settings.mobile else ["display","audio","keys"]):
   var tab=_button(_text("ui.settings.tab."+id,{"display":"显示","audio":"声音","keys":"键位"}[id]),func():options_tab=id;keyboard_input.capture_id="";keyboard_input.binding_message="";_refresh_drawers(),CYAN if options_tab==id else GOLD)
-  tab.name="SettingsTab_"+id;tabs.add_child(tab)
+  tab.name="SettingsTab_"+id;tab.set_meta("audio_cue","tab");tabs.add_child(tab)
  if options_tab=="audio":
   _audio_options(content);return
  if options_tab=="keys" and not display_settings.mobile:
   keyboard_input.settings.build(self,content,keyboard_input);return
  content=_scroll(content)
  content.get_parent().name="DisplayOptionsScroll"
- content.add_child(_label(_text("ui.settings.language","语言"),17,GOLD))
- var language=OptionButton.new();language.name="LanguageSelection"
- language.add_item(_text("ui.settings.language.zh_cn","简体中文"))
- language.add_item(_text("ui.settings.language.en_us","English"))
- language.add_item(_text("ui.settings.language.ja_jp","日本語"))
- for index in range(localization.LOCALES.size()): language.set_item_metadata(index,localization.LOCALES[index])
- language.select(localization.LOCALES.find(display_settings.locale))
- language.item_selected.connect(func(index):_set_language(language.get_item_metadata(index)))
- content.add_child(language)
  if display_settings.mobile:
   content.add_child(_label(_text("ui.settings.mobile","横屏 · 长按查看详情／切换"),17,GOLD))
  else:
@@ -4313,6 +4432,12 @@ func _options_drawer() -> void:
  vsync.text=_text("ui.settings.vsync","垂直同步");vsync.button_pressed=display_settings.vsync_enabled
  vsync.toggled.connect(func(enabled):display_settings.set_vsync(enabled);_refresh_drawers())
  content.add_child(vsync)
+ var motion=CheckButton.new();motion.name="ReducedCardMotion"
+ motion.text=_text("ui.settings.reduced_card_motion","减弱卡牌动效");motion.button_pressed=display_settings.reduced_card_motion
+ motion.toggled.connect(func(enabled):
+  display_settings.reduced_card_motion=enabled;display_settings.save()
+  if is_instance_valid(card_interaction): card_interaction.clear())
+ content.add_child(motion)
  content.add_child(_label(_text("ui.settings.vsync_note","开启垂直同步可减少画面撕裂；即使选择无上限，帧率仍可能受显示器刷新率限制。"),13,MUTED))
  if display_settings.save_error!="": content.add_child(_label(display_settings.save_error,14,RED))
  content.add_child(_label(_text("ui.settings.feedback_speed","敌方行动展示速度"),17,GOLD))
@@ -4323,6 +4448,8 @@ func _options_drawer() -> void:
  content.add_child(speed)
 
 func _audio_options(content: Control) -> void:
+ _audio_option(content,{"name":"InteractionAudio","key":"interaction_audio","enabled_text":"播放交互音效","volume_text":"音效音量 · {percent}%","enabled":display_settings.interaction_audio_enabled,"volume":display_settings.interaction_audio_volume},func(enabled,value):
+  display_settings.set_interaction_audio(enabled,value);interaction_audio.configure(enabled,value))
  _audio_option(content,{"name":"CardMusic","key":"music","enabled_text":"打出卡牌时播放音乐","volume_text":"音乐音量 · {percent}%","enabled":display_settings.card_music_enabled,"volume":display_settings.card_music_volume},func(enabled,value):
   display_settings.set_card_music(enabled,value);card_music.configure(enabled,value))
  _audio_option(content,{"name":"DoubaoVoice","key":"doubao_voice","enabled_text":"播放豆包语音","volume_text":"豆包语音音量 · {percent}%","enabled":display_settings.doubao_voice_enabled,"volume":display_settings.doubao_voice_volume},func(enabled,value):
@@ -4344,39 +4471,67 @@ func _audio_option(content: Control, spec: Dictionary, update: Callable) -> void
   caption.text=_text("ui.settings."+spec.key+"_volume",spec.volume_text,{"percent":roundi(value)}))
  content.add_child(volume)
 
+func _parsed_seed(value: String) -> Dictionary:
+ var clean=value.strip_edges()
+ if clean.length()>128 or not clean.is_valid_int(): return {}
+ var negative=clean.begins_with("-")
+ var digits=clean.trim_prefix("-").trim_prefix("+")
+ while digits.length()>1 and digits.begins_with("0"): digits=digits.substr(1)
+ var limit="9223372036854775808" if negative else "9223372036854775807"
+ if digits.length()>19 or (digits.length()==19 and digits.casecmp_to(limit)>0): return {}
+ return {"value":clean.to_int()}
+
+func _start_seed_run(practice: bool=false, kind: String="equipment") -> void:
+ var parsed=_parsed_seed(seed_text)
+ if parsed.is_empty(): return
+ restart(parsed.value,practice,kind)
+
 func _settings_drawer() -> void:
  var shade=ColorRect.new(); shade.color=Color(0.02,0.03,0.04,0.85); shade.z_index=300
  _place(shade,Rect2(0,0,1600,900))
- var panel=_panel(Rect2(500,155,600,575)); panel.z_index=301
+ var panel=_panel(Rect2(500,275,600,350) if settings_seed_only else Rect2(500,155,600,575)); panel.z_index=301
+ panel.name="SeedEntryPanel"
  var content=VBoxContainer.new(); panel.add_child(content)
  content.add_theme_constant_override("separation",12)
- content.add_child(_label("重新开始",25,GOLD))
- content.add_child(_label("相同种子生成相同初始局面。新塔路覆盖塔路存档；新练习只覆盖练习存档。",16))
+ content.add_child(_label(_text("ui.seed.open","种子开局") if settings_seed_only else "重新开始",25,GOLD))
+ content.add_child(_label(_text("ui.seed.help","从初始局面开始，使用当前角色与开局选项。新局会覆盖塔路存档。") if settings_seed_only else "相同种子生成相同初始局面。新塔路覆盖塔路存档；新练习只覆盖练习存档。",16))
  var row=HBoxContainer.new(); content.add_child(row)
  var caption=_label("种子",16); caption.custom_minimum_size.x=95; row.add_child(caption)
  seed_field=LineEdit.new(); seed_field.text=seed_text; seed_field.custom_minimum_size.x=195
+ seed_field.name="SeedInput"
  seed_field.size_flags_horizontal=Control.SIZE_EXPAND_FILL
  row.add_child(seed_field)
- var tower_button=_button("从入口开始塔路",func():
-  if seed_field.text.is_valid_int():
-   restart(int(seed_field.text)))
+ var paste=_button(_text("ui.seed.paste","粘贴"),func():
+  seed_field.text=DisplayServer.clipboard_get().strip_edges().replace("\r"," ").replace("\n"," ").replace("\t"," ")
+  seed_field.text_changed.emit(seed_field.text)
+  seed_field.grab_focus();seed_field.caret_column=seed_field.text.length(),CYAN)
+ paste.name="PasteSeed";row.add_child(paste)
+ var tower_button=_button("从入口开始塔路",_start_seed_run)
+ tower_button.name="StartSeedGame"
  content.add_child(tower_button)
  var start_buttons=[tower_button]
- var options=_scroll(content)
- for option in view.practice_options:
-  var button=_button(option.label,func():
-   if seed_field.text.is_valid_int(): restart(int(seed_field.text),true,option.id),CYAN)
-  button.name=option.node
-  options.add_child(button); start_buttons.append(button)
+ if not settings_seed_only:
+  var options=_scroll(content)
+  for option in view.practice_options:
+   var button=_button(option.label,func():_start_seed_run(true,option.id),CYAN)
+   button.name=option.node
+   options.add_child(button); start_buttons.append(button)
  var issue=_label("",14,RED); content.add_child(issue)
- for button in start_buttons: button.disabled=not seed_text.is_valid_int()
- issue.text="种子需要填写整数。" if tower_button.disabled else ""
+ issue.name="SeedInputError"
+ var invalid=_text("ui.seed.invalid","请输入有效的整数种子。")
+ for button in start_buttons: button.disabled=_parsed_seed(seed_text).is_empty()
+ issue.text=invalid if tower_button.disabled else ""
  seed_field.text_changed.connect(func(value):
   seed_text=value
-  var valid=value.is_valid_int()
+  var valid=not _parsed_seed(value).is_empty()
   for button in start_buttons: button.disabled=not valid
-  issue.text="" if valid else "种子需要填写整数。")
- content.add_child(_button("返回主页" if show_home else "返回当前游戏",func(): show_settings=false; _refresh_drawers()))
+  issue.text="" if valid else invalid)
+ seed_field.text_submitted.connect(func(_value):_start_seed_run())
+ var back=_button("返回主页" if show_home else "返回当前游戏",func(): show_settings=false; _refresh_drawers())
+ back.name="CloseSeedEntry";content.add_child(back)
+ if settings_seed_only:
+  seed_field.grab_focus.call_deferred()
+  seed_field.select_all.call_deferred()
 
 func _save_drawer() -> void:
  var shade=ColorRect.new();shade.color=Color(0.02,0.03,0.04,0.85);shade.z_index=310
@@ -4387,7 +4542,7 @@ func _save_drawer() -> void:
  content.add_child(_label(save_notice if save_notice!="" else preload("res://data/tutorial.gd").SAVE_HELP,16,RED if save_failed else CYAN))
  content.add_child(_label("塔路与练习分别保存进度。",16))
  for slot in Game.Snapshot.SLOTS:
-  var entry=save_summaries.get(slot,{"available":false,"text":"尚无存档。"})
+  var entry=save_summaries.get(slot,{"available":false,"text":"存档槽为空。"})
   var button=_button("继续塔路" if slot=="tower" else "继续练习",func(): _continue_save(slot),GOLD)
   button.name="ContinueTower" if slot=="tower" else "ContinuePractice"
   button.disabled=not entry.available
@@ -4396,7 +4551,7 @@ func _save_drawer() -> void:
  var retry=_button("保存场景起点",func(): _save_progress();_refresh_save_summaries();render(view),CYAN)
  retry.disabled=save_suspended or not session_started
  retry.name="SaveCurrent";content.add_child(retry)
- if save_suspended: content.add_child(_label("这份进度无法继续。请返回主界面开始新游戏；原文件会保留到开始新游戏时。",14,RED))
+ if save_suspended: content.add_child(_label("此进度需匹配版本读取。开始新游戏将替换原存档。",14,RED))
  if save_suspended or not session_started:
   var home=_button("返回主界面",_return_home,CYAN);home.name="SaveReturnHome";content.add_child(home)
  else: content.add_child(_button("返回游戏",func(): show_saves=false;_refresh_drawers()))
