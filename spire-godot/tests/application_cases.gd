@@ -65,12 +65,13 @@ static func existence_matches_full_bands(t) -> void:
  batch.count=5;batch.ready_layers=5
  t.check(A.can_apply(g,batch,"fixture") and not A._choice_bands(g,batch,"fixture").is_empty(),"APPLY a complete covering group stays reachable through the short circuit")
 
+# Counts calls per domain for fixture legibility only; call counts are deliberately
+# not compared between paths (see _lazy_choose_matches).
 class DrawProbe extends Game:
- var draws=[]
+ var draws={}
  func _random_index(domain: String, count: int) -> int:
-  var value=super._random_index(domain,count)
-  draws.append([domain,count])
-  return value
+  draws[domain]=draws.get(domain,0)+1
+  return super._random_index(domain,count)
 
 # Pre-D16 reference: complete band enumeration, pools classified from band[0].kind,
 # then the original per-level draws. Kept only as the oracle for the lazy path.
@@ -110,8 +111,37 @@ static func _complete_choose(g, spec: Dictionary, source: String, domain: String
  else: A._freeze_variant(g,selected)
  return selected
 
-# D16 round 2: the lazy band path must select the same request, and every
-# _random_index domain/size/call must stay one-for-one with the complete path.
+# The lazy band path only promises what survives its discarded trials: the chosen
+# request, every LIVE rng counter, and the commit. Trial-local draws run on a state
+# copy and may differ in count/order, so call counts are never compared.
+static func _lazy_choose_matches(t,reference,lazy,spec: Dictionary,label: String) -> void:
+ var before=reference.state.rng.duplicate(true)
+ var expected=_complete_choose(reference,spec,"enemy")
+ var actual=A.choose(lazy,spec,"enemy")
+ t.check(actual==expected,"APPLY lazy band selection matches the complete path: "+label)
+ var deltas_match=true
+ for domain in reference.state.rng:
+  if reference.state.rng[domain]-before[domain]!=lazy.state.rng[domain]-before[domain]: deltas_match=false
+ t.check(deltas_match and reference.state.rng==lazy.state.rng,"APPLY lazy band path advances every live random domain exactly as the complete path: "+label)
+
+static func _lazy_execute_matches(t,reference,lazy,spec: Dictionary,label: String) -> Dictionary:
+ var expected=A.execute(reference,spec,"enemy")
+ var actual=A.execute(lazy,spec,"enemy")
+ t.check(actual.ok==expected.ok and actual.count==expected.count and actual.ready_used==expected.ready_used and actual.installed==expected.installed and actual.removed==expected.removed and actual.lost_links==expected.lost_links,"APPLY lazy band path commits the same execution result: "+label)
+ t.check([lazy.state.equipment,lazy.state.composites,lazy.state.special_equipment,lazy.state.links]==[reference.state.equipment,reference.state.composites,reference.state.special_equipment,reference.state.links],"APPLY lazy band path leaves the same live equipment domain: "+label)
+ return expected
+
+# A full outer glove over two inner pieces at every arm point forces whole-group
+# replacement trials; tier three makes every trial install draw on the binding domain.
+static func _binding_trial_fixture(seed_value: int):
+ var g=DrawProbe.new(seed_value,false,"equipment",true,true,100)
+ var points={"upper_arm":["upper_arm_top","above_elbow"],"forearm":["below_elbow","mid_forearm"],"wrist":[""]}
+ for slot in points:
+  for point in points[slot]:
+   for i in range(2): g._install_template("belt",slot,4,10,false,"fixture",1,-1,0,point)
+ g._install_assembly("glove","short","fixture",2,1)
+ return g
+
 static func lazy_bands_match_complete_selection(t) -> void:
  var g=Game.new(42)
  var specs=[
@@ -119,18 +149,25 @@ static func lazy_bands_match_complete_selection(t) -> void:
   {"pool":"ordinary","templates":["rope","belt"],"grade":2,"tier":1,"count":1,"preferred_slots":["mouth","eyes"]},
   {"pool":"ordinary","templates":["mouth_band"],"grade":1,"tier":1,"count":1,"variant":0},
   {"pool":"ordinary","templates":["rope"],"composites":["glove"],"grade":2,"tier":2,"profiles":g.RestraintValue.profiles(4),"count":1,"variant":0},
+  {"pool":"ordinary","templates":["rope","belt"],"grade":2,"tier":2,"profiles":[{"grade":1,"tier":2},{"grade":2,"tier":2},{"grade":3,"tier":1}],"count":1},
   {"pool":"special","templates":["negative_plate_lock_medium","nipple_ring_medium"],"grade":2,"tier":2,"count":1,"replace":true}
  ]
- var labels=["ordinary","ordinary preferred","single band","mixed pools","special chance"]
+ var labels=["ordinary","ordinary preferred","single band","mixed pools","multi band","special chance"]
  for i in range(specs.size()):
   var reference=DrawProbe.new(42,false,"equipment",true,true,100)
   var lazy=DrawProbe.new(42,false,"equipment",true,true,100)
-  var expected=_complete_choose(reference,specs[i],"enemy")
-  var actual=A.choose(lazy,specs[i],"enemy")
-  t.check(actual==expected,"APPLY lazy band selection matches the complete path: "+labels[i])
-  t.check(reference.draws==lazy.draws,"APPLY lazy band path keeps every random domain, size and draw count: "+labels[i])
-  t.check(reference.state.rng==lazy.state.rng,"APPLY lazy band path advances the same random domains: "+labels[i])
+  _lazy_choose_matches(t,reference,lazy,specs[i],labels[i])
+  _lazy_execute_matches(t,reference,lazy,specs[i],labels[i])
  t.check(not specs.is_empty(),"APPLY lazy band comparison covers declared spec shapes")
+ var body={"pool":"ordinary","templates":["tape"],"slots":["upper_arm","forearm","wrist"],"preferred_slots":["wrist"],"count":5,"grade":3,"tier":3,"replace":true,"variants":{"tape":0},"ready_layers":5}
+ var reference=_binding_trial_fixture(51)
+ var lazy=_binding_trial_fixture(51)
+ var live_binding=lazy.state.rng.binding
+ _lazy_choose_matches(t,reference,lazy,body,"binding trial draws")
+ t.check(lazy.draws.get("binding",0)>0 and reference.draws.get("binding",0)>0,"APPLY the binding fixture really draws on the binding domain while choosing")
+ t.check(lazy.state.rng.binding==live_binding and reference.state.rng.binding==live_binding,"APPLY binding trial draws stay in the discarded copy and never advance the live binding counter")
+ var committed=_lazy_execute_matches(t,reference,lazy,body,"binding trial draws")
+ t.check(committed.ok and committed.count==5 and lazy.state.composites.is_empty(),"APPLY the binding fixture commits a real five-piece covering replacement")
 
 static func run(t) -> void:
  preload("res://tests/girl_sound_cases.gd").run(t)
