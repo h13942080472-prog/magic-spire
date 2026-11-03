@@ -116,10 +116,10 @@
     "cells": 1303,
     "fields": 121,
     "files": 140,
-    "inputs_sha256": "bf98c96913b8b4085626d7370d0f062fc0ec1b27618bf74e6ed37f1db59a4d78",
+    "inputs_sha256": "01ee85a3279efe58682af1a53e47ab225f4aa941709b3c7549a697f9e3ff9a6b",
     "sites": 2136,
     "ui_reads": 0,
-    "whole_state": 52
+    "whole_state": 53
   },
   "owners": {
     "core/action_replay.gd::payload": {
@@ -2616,16 +2616,16 @@
       "count": 1,
       "file": "core/equipment_replacement.gd",
       "function": "_plan",
-      "kind": "duplicate"
+      "kind": "pass"
     },
     {
       "count": 1,
       "file": "core/equipment_replacement.gd",
-      "function": "_trial",
-      "kind": "duplicate"
+      "function": "_trial_copy",
+      "kind": "iterate"
     },
     {
-      "count": 1,
+      "count": 2,
       "file": "core/equipment_replacement.gd",
       "function": "_trial",
       "kind": "pass"

@@ -36,12 +36,42 @@ static func excluded_links(t) -> void:
  t.check(actual==expected and g.state==before,"APPLY excluding links preserves every ordinary request, order and random state")
  t.check(g.anchor_queries==0,"APPLY explicitly excluded links never enumerate physical anchors")
 
+# D16: the existence-only query must agree with the complete band enumeration.
+# The short circuit may stop early, but the answered question stays the same.
+static func existence_matches_full_bands(t) -> void:
+ var g=Game.new(47)
+ g._install_template("mouth_band","mouth",E.maximum(1)*0.8,E.maximum(1),false,"fixture",1,-1,0)
+ var before=g.state.duplicate(true)
+ var mixed={"pool":"ordinary","templates":["mouth_band"],"composites":[{"family":"glove","variant":"short","straps":"straight"}],"count":2,"grade":2,"tier":2,"replace":true,"variants":{"mouth_band":0}}
+ var specs=[]
+ specs.append({"pool":"ordinary","templates":["mouth_band"],"grade":1,"tier":2,"count":1,"replace":true,"variant":0,"profiles":[{"grade":1,"tier":1},{"grade":2,"tier":2}]})
+ specs.append({"pool":"ordinary","templates":["mouth_band"],"grade":1,"tier":1,"count":1,"replace":true,"variant":0})
+ specs.append({"pool":"ordinary","templates":["rope","cord"],"grade":2,"tier":2,"count":1,"replace":true})
+ specs.append({"pool":"special","templates":["nipple_clamp_low"],"count":1,"replace":true})
+ specs.append(mixed)
+ for spec in specs:
+  t.check(A.can_apply(g,spec,"another_enemy")==(not A._choice_bands(g,spec,"another_enemy").is_empty()),"APPLY existence query matches the full band enumeration: "+str(spec.get("templates",[])))
+ t.check(A.can_apply(g,specs[0],"another_enemy"),"APPLY a later legal profile stays reachable through the short circuit")
+ t.check(not A.can_apply(g,specs[1],"another_enemy"),"APPLY the weaker single profile is still refused")
+ t.check(g.state==before,"APPLY existence query leaves state, ids, logs and random counters untouched")
+ g=Game.new(51)
+ var points={"upper_arm":["upper_arm_top","above_elbow"],"forearm":["below_elbow","mid_forearm"],"wrist":[""]}
+ for slot in points:
+  for point in points[slot]:
+   for i in range(2): g._install_template("belt",slot,4,10,false,"fixture",1,-1,0,point)
+ g._install_assembly("glove","short","fixture",2,1)
+ var batch={"pool":"ordinary","templates":["tape"],"slots":["upper_arm","forearm","wrist"],"preferred_slots":["wrist"],"count":4,"grade":3,"tier":3,"replace":true,"variants":{"tape":0},"ready_layers":4}
+ t.check(A.can_apply(g,batch,"fixture")==(not A._choice_bands(g,batch,"fixture").is_empty()) and not A.can_apply(g,batch,"fixture"),"APPLY an incomplete covering group is refused on both paths")
+ batch.count=5;batch.ready_layers=5
+ t.check(A.can_apply(g,batch,"fixture") and not A._choice_bands(g,batch,"fixture").is_empty(),"APPLY a complete covering group stays reachable through the short circuit")
+
 static func run(t) -> void:
  preload("res://tests/girl_sound_cases.gd").run(t)
  preload("res://tests/equipment_audio_cases.gd").run(t)
  preload("res://tests/restraint_rollout_cases.gd").run(t)
  unchanged_replacement(t)
  excluded_links(t)
+ existence_matches_full_bands(t)
  var materials={}
  for seed_value in t.seed_values("enemy_cycle"):
   var first=Game.new(seed_value);var second=Game.new(seed_value)

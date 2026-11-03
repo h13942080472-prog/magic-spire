@@ -47,10 +47,11 @@ static func choose(g, spec: Dictionary, source: String, domain: String="enemy") 
  return selected
 
 # Same legality as execution, without selecting or freezing a random outcome.
+# Existence query: the band/choice path below stops at its first legal band.
 static func can_apply(g, spec: Dictionary, source: String) -> bool:
- return not _choice_bands(g,spec,source).is_empty()
+ return not _choice_bands(g,spec,source,true).is_empty()
 
-static func _choice_bands(g, spec: Dictionary, source: String) -> Array:
+static func _choice_bands(g, spec: Dictionary, source: String, first_only: bool=false) -> Array:
  if _spec_reason(spec)!="" or spec.get("count",1)==0: return []
  var bands=[]
  var mixed=not spec.get("composites",[]).is_empty()
@@ -58,21 +59,25 @@ static func _choice_bands(g, spec: Dictionary, source: String) -> Array:
  # Try all permitted empty positions before considering any replacement.
  if mixed and spec.get("replace",false):
   var plain=spec.duplicate(true);plain.replace=false
-  bands=_choice_bands(g,plain,source)
+  bands=_choice_bands(g,plain,source,first_only)
   if not bands.is_empty(): return bands
  for profile in spec.get("profiles",[{}]):
   var current=spec.duplicate(true)
   current.merge(profile,true)
-  var choices=_choices(g,current,source)
+  var choices=_choices(g,current,source,first_only)
   if choices.is_empty() and not spec.get("fallback_templates",[]).is_empty():
    current.templates=spec.fallback_templates
-   choices=_choices(g,current,source)
-  if not choices.is_empty(): bands.append(choices)
+   choices=_choices(g,current,source,first_only)
+  if not choices.is_empty():
+   bands.append(choices)
+   if first_only: return bands
  if mixed:
   var current=spec.duplicate(true)
   current.pool="composite";current.templates=spec.composites
-  var choices=_choices(g,current,source)
-  if not choices.is_empty(): bands.append(choices)
+  var choices=_choices(g,current,source,first_only)
+  if not choices.is_empty():
+   bands.append(choices)
+   if first_only: return bands
  return bands
 
 static func execute(g, spec: Dictionary, source: String, domain: String="enemy") -> Dictionary:
@@ -201,7 +206,7 @@ static func _piece_spec(spec: Dictionary, index: int, ready_used: int) -> Dictio
  result.tier=3 if spec.get("ready_layers",0)>ready_used else (tiers[index] if index<tiers.size() else spec.get("tier",2))
  return result
 
-static func _choices(g, spec: Dictionary, source: String) -> Array:
+static func _choices(g, spec: Dictionary, source: String, first_only: bool=false) -> Array:
  var raw=_raw(g,spec,source)
  if not spec.get("excluded_points",[]).is_empty():
   raw=raw.filter(func(request):
@@ -215,29 +220,37 @@ static func _choices(g, spec: Dictionary, source: String) -> Array:
  var preferred_slots=spec.get("preferred_slots",[])
  for slot in preferred_slots:
   var band=raw.filter(func(p):return slot in _slots(p))
-  var found=_legal_choices(g,band,spec,source)
+  var found=_legal_choices(g,band,spec,source,first_only)
   if found.is_empty() and spec.get("replace",false) and spec.get("count",1)>1 and spec.get("pool","ordinary")=="ordinary":
    found=_groups(g,raw,spec,source).filter(func(group):return group.requests.any(func(p):return slot in _slots(p)))
   if not found.is_empty(): return O.preferred(g,found)
- return O.preferred(g,_legal_choices(g,raw,spec,source))
+ return O.preferred(g,_legal_choices(g,raw,spec,source,first_only))
 
-static func _legal_choices(g, raw: Array, spec: Dictionary, source: String) -> Array:
+static func _legal_choices(g, raw: Array, spec: Dictionary, source: String, first_only: bool=false) -> Array:
  var normal=raw.filter(func(p):return _request_reason(g,p,true,spec.get("protected_ids",[]))=="")
  if not normal.is_empty(): return normal
  if not spec.get("replace",false): return []
  var options=[]
+ var protected_ids=spec.get("protected_ids",[])
+ # One necessary-condition floor per band; Replacement.removal_floor proves that a
+ # rejected request can never produce a successful _replacement_plan.
+ var floor=Replacement.removal_floor(g,raw,protected_ids)
  for request in raw:
   if request.kind not in ["install","assembly","special_install"]: continue
   if request.kind=="special_install" and g.SpecialEquipment.is_chastity_type(request.get("type","")): continue
+  if Replacement.removal_floor_rejects(g,request,floor): continue
   if request.get("random_variant",false):
    var available=[]
    for variant in E.MATERIALS[E.TEMPLATES[request.template].material][request.grade].size():
     var concrete=request.duplicate(true);concrete.variant=variant
-    if _replacement_plan(g,[concrete],source,spec.get("protected_ids",[])).get("ok",false): available.append(variant)
+    if _replacement_plan(g,[concrete],source,spec.get("protected_ids",[])).get("ok",false):
+     available.append(variant)
+     if first_only: break
    if not available.is_empty():
     var option=request.duplicate(true);option.variant=available[0];option.variant_choices=available
     options.append(option)
   elif _replacement_plan(g,[request],source,spec.get("protected_ids",[])).get("ok",false): options.append(request)
+  if first_only and not options.is_empty(): return options
  if options.is_empty() and spec.get("pool","ordinary")=="ordinary" and spec.get("count",1)>1:
   options.append_array(_groups(g,raw,spec,source))
  return options

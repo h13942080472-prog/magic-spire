@@ -162,6 +162,54 @@ static func unchanged(t, g, specs: Array, label: String) -> Dictionary:
  t.check(g.state==before and g._resource_feedback==recorder,"REPLACEMENT pure preview: "+label)
  return p
 
+# D16: the cheap removal floor may only reject requests the full plan also
+# rejects; equal values, a cheaper occupant, free capacity and composite
+# requests stay admitted.
+static func removal_floor_is_necessary(t) -> void:
+ var g=Game.new(42)
+ var pieces=fill(g,"mouth",3,3)
+ var point=g._installation_points("mouth","")[0]
+ var limit=g.Equipment.capacity("mouth","mouth_band")
+ t.check(pieces.size()>0 and g._capacity_point_count(point)>=limit and not pieces.any(func(piece):return piece.is_empty()),"REPLACEMENT floor fixture fills the real mouth capacity")
+ var weak=request("mouth",1,1)
+ var floor=Replacement.removal_floor(g,[weak])
+ t.check(Replacement.removal_floor_rejects(g,weak,floor),"REPLACEMENT floor rejects a weaker single install at a full point")
+ t.check(not Replacement.plan(g,[weak],"fixture").ok,"REPLACEMENT floor never rejects a request the full plan accepts")
+ var equal={point:Replacement.replacement_value(g,weak)}
+ t.check(not Replacement.removal_floor_rejects(g,weak,equal),"REPLACEMENT floor admits an equal value")
+ g=Game.new(42)
+ var free=request("mouth",1,1)
+ t.check(not Replacement.removal_floor_rejects(g,free,Replacement.removal_floor(g,[free])),"REPLACEMENT floor skips points that still have capacity")
+ t.check(not Replacement.removal_floor_rejects(g,glove(),Replacement.removal_floor(g,[glove()])),"REPLACEMENT floor never screens composite requests")
+ # Every rejection in a mixed ordinary batch must be a request the full plan
+ # refuses; a dropped request would otherwise change the legal choice set.
+ g=Game.new(42)
+ var slot=g.Links.point_slot("mid_forearm")
+ for i in range(g._capacity(slot)): install(g,request(slot,3,3,"mid_forearm"))
+ var batch=[request(slot,1,1,"mid_forearm"),request(slot,2,2,"mid_forearm"),request(slot,3,3,"mid_forearm")]
+ var mixed=Replacement.removal_floor(g,batch)
+ var rejected=batch.filter(func(request):return Replacement.removal_floor_rejects(g,request,mixed))
+ t.check(not rejected.is_empty(),"REPLACEMENT floor sweep has at least one real rejection")
+ t.check(rejected.all(func(request):return not Replacement.plan(g,[request],"fixture").ok),"REPLACEMENT floor sweep rejects only requests the full plan refuses")
+
+# D16: a trial writes into a draft log array and _after keeps those entries, so
+# previews never touch the live log while the commit carries the same wording.
+static func trial_log_isolation(t) -> void:
+ var g=Game.new(42)
+ var old=install(g,request("mouth",1,1))
+ g.state.logs.append({"kind":"event","text":"既有日志","round":1,"phase":"battle","data":{}})
+ var live=g.state.logs
+ var live_size=live.size()
+ var before=g.state.duplicate(true)
+ var p=Replacement.plan(g,[request("mouth",3,3)],"fixture")
+ t.check(p.ok and p.removed==[old.id],"REPLACEMENT log isolation fixture removes one real piece through the plan")
+ t.check(g.state==before and is_same(g.state.logs,live),"REPLACEMENT preview keeps the live log array and its entries untouched")
+ t.check(p._after.logs.size()>live_size and p._after.logs.slice(0,live_size)==g.state.logs,"REPLACEMENT trial draft extends the live log instead of replacing it")
+ t.check(not is_same(p._after.logs,g.state.logs),"REPLACEMENT trial draft owns its own log array")
+ Replacement.execute(g,p)
+ t.check(g.state.logs.size()>=p._after.logs.size() and g.state.logs.slice(0,p._after.logs.size())==p._after.logs,"REPLACEMENT commit carries the trial draft wording unchanged")
+ t.check(g.state.logs.filter(func(row):return str(row.get("text","")).contains("已解除")).size()==1,"REPLACEMENT removal wording is committed exactly once")
+
 static func run(t) -> void:
  forced_special_boundaries(t)
  var unchanged_glove=full_glove()
@@ -347,3 +395,5 @@ static func run(t) -> void:
  t.check(not p.ok,"REPLACEMENT special specification never grants implicit ordinary locking")
  p=Replacement.plan(g,[{"kind":"special_install","type":"crotch_rope_low","slot":"special_3_a"}],"fixture")
  t.check(p.ok and p.removed.is_empty(),"REPLACEMENT zero-capacity special source installs normally without clearing occupied positions")
+ removal_floor_is_necessary(t)
+ trial_log_isolation(t)
