@@ -65,6 +65,73 @@ static func existence_matches_full_bands(t) -> void:
  batch.count=5;batch.ready_layers=5
  t.check(A.can_apply(g,batch,"fixture") and not A._choice_bands(g,batch,"fixture").is_empty(),"APPLY a complete covering group stays reachable through the short circuit")
 
+class DrawProbe extends Game:
+ var draws=[]
+ func _random_index(domain: String, count: int) -> int:
+  var value=super._random_index(domain,count)
+  draws.append([domain,count])
+  return value
+
+# Pre-D16 reference: complete band enumeration, pools classified from band[0].kind,
+# then the original per-level draws. Kept only as the oracle for the lazy path.
+static func _complete_choose(g, spec: Dictionary, source: String, domain: String="enemy") -> Dictionary:
+ var bands=A._choice_bands(g,spec,source,"full")
+ if bands.is_empty(): return {}
+ if not spec.get("composites",[]).is_empty() and spec.has("profiles"):
+  var pools=[]
+  for composite in [false,true]:
+   var pool=bands.filter(func(band):return (band[0].kind=="assembly")==composite)
+   if not pool.is_empty(): pools.append(pool)
+  bands=pools[g._random_index(domain,pools.size())]
+ var primary=bands[g._random_index(domain,bands.size())]
+ if spec.get("pool","ordinary")=="ordinary":
+  var families={}
+  for request in primary:
+   var family=E.generation_class(request.template) if request.has("template") else request.kind
+   if not families.has(family): families[family]=[]
+   families[family].append(request)
+  primary=families[families.keys()[g._random_index(domain,families.size())]]
+  var positions={}
+  for request in primary:
+   var position=JSON.stringify([request.kind,request.get("slot",""),request.get("point",""),request.get("ends",[]),request.get("contact_points",[]),request.get("target","")])
+   if not positions.has(position): positions[position]=[]
+   positions[position].append(request)
+  primary=positions[positions.keys()[g._random_index(domain,positions.size())]]
+ elif spec.get("pool","ordinary")=="special" and g.state.get("chastity_locks_enabled",false):
+  var lock_choices=primary.filter(func(request):return g.SpecialEquipment.is_chastity_type(request.get("type","")))
+  var toy_choices=primary.filter(func(request):return not g.SpecialEquipment.is_chastity_type(request.get("type","")))
+  if not lock_choices.is_empty() and not toy_choices.is_empty():
+   primary=lock_choices if g._random_index(domain,100)<int(g.state.get("chastity_lock_chance",25)) else toy_choices
+  elif not lock_choices.is_empty(): primary=lock_choices
+  else: primary=toy_choices
+ var selected=primary[g._random_index(domain,primary.size())].duplicate(true)
+ if selected.get("kind","")=="application_group":
+  for request in selected.requests: A._freeze_variant(g,request)
+ else: A._freeze_variant(g,selected)
+ return selected
+
+# D16 round 2: the lazy band path must select the same request, and every
+# _random_index domain/size/call must stay one-for-one with the complete path.
+static func lazy_bands_match_complete_selection(t) -> void:
+ var g=Game.new(42)
+ var specs=[
+  {"pool":"ordinary","templates":["rope","belt"],"grade":1,"tier":2,"count":1},
+  {"pool":"ordinary","templates":["rope","belt"],"grade":2,"tier":1,"count":1,"preferred_slots":["mouth","eyes"]},
+  {"pool":"ordinary","templates":["mouth_band"],"grade":1,"tier":1,"count":1,"variant":0},
+  {"pool":"ordinary","templates":["rope"],"composites":["glove"],"grade":2,"tier":2,"profiles":g.RestraintValue.profiles(4),"count":1,"variant":0},
+  {"pool":"special","templates":["negative_plate_lock_medium","nipple_ring_medium"],"grade":2,"tier":2,"count":1,"replace":true}
+ ]
+ var labels=["ordinary","ordinary preferred","single band","mixed pools","special chance"]
+ for i in range(specs.size()):
+  var reference=DrawProbe.new(42,false,"equipment",true,true,100)
+  var lazy=DrawProbe.new(42,false,"equipment",true,true,100)
+  var expected=_complete_choose(reference,specs[i],"enemy")
+  var actual=A.choose(lazy,specs[i],"enemy")
+  t.check(actual==expected,"APPLY lazy band selection matches the complete path: "+labels[i])
+  t.check(reference.draws==lazy.draws,"APPLY lazy band path keeps every random domain, size and draw count: "+labels[i])
+  t.check(reference.state.rng==lazy.state.rng,"APPLY lazy band path advances the same random domains: "+labels[i])
+ t.check(not specs.is_empty(),"APPLY lazy band comparison covers declared spec shapes")
+
 static func run(t) -> void:
  preload("res://tests/girl_sound_cases.gd").run(t)
  preload("res://tests/equipment_audio_cases.gd").run(t)
@@ -72,6 +139,7 @@ static func run(t) -> void:
  unchanged_replacement(t)
  excluded_links(t)
  existence_matches_full_bands(t)
+ lazy_bands_match_complete_selection(t)
  var materials={}
  for seed_value in t.seed_values("enemy_cycle"):
   var first=Game.new(seed_value);var second=Game.new(seed_value)

@@ -9,17 +9,28 @@ const Replacement=preload("res://core/equipment_replacement.gd")
 # choose returns one concrete request, or an atomic application_group with requests.
 # Empty ordinary/special whitelists mean no permission; composite is an explicit pool.
 static func choose(g, spec: Dictionary, source: String, domain: String="enemy") -> Dictionary:
- var bands=_choice_bands(g,spec,source)
+ # Only band existence is probed up front: pool and band are drawn from the same
+ # domain and sizes as a complete enumeration would give, then just the selected
+ # band is enumerated in full by the same _choices entry point.
+ var band_specs=[]
+ var bands=_choice_bands(g,spec,source,"probe",band_specs)
  if bands.is_empty(): return {}
  # Mixed sources first choose a legal pool equally, then a legal ordinary profile.
  if not spec.get("composites",[]).is_empty() and spec.has("profiles"):
-  var pools=[]
+  var pools=[];var pool_specs=[]
   for composite in [false,true]:
-   var pool=bands.filter(func(band):return (band[0].kind=="assembly")==composite)
-   if not pool.is_empty(): pools.append(pool)
-  bands=pools[g._random_index(domain,pools.size())]
+   var pool=[];var specs=[]
+   for i in range(bands.size()):
+    # "composite" is the only pool whose raw offers carry kind "assembly", so the
+    # declared pool class answers the old band[0].kind test without enumerating it.
+    if (band_specs[i].get("pool","ordinary")=="composite")!=composite: continue
+    pool.append(bands[i]);specs.append(band_specs[i])
+   if not pool.is_empty():
+    pools.append(pool);pool_specs.append(specs)
+  var pool_index=g._random_index(domain,pools.size())
+  bands=pools[pool_index];band_specs=pool_specs[pool_index]
  # Equal weights per legal grade/tightness profile, not per template count.
- var primary=bands[g._random_index(domain,bands.size())]
+ var primary=_choices(g,band_specs[g._random_index(domain,bands.size())],source)
  if spec.get("pool","ordinary")=="ordinary":
   var families={}
   for request in primary:
@@ -49,9 +60,16 @@ static func choose(g, spec: Dictionary, source: String, domain: String="enemy") 
 # Same legality as execution, without selecting or freezing a random outcome.
 # Existence query: the band/choice path below stops at its first legal band.
 static func can_apply(g, spec: Dictionary, source: String) -> bool:
- return not _choice_bands(g,spec,source,true).is_empty()
+ return not _choice_bands(g,spec,source,"first").is_empty()
 
-static func _choice_bands(g, spec: Dictionary, source: String, first_only: bool=false) -> Array:
+# Bands in declaration order. `mode` owns how much of each band is enumerated:
+# "full" judges every request; "first" stops at the first legal band (existence);
+# "probe" only judges existence per band but still visits every band, which is the
+# whole band set choose needs for its pool/band draws. `band_specs` (optional
+# accumulator) receives the per-band spec that produced each appended band, so a
+# caller may enumerate only the band it selects; legality stays in _choices.
+static func _choice_bands(g, spec: Dictionary, source: String, mode: String="full", band_specs: Array=[]) -> Array:
+ var first_only=mode!="full"
  if _spec_reason(spec)!="" or spec.get("count",1)==0: return []
  var bands=[]
  var mixed=not spec.get("composites",[]).is_empty()
@@ -59,7 +77,7 @@ static func _choice_bands(g, spec: Dictionary, source: String, first_only: bool=
  # Try all permitted empty positions before considering any replacement.
  if mixed and spec.get("replace",false):
   var plain=spec.duplicate(true);plain.replace=false
-  bands=_choice_bands(g,plain,source,first_only)
+  bands=_choice_bands(g,plain,source,mode,band_specs)
   if not bands.is_empty(): return bands
  for profile in spec.get("profiles",[{}]):
   var current=spec.duplicate(true)
@@ -70,14 +88,16 @@ static func _choice_bands(g, spec: Dictionary, source: String, first_only: bool=
    choices=_choices(g,current,source,first_only)
   if not choices.is_empty():
    bands.append(choices)
-   if first_only: return bands
+   band_specs.append(current)
+   if mode=="first": return bands
  if mixed:
   var current=spec.duplicate(true)
   current.pool="composite";current.templates=spec.composites
   var choices=_choices(g,current,source,first_only)
   if not choices.is_empty():
    bands.append(choices)
-   if first_only: return bands
+   band_specs.append(current)
+   if mode=="first": return bands
  return bands
 
 static func execute(g, spec: Dictionary, source: String, domain: String="enemy") -> Dictionary:
