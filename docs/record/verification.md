@@ -4698,3 +4698,13 @@ flowchart LR
 - 成品SHA256：`spire-v0.18.3.apk` = `6b4dfb4b97455220a632ac1b34d3571d213b9d55db1cf5339136a00e8aa25e43`。
 - 成品SHA256：`spire-v0.18.3-pc-密码冰红茶.7z` = `8deced7ba6ab7d3976d59b4293086772ac093ab4d1c31add6c90870786b702b4`。
 - 独立只读审查 review_release_0183（gpt-6-astra low，新会话）复核版本／发布边界、最小测试修复、最后门禁摘要及失败披露，无本批新增阻塞；未重新跑引擎。主检出保留 `build/release-0183-20261101/validation-matrix.json`、`distribution-verification.json` 及归档往返证据。源码／标签及公开附件的发布入口为 [GitHub v0.18.3](https://github.com/h13942080472-prog/magic-spire/releases/tag/v0.18.3)，本条登记已完成的本地构建与校验，远端上传核验另保留在同目录GitHub结果文件。
+
+## 2026-11-04｜塔顶六缚满拘束敌人回合卡顿热修
+
+- 域：`core/equipment_application.gd`（`choose`、`can_apply`、`_choice_bands` 的 full／first／probe、`_legal_choices` 的 `removal_floor` 预筛）、`core/equipment_replacement.gd`（`plan` 单次深拷贝、`_trial` 日志浅拷贝、`_point_values`、锚点快照）；测试 `tests/application_cases.gd`、`tests/replacement_cases.gd` 只增判据。枝 `hotfix/six-binds-freeze`，范围 `998a24c..3e1e89d`（`3701462`、`5a144a2`、`6e53d5d`、`2001fd2`、`3e1e89d`）。来源：0.18.3 Android 反馈 `b951c5cfdd7b7251abc7f53a657a5f7c`、`7ed9fca6da9e1e1c1d6d4d2695915763`（塔顶第16层第1回合敌人先行动，无存档附件）。
+- 诊断：真实入口构造满拘束六缚局面复现，敌人规划与施加回合 500–900 次 `Replacement.plan`；0.18.3 规格展开使同规格判定次数约 2.5 倍；抖M护符只决定先后手、紧缚爱好不在敌方热点链（代码面排除，未做层数对照实测）。
+- 行为不变证据（验收 `dsp-20261103T210026Z-9c0d`，`head=3e1e89d`、`dirty=0`）：三种子复刻 `tests/normal_play_cases.gd::run` 单种子循环（1000 步上限）结束 checkpoint sha256 与改前基线逐字节相同：42＝`01db4dc55896c93ce62a3e75711a88651b706f17d523d5a436143b43ed661fef`、20260906＝`4f69e2c7506ea0960cb723f7ab6a5048fe08e13829ba0798bae9da13771f0e5c`、7＝`aa45ef479d7dfc3b9eb24e6a10866e952233a2f0eb3a9636c1d615eb7dd7ae9d`。门禁 `tools/check.ps1 -Suite application,replacement,equipment,equipment_complete,links,composites,shoulder,torso_binding,guard,prison,events,event_flow,persistence,architecture -Impact -KeepGoing` → 运行 `20261103T211842850-42540`，47 套件，`FAIL: 11/145748`，红集合 architecture／shoulder／rewards／events 与改前基线相同，11 条 ERROR 逐字相同、无新增（上游 0.18.3 保留失败）；基线另有 `STATEREAD state_read_sites_are_pinned` 因本批重生成 `state_readers.json` 转绿，不据此宣称修复上游；断言数仅 application 202→244、replacement 109→143。
+- 提速（桌面 headless，各 3 次中位，同机配对 `998a24c` 基线）：满拘束开场 8077→2550 ms、满拘束 9135→2875 ms、1500 条日志 19835→3444 ms、stage 4 双重束缚 22976→4767 ms。
+- 判据与敏感性：存在性查询与完整枚举一致、惰性档与完整路径选中一致且 live 随机计数逐域相同（含命中 binding 域试算的 tier 3 规格）、预筛差分（7 个满拘束类局面 84 次剔除全部被完整试算拒绝）、试算日志不泄漏；验收亲跑两条突变（下界放宽、惰性路径多抽一次）均具名变红并逐字节还原。独立审查 `dsp-20261103T203939Z-7104` 无阻断，F1（判据措辞过度）由 `3e1e89d` 收窄。
+- 未跑（如实，不作通过）：安卓真机与打包；`normal_play` 里程碑套件本体（以 1000 步复刻循环代替）；紧缚爱好层数对照实测、魅魔警卫援军回合实战计时；`-Suite all`、窗口／UI 套件。
+- 本节随热修单独提交；推送到 fork 分支 `hotfix/six-binds-freeze`，未开 PR、未打 tag、未打包或发布。
