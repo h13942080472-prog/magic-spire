@@ -687,7 +687,7 @@
     },
     "spire-godot/tests/replacement_cases.gd": {
       "owner": "rule:replacement",
-      "signals": 3
+      "signals": 5
     },
     "spire-godot/tests/resonance_cases.gd": {
       "owner": "rule:card_power",
@@ -934,7 +934,7 @@
       "signals": 2
     }
   },
-  "digest": "15899d906421fb0d9ef012714f0ff12afad7208bc2745bb2d71469d823d45d6e",
+  "digest": "bddd757879b301b856e2813a064ae341f3da44918e942c30abbdfa78f6ff52c7",
   "domain_words": {
     "ART": [
       "ui:display",
@@ -1932,7 +1932,7 @@
       ]
     }
   },
-  "generated_from": "b528a62bec349c924073fe2bc6142460bbbea249095603c70bf835ec162783f8",
+  "generated_from": "55090bb0f7557c03a9bad0481b3cda8066a5166d1de5b1a007e494feb70c8611",
   "registries": {
     "rule": [
       "rope_master",
@@ -2055,7 +2055,7 @@
     "rule_suites": 54,
     "source_files": 140,
     "sources_with_edges": 138,
-    "suite_edges": 564,
+    "suite_edges": 566,
     "suites_with_edges": 101,
     "ui_suites": 50,
     "widen": 1
@@ -2679,6 +2679,9 @@
       ]
     },
     "rule:replacement": {
+      "spire-godot/core/equipment_application.gd": [
+        "preload"
+      ],
       "spire-godot/core/equipment_replacement.gd": [
         "preload"
       ],
@@ -2686,6 +2689,9 @@
         "symbol"
       ],
       "spire-godot/core/resource_feedback.gd": [
+        "preload"
+      ],
+      "spire-godot/data/equipment.gd": [
         "preload"
       ]
     },

@@ -2,6 +2,8 @@ extends RefCounted
 
 const Replacement=preload("res://core/equipment_replacement.gd")
 const Game=preload("res://tests/game_fixture.gd")
+const A=preload("res://core/equipment_application.gd")
+const E=preload("res://data/equipment.gd")
 
 # Observe full assembly trials through the original factory, without a timing limit.
 class DenseProbe extends Game:
@@ -210,6 +212,195 @@ static func trial_log_isolation(t) -> void:
  t.check(g.state.logs.size()>=p._after.logs.size() and g.state.logs.slice(0,p._after.logs.size())==p._after.logs,"REPLACEMENT commit carries the trial draft wording unchanged")
  t.check(g.state.logs.filter(func(row):return str(row.get("text","")).contains("已解除")).size()==1,"REPLACEMENT removal wording is committed exactly once")
 
+# D16 hardening: the cheap removal floor may only drop candidates whose complete
+# _replacement_plan also fails. The corpus is built by the real factories and the
+# real enemy-turn spec builders over seeded whole-body positions: fully bound,
+# near-full, composite, links with shoulders, specials with chastity locks,
+# shackles, and rope-art sealed ropes, across grade/tier combinations.
+static func floor_prescreen_matches_full_plan(t) -> void:
+ var rows=floor_corpus()
+ var tally={"screened":0,"plans":0,"violations":[],"dirty":[]}
+ for row in rows:
+  var g=row.g
+  var before=g.state.duplicate(true)
+  for spec in floor_specs(g,row.slot):
+   for profile in spec.get("profiles",[{}]):
+    var current=spec.duplicate(true)
+    current.merge(profile,true)
+    _floor_band(g,current,tally)
+  if g.state!=before: tally.dirty.append(row.name)
+ var names=rows.map(func(row):return row.name)
+ t.check(rows.size()==7 and names.size()==7 and rows.all(func(row):return row.g._capacity_issue(row.g.physical_pieces())==""),"REPLACEMENT floor corpus builds seven valid real-entry positions: "+str(names))
+ t.check(tally.screened>0,"REPLACEMENT floor corpus screens real candidates: "+str(tally.screened))
+ t.check(tally.plans>0 and tally.violations.is_empty(),"REPLACEMENT floor screens only candidates the full plan refuses: "+str(tally.violations))
+ t.check(tally.dirty.is_empty(),"REPLACEMENT floor corpus plans and queries without changing any position: "+str(tally.dirty))
+ # Rope-art seal: sealed ropes are not removable, so the floor must be the cheapest
+ # unsealed value. A value-5 request is then screened and refused; admitting it in
+ # the floor would require the sealed rope's value 4.
+ var sealed=rows.filter(func(row):return row.name=="rope-art-seal")[0].g
+ var value_five={"kind":"install","template":"rope","slot":"wrist","point":"","grade":2,"tier":3,"locked":false,"variant":0}
+ var sealed_floor=Replacement.removal_floor(sealed,[value_five])
+ t.check(Replacement.removal_floor_rejects(sealed,value_five,sealed_floor),"REPLACEMENT sealed ropes are excluded from the floor so a value-5 request is screened: "+str(sealed_floor))
+ t.check(not Replacement.plan(sealed,[value_five],"fixture").ok,"REPLACEMENT sealed ropes never let a screened value-5 request complete")
+
+# Full body saturation through the real factories: every anatomy point to its real
+# capacity, all special slots, then links until no real link candidate installs.
+static func _floor_saturate(g, grade: int, tier: int) -> void:
+ var maximum=E.maximum(grade)
+ for point in E.ANATOMY:
+  var slot=g.Links.point_slot(point)
+  var limit=E.capacity(slot,E.default_template(slot))
+  var guard=0
+  while g._capacity_point_count(point)<limit and guard<8:
+   guard+=1
+   var template=E.default_template(slot)
+   if slot=="eyes" and g._capacity_point_count(point)>0: template="eye_tape"
+   if slot=="mouth" and g._capacity_point_count(point)>0: template="mouth_tape"
+   if g._install_template(template,slot,maximum*[0.0,0.4,0.8,1.0][tier],maximum,false,"fixture",grade,-1,0,point).is_empty(): break
+ for i in range(40):
+  var toys=A.execute(g,{"pool":"special","templates":g.SpecialEquipment.DESIGNS.keys(),"count":1,"replace":false},"fixture")
+  if not toys.ok or toys.count==0: break
+ _floor_links(g)
+
+static func _floor_links(g) -> void:
+ for i in range(200):
+  var link=A.execute(g,{"pool":"ordinary","templates":["link_rope"],"grade":2,"tier":2,"count":1,"replace":false},"fixture")
+  if not link.ok or link.count==0: break
+
+static func floor_corpus() -> Array:
+ var rows=[]
+ var g=Game.new(42)
+ _floor_saturate(g,2,2)
+ rows.append({"name":"full-body-g2t2","g":g,"slot":"wrist"})
+ g=Game.new(47)
+ for i in range(3): install(g,request("wrist",3,3))
+ for i in range(2): install(g,request("ankle",2,2))
+ rows.append({"name":"near-full-g3t3","g":g,"slot":"wrist"})
+ g=Game.new(51)
+ for point in ["upper_arm_top","above_elbow","below_elbow","mid_forearm","wrist"]:
+  for i in range(2): install(g,request(g.Links.point_slot(point),2,2,point))
+ g._install_assembly("glove","short","fixture",2,2)
+ _floor_links(g)
+ rows.append({"name":"composite-glove","g":g,"slot":"forearm"})
+ g=Game.new(53)
+ for i in range(3): install(g,request("wrist",2,2))
+ var palm=install(g,request("palm",2,2))
+ var wrist=g.state.equipment.filter(func(e):return e.slot=="wrist")[0]
+ g._install_link(wrist.id,palm.id,4.8,"fixture",1,[],["wrist","palm"],["wrist","palm_left"])
+ A.execute(g,{"pool":"ordinary","templates":["rope"],"count":1,"grade":2,"tier":2,"slot":"shoulder","shoulders":true},"fixture")
+ rows.append({"name":"links-shoulders","g":g,"slot":"wrist"})
+ g=Game.new(56)
+ g.state.chastity_locks_enabled=true
+ g._install_special("negative_plate_lock_medium","special_2_a",3)
+ g._install_special("vaginal_egg_low","special_3_a")
+ for i in range(3): install(g,request("ankle",3,3))
+ rows.append({"name":"special-chastity","g":g,"slot":"ankle"})
+ g=Game.new(58)
+ for i in range(2): install(g,request("wrist",3,3))
+ g._install_template("handcuffs","wrist",4,10,true,"fixture",1)
+ rows.append({"name":"shackles","g":g,"slot":"wrist"})
+ g=Game.new(59)
+ g.state.room_encounters.entrance="rope_master_solo"
+ g._start_battle()
+ for i in range(2): install(g,request("wrist",2,2))
+ var belt=request("wrist",3,3);belt.template="belt"
+ install(g,belt)
+ for e in g.state.enemies:
+  if e.get("rope_art",null)!=null: e.rope_art.seal=true
+ rows.append({"name":"rope-art-seal","g":g,"slot":"wrist"})
+ return rows
+
+# Real enemy-turn spec shape: one targeted slot, explicit grade/tier combinations
+# plus the RestraintValue profile expansion used by the shipped intents.
+static func floor_specs(g, slot: String) -> Array:
+ var specs=[]
+ for combo in [[1,1],[1,2],[2,1],[2,2],[2,3],[3,1],[3,3]]:
+  var spec=g.EnemyPlans.application(["rope","cord","belt","fine_belt"],combo[0],combo[1],1,false,0)
+  spec.slot=slot
+  spec.replace=true
+  specs.append(spec)
+ var profiled=g.EnemyPlans.application(["rope","cord","belt","fine_belt"],2,2,1,false,4)
+ profiled.slot=slot
+ profiled.replace=true
+ specs.append(profiled)
+ return specs
+
+# Mirrors _legal_choices: a normally installable candidate returns first, so the
+# floor only ever sees a band whose every request needs a replacement.
+static func _floor_band(g, spec: Dictionary, tally: Dictionary) -> void:
+ var raw=A._raw(g,spec,"fixture")
+ if raw.is_empty(): return
+ var protected=spec.get("protected_ids",[])
+ if not raw.filter(func(p):return A._request_reason(g,p,true,protected)=="").is_empty(): return
+ if not spec.get("replace",false): return
+ var floor=Replacement.removal_floor(g,raw,protected)
+ for request in raw:
+  if request.kind not in ["install","assembly","special_install"]: continue
+  if request.kind=="special_install" and g.SpecialEquipment.is_chastity_type(request.get("type","")): continue
+  if not Replacement.removal_floor_rejects(g,request,floor): continue
+  tally.screened+=1
+  var accepted=false
+  if request.get("random_variant",false):
+   for variant in E.MATERIALS[E.TEMPLATES[request.template].material][request.grade].size():
+    var concrete=request.duplicate(true);concrete.variant=variant
+    tally.plans+=1
+    if A._replacement_plan(g,[concrete],"fixture",protected).get("ok",false): accepted=true
+  else:
+   tally.plans+=1
+   if A._replacement_plan(g,[request],"fixture",protected).get("ok",false): accepted=true
+  if accepted: tally.violations.append(str(request.get("template",request.get("type",request.kind)))+"@"+str(spec.get("slot","")))
+
+# D16 hardening: the trial draft owns its log array and shares entries only because
+# it appends. The live log stays byte-identical through choose/plan, and the commit
+# appends exactly the draft's new rows once.
+static func preview_log_isolation(t) -> void:
+ var g=Game.new(42)
+ for i in range(3): install(g,request("wrist",2,2))
+ g.state.logs.append({"kind":"event","text":"既有日志","round":1,"phase":"battle","data":{}})
+ var live=g.state.logs
+ var size=live.size()
+ var logs_before=live.duplicate(true)
+ var choose_spec={"pool":"ordinary","templates":["rope","belt"],"slot":"wrist","grade":3,"tier":3,"count":1,"replace":true}
+ var chosen=A.choose(g,choose_spec,"fixture")
+ t.check(not chosen.is_empty(),"REPLACEMENT log isolation fixture chooses a real replacement candidate")
+ t.check(is_same(g.state.logs,live) and g.state.logs.size()==size and g.state.logs==logs_before,"REPLACEMENT choose keeps the live log array and every entry untouched")
+ var before=g.state.duplicate(true)
+ var strong=request("wrist",3,3)
+ var p=Replacement.plan(g,[strong],"fixture")
+ t.check(p.ok,"REPLACEMENT log isolation fixture plans an accepted replacement")
+ t.check(g.state==before and is_same(g.state.logs,live) and g.state.logs.size()==size and g.state.logs==before.logs,"REPLACEMENT plan keeps the live log deeply identical")
+ t.check(p._after.logs.size()>size and p._after.logs.slice(0,size)==g.state.logs,"REPLACEMENT draft extends the live log history instead of rewriting it")
+ t.check(range(size).all(func(i):return is_same(p._after.logs[i],g.state.logs[i])),"REPLACEMENT draft shares history entries it never rewrites")
+ Replacement.execute(g,p)
+ var committed=g.state.logs
+ t.check(committed.size()==p._after.logs.size() and committed.slice(0,size)==before.logs and committed.slice(size)==p._after.logs.slice(size),"REPLACEMENT commit appends exactly the draft's own events once")
+ t.check(committed.filter(func(row):return str(row.get("text","")).contains("已解除")).size()==1,"REPLACEMENT removal wording is committed exactly once after a preview")
+
+# U3-1: two behaviour-neutral edges now have a real sensitivity proof.
+static func neutral_edges_are_pinned(t) -> void:
+ var g=DenseProbe.new(42)
+ var wrist=install(g,request("wrist",1,1))
+ var forearm=install(g,request("forearm",1,1,"mid_forearm"))
+ var palm=install(g,request("palm",1,1))
+ var first=g._install_link(forearm.id,wrist.id,4.8,"fixture",1,[],["forearm","wrist"],["mid_forearm","wrist"])
+ var second=g._install_link(wrist.id,palm.id,4.8,"fixture",1,[],["wrist","palm"],["wrist","palm_left"])
+ t.check(not first.is_empty() and not second.is_empty(),"REPLACEMENT anchor snapshot fixture has two real links")
+ g.anchor_queries=0
+ Replacement._transfer(g,[first,second],[])
+ t.check(g.anchor_queries==1,"REPLACEMENT one transfer reads the anchor pool exactly once: "+str(g.anchor_queries))
+ g.anchor_queries=0
+ Replacement._transfer(g,[],[])
+ t.check(g.anchor_queries==0,"REPLACEMENT a transfer without links never reads the anchor pool: "+str(g.anchor_queries))
+ var h=Game.new(42)
+ install(h,request("mouth",1,1))
+ var before=h.state.duplicate(true)
+ var planned=Replacement.plan(h,[request("mouth",3,3)],"fixture")
+ t.check(planned.ok and planned._before==before,"REPLACEMENT plan keeps an independent full before snapshot")
+ t.check(not is_same(planned._before,h.state) and not is_same(planned._before.equipment,h.state.equipment),"REPLACEMENT before snapshot owns its containers")
+ var settled=h.state.equipment[0].durability
+ planned._before.equipment[0].durability=0
+ t.check(h.state.equipment[0].durability==settled,"REPLACEMENT before snapshot never aliases live equipment")
+
 static func run(t) -> void:
  forced_special_boundaries(t)
  var unchanged_glove=full_glove()
@@ -397,3 +588,6 @@ static func run(t) -> void:
  t.check(p.ok and p.removed.is_empty(),"REPLACEMENT zero-capacity special source installs normally without clearing occupied positions")
  removal_floor_is_necessary(t)
  trial_log_isolation(t)
+ floor_prescreen_matches_full_plan(t)
+ preview_log_isolation(t)
+ neutral_edges_are_pinned(t)
