@@ -69,7 +69,7 @@ static func can_apply(g, spec: Dictionary, source: String) -> bool:
 # accumulator) receives the per-band spec that produced each appended band, so a
 # caller may enumerate only the band it selects; legality stays in _choices.
 static func _choice_bands(g, spec: Dictionary, source: String, mode: String="full", band_specs: Array=[]) -> Array:
- var first_only=mode!="full"
+ var existence_only=mode!="full"
  if _spec_reason(spec)!="" or spec.get("count",1)==0: return []
  var bands=[]
  var mixed=not spec.get("composites",[]).is_empty()
@@ -82,10 +82,10 @@ static func _choice_bands(g, spec: Dictionary, source: String, mode: String="ful
  for profile in spec.get("profiles",[{}]):
   var current=spec.duplicate(true)
   current.merge(profile,true)
-  var choices=_choices(g,current,source,first_only)
+  var choices=_choices(g,current,source,existence_only)
   if choices.is_empty() and not spec.get("fallback_templates",[]).is_empty():
    current.templates=spec.fallback_templates
-   choices=_choices(g,current,source,first_only)
+   choices=_choices(g,current,source,existence_only)
   if not choices.is_empty():
    bands.append(choices)
    band_specs.append(current)
@@ -93,7 +93,7 @@ static func _choice_bands(g, spec: Dictionary, source: String, mode: String="ful
  if mixed:
   var current=spec.duplicate(true)
   current.pool="composite";current.templates=spec.composites
-  var choices=_choices(g,current,source,first_only)
+  var choices=_choices(g,current,source,existence_only)
   if not choices.is_empty():
    bands.append(choices)
    band_specs.append(current)
@@ -226,7 +226,7 @@ static func _piece_spec(spec: Dictionary, index: int, ready_used: int) -> Dictio
  result.tier=3 if spec.get("ready_layers",0)>ready_used else (tiers[index] if index<tiers.size() else spec.get("tier",2))
  return result
 
-static func _choices(g, spec: Dictionary, source: String, first_only: bool=false) -> Array:
+static func _choices(g, spec: Dictionary, source: String, existence_only: bool=false) -> Array:
  var raw=_raw(g,spec,source)
  if not spec.get("excluded_points",[]).is_empty():
   raw=raw.filter(func(request):
@@ -240,18 +240,18 @@ static func _choices(g, spec: Dictionary, source: String, first_only: bool=false
  var preferred_slots=spec.get("preferred_slots",[])
  for slot in preferred_slots:
   var band=raw.filter(func(p):return slot in _slots(p))
-  var found=_legal_choices(g,band,spec,source,first_only)
+  var found=_legal_choices(g,band,spec,source,existence_only)
   if found.is_empty() and spec.get("replace",false) and spec.get("count",1)>1 and spec.get("pool","ordinary")=="ordinary":
    found=_groups(g,raw,spec,source).filter(func(group):return group.requests.any(func(p):return slot in _slots(p)))
   if not found.is_empty(): return O.preferred(g,found)
- return O.preferred(g,_legal_choices(g,raw,spec,source,first_only))
+ return O.preferred(g,_legal_choices(g,raw,spec,source,existence_only))
 
-static func _legal_choices(g, raw: Array, spec: Dictionary, source: String, first_only: bool=false) -> Array:
- var normal=raw.filter(func(p):return _request_reason(g,p,true,spec.get("protected_ids",[]))=="")
+static func _legal_choices(g, raw: Array, spec: Dictionary, source: String, existence_only: bool=false) -> Array:
+ var protected_ids=spec.get("protected_ids",[])
+ var normal=raw.filter(func(p):return _request_reason(g,p,true,protected_ids)=="")
  if not normal.is_empty(): return normal
  if not spec.get("replace",false): return []
  var options=[]
- var protected_ids=spec.get("protected_ids",[])
  # One necessary-condition floor per band; Replacement.removal_floor proves that a
  # rejected request can never produce a successful _replacement_plan.
  var floor=Replacement.removal_floor(g,raw,protected_ids)
@@ -263,14 +263,14 @@ static func _legal_choices(g, raw: Array, spec: Dictionary, source: String, firs
    var available=[]
    for variant in E.MATERIALS[E.TEMPLATES[request.template].material][request.grade].size():
     var concrete=request.duplicate(true);concrete.variant=variant
-    if _replacement_plan(g,[concrete],source,spec.get("protected_ids",[])).get("ok",false):
+    if _replacement_plan(g,[concrete],source,protected_ids).get("ok",false):
      available.append(variant)
-     if first_only: break
+     if existence_only: break
    if not available.is_empty():
     var option=request.duplicate(true);option.variant=available[0];option.variant_choices=available
     options.append(option)
-  elif _replacement_plan(g,[request],source,spec.get("protected_ids",[])).get("ok",false): options.append(request)
-  if first_only and not options.is_empty(): return options
+  elif _replacement_plan(g,[request],source,protected_ids).get("ok",false): options.append(request)
+  if existence_only and not options.is_empty(): return options
  if options.is_empty() and spec.get("pool","ordinary")=="ordinary" and spec.get("count",1)>1:
   options.append_array(_groups(g,raw,spec,source))
  return options

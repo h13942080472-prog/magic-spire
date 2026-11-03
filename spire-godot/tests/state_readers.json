@@ -116,8 +116,8 @@
     "cells": 1303,
     "fields": 121,
     "files": 140,
-    "inputs_sha256": "f34519c8247c48d20b16dc138e97c8e84dfe5f84ad84a2151f2f9a044299de58",
-    "sites": 2136,
+    "inputs_sha256": "73b4bb3f35ab3844050d83d58e9e0d9854e1159cfd1b407a460a5f3383978b47",
+    "sites": 2137,
     "ui_reads": 0,
     "whole_state": 53
   },
@@ -629,7 +629,7 @@
     "core/equipment_replacement.gd::_trial": {
       "composites": 1,
       "equipment": 1,
-      "links": 4,
+      "links": 5,
       "special_equipment": 1
     },
     "core/equipment_replacement.gd::_units": {
