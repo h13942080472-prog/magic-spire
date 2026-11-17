@@ -934,7 +934,7 @@
       "signals": 2
     }
   },
-  "digest": "15899d906421fb0d9ef012714f0ff12afad7208bc2745bb2d71469d823d45d6e",
+  "digest": "baf14a8a749d10b755be32069d3c95ecae65158ee5fbb5e75189939a71a56229",
   "domain_words": {
     "ART": [
       "ui:display",
@@ -961,6 +961,7 @@
     ],
     "CAPTURE": [
       "rule:enemies",
+      "rule:guard",
       "rule:iron_man"
     ],
     "CARD": [
@@ -1534,6 +1535,7 @@
       "suites": [
         "rule:enemies",
         "rule:equipment",
+        "rule:guard",
         "rule:iron_man",
         "ui:enemies"
       ]
@@ -1932,7 +1934,7 @@
       ]
     }
   },
-  "generated_from": "c00740c526ed89771b3a38345ea4d3f0d2ceed026df8daa727e1883c15310e0a",
+  "generated_from": "8d3911df0fbd53de578c196ca260583b0f38d0900b1f90dd5de04faa2b347f6d",
   "registries": {
     "rule": [
       "rope_master",
@@ -2055,7 +2057,7 @@
     "rule_suites": 54,
     "source_files": 140,
     "sources_with_edges": 138,
-    "suite_edges": 564,
+    "suite_edges": 565,
     "suites_with_edges": 101,
     "ui_suites": 50,
     "widen": 1
@@ -2475,6 +2477,9 @@
         "domain"
       ],
       "spire-godot/core/torso_binding.gd": [
+        "domain"
+      ],
+      "spire-godot/data/enemy_library.gd": [
         "domain"
       ]
     },

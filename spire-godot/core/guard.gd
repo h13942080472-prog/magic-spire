@@ -106,9 +106,11 @@ static func capture(g, captor: Dictionary) -> void:
  g.Cards.end_powers(g)
  g.state.card_buffs.clear()
  g.state.card_buff_uses.clear()
- g.Pressure.clear_penalties(g)
  g.RelicEffects.clear_temporary(g)
  g.RelicEffects.end_combat(g)
+ # After end_combat: a battle-end relic can still cause a climax there, and its penalties
+ # belong to the closed battle (same order as Game._finish_preparation and Prison.escape).
+ g.Pressure.clear_penalties(g)
  g.state.next_energy=0
  g._apply_transition("battle_end_captured",{"phase":"captured"});g.state.energy=0;g.state.weakness_turns=0
  g.state.prepare_left=0;g.state.rest_left=0;g.state.hook_uses=0
