@@ -106,10 +106,14 @@ static func capture(g, captor: Dictionary) -> void:
  g.Cards.end_powers(g)
  g.state.card_buffs.clear()
  g.state.card_buff_uses.clear()
+ g.Pressure.clear_penalties(g)
  g.RelicEffects.clear_temporary(g)
  g.RelicEffects.end_combat(g)
- # After end_combat: a battle-end relic can still cause a climax there, and its penalties
- # belong to the closed battle (same order as Game._finish_preparation and Prison.escape).
+ # clear_penalties runs on both sides of end_combat (it only assigns constants, so the second
+ # call is safe). Before: end_combat reads the penalties (a residual slip turn defers the mana
+ # loss, the climax log reports the energy penalty) and must see them cleared, as it always did.
+ # After: a battle-end relic can still cause a climax in end_combat, and those penalties belong
+ # to the closed battle; left in place they fail Pressure.validate once the phase is captured.
  g.Pressure.clear_penalties(g)
  g.state.next_energy=0
  g._apply_transition("battle_end_captured",{"phase":"captured"});g.state.energy=0;g.state.weakness_turns=0

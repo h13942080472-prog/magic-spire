@@ -93,11 +93,46 @@ static func capture_after_battle_end_climax(t) -> void:
    t.check(climaxes.filter(func(row):return row.data.scripted).size()==1 and g.state.capture.intake_scene.climax.count==1,"CAPTURE CLIMAX intake milking still resolves exactly once as a scripted climax: "+label)
    if spec==cases[0]: t.check(preload("res://tests/persistence_cases.gd").roundtrip(t,g,"capture after battle-end climax "+route)!=null,"CAPTURE CLIMAX captured state remains saveable: "+label)
 
+# The battle-end relic step reads the climax penalties as well as writing them (a residual slip
+# turn defers the mana loss; the log row reports the accumulated energy penalty). Capture must
+# hand it the already-cleared penalties it always saw, and drop only what that step adds:
+# otherwise a deferred loss is cleared before it is ever paid, and the log row stacks the closed
+# battle's leftover penalty onto the new climax. The continued-turn relic keeps these exits
+# committing on either order, so the expected values are the ones capture produced all along.
+static func capture_battle_end_climax_reads_cleared_penalties(t) -> void:
+ var relics=[BATTLE_END_RELIC,"lewd_silk_bodysuit"]
+ # [label, chastity lock, residual slip turns left by an earlier locked climax]
+ var cases=[
+  ["residual slip turn without a chastity lock","",1],
+  ["continued-turn relic without catheter",PLATE_LOCK,0],
+ ]
+ for spec in cases:
+  for route in ["surrender","end","end_enemy_first"]:
+   var label=String(spec[0])+" via "+route
+   var g=climax_capture_fixture(relics,spec[1],1.0,route)
+   g.state.slip_ejaculation_turns=spec[2]
+   g.state.mana=g.state.mana_max
+   t.check(g.state.phase=="battle" and g.state.overload_energy==g.B.OVERLOAD_ENERGY and g.validate()=="","CAPTURE CLIMAX fixture is a legal battle state carrying one earlier energy penalty: "+label+": "+g.validate())
+   var mana_before=g.state.mana
+   var logs_before=g.state.logs.size()
+   var outcome=t.action(g,"surrender" if route=="surrender" else "end")
+   t.check(outcome.ok,"CAPTURE CLIMAX exit commits with the continued-turn relic: "+label+": "+String(outcome.get("error","")))
+   if not outcome.ok: continue
+   var live=g.state.logs.slice(logs_before).filter(func(row):return int(row.data.get("overloads",0))>0 and not row.data.scripted)
+   t.check(live.size()==1,"CAPTURE CLIMAX battle-end relic climaxes once inside capture: "+label+": "+str(live.size()))
+   if live.size()!=1: continue
+   var row=live[0].data
+   # Immediate loss of the battle-end climax plus the scripted intake milking, nothing deferred.
+   t.check(is_equal_approx(row.mana_lost,g.B.OVERLOAD_MANA) and is_equal_approx(mana_before-g.state.mana,2*g.B.OVERLOAD_MANA),"CAPTURE CLIMAX battle-end climax pays its mana at once instead of deferring it into the cleared penalties: "+label+": mana_lost="+str(row.mana_lost)+" mana_delta="+str(g.state.mana-mana_before))
+   t.check(int(row.energy_penalty)==g.B.OVERLOAD_ENERGY,"CAPTURE CLIMAX battle-end climax log reports only its own energy penalty: "+label+": energy_penalty="+str(row.energy_penalty))
+   t.check(g.state.phase=="captured" and g.validate()=="" and not g.state.overloaded and g.state.overload_count==0 and g.state.overload_energy==0 and g.state.slip_ejaculation_turns==0 and not g.state.slip_ejaculation_force_last,"CAPTURE CLIMAX no residual penalty reaches the cell after the immediate loss: "+label+": "+g.validate())
+
 static func run(t) -> void:
  lower_and_charge(t)
  opening_fallback(t)
  capture_routes_through_the_main_path(t)
  capture_after_battle_end_climax(t)
+ capture_battle_end_climax_reads_cleared_penalties(t)
 
  var g=Game.new(42,true,"guard")
  var e=g.state.enemies[0]
