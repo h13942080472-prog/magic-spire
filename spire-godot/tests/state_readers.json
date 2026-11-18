@@ -116,10 +116,10 @@
     "cells": 1303,
     "fields": 121,
     "files": 140,
-    "inputs_sha256": "444263b65c4e0d961f9c0f592804606df6ba9df713404ef7b77748e3d0f6458f",
-    "sites": 2136,
+    "inputs_sha256": "acd79f6ca4e8d5e2e44b408f8b3193ee52246d6bf4dd4fb7d51fb99dc1b43b1c",
+    "sites": 2137,
     "ui_reads": 0,
-    "whole_state": 52
+    "whole_state": 53
   },
   "owners": {
     "core/action_replay.gd::payload": {
@@ -629,7 +629,7 @@
     "core/equipment_replacement.gd::_trial": {
       "composites": 1,
       "equipment": 1,
-      "links": 4,
+      "links": 5,
       "special_equipment": 1
     },
     "core/equipment_replacement.gd::_units": {
@@ -2616,16 +2616,16 @@
       "count": 1,
       "file": "core/equipment_replacement.gd",
       "function": "_plan",
-      "kind": "duplicate"
+      "kind": "pass"
     },
     {
       "count": 1,
       "file": "core/equipment_replacement.gd",
-      "function": "_trial",
-      "kind": "duplicate"
+      "function": "_trial_copy",
+      "kind": "iterate"
     },
     {
-      "count": 1,
+      "count": 2,
       "file": "core/equipment_replacement.gd",
       "function": "_trial",
       "kind": "pass"

@@ -9,17 +9,28 @@ const Replacement=preload("res://core/equipment_replacement.gd")
 # choose returns one concrete request, or an atomic application_group with requests.
 # Empty ordinary/special whitelists mean no permission; composite is an explicit pool.
 static func choose(g, spec: Dictionary, source: String, domain: String="enemy") -> Dictionary:
- var bands=_choice_bands(g,spec,source)
+ # Only band existence is probed up front: pool and band are drawn from the same
+ # domain and sizes as a complete enumeration would give, then just the selected
+ # band is enumerated in full by the same _choices entry point.
+ var band_specs=[]
+ var bands=_choice_bands(g,spec,source,"probe",band_specs)
  if bands.is_empty(): return {}
  # Mixed sources first choose a legal pool equally, then a legal ordinary profile.
  if not spec.get("composites",[]).is_empty() and spec.has("profiles"):
-  var pools=[]
+  var pools=[];var pool_specs=[]
   for composite in [false,true]:
-   var pool=bands.filter(func(band):return (band[0].kind=="assembly")==composite)
-   if not pool.is_empty(): pools.append(pool)
-  bands=pools[g._random_index(domain,pools.size())]
+   var pool=[];var specs=[]
+   for i in range(bands.size()):
+    # "composite" is the only pool whose raw offers carry kind "assembly", so the
+    # declared pool class answers the old band[0].kind test without enumerating it.
+    if (band_specs[i].get("pool","ordinary")=="composite")!=composite: continue
+    pool.append(bands[i]);specs.append(band_specs[i])
+   if not pool.is_empty():
+    pools.append(pool);pool_specs.append(specs)
+  var pool_index=g._random_index(domain,pools.size())
+  bands=pools[pool_index];band_specs=pool_specs[pool_index]
  # Equal weights per legal grade/tightness profile, not per template count.
- var primary=bands[g._random_index(domain,bands.size())]
+ var primary=_choices(g,band_specs[g._random_index(domain,bands.size())],source)
  if spec.get("pool","ordinary")=="ordinary":
   var families={}
   for request in primary:
@@ -47,10 +58,18 @@ static func choose(g, spec: Dictionary, source: String, domain: String="enemy") 
  return selected
 
 # Same legality as execution, without selecting or freezing a random outcome.
+# Existence query: the band/choice path below stops at its first legal band.
 static func can_apply(g, spec: Dictionary, source: String) -> bool:
- return not _choice_bands(g,spec,source).is_empty()
+ return not _choice_bands(g,spec,source,"first").is_empty()
 
-static func _choice_bands(g, spec: Dictionary, source: String) -> Array:
+# Bands in declaration order. `mode` owns how much of each band is enumerated:
+# "full" judges every request; "first" stops at the first legal band (existence);
+# "probe" only judges existence per band but still visits every band, which is the
+# whole band set choose needs for its pool/band draws. `band_specs` (optional
+# accumulator) receives the per-band spec that produced each appended band, so a
+# caller may enumerate only the band it selects; legality stays in _choices.
+static func _choice_bands(g, spec: Dictionary, source: String, mode: String="full", band_specs: Array=[]) -> Array:
+ var existence_only=mode!="full"
  if _spec_reason(spec)!="" or spec.get("count",1)==0: return []
  var bands=[]
  var mixed=not spec.get("composites",[]).is_empty()
@@ -58,21 +77,27 @@ static func _choice_bands(g, spec: Dictionary, source: String) -> Array:
  # Try all permitted empty positions before considering any replacement.
  if mixed and spec.get("replace",false):
   var plain=spec.duplicate(true);plain.replace=false
-  bands=_choice_bands(g,plain,source)
+  bands=_choice_bands(g,plain,source,mode,band_specs)
   if not bands.is_empty(): return bands
  for profile in spec.get("profiles",[{}]):
   var current=spec.duplicate(true)
   current.merge(profile,true)
-  var choices=_choices(g,current,source)
+  var choices=_choices(g,current,source,existence_only)
   if choices.is_empty() and not spec.get("fallback_templates",[]).is_empty():
    current.templates=spec.fallback_templates
-   choices=_choices(g,current,source)
-  if not choices.is_empty(): bands.append(choices)
+   choices=_choices(g,current,source,existence_only)
+  if not choices.is_empty():
+   bands.append(choices)
+   band_specs.append(current)
+   if mode=="first": return bands
  if mixed:
   var current=spec.duplicate(true)
   current.pool="composite";current.templates=spec.composites
-  var choices=_choices(g,current,source)
-  if not choices.is_empty(): bands.append(choices)
+  var choices=_choices(g,current,source,existence_only)
+  if not choices.is_empty():
+   bands.append(choices)
+   band_specs.append(current)
+   if mode=="first": return bands
  return bands
 
 static func execute(g, spec: Dictionary, source: String, domain: String="enemy") -> Dictionary:
@@ -201,7 +226,7 @@ static func _piece_spec(spec: Dictionary, index: int, ready_used: int) -> Dictio
  result.tier=3 if spec.get("ready_layers",0)>ready_used else (tiers[index] if index<tiers.size() else spec.get("tier",2))
  return result
 
-static func _choices(g, spec: Dictionary, source: String) -> Array:
+static func _choices(g, spec: Dictionary, source: String, existence_only: bool=false) -> Array:
  var raw=_raw(g,spec,source)
  if not spec.get("excluded_points",[]).is_empty():
   raw=raw.filter(func(request):
@@ -215,29 +240,37 @@ static func _choices(g, spec: Dictionary, source: String) -> Array:
  var preferred_slots=spec.get("preferred_slots",[])
  for slot in preferred_slots:
   var band=raw.filter(func(p):return slot in _slots(p))
-  var found=_legal_choices(g,band,spec,source)
+  var found=_legal_choices(g,band,spec,source,existence_only)
   if found.is_empty() and spec.get("replace",false) and spec.get("count",1)>1 and spec.get("pool","ordinary")=="ordinary":
    found=_groups(g,raw,spec,source).filter(func(group):return group.requests.any(func(p):return slot in _slots(p)))
   if not found.is_empty(): return O.preferred(g,found)
- return O.preferred(g,_legal_choices(g,raw,spec,source))
+ return O.preferred(g,_legal_choices(g,raw,spec,source,existence_only))
 
-static func _legal_choices(g, raw: Array, spec: Dictionary, source: String) -> Array:
- var normal=raw.filter(func(p):return _request_reason(g,p,true,spec.get("protected_ids",[]))=="")
+static func _legal_choices(g, raw: Array, spec: Dictionary, source: String, existence_only: bool=false) -> Array:
+ var protected_ids=spec.get("protected_ids",[])
+ var normal=raw.filter(func(p):return _request_reason(g,p,true,protected_ids)=="")
  if not normal.is_empty(): return normal
  if not spec.get("replace",false): return []
  var options=[]
+ # One necessary-condition floor per band; Replacement.removal_floor proves that a
+ # rejected request can never produce a successful _replacement_plan.
+ var floor=Replacement.removal_floor(g,raw,protected_ids)
  for request in raw:
   if request.kind not in ["install","assembly","special_install"]: continue
   if request.kind=="special_install" and g.SpecialEquipment.is_chastity_type(request.get("type","")): continue
+  if Replacement.removal_floor_rejects(g,request,floor): continue
   if request.get("random_variant",false):
    var available=[]
    for variant in E.MATERIALS[E.TEMPLATES[request.template].material][request.grade].size():
     var concrete=request.duplicate(true);concrete.variant=variant
-    if _replacement_plan(g,[concrete],source,spec.get("protected_ids",[])).get("ok",false): available.append(variant)
+    if _replacement_plan(g,[concrete],source,protected_ids).get("ok",false):
+     available.append(variant)
+     if existence_only: break
    if not available.is_empty():
     var option=request.duplicate(true);option.variant=available[0];option.variant_choices=available
     options.append(option)
-  elif _replacement_plan(g,[request],source,spec.get("protected_ids",[])).get("ok",false): options.append(request)
+  elif _replacement_plan(g,[request],source,protected_ids).get("ok",false): options.append(request)
+  if existence_only and not options.is_empty(): return options
  if options.is_empty() and spec.get("pool","ordinary")=="ordinary" and spec.get("count",1)>1:
   options.append_array(_groups(g,raw,spec,source))
  return options

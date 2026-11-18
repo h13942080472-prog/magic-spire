@@ -36,12 +36,147 @@ static func excluded_links(t) -> void:
  t.check(actual==expected and g.state==before,"APPLY excluding links preserves every ordinary request, order and random state")
  t.check(g.anchor_queries==0,"APPLY explicitly excluded links never enumerate physical anchors")
 
+# D16: the existence-only query must agree with the complete band enumeration.
+# The short circuit may stop early, but the answered question stays the same.
+static func existence_matches_full_bands(t) -> void:
+ var g=Game.new(47)
+ g._install_template("mouth_band","mouth",E.maximum(1)*0.8,E.maximum(1),false,"fixture",1,-1,0)
+ var before=g.state.duplicate(true)
+ var mixed={"pool":"ordinary","templates":["mouth_band"],"composites":[{"family":"glove","variant":"short","straps":"straight"}],"count":2,"grade":2,"tier":2,"replace":true,"variants":{"mouth_band":0}}
+ var specs=[]
+ specs.append({"pool":"ordinary","templates":["mouth_band"],"grade":1,"tier":2,"count":1,"replace":true,"variant":0,"profiles":[{"grade":1,"tier":1},{"grade":2,"tier":2}]})
+ specs.append({"pool":"ordinary","templates":["mouth_band"],"grade":1,"tier":1,"count":1,"replace":true,"variant":0})
+ specs.append({"pool":"ordinary","templates":["rope","cord"],"grade":2,"tier":2,"count":1,"replace":true})
+ specs.append({"pool":"special","templates":["nipple_clamp_low"],"count":1,"replace":true})
+ specs.append(mixed)
+ for spec in specs:
+  t.check(A.can_apply(g,spec,"another_enemy")==(not A._choice_bands(g,spec,"another_enemy").is_empty()),"APPLY existence query matches the full band enumeration: "+str(spec.get("templates",[])))
+ t.check(A.can_apply(g,specs[0],"another_enemy"),"APPLY a later legal profile stays reachable through the short circuit")
+ t.check(not A.can_apply(g,specs[1],"another_enemy"),"APPLY the weaker single profile is still refused")
+ t.check(g.state==before,"APPLY existence query leaves state, ids, logs and random counters untouched")
+ g=Game.new(51)
+ var points={"upper_arm":["upper_arm_top","above_elbow"],"forearm":["below_elbow","mid_forearm"],"wrist":[""]}
+ for slot in points:
+  for point in points[slot]:
+   for i in range(2): g._install_template("belt",slot,4,10,false,"fixture",1,-1,0,point)
+ g._install_assembly("glove","short","fixture",2,1)
+ var batch={"pool":"ordinary","templates":["tape"],"slots":["upper_arm","forearm","wrist"],"preferred_slots":["wrist"],"count":4,"grade":3,"tier":3,"replace":true,"variants":{"tape":0},"ready_layers":4}
+ t.check(A.can_apply(g,batch,"fixture")==(not A._choice_bands(g,batch,"fixture").is_empty()) and not A.can_apply(g,batch,"fixture"),"APPLY an incomplete covering group is refused on both paths")
+ batch.count=5;batch.ready_layers=5
+ t.check(A.can_apply(g,batch,"fixture") and not A._choice_bands(g,batch,"fixture").is_empty(),"APPLY a complete covering group stays reachable through the short circuit")
+
+# Counts calls per domain for fixture legibility only; call counts are deliberately
+# not compared between paths (see _lazy_choose_matches).
+class DrawProbe extends Game:
+ var draws={}
+ func _random_index(domain: String, count: int) -> int:
+  draws[domain]=draws.get(domain,0)+1
+  return super._random_index(domain,count)
+
+# Pre-D16 reference: complete band enumeration, pools classified from band[0].kind,
+# then the original per-level draws. Kept only as the oracle for the lazy path.
+static func _complete_choose(g, spec: Dictionary, source: String, domain: String="enemy") -> Dictionary:
+ var bands=A._choice_bands(g,spec,source,"full")
+ if bands.is_empty(): return {}
+ if not spec.get("composites",[]).is_empty() and spec.has("profiles"):
+  var pools=[]
+  for composite in [false,true]:
+   var pool=bands.filter(func(band):return (band[0].kind=="assembly")==composite)
+   if not pool.is_empty(): pools.append(pool)
+  bands=pools[g._random_index(domain,pools.size())]
+ var primary=bands[g._random_index(domain,bands.size())]
+ if spec.get("pool","ordinary")=="ordinary":
+  var families={}
+  for request in primary:
+   var family=E.generation_class(request.template) if request.has("template") else request.kind
+   if not families.has(family): families[family]=[]
+   families[family].append(request)
+  primary=families[families.keys()[g._random_index(domain,families.size())]]
+  var positions={}
+  for request in primary:
+   var position=JSON.stringify([request.kind,request.get("slot",""),request.get("point",""),request.get("ends",[]),request.get("contact_points",[]),request.get("target","")])
+   if not positions.has(position): positions[position]=[]
+   positions[position].append(request)
+  primary=positions[positions.keys()[g._random_index(domain,positions.size())]]
+ elif spec.get("pool","ordinary")=="special" and g.state.get("chastity_locks_enabled",false):
+  var lock_choices=primary.filter(func(request):return g.SpecialEquipment.is_chastity_type(request.get("type","")))
+  var toy_choices=primary.filter(func(request):return not g.SpecialEquipment.is_chastity_type(request.get("type","")))
+  if not lock_choices.is_empty() and not toy_choices.is_empty():
+   primary=lock_choices if g._random_index(domain,100)<int(g.state.get("chastity_lock_chance",25)) else toy_choices
+  elif not lock_choices.is_empty(): primary=lock_choices
+  else: primary=toy_choices
+ var selected=primary[g._random_index(domain,primary.size())].duplicate(true)
+ if selected.get("kind","")=="application_group":
+  for request in selected.requests: A._freeze_variant(g,request)
+ else: A._freeze_variant(g,selected)
+ return selected
+
+# The lazy band path only promises what survives its discarded trials: the chosen
+# request, every LIVE rng counter, and the commit. Trial-local draws run on a state
+# copy and may differ in count/order, so call counts are never compared.
+static func _lazy_choose_matches(t,reference,lazy,spec: Dictionary,label: String) -> void:
+ var before=reference.state.rng.duplicate(true)
+ var expected=_complete_choose(reference,spec,"enemy")
+ var actual=A.choose(lazy,spec,"enemy")
+ t.check(actual==expected,"APPLY lazy band selection matches the complete path: "+label)
+ var deltas_match=true
+ for domain in reference.state.rng:
+  if reference.state.rng[domain]-before[domain]!=lazy.state.rng[domain]-before[domain]: deltas_match=false
+ t.check(deltas_match and reference.state.rng==lazy.state.rng,"APPLY lazy band path advances every live random domain exactly as the complete path: "+label)
+
+static func _lazy_execute_matches(t,reference,lazy,spec: Dictionary,label: String) -> Dictionary:
+ var expected=A.execute(reference,spec,"enemy")
+ var actual=A.execute(lazy,spec,"enemy")
+ t.check(actual.ok==expected.ok and actual.count==expected.count and actual.ready_used==expected.ready_used and actual.installed==expected.installed and actual.removed==expected.removed and actual.lost_links==expected.lost_links,"APPLY lazy band path commits the same execution result: "+label)
+ t.check([lazy.state.equipment,lazy.state.composites,lazy.state.special_equipment,lazy.state.links]==[reference.state.equipment,reference.state.composites,reference.state.special_equipment,reference.state.links],"APPLY lazy band path leaves the same live equipment domain: "+label)
+ return expected
+
+# A full outer glove over two inner pieces at every arm point forces whole-group
+# replacement trials; tier three makes every trial install draw on the binding domain.
+static func _binding_trial_fixture(seed_value: int):
+ var g=DrawProbe.new(seed_value,false,"equipment",true,true,100)
+ var points={"upper_arm":["upper_arm_top","above_elbow"],"forearm":["below_elbow","mid_forearm"],"wrist":[""]}
+ for slot in points:
+  for point in points[slot]:
+   for i in range(2): g._install_template("belt",slot,4,10,false,"fixture",1,-1,0,point)
+ g._install_assembly("glove","short","fixture",2,1)
+ return g
+
+static func lazy_bands_match_complete_selection(t) -> void:
+ var g=Game.new(42)
+ var specs=[
+  {"pool":"ordinary","templates":["rope","belt"],"grade":1,"tier":2,"count":1},
+  {"pool":"ordinary","templates":["rope","belt"],"grade":2,"tier":1,"count":1,"preferred_slots":["mouth","eyes"]},
+  {"pool":"ordinary","templates":["mouth_band"],"grade":1,"tier":1,"count":1,"variant":0},
+  {"pool":"ordinary","templates":["rope"],"composites":["glove"],"grade":2,"tier":2,"profiles":g.RestraintValue.profiles(4),"count":1,"variant":0},
+  {"pool":"ordinary","templates":["rope","belt"],"grade":2,"tier":2,"profiles":[{"grade":1,"tier":2},{"grade":2,"tier":2},{"grade":3,"tier":1}],"count":1},
+  {"pool":"special","templates":["negative_plate_lock_medium","nipple_ring_medium"],"grade":2,"tier":2,"count":1,"replace":true}
+ ]
+ var labels=["ordinary","ordinary preferred","single band","mixed pools","multi band","special chance"]
+ for i in range(specs.size()):
+  var reference=DrawProbe.new(42,false,"equipment",true,true,100)
+  var lazy=DrawProbe.new(42,false,"equipment",true,true,100)
+  _lazy_choose_matches(t,reference,lazy,specs[i],labels[i])
+  _lazy_execute_matches(t,reference,lazy,specs[i],labels[i])
+ t.check(not specs.is_empty(),"APPLY lazy band comparison covers declared spec shapes")
+ var body={"pool":"ordinary","templates":["tape"],"slots":["upper_arm","forearm","wrist"],"preferred_slots":["wrist"],"count":5,"grade":3,"tier":3,"replace":true,"variants":{"tape":0},"ready_layers":5}
+ var reference=_binding_trial_fixture(51)
+ var lazy=_binding_trial_fixture(51)
+ var live_binding=lazy.state.rng.binding
+ _lazy_choose_matches(t,reference,lazy,body,"binding trial draws")
+ t.check(lazy.draws.get("binding",0)>0 and reference.draws.get("binding",0)>0,"APPLY the binding fixture really draws on the binding domain while choosing")
+ t.check(lazy.state.rng.binding==live_binding and reference.state.rng.binding==live_binding,"APPLY binding trial draws stay in the discarded copy and never advance the live binding counter")
+ var committed=_lazy_execute_matches(t,reference,lazy,body,"binding trial draws")
+ t.check(committed.ok and committed.count==5 and lazy.state.composites.is_empty(),"APPLY the binding fixture commits a real five-piece covering replacement")
+
 static func run(t) -> void:
  preload("res://tests/girl_sound_cases.gd").run(t)
  preload("res://tests/equipment_audio_cases.gd").run(t)
  preload("res://tests/restraint_rollout_cases.gd").run(t)
  unchanged_replacement(t)
  excluded_links(t)
+ existence_matches_full_bands(t)
+ lazy_bands_match_complete_selection(t)
  var materials={}
  for seed_value in t.seed_values("enemy_cycle"):
   var first=Game.new(seed_value);var second=Game.new(seed_value)

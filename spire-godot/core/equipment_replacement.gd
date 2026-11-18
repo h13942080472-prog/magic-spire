@@ -8,7 +8,7 @@ static func plan(g, requests: Array, source: String, protected_ids: Array=[]) ->
  var art_trial=g._rope_trial;g._rope_trial=true
  var feedback=g._resource_feedback
  g._resource_feedback=null
- g.state=original.duplicate(true)
+ g.state=_trial_copy(original)
  var result=_plan(g,requests,source,protected_ids)
  # Factories can displace equipment without explicit removal units in a direct plan.
  if result.ok and (result.removed+result.lost_links).any(func(id):return id in protected_ids):
@@ -21,6 +21,8 @@ static func plan(g, requests: Array, source: String, protected_ids: Array=[]) ->
   result.requests=result.requests.duplicate(true)
   result.source=source
   result.protected_ids=protected_ids.duplicate()
+  # execute() compares this drift face whole, so it owns a full snapshot: trials
+  # share log entries and must never leak into that comparison.
   result._before=original.duplicate(true)
  return result
 
@@ -83,6 +85,78 @@ static func _force_special_live(g, type: String, tier: int, source: String) -> D
  var removed=old_targets.filter(func(item):return item.id not in live and item.template!="link_rope").map(func(item):return item.id)
  var lost_links=old_targets.filter(func(item):return item.id not in live and item.template=="link_rope").map(func(item):return item.id)
  return {"ok":true,"reason":"","removed":removed,"installed":[installed],"lost_links":lost_links,"comparisons":[]}
+
+# Trial copies own a shallow log array: appends during a trial land in the draft,
+# never in the live array, while _after/_commit_changes still carry the wording.
+# Entries stay shared because trial code only appends, it never rewrites history.
+static func _trial_copy(state: Dictionary) -> Dictionary:
+ var copy={}
+ for key in state:
+  var value=state[key]
+  if key=="logs" and value is Array:
+   copy[key]=value.duplicate()
+  elif value is Array or value is Dictionary:
+   copy[key]=value.duplicate(true)
+  else:
+   copy[key]=value
+ return copy
+
+# Units whose removal a plan can legally use. The same filter feeds _plan and the
+# cheap removal floor so the two cannot drift apart.
+static func _eligible_units(g, units: Array, protected_ids: Array, mandatory_ids: Array) -> Array:
+ return units.filter(func(unit):return not unit.pieces.any(func(piece):return g.cursed_eyes(piece) or g.cursed_plate(piece) or g.RopeArt.locked(g,piece) or piece.id in protected_ids or piece.id in mandatory_ids))
+
+# Ascending replacement values of the eligible pieces covering each point. The
+# optimistic plan bound (_comparison_possible) and the band-level removal floor
+# both read this one table; _compare adds the link loss on top of these values.
+static func _point_values(g, units: Array, points: Dictionary) -> Dictionary:
+ var values={}
+ for point in points: values[point]=[]
+ for unit in units:
+  for piece in unit.pieces:
+   for point in _capacity_points(g,piece):
+    if not values.has(point): continue
+    values[point].append(replacement_value(g,piece))
+ for point in values: values[point].sort()
+ return values
+
+# Cheapest removable outer value per point, from the same point table that builds
+# the comparison rows.
+static func removal_floor(g, requests: Array, protected_ids: Array=[]) -> Dictionary:
+ var points={}
+ for request in requests:
+  if request.get("kind","")!="install": continue
+  for point in g._installation_points(request.get("slot",""),request.get("point","")): points[point]=1
+ var floor={}
+ if points.is_empty(): return floor
+ var values=_point_values(g,_eligible_units(g,_units(g,points),protected_ids,[]),points)
+ for point in values:
+  if not values[point].is_empty(): floor[point]=values[point][0]
+ return floor
+
+# Necessary condition for one ordinary install, checked before any plan runs:
+# 1. _plan only plans removal once demand exceeds capacity, and a single ordinary
+#    request demands one piece at each point it would occupy. Equipment.capacity is
+#    never above the slot limit, so a point already holding that many pieces lands
+#    in deficit, and _sets may pick any single eligible unit covering it.
+# 2. That unit contributes rows whose old_value is one of its piece values plus a
+#    non-negative link loss, and _compare keeps the strongest required rows.
+#    The strongest row is therefore never below the cheapest eligible piece value.
+# 3. _assign spends one distinct incoming piece per row and admits a non-composite
+#    incoming piece only when its value reaches old_value (equality is admitted), so
+#    one request weaker than that floor can never complete the plan.
+# Composite requests and points that still have capacity are never screened.
+static func removal_floor_rejects(g, request: Dictionary, floor: Dictionary) -> bool:
+ if request.get("kind","")!="install": return false
+ var slot=request.get("slot","")
+ var limit=g.Equipment.capacity(slot,request.get("template",""))
+ var value=replacement_value(g,request)
+ for point in g._installation_points(slot,request.get("point","")):
+  if g._capacity_point_count(point)<limit: continue
+  var cheapest=int(floor.get(point,-1))
+  if cheapest>value:
+   return true
+ return false
 
 static func _fail(reason: String) -> Dictionary:
  return {"ok":false,"reason":reason,"removed":[],"installed":[],"lost_links":[],"comparisons":[]}
@@ -215,7 +289,7 @@ static func _plan(g, requests: Array, source: String, protected_ids: Array) -> D
  var normalized=_normalize(g,requests)
  if not normalized.ok: return normalized
  var specs=normalized.requests
- var before=g.state.duplicate(true)
+ var before=_trial_copy(g.state)
  var mandatory=[]
  var mandatory_ids=[]
  for request in specs:
@@ -232,7 +306,7 @@ static func _plan(g, requests: Array, source: String, protected_ids: Array) -> D
  if direct.ok: return direct
  # Factory-made prototypes, solely for capacity demand and comparison geometry.
  # This scratch state is discarded, including any factory RNG and emitted text.
- g.state=before.duplicate(true)
+ g.state=_trial_copy(before)
  g.state.equipment=[];g.state.composites=[];g.state.special_equipment=[];g.state.links=[]
  var new_pieces=[]
  var prototypes=[]
@@ -247,7 +321,7 @@ static func _plan(g, requests: Array, source: String, protected_ids: Array) -> D
   var incoming=new_pieces.filter(func(piece):return g.SpecialEquipment.is_special(piece) and g.SpecialEquipment.exclusive_family(piece.type)==family)
   if incoming.is_empty() or replacement_value(g,incoming[0])<replacement_value(g,old): return _fail("替换需要更高品质的同族新装备。")
  var demand=_counts(g,new_pieces)
- g.state=before.duplicate(true)
+ g.state=_trial_copy(before)
  var existing=_counts(g,g.physical_pieces()+g.state.special_equipment)
  var mandatory_counts={}
  for unit in mandatory:
@@ -261,7 +335,7 @@ static func _plan(g, requests: Array, source: String, protected_ids: Array) -> D
   var extra=existing.get(point,0)-mandatory_counts.get(point,0)+demand[point]-capacity
   if extra>0: deficit[point]=extra
  var units=_units(g,deficit)
- units=units.filter(func(unit):return not unit.pieces.any(func(piece):return g.cursed_eyes(piece) or g.cursed_plate(piece) or g.RopeArt.locked(g,piece) or piece.id in protected_ids or piece.id in mandatory_ids))
+ units=_eligible_units(g,units,protected_ids,mandatory_ids)
  # Even the weakest eligible values, with no lost-link penalty or whole-root
  # restriction, must pass the SAME assignment rule. This is only an optimistic
  # rejection bound; actual minimal sets and complete trials remain authoritative.
@@ -288,14 +362,10 @@ static func _plan(g, requests: Array, source: String, protected_ids: Array) -> D
 
 static func _comparison_possible(g, units: Array, deficit: Dictionary, installed: Array) -> bool:
  var rows=[]
+ var values=_point_values(g,units,deficit)
  for point in deficit:
-  var values=[]
-  for unit in units:
-   for piece in unit.pieces:
-    if point in _capacity_points(g,piece): values.append(replacement_value(g,piece))
-  values.sort()
-  if values.size()<deficit[point]: return false
-  for i in range(deficit[point]): rows.append({"point":point,"old_value":values[i],"composite":false})
+  if values[point].size()<deficit[point]: return false
+  for i in range(deficit[point]): rows.append({"point":point,"old_value":values[point][i],"composite":false})
  return _assign(g,rows,installed,{},0,{},{},[]).ok
 
 static func _units(g, deficit: Dictionary) -> Array:
@@ -340,8 +410,10 @@ static func _sets(units: Array, remaining: Dictionary, chosen: Array, search: Di
   _sets(units,next,chosen+[i],search)
 
 static func _trial(g, before: Dictionary, specs: Array, source: String, units: Array, deficit: Dictionary={}) -> Dictionary:
- g.state=before.duplicate(true)
- var old_targets=g.action_targets().duplicate(true)
+ g.state=_trial_copy(before)
+ # Only ids, templates and the shoulder flag are read back, and all three
+ # survive the removal, so the trial keeps references instead of a deep copy.
+ var old_targets=g.action_targets()
  var removed_ids=[]
  for unit in units:
   for piece in unit.pieces: removed_ids.append(piece.id)
@@ -387,13 +459,19 @@ static func _trial(g, before: Dictionary, specs: Array, source: String, units: A
  for root in g.state.composites:
   if g.Composites.validate(root)!="": return _fail("替换后的复合装备结构校验失败。")
  if g.Shoulders.validate(g)!="" or g.SpecialEquipment.validate(g.state.special_equipment)!="" or g._capacity_issue(g.physical_pieces())!="": return _fail("替换后的装备占位或依附关系校验失败。")
+ # Validation never mutates the pool, so one anchor pass serves every link.
+ # A direct install has no links, and then it must not read the pool at all.
+ var anchors=g.link_anchors() if not g.state.links.is_empty() else []
  for link in g.state.links:
-  if g.Links.validate(link,g.link_anchors(),g.state.links)!="": return _fail("替换后的链接结构校验失败。")
+  if g.Links.validate(link,anchors,g.state.links)!="": return _fail("替换后的链接结构校验失败。")
  if not units.is_empty() and _same_loadout(before,g.state): return _fail("替换后装备没有变化。")
- return {"ok":true,"reason":"","requests":specs,"removed":removed,"installed":installed.duplicate(true),"lost_links":lost,"comparisons":comparison.rows,"score":comparison.score,"_after":g.state.duplicate(true)}
+ return {"ok":true,"reason":"","requests":specs,"removed":removed,"installed":installed.duplicate(true),"lost_links":lost,"comparisons":comparison.rows,"score":comparison.score,"_after":_trial_copy(g.state)}
 
 static func _transfer(g, links: Array, anchors: Array) -> Array:
  var options=[]
+ # Candidate generation and the search share one anchor snapshot: the trial never
+ # mutates the anchor pool, and an empty link list never reads it.
+ var pool=g.link_anchors() if not links.is_empty() else []
  for link in links:
   var choices=[]
   var ends=[]
@@ -406,13 +484,13 @@ static func _transfer(g, links: Array, anchors: Array) -> Array:
      var candidate=link.duplicate(true)
      candidate.ends=[a.id,b.id]
      candidate.blocked_slip=link.blocked_slip.map(func(id):return candidate.ends[link.ends.find(id)])
-     if g.Links.validate(candidate,g.link_anchors(),g.state.links)=="": choices.append(candidate)
+     if g.Links.validate(candidate,pool,g.state.links)=="": choices.append(candidate)
   options.append(choices)
  var best={"count":-1,"solutions":[],"seen":{}}
- _transfer_search(g,links,options,0,[],[],best)
+ _transfer_search(g,links,options,pool,0,[],[],best)
  return best.solutions
 
-static func _transfer_search(g, links: Array, options: Array, index: int, kept: Array, lost: Array, best: Dictionary) -> void:
+static func _transfer_search(g, links: Array, options: Array, pool: Array, index: int, kept: Array, lost: Array, best: Dictionary) -> void:
  # Empty option lists are unavoidable losses. If reaching the current best
  # requires keeping every other link, its loss set is already determined.
  # A previously found assignment for that set has the same comparison score.
@@ -431,9 +509,9 @@ static func _transfer_search(g, links: Array, options: Array, index: int, kept: 
    best.solutions.append({"kept":kept.duplicate(true),"lost":lost.duplicate()})
   return
  for candidate in options[index]:
-  if g.Links.validate(candidate,g.link_anchors(),g.state.links+kept)=="":
-   _transfer_search(g,links,options,index+1,kept+[candidate],lost,best)
- _transfer_search(g,links,options,index+1,kept,lost+[links[index].id],best)
+  if g.Links.validate(candidate,pool,g.state.links+kept)=="":
+   _transfer_search(g,links,options,pool,index+1,kept+[candidate],lost,best)
+ _transfer_search(g,links,options,pool,index+1,kept,lost+[links[index].id],best)
 
 static func replacement_value(g, piece: Dictionary) -> int:
  if g.Equipment.is_shackle(piece): return g.Equipment.SHACKLE_RESTRAINT_VALUE
