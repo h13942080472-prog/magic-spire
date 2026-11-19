@@ -611,6 +611,12 @@
       "replace": "config.set_value(\"update\",\"check_on_start\",true)",
       "suite": "update",
       "execution": "ui"
+    },
+    "update_module_is_a_leaf": {
+      "file": "update/update_check.gd",
+      "find": "const SIGNATURE_SUFFIX=\".sig\"",
+      "replace": "const SIGNATURE_SUFFIX=\".sig\"\n# mutation probe: an update-side reference to the ui module\nconst _MUTATION_PROBE=\"res://ui/main.gd\"",
+      "suite": "architecture"
     }
   }
 }
