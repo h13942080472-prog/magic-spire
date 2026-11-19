@@ -824,6 +824,7 @@ static func route_history_start_record(t) -> void:
 static func route_history_practice_isolated(t) -> void:
  for kind in ["equipment","guard"]:
   var g=CoreGame.new(42,true,kind)
+  t.check(g.state.has("route_history"),"ROUTEHIST-2 practice "+kind+" carries the declared field with no record")
   t.check(route_history_of(g).is_empty(),"ROUTEHIST-2 practice "+kind+" starts no tower-route record")
   for i in range(3): t.action(g,"end")
   t.check(route_history_of(g).is_empty(),"ROUTEHIST-2 practice "+kind+" turns stay outside the tower history")
@@ -934,15 +935,17 @@ static func route_history_one_per_switch(t) -> void:
 static func route_history_is_reproducible(t) -> void:
  var a=route_escape_and_gate(t)
  var b=route_escape_and_gate(t)
- t.check(a.state.route_history==b.state.route_history,"ROUTEHIST-8 same seed and commands reproduce the same history")
+ t.check(route_history_of(a).size()>0,"ROUTEHIST-8 the gate exit leaves records to compare")
+ t.check(route_history_of(a)==route_history_of(b),"ROUTEHIST-8 same seed and commands reproduce the same history")
  t.check(a.export_snapshot()==b.export_snapshot(),"ROUTEHIST-8 the whole exported state is reproducible")
- for record in a.state.route_history:
+ for record in route_history_of(a):
   t.check(route_keys_sorted(record)==ROUTE_KEYS,"ROUTEHIST-8 every record keeps the declared key set")
 
 static func route_history_rejected_switch_rolls_back(t) -> void:
  var g=route_new_run(t)
  preload("res://tests/demo_exit_cases.gd").exit_fixture(g)
  var history=route_history_of(g).duplicate(true)
+ t.check(history.size()>0,"ROUTEHIST-9 the run holds one record before the rejected switch")
  g.state.security=7
  var version=g.state.version
  var before=g.export_snapshot()
