@@ -6885,6 +6885,12 @@ static func route_history_no_version(t) -> void:
  for token in ["Time.","version","randi","Crypto","ProjectSettings"]:
   if text.contains(token): banned.append(token)
  t.check(not text.is_empty() and banned.is_empty(),"ROUTEHIST route_history_no_version: the owner module carries no time, revision, randomness or settings token: "+str(banned))
- var keys=GameCore.RouteHistory.KEYS.duplicate()
- keys.sort()
- t.check(keys==["boss","cycle","enter","floor","generation","nodes","region","security","seed"],"ROUTEHIST route_history_no_version: the declared key set carries no time or revision key")
+ var declared=[]
+ var regex=RegEx.new()
+ if regex.compile("const KEYS=\\[([^\\]]+)\\]")==OK:
+  var found=regex.search(text)
+  if found!=null:
+   for part in found.get_string(1).split(","):
+    declared.append(String(part).strip_edges().trim_prefix("\"").trim_suffix("\""))
+ declared.sort()
+ t.check(declared==["boss","cycle","enter","floor","generation","nodes","region","security","seed"],"ROUTEHIST route_history_no_version: the declared key set carries no time or revision key: "+str(declared))
