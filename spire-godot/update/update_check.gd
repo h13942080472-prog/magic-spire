@@ -7,10 +7,12 @@ extends Node
 
 const Manifest=preload("res://update/update_manifest.gd")
 const Keys=preload("res://update/update_keys.gd")
-const MAX_BYTES=65536
+# The body cap and the https requirement have one declaration each, both in the judgement
+# module: the transport must not carry a second copy that can drift from what evaluate accepts.
+const MAX_BYTES=Manifest.MAX_BYTES
 const TIMEOUT_SECONDS=10
 const SIGNATURE_SUFFIX=".sig"
-const URL_PREFIX="https://"
+const URL_PREFIX=Manifest.HTTPS
 
 signal checked(offer)
 
@@ -64,13 +66,19 @@ func auto_allowed() -> bool:
  if scripted_run(): return false
  if not bool(ProjectSettings.get_setting("update/check_on_start",true)): return false
  if is_instance_valid(host) and host.display_settings!=null and not host.display_settings.update_check_enabled: return false
- return manifest_url().begins_with(URL_PREFIX)
+ return not _secure_url().is_empty()
+
+# The one https predicate: the startup gate and the network entry both read it, so a plain-http
+# configuration can neither start automatically nor be requested. An unusable URL answers "".
+static func _secure_url() -> String:
+ var url=manifest_url()
+ return url if url.begins_with(URL_PREFIX) else ""
 
 # The only network entry. A finished check always ends in exactly one checked(offer) emission.
 func check() -> void:
  if busy: return
- var url=manifest_url()
- if not url.begins_with(URL_PREFIX):
+ var url=_secure_url()
+ if url.is_empty():
   _finish(Manifest.none("url"));return
  busy=true
  requests=0
