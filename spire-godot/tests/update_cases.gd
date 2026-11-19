@@ -1,9 +1,10 @@
 extends RefCounted
 
 # docs/spec/update-check.md「判据」: the rule side of the update check. Every judgement is a
-# pure call to UpdateManifest.evaluate with a freshly generated RSA pair, so the suite proves
-# the signature gate itself instead of trusting a fixture signature. Nothing here touches the
-# network, the production key table or the player's files.
+# pure call to UpdateManifest.evaluate. Most cases sign with a freshly generated RSA pair and
+# hand the verifier only its public half; the OpenSSL case replays a committed fixture (public
+# PEM, manifest and signature) so the release pipeline's independent signer is pinned to the
+# engine. Nothing here touches the network, the production key table or the player's files.
 
 const Manifest=preload("res://update/update_manifest.gd")
 # CC-D22-1: the startup switch is one key of the existing settings file, never a second store.
@@ -16,6 +17,13 @@ const MIRROR="https://github.com/h13942080472-prog/magic-spire/releases/tag/v0.1
 const NOTES="修复若干问题。"
 const SIZE=241247340
 const OFFER_FIELDS=["kind","version","bytes","url","mirror","notes","revoked","platform"]
+# OpenSSL interop fixture: only the public PEM, the manifest and its signature are committed
+# (the private half existed while the fixture was generated and was deleted afterwards).
+const FIXTURE_DIRECTORY="res://tests/fixtures/update/"
+const OPENSSL_MANIFEST=FIXTURE_DIRECTORY+"openssl-manifest.json"
+const OPENSSL_SIGNATURE=FIXTURE_DIRECTORY+"openssl-manifest.json.sig"
+const OPENSSL_PUBLIC_KEY=FIXTURE_DIRECTORY+"openssl-public.pem"
+const OPENSSL_VERSION="0.18.4"
 
 static func run(t) -> void:
  var pair=keypair()
@@ -29,6 +37,9 @@ static func run(t) -> void:
  missing_key_entry_is_rejected(t,pair,keys)
  unusable_signature_is_rejected(t,pair,keys)
  empty_key_table_yields_no_offer(t,pair)
+ public_key_pem_verifies_signed_manifest(t)
+ private_key_table_entry_is_rejected(t)
+ openssl_signed_manifest_interops(t)
  unknown_schema_is_rejected(t,pair,keys)
  missing_platform_yields_none(t,pair,keys)
  revoked_current_yields_notice(t,pair,keys)
@@ -44,13 +55,11 @@ static func keypair() -> Array:
  var made=Crypto.new().generate_rsa(2048)
  return Array(made) if made is Array else [made,made]
 
-# Godot 4.7.2 loads only a private-key PEM: an SPKI ("BEGIN PUBLIC KEY") or PKCS#1
-# ("BEGIN RSA PUBLIC KEY") public key fails with "Error parsing key", and Crypto.verify needs a
-# loaded CryptoKey. The fixture therefore hands the verifier the signer's own key text, which
-# exercises the real RSA PKCS#1 v1.5 + SHA-256 verify; the production table stays public and
-# empty until the engine can load a public key (see tmp/io-d22/u1/notes.md and the run report).
+# Godot 4.7.2 loads the public half of the pair when load_from_string is asked for public
+# material; save_to_string(true) is the SPKI PEM that _verified hands to the engine. The
+# verifier therefore receives public material only, exactly as the production key table does.
 static func verifier_pem(pair: Array) -> String:
- return pair[0].save_to_string(false)
+ return pair[0].save_to_string(true)
 
 # schema v1 exactly as docs/spec/update-check.md「清单 schema」declares it.
 static func document(version: String, overrides: Dictionary={}) -> Dictionary:
@@ -66,6 +75,15 @@ static func document(version: String, overrides: Dictionary={}) -> Dictionary:
 
 static func bytes_of(document_value: Dictionary) -> PackedByteArray:
  return JSON.stringify(document_value).to_utf8_buffer()
+
+# Raw bytes of a committed fixture: the signature covers exactly these bytes, so the file is
+# never parsed before it is verified.
+static func fixture(path: String) -> PackedByteArray:
+ var handle=FileAccess.open(path,FileAccess.READ)
+ if handle==null: return PackedByteArray()
+ var bytes=handle.get_buffer(handle.get_length())
+ handle.close()
+ return bytes
 
 # Crypto.sign takes the digest, so the fixture hashes the manifest bytes first, exactly like
 # the production verifier does.
@@ -159,6 +177,47 @@ static func empty_key_table_yields_no_offer(t, pair: Array) -> void:
  var body=bytes_of(document("0.18.4"))
  var offer=Manifest.evaluate(body,signature_of(body,pair),{},CURRENT,PLATFORM)
  t.check(offer.get("kind","")=="none" and offer.get("reason","")=="key","UPDATE empty_key_table_yields_no_offer: an empty key table answers key instead of crashing or trusting the manifest: "+str(offer))
+
+# The verifier is handed public material only: save_to_string(true) is the SPKI PEM that
+# load_from_string reads when public_only is set, which is the shape the production table uses.
+static func public_key_pem_verifies_signed_manifest(t) -> void:
+ var pair=keypair()
+ var public_pem=verifier_pem(pair)
+ t.check(public_pem.begins_with("-----BEGIN PUBLIC KEY-----") and not public_pem.contains("PRIVATE KEY"),"UPDATE public_key_pem_verifies_signed_manifest: the fixture exports the SPKI public PEM, not the private half")
+ var loaded=CryptoKey.new()
+ t.check(loaded.load_from_string(public_pem,true)==OK,"UPDATE public_key_pem_verifies_signed_manifest: the engine loads the public PEM with public_only=true")
+ var body=bytes_of(document("0.18.4"))
+ var offer=Manifest.evaluate(body,signature_of(body,pair),{"k1":public_pem},CURRENT,PLATFORM)
+ t.check(offer.get("kind","")=="notice" and String(offer.get("version",""))=="0.18.4","UPDATE public_key_pem_verifies_signed_manifest: a table holding only the public key verifies the signer's manifest: "+str(offer))
+
+# A pasted private key is a configuration accident: the key step refuses it even though the
+# signature itself would verify, so the table can never carry signing material.
+static func private_key_table_entry_is_rejected(t) -> void:
+ var pair=keypair()
+ var private_pem=pair[0].save_to_string(false)
+ t.check(private_pem.contains("PRIVATE KEY"),"UPDATE private_key_table_entry_is_rejected: the generated pair exposes a private PEM for this case")
+ var body=bytes_of(document("0.18.4"))
+ var offer=Manifest.evaluate(body,signature_of(body,pair),{"k1":private_pem},CURRENT,PLATFORM)
+ t.check(offer.get("kind","")=="none" and offer.get("reason","")=="key","UPDATE private_key_table_entry_is_rejected: a private key in the table is a key rejection, never a verified offer: "+str(offer))
+
+# U1b's release pipeline signs with OpenSSL (RSA PKCS#1 v1.5 + SHA-256); the committed fixture
+# is the cross-implementation proof, so a release-side signer cannot drift from the engine.
+static func openssl_signed_manifest_interops(t) -> void:
+ var body=fixture(OPENSSL_MANIFEST)
+ var signature=fixture(OPENSSL_SIGNATURE)
+ var public_pem=fixture(OPENSSL_PUBLIC_KEY).get_string_from_utf8()
+ t.check(body.size()>0 and signature.size()>0 and public_pem.contains("BEGIN PUBLIC KEY"),"UPDATE openssl_signed_manifest_interops: the committed fixture supplies a manifest, its signature and a public PEM")
+ t.check(Marshalls.base64_to_raw(signature.get_string_from_utf8()).size()==384,"UPDATE openssl_signed_manifest_interops: the signature is the 3072-bit RSA block of the fixture key")
+ var offer=Manifest.evaluate(body,signature,{"k1":public_pem},CURRENT,PLATFORM)
+ t.check(offer.get("kind","")=="notice" and String(offer.get("version",""))==OPENSSL_VERSION,"UPDATE openssl_signed_manifest_interops: the OpenSSL-signed manifest verifies through evaluate: "+str(offer))
+ var tampered=body.get_string_from_utf8().replace("\"version\": \"0.18.4\"","\"version\": \"0.18.5\"").to_utf8_buffer()
+ var changed=0
+ if tampered.size()!=body.size(): changed=-1
+ else:
+  for index in range(body.size()):
+   if tampered[index]!=body[index]: changed+=1
+ var rejected=Manifest.evaluate(tampered,signature,{"k1":public_pem},CURRENT,PLATFORM)
+ t.check(changed==1 and rejected.get("kind","")=="none" and rejected.get("reason","")=="signature","UPDATE openssl_signed_manifest_interops: a one-byte edit after signing is a signature failure: "+str(rejected)+" changed="+str(changed))
 
 static func unknown_schema_is_rejected(t, pair: Array, keys: Dictionary) -> void:
  var offer=judge(bytes_of(document("0.18.4",{"schema":2})),pair,keys)
