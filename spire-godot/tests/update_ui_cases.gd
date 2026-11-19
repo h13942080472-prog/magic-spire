@@ -74,13 +74,6 @@ static func boot(t, options: Dictionary) -> Control:
  await t.frames()
  return ui
 
-static func visible_text(node: Node) -> String:
- var parts=[]
- for child in node.get_children():
-  if child is Label or child is Button: parts.append(String(child.text))
-  parts.append(visible_text(child))
- return " ".join(parts)
-
 static func open_options(t, ui) -> void:
  await Click.press(t,"HomeOptions")
  await t.frames()
@@ -103,7 +96,7 @@ static func startup_offer_renders_notice(t) -> void:
  var notice=ui.find_child("HomeUpdateNotice",true,false)
  t.check(notice!=null and notice.is_visible_in_tree(),"UPDATE startup_offer_renders_notice: a verified newer version shows the home notice")
  if notice==null: return
- var text=visible_text(notice)
+ var text=t.visible_text(notice)
  t.check(text.contains("0.18.4") and text.contains(size_text()),"UPDATE startup_offer_renders_notice: the notice names the version and the rounded size: "+text)
  var title=notice.get_child(0).get_child(0)
  t.check(title!=null and title.get_theme_color("font_color")==Palette.GOLD,"UPDATE startup_offer_renders_notice: the notice title is styled from the shared palette")
