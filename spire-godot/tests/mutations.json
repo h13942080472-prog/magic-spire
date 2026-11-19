@@ -493,6 +493,36 @@
       "find": " \"_refresh_drawer_section\":[\"_drawer_presentation_key\",\"_drawer_key_hit\",\"_menu_drawer\",\"_items_drawer\"],\n \"_menu_drawer\":[],\n",
       "replace": " \"_refresh_drawer_section\":[\"_drawer_presentation_key\",\"_drawer_key_hit\",\"_items_drawer\"],\n",
       "suite": "architecture"
+    },
+    "route_history_single_writer": {
+      "file": "core/game.gd",
+      "find": "if not continuation:\n  _transition_log.append(kind)\n  if bool(spec.get(\"route\",false)): RouteHistory.open(self,kind)\n _transition_written=",
+      "replace": "if not continuation:\n  _transition_log.append(kind)\n if bool(spec.get(\"route\",false)): RouteHistory.open(self,kind)\n _transition_written=",
+      "suite": "architecture"
+    },
+    "route_switch_declared": {
+      "file": "core/game.gd",
+      "find": " \"setup_init\":{\"phases\":[\"map\"],\"room\":false,\"route\":true,\"tx\":false,\"owners\":[\"_init\"]},",
+      "replace": " \"setup_init\":{\"phases\":[\"map\"],\"room\":false,\"tx\":false,\"owners\":[\"_init\"]},",
+      "suite": "architecture"
+    },
+    "route_reason_branches_declared": {
+      "file": "core/route_history.gd",
+      "find": "   if int(g.state.demo_cycle)>int(last.get(\"cycle\",0)): return ENTER_CYCLE\n   if String(last.get(\"region\",\"\"))==REGION_PRISON: return ENTER_GATE_EXIT",
+      "replace": "   if String(last.get(\"region\",\"\"))==REGION_PRISON: return ENTER_GATE_EXIT\n   if int(g.state.demo_cycle)>int(last.get(\"cycle\",0)): return ENTER_CYCLE",
+      "suite": "architecture"
+    },
+    "route_legacy_backfill_is_pinned": {
+      "file": "core/game.gd",
+      "find": " if not candidate.has(\"route_history\"): candidate.route_history=RouteHistory.backfill(candidate)\n",
+      "replace": "",
+      "suite": "architecture"
+    },
+    "route_history_no_version": {
+      "file": "core/route_history.gd",
+      "find": "const KEYS=[\"enter\"",
+      "replace": "# version probe\nconst KEYS=[\"enter\"",
+      "suite": "architecture"
     }
   }
 }

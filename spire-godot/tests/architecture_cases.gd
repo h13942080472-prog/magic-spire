@@ -6836,3 +6836,55 @@ static func frozen_anchor_files_match_git(t) -> void:
  t.check(mismatches.is_empty(),"FB frozen_anchor_files_match_git: every anchor blob hash equals its declared sha256 (git unavailable, object missing and hash mismatch all fail closed): "+str(mismatches))
  print("FROZEN ANCHORS: %d anchor(s) recomputed from git blobs, %d matched" % [anchors.size(),anchors.size()-mismatches.size()])
 
+# ==== D23f0：塔路历史（docs/spec/save-fixed-points.md「加性字段与只读入口」）====
+# state.route_history 的唯一写入者是 core/route_history.gd；直接写面只有 _init 字面与
+# restore_snapshot 的单行回填，追加只由 TRANSITIONS 的 route 列在 _apply_transition 的
+# not-continuation 块里派生。以下检查读源码文本与声明表，不依赖运行期计数器。
+const ROUTE_HISTORY_FILE="core/route_history.gd"
+
+static func route_history_write_sites() -> Array:
+ return source_write_sites(["res://core","res://data","res://ui"],"(?<![A-Za-z0-9_])route_history\\s*(?:=(?!=)|\\[[^\\]]*\\]\\s*=|\\s*\\.(?:append|push_back|insert|erase|clear|remove_at)\\s*\\()")
+
+static func route_history_single_writer(t) -> void:
+ var writes=write_site_names(route_history_write_sites())
+ t.check(writes==["core/game.gd::restore_snapshot"],"ROUTEHIST route_history_single_writer: the only direct field write outside the owner module is the restore_snapshot backfill: "+str(writes))
+ var opens=write_site_names(source_write_sites(["res://core","res://data","res://ui"],"(?<![A-Za-z0-9_])RouteHistory\\.open\\s*\\("))
+ t.check(opens==["core/game.gd::_apply_transition"],"ROUTEHIST route_history_single_writer: RouteHistory.open has exactly one call site inside _apply_transition: "+str(opens))
+ var expected="if not continuation:\n  _transition_log.append(kind)\n  if bool(spec.get(\"route\",false)): RouteHistory.open(self,kind)\n _transition_written="
+ t.check(game_function_body("_apply_transition").contains(expected),"ROUTEHIST route_history_single_writer: the append is the second statement of the not-continuation block")
+ var text=source_text(ROUTE_HISTORY_FILE)
+ t.check(text.contains("func open(") and text.contains("func reason(") and text.contains("func backfill("),"ROUTEHIST route_history_single_writer: the owner module declares the three contracted entry points")
+ t.check(source_text("core/game.gd").contains("\"route_history\":[]"),"ROUTEHIST route_history_single_writer: the _init literal still creates the field once")
+
+static func route_switch_declared(t) -> void:
+ var flagged=[]
+ for kind in GameCore.TRANSITIONS:
+  if bool(GameCore.TRANSITIONS[kind].get("route",false)): flagged.append(String(kind))
+ flagged.sort()
+ t.check(flagged==["prison_escape","setup_init","tower_restart"],"ROUTEHIST route_switch_declared: exactly the three route-opening kinds carry the flag: "+str(flagged))
+
+static func route_reason_branches_declared(t) -> void:
+ var body=source_func_body_code("res://core/route_history.gd","reason")
+ var cycle=body.find("return ENTER_CYCLE")
+ var gate=body.find("return ENTER_GATE_EXIT")
+ t.check(cycle>=0 and gate>cycle,"ROUTEHIST route_reason_branches_declared: the cycle branch is decided before the prison gate branch")
+ t.check(body.find("demo_cycle")>=0 and body.find("region")>=0,"ROUTEHIST route_reason_branches_declared: the reason reads the cycle and the previous region")
+ t.check(body.find("return ENTER_START")>=0 and body.find("return ENTER_ESCAPE")>=0,"ROUTEHIST route_reason_branches_declared: setup and escape keep their own reasons")
+
+static func route_legacy_backfill_is_pinned(t) -> void:
+ var body=game_function_body("restore_snapshot")
+ var seed_line=body.find("if not candidate.has(\"initial_seed\")")
+ var route_line=body.find("if not candidate.has(\"route_history\"): candidate.route_history=RouteHistory.backfill(candidate)")
+ var check_line=body.find("Snapshot.check(candidate,self)")
+ t.check(seed_line>=0 and route_line>seed_line and check_line>route_line,"ROUTEHIST route_legacy_backfill_is_pinned: the backfill follows the run-identity backfill and precedes the shared field check")
+ t.check(route_line>=0 and body.count("RouteHistory.backfill(")==1,"ROUTEHIST route_legacy_backfill_is_pinned: restore_snapshot writes the backfill once")
+
+static func route_history_no_version(t) -> void:
+ var text=source_text(ROUTE_HISTORY_FILE)
+ var banned=[]
+ for token in ["Time.","version","randi","Crypto","ProjectSettings"]:
+  if text.contains(token): banned.append(token)
+ t.check(not text.is_empty() and banned.is_empty(),"ROUTEHIST route_history_no_version: the owner module carries no time, revision, randomness or settings token: "+str(banned))
+ var keys=GameCore.RouteHistory.KEYS.duplicate()
+ keys.sort()
+ t.check(keys==["boss","cycle","enter","floor","generation","nodes","region","security","seed"],"ROUTEHIST route_history_no_version: the declared key set carries no time or revision key")
