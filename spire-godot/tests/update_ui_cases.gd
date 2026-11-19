@@ -24,7 +24,7 @@ static func run(t) -> void:
 # key table that verifies it. "response" is either a served manifest or {"failure": result}.
 static func harness(served: Dictionary, prefs: String="") -> Dictionary:
  var options={"calls":[],"opened":[],"response":served,"keys":served.get("keys",{})}
- if not prefs.is_empty(): options["preps"]=prefs
+ if not prefs.is_empty(): options["prefs"]=prefs
  return options
 
 # The notice prints the fixture size in MB; the expected text derives from the same fixture
