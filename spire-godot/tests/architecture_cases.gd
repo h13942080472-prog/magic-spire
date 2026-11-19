@@ -6854,7 +6854,7 @@ static func route_history_single_writer(t) -> void:
  var opens=write_site_names(source_write_sites(["res://core","res://data","res://ui"],"(?<![A-Za-z0-9_])RouteHistory\\.open\\s*\\("))
  t.check(opens==["core/game.gd::_apply_transition"],"ROUTEHIST route_history_single_writer: RouteHistory.open has exactly one call site inside _apply_transition: "+str(opens))
  var expected="if not continuation:\n  _transition_log.append(kind)\n  if bool(spec.get(\"route\",false)): RouteHistory.open(self,kind)\n _transition_written="
- t.check(game_function_body("_apply_transition").contains(expected),"ROUTEHIST route_history_single_writer: the append is the second statement of the not-continuation block")
+ t.check(game_function_body("_apply_transition").replace("\r","").contains(expected),"ROUTEHIST route_history_single_writer: the append is the second statement of the not-continuation block")
  var text=source_text(ROUTE_HISTORY_FILE)
  t.check(text.contains("func open(") and text.contains("func reason(") and text.contains("func backfill("),"ROUTEHIST route_history_single_writer: the owner module declares the three contracted entry points")
  t.check(source_text("core/game.gd").contains("\"route_history\":[]"),"ROUTEHIST route_history_single_writer: the _init literal still creates the field once")
