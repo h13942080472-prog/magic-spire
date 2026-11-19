@@ -9,6 +9,7 @@ extends RefCounted
 # calls check() itself — the same entry the deferred startup call uses in a player session.
 
 const Cases=preload("res://tests/update_cases.gd")
+const Palette=preload("res://ui/visual_theme.gd")
 const Click=preload("res://tests/interface_ui_cases.gd")
 const SIZE_TEXT="230.1"
 
@@ -93,6 +94,8 @@ static func startup_offer_renders_notice(t) -> void:
  if notice==null: return
  var text=visible_text(notice)
  t.check(text.contains("0.18.4") and text.contains(SIZE_TEXT),"UPDATE startup_offer_renders_notice: the notice names the version and the rounded size: "+text)
+ var title=notice.get_child(0).get_child(0)
+ t.check(title!=null and title.get_theme_color("font_color")==Palette.GOLD,"UPDATE startup_offer_renders_notice: the notice title is styled from the shared palette")
  var download=ui.find_child("HomeUpdateDownload",true,false)
  var mirror=ui.find_child("HomeUpdateMirror",true,false)
  t.check(download!=null and mirror!=null and download.is_visible_in_tree() and mirror.is_visible_in_tree(),"UPDATE startup_offer_renders_notice: both jump buttons are visible")

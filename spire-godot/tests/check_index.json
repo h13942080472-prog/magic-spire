@@ -942,7 +942,7 @@
       "signals": 2
     }
   },
-  "digest": "438bf457b0bf2b0946c3966d801d56a603b512cdbc222a9ca03267f8c1a23344",
+  "digest": "bac4bd8a7c11ca26e03c7029a96d232be5693f3d388e498e93e7b38d0b9fe529",
   "domain_words": {
     "ART": [
       "ui:display",
@@ -1942,7 +1942,7 @@
       ]
     }
   },
-  "generated_from": "ade5d8142e81b355549d7e1cec69a6908361766243a6d18488746d80d23d62a4",
+  "generated_from": "410c81b7be1f9a81ead85a3697debe822d8998fab53c69836a44798a643535d2",
   "registries": {
     "rule": [
       "rope_master",
@@ -3987,7 +3987,7 @@
       ]
     },
     "ui:update": {
-      "spire-godot/core/save_store.gd": [
+      "spire-godot/ui/visual_theme.gd": [
         "preload"
       ]
     },
