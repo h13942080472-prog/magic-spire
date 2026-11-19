@@ -23,7 +23,7 @@ const ENTER_UNKNOWN="unknown"
 static func open(g, kind: String) -> void:
  var history: Array=g.state.route_history
  if not history.is_empty(): _close(g,history[-1])
- history.append(_entry(g,_reason(g,kind)))
+ history.append(_entry(g,reason(g,kind)))
 
 # 进入理由只看本次 kind 与已记录的历史；换塔时先比较周目，再区分监狱出口，最后才是普通重开。
 static func reason(g, kind: String) -> String:
