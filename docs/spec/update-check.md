@@ -19,11 +19,12 @@
 - 生产公钥表在 U1 为空（`spire-godot/update/update_keys.gd::KEYS`）。空表的正确答案是
   `none`／`key`，不是崩溃，也不是跳过验签；发布公钥与部署清单属于 U1b，在此之前
   任何构建都**不会**弹出更新提示。
-- 引擎限制（Godot 4.7.2 实测）：`CryptoKey.load_from_string` 只接受私钥 PEM，公钥 PEM
-  （SPKI 或 PKCS#1）一律返回 `Error parsing key`，而 `Crypto.verify` 只能拿 `CryptoKey`。
-  因此当前引擎无法用公钥验签；生产表填入私钥违反「不把密钥写入仓库」，故 U1 的生产表保持为空。
-  测试夹具改用运行时生成密钥对的私钥文本，证明 `Crypto.verify` 这条通路本身成立；
-  「验签方只需公开材料」这一条在公钥可加载的引擎版本或改用自带大数验签前**未成立**。
+- 验签方只持有公开材料：`spire-godot/update/update_manifest.gd::_verified` 用
+  `CryptoKey.load_from_string(pem, true)` 加载键表条目的公钥 PEM（SPKI，`-----BEGIN PUBLIC KEY-----`）。
+  `public_only=true` 不可省略：官方文档写明「If `public_only` is `true`, only the public key will be loaded.」，
+  不传时引擎按私钥载荷解析，公开 PEM 返回 `Error parsing key`，验签于是永远失败。
+- 键表条目只收公开材料：`evaluate` 在 `key` 步拒绝空条目与含 `PRIVATE KEY` 的 PEM，
+  即使签名本身有效也不放行——私钥被贴进 `update_keys.gd` 时结果是 `none`／`key`。
 
 ## 接口
 
@@ -87,7 +88,7 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
 - 判定顺序（每步失败即 `none`，不再往下读）：
   1. `size`：空字节或超过上限；
   2. `json`：解析失败；
-  3. `key`：`key_id` 为空或公钥表里没有；
+  3. `key`：`key_id` 为空、公钥表里没有，或表内条目不是公开材料（含 `PRIVATE KEY` 的 PEM）；
   4. `signature`：签名缺失、非 base64、公钥不可加载或 `Crypto.verify` 失败；
   5. `schema`：`schema` 不是整数 1；
   6. `platform`：清单 `platforms` 里没有当前平台键；
@@ -123,8 +124,9 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
 
 ## 证据入口
 
-具名 check（规则侧走真实 `Crypto.generate_rsa` 现场生成密钥对并签名；UI 侧走真实
-`main.tscn` 与真实点击，transport 替身回答两次 GET）：
+具名 check（规则侧走真实 `Crypto.generate_rsa` 现场生成密钥对、把**公钥**交给 `evaluate`；
+`openssl_signed_manifest_interops` 另复放提交在 `tests/fixtures/update/` 的 OpenSSL 夹具
+（公钥 PEM、清单与签名）；UI 侧走真实 `main.tscn` 与真实点击，transport 替身回答两次 GET）：
 
 | 判据 | 落点（分类 → 用例文件） |
 | --- | --- |
@@ -136,6 +138,9 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
 | `UPDATE missing_key_entry_is_rejected`（未知 `key_id` 与缺 `key_id` 都是 `key`） | `update` → `tests/update_cases.gd` |
 | `UPDATE unusable_signature_is_rejected`（空签名与非 base64 文本都是 `signature`） | `update` → `tests/update_cases.gd` |
 | `UPDATE empty_key_table_yields_no_offer`（空公钥表→`key`，不崩溃、不放行） | `update` → `tests/update_cases.gd` |
+| `UPDATE public_key_pem_verifies_signed_manifest`（`save_to_string(true)` 导出 SPKI 公钥 PEM；引擎按 `public_only=true` 加载；只放公钥的键表验签通过） | `update` → `tests/update_cases.gd` |
+| `UPDATE private_key_table_entry_is_rejected`（表内条目是私钥 PEM 时→`key`，签名有效也不放行） | `update` → `tests/update_cases.gd` |
+| `UPDATE openssl_signed_manifest_interops`（OpenSSL 3072 位 RSA 签名的清单夹具验签通过；签后改一字节→`signature`） | `update` → `tests/update_cases.gd` |
 | `UPDATE unknown_schema_is_rejected`（schema 2→`schema`） | `update` → `tests/update_cases.gd` |
 | `UPDATE missing_platform_yields_none`（清单无当前平台→`platform`） | `update` → `tests/update_cases.gd` |
 | `UPDATE revoked_current_yields_notice`（当前版本被撤回→`notice` 且 `revoked=true`） | `update` → `tests/update_cases.gd` |

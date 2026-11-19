@@ -51,7 +51,9 @@ static func evaluate(manifest_bytes: PackedByteArray, signature: PackedByteArray
  var manifest=document as Dictionary
  var key_id=String(manifest.get("key_id",""))
  if key_id.is_empty() or not keys.has(key_id): return none("key")
- if not _verified(manifest_bytes,signature,String(keys[key_id])): return none("signature")
+ var public_pem=String(keys[key_id])
+ if not _public_material(public_pem): return none("key")
+ if not _verified(manifest_bytes,signature,public_pem): return none("signature")
  var schema=manifest.get("schema",0)
  if not (schema is int or schema is float) or int(schema)!=SCHEMA: return none("schema")
  var platforms=manifest.get("platforms",{})
@@ -77,8 +79,17 @@ static func _document(manifest_bytes: PackedByteArray) -> Variant:
  if parser.parse(manifest_bytes.get_string_from_utf8())!=OK: return null
  return parser.data
 
+# The key table holds public material only. A pasted private key is a configuration accident
+# rather than a failed signature, so it is refused at the key step; both PEM spellings
+# ("PRIVATE KEY" / "RSA PRIVATE KEY") carry the marker and the base64 body cannot contain a
+# space, so a genuine public PEM never matches.
+static func _public_material(pem: String) -> bool:
+ return not pem.is_empty() and not pem.contains("PRIVATE KEY")
+
 # RSA PKCS#1 v1.5 over SHA-256; the signature file is base64 text of the raw signature.
-# Crypto.verify takes the digest, so the signed bytes are hashed once here.
+# Crypto.verify takes the digest, so the signed bytes are hashed once here. public_only=true is
+# required: without it the engine reads the payload as a private key and an SPKI public PEM
+# fails with "Error parsing key", which would make every published signature unverifiable.
 static func _verified(manifest_bytes: PackedByteArray, signature: PackedByteArray, public_pem: String) -> bool:
  var text=signature.get_string_from_utf8().strip_edges()
  if text.is_empty() or text.length()%4!=0: return false
@@ -87,7 +98,7 @@ static func _verified(manifest_bytes: PackedByteArray, signature: PackedByteArra
  var raw=Marshalls.base64_to_raw(text)
  if raw.is_empty(): return false
  var key=CryptoKey.new()
- if key.load_from_string(public_pem)!=OK: return false
+ if key.load_from_string(public_pem,true)!=OK: return false
  return Crypto.new().verify(HashingContext.HASH_SHA256,_digest(manifest_bytes),raw,key)
 
 # SHA-256 of the signed bytes: this digest is what the Crypto API signs and verifies.

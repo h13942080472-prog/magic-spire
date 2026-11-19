@@ -11,14 +11,14 @@
 
 | 文件 | 允许的改动 | 必须保持 |
 | --- | --- | --- |
-| `spire-godot/update/update_manifest.gd`（新） | 纯函数：`evaluate(manifest_bytes, signature, keys, current, platform)`、`compare(a, b)`；schema 1 的解析；`Crypto.verify`（SHA-256，RSA PKCS#1 v1.5） | 无 IO：不访问文件、网络与单例状态；不读 `ProjectSettings`（当前版本与平台都由参数传入）；拒绝原因只有固定枚举 `signature/key/schema/platform/size/json/url`；「已验签但不是更新」用空 `reason` |
+| `spire-godot/update/update_manifest.gd`（新） | 纯函数：`evaluate(manifest_bytes, signature, keys, current, platform)`、`compare(a, b)`；schema 1 的解析；`Crypto.verify`（SHA-256，RSA PKCS#1 v1.5） | 无 IO：不访问文件、网络与单例状态；不读 `ProjectSettings`（当前版本与平台都由参数传入）；拒绝原因只有固定枚举 `signature/key/schema/platform/size/json/url`；「已验签但不是更新」用空 `reason`；验签只经 `_verified`，公钥以 `CryptoKey.load_from_string(pem, true)` 加载；键表条目含 `PRIVATE KEY` 时在 `key` 步拒绝 |
 | `spire-godot/update/update_keys.gd`（新） | 常量 `KEYS = {key_id: 公钥 PEM}`；U1 为空表 | **只放公钥**；不放私钥、口令或任何令牌；空表必须让 `evaluate` 返回 `none`／`key` |
 | `spire-godot/update/update_check.gd`（新） | `check()`、`deliver()`、`manifest_url()`、`current_version()`、`platform_key()`、`scripted_run()`、`auto_allowed()`、`keys`、`transport: Callable` 接缝、`HTTPRequest`（10 秒超时、`max_redirects=0`、`body_size_limit=65536`）、`checked(offer)` | 一次检查最多 2 个 GET；只用 HTTPS；不写盘；不重试；请求不带存档、种子、设备标识、账号或自定义标识头；失败一律静默；`[update]` 只在此文件读取 |
 | `spire-godot/project.godot` | 新增 `[update]` 段：`manifest_url`、`check_on_start` | 不改 `application/config/version`、`run/main_scene`、`[feedback]`；不新增 `[autoload]` |
 | `spire-godot/ui/display_settings.gd`（CC-D22-1） | `update_check_enabled`、`set_update_check(enabled)`；既有 `user://display-settings.cfg` 的 `update/check_on_start` 一键 | 不新增 `user://` 文件、不新增设置存储；`initialize` 的复位与加载顺序不变；既有 setter 行为不变 |
 | `spire-godot/ui/home_screen.gd`、`spire-godot/ui/main.gd` | 主页 `HomeUpdateNotice`、`HomeUpdateDownload`、`HomeUpdateMirror`（放在主页布局层，不在 `GameHome` 内）；设置页 `UpdateCheckEnabled`、`UpdateCheckNow`、`UpdateCheckStatus`；持有并启动 `update_check`；`open_url` 可替换的跳转接缝 | 主页左侧标题区仍是原来四个子节点；不改开局、继续、设置的入口与布局语义；检查不阻塞主页输入、不改 `Game` 状态与存档；不调用 `command_router` 或 `Game` 的任何写接口；版本比较、验签、解析不在 UI 里出现第二份 |
 | `spire-godot/assets/localization/zh_CN.json`、`en_US.json`、`ja_JP.json` | 新增 `ui.update.*` 与 `ui.settings.update_check*`、`ui.settings.update_now` 十条 ID 的文案与译文 | 既有 ID 与文案不变；`en_US`／`ja_JP` 的 `source` 与中文原文逐字相同；不删条目 |
-| `spire-godot/tests/update_cases.gd`（新）、`spire-godot/tests/update_ui_cases.gd`（新）、`spire-godot/tests/test_game.gd` 的 `SUITES`、`spire-godot/tests/ui_smoke.gd` 的 `UI_MODULES` | 本契约的具名 check；登记 `update` suite | 现场 `Crypto.generate_rsa` 生成密钥对，**不提交私钥夹具**；不联网（只用 `transport` 替身）；不删除、不放宽既有的 HOME 断言 |
+| `spire-godot/tests/update_cases.gd`（新）、`spire-godot/tests/update_ui_cases.gd`（新）、`spire-godot/tests/test_game.gd` 的 `SUITES`、`spire-godot/tests/ui_smoke.gd` 的 `UI_MODULES` | 本契约的具名 check；登记 `update` suite | 现场 `Crypto.generate_rsa` 生成密钥对并把公钥交给 `evaluate`；`spire-godot/tests/fixtures/update/` 只提交公钥 PEM、清单与签名（OpenSSL 互通夹具），**不提交任何私钥**；不联网（只用 `transport` 替身）；不删除、不放宽既有的 HOME 断言 |
 | `spire-godot/tests/architecture_cases.gd::update_module_is_a_leaf` | 新增 `update/` 的禁止边（不引用 `ui`／`core`／`data`／`tests`；`core`／`data` 不引用 `update`；只有 `update_check.gd` 发 HTTP） | 既有判定函数与既有边不变 |
 | `spire-godot/tests/mutations.json` | 为本片具名 check 追加条目 | 既有条目、`known_gaps` 与冻结清单不变；`find` 仍唯一 |
 | `docs/spec/update-check.md`、`docs/spec/update-check-dependencies.md`、根 `AGENTS.md` 文档入口表、`docs/spec/project-map.md` 目录表 | 本契约落盘 | `docs/spec/` 被取代即删；不改 `docs/spec/packaging.md`（它的增补留到 U2） |
@@ -30,6 +30,9 @@
 | 判定只由 `UpdateManifest.evaluate` 给出：`size`→`json`→`key`→`signature`→`schema`→`platform`→形状→`url`→`revoked`／新版本 | `tests/update_cases.gd` 的 UPDATE 具名 check（规则分类 `update`） |
 | 版本比较按 `.` 分段、数字段按数值、缺省段为 0、非数字段排在缺省段之后 | `tests/update_cases.gd::version_order_is_numeric_per_segment` |
 | 空公钥表只给 `none`／`key`，不放行、不崩溃（CC-D22-2） | `tests/update_cases.gd::empty_key_table_yields_no_offer` |
+| 公钥 PEM（SPKI）以 `public_only=true` 加载后验签通过 | `tests/update_cases.gd::public_key_pem_verifies_signed_manifest` |
+| 键表条目是私钥 PEM 时一律 `none`／`key`，签名有效也不放行 | `tests/update_cases.gd::private_key_table_entry_is_rejected` |
+| OpenSSL 签名与引擎验签互通；签后改一字节即 `signature` | `tests/update_cases.gd::openssl_signed_manifest_interops` |
 | 启动开关写入既有设置文件的 `update/check_on_start`，不出第二份存储（CC-D22-1） | `tests/update_cases.gd::settings_toggle_uses_one_store` |
 | 主页提示、两个跳转按钮、设置页开关与「立即检查」的真实点击语义 | `tests/update_ui_cases.gd` 的 UPDATE 具名 check（窗口分类 `update`） |
 | `update/` 是叶子模块：不引用 `ui`、`core`、`data`、`tests`；`core`／`data` 不引用 `update` | `tests/architecture_cases.gd::update_module_is_a_leaf` |

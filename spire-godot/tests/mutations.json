@@ -532,7 +532,7 @@
     },
     "unusable_signature_is_rejected": {
       "file": "update/update_manifest.gd",
-      "find": "if not _verified(manifest_bytes,signature,String(keys[key_id])): return none(\"signature\")",
+      "find": "if not _verified(manifest_bytes,signature,public_pem): return none(\"signature\")",
       "replace": "if false: return none(\"signature\")",
       "suite": "update"
     },
@@ -611,6 +611,24 @@
       "replace": "config.set_value(\"update\",\"check_on_start\",true)",
       "suite": "update",
       "execution": "ui"
+    },
+    "public_key_pem_verifies_signed_manifest": {
+      "file": "update/update_manifest.gd",
+      "find": "if key.load_from_string(public_pem,true)!=OK: return false",
+      "replace": "if key.load_from_string(public_pem)!=OK: return false",
+      "suite": "update"
+    },
+    "private_key_table_entry_is_rejected": {
+      "file": "update/update_manifest.gd",
+      "find": "if not _public_material(public_pem): return none(\"key\")",
+      "replace": "if false: return none(\"key\")",
+      "suite": "update"
+    },
+    "openssl_signed_manifest_interops": {
+      "file": "update/update_manifest.gd",
+      "find": "if not _verified(manifest_bytes,signature,public_pem): return none(\"signature\")",
+      "replace": "if false: return none(\"signature\")",
+      "suite": "update"
     },
     "update_module_is_a_leaf": {
       "file": "update/update_check.gd",
