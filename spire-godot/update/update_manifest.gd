@@ -15,6 +15,9 @@ const SCHEMA=1
 const MAX_BYTES=65536
 const HTTPS="https://"
 const REJECTIONS=["signature","key","schema","platform","size","json","url"]
+# The signature file is base64 text; the alphabet check keeps a garbled answer a plain "no"
+# instead of an engine error from the decoder.
+const BASE64_ALPHABET="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/="
 
 static func none(reason: String) -> Dictionary:
  return {"kind":"none","reason":reason}
@@ -75,14 +78,24 @@ static func _document(manifest_bytes: PackedByteArray) -> Variant:
  return parser.data
 
 # RSA PKCS#1 v1.5 over SHA-256; the signature file is base64 text of the raw signature.
+# Crypto.verify takes the digest, so the signed bytes are hashed once here.
 static func _verified(manifest_bytes: PackedByteArray, signature: PackedByteArray, public_pem: String) -> bool:
  var text=signature.get_string_from_utf8().strip_edges()
- if text.is_empty(): return false
+ if text.is_empty() or text.length()%4!=0: return false
+ for index in text.length():
+  if not BASE64_ALPHABET.contains(text[index]): return false
  var raw=Marshalls.base64_to_raw(text)
  if raw.is_empty(): return false
  var key=CryptoKey.new()
  if key.load_from_string(public_pem)!=OK: return false
- return Crypto.new().verify(HashingContext.HASH_SHA256,manifest_bytes,raw,key)
+ return Crypto.new().verify(HashingContext.HASH_SHA256,_digest(manifest_bytes),raw,key)
+
+# SHA-256 of the signed bytes: this digest is what the Crypto API signs and verifies.
+static func _digest(bytes: PackedByteArray) -> PackedByteArray:
+ var context=HashingContext.new()
+ context.start(HashingContext.HASH_SHA256)
+ context.update(bytes)
+ return context.finish()
 
 static func _revoked(manifest: Dictionary, current: String) -> bool:
  var list=manifest.get("revoked",[])

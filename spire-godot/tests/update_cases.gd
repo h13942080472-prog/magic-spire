@@ -65,8 +65,13 @@ static func document(version: String, overrides: Dictionary={}) -> Dictionary:
 static func bytes_of(document_value: Dictionary) -> PackedByteArray:
  return JSON.stringify(document_value).to_utf8_buffer()
 
+# Crypto.sign takes the digest, so the fixture hashes the manifest bytes first, exactly like
+# the production verifier does.
 static func signature_of(body: PackedByteArray, pair: Array) -> PackedByteArray:
- return Marshalls.raw_to_base64(Crypto.new().sign(HashingContext.HASH_SHA256,body,pair[0])).to_utf8_buffer()
+ var context=HashingContext.new()
+ context.start(HashingContext.HASH_SHA256)
+ context.update(body)
+ return Marshalls.raw_to_base64(Crypto.new().sign(HashingContext.HASH_SHA256,context.finish(),pair[0])).to_utf8_buffer()
 
 static func judge(body: PackedByteArray, pair: Array, keys: Dictionary, current: String=CURRENT, platform: String=PLATFORM) -> Dictionary:
  return Manifest.evaluate(body,signature_of(body,pair),keys,current,platform)

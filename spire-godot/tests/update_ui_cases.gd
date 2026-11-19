@@ -8,7 +8,6 @@ extends RefCounted
 # A scripted harness never auto-checks (update/update_check.gd::auto_allowed), so the suite
 # calls check() itself — the same entry the deferred startup call uses in a player session.
 
-const Store=preload("res://core/save_store.gd")
 const Cases=preload("res://tests/update_cases.gd")
 const Click=preload("res://tests/interface_ui_cases.gd")
 const SIZE_TEXT="230.1"
@@ -46,8 +45,9 @@ static func boot(t, options: Dictionary) -> Control:
  if is_instance_valid(old):
   t.root.remove_child(old);old.queue_free()
  var ui=load("res://main.tscn").instantiate()
- ui.persistence_enabled=bool(options.get("persist",false))
- if ui.persistence_enabled: ui.saves=Store.new("res://build/update-saves-%d" % Time.get_ticks_usec())
+ # The harness never touches the real user:// save store; the settings store keeps its own
+ # temp path and is switched on by the case that needs to write (see toggle_off_skips_startup).
+ ui.persistence_enabled=false
  ui.feedback_duration=0.04
  ui.game_factory=preload("res://tests/game_fixture.gd")
  ui.game=ui.game_factory.new()
@@ -130,8 +130,11 @@ static func startup_bad_signature_is_silent(t) -> void:
 static func toggle_off_skips_startup(t) -> void:
  var prefs="res://build/update-prefs-%d.cfg" % Time.get_ticks_usec()
  var served=signed("0.18.4")
- var options={"persist":true,"prefs":prefs,"calls":[],"opened":[],"response":served,"keys":served.keys}
+ var options={"prefs":prefs,"calls":[],"opened":[],"response":served,"keys":served.keys}
  var ui=await boot(t,options)
+ # The harness keeps main's save persistence off; the settings store is the only writer and
+ # its file is the temp path above, so the switch exercises the one production store.
+ ui.display_settings.persistence_enabled=true
  t.check(ui.display_settings.update_check_enabled,"UPDATE toggle_off_skips_startup: the startup check is on by default")
  await open_options(t,ui)
  var toggle=ui.find_child("UpdateCheckEnabled",true,false)
@@ -143,6 +146,7 @@ static func toggle_off_skips_startup(t) -> void:
  t.check(config.load(prefs)==OK and config.get_value("update","check_on_start",true)==false,"UPDATE toggle_off_skips_startup: the choice is saved in the existing settings file")
  options.calls=[]
  var again=await boot(t,options)
+ again.display_settings.initialize(again.get_window(),true)
  t.check(not again.display_settings.update_check_enabled,"UPDATE toggle_off_skips_startup: the saved choice is loaded on the next launch")
  t.check(options.calls.is_empty() and again.find_child("HomeUpdateNotice",true,false)==null,"UPDATE toggle_off_skips_startup: a disabled startup check sends nothing: "+str(options.calls))
  await open_options(t,again)
