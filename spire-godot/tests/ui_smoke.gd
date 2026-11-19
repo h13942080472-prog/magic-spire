@@ -44,7 +44,8 @@ const UI_MODULES={"enchantments":"res://tests/enchantment_ui_cases.gd","localiza
  "events":"res://tests/event_ui_cases.gd",
  "consumables":"res://tests/consumable_ui_cases.gd",
  "rewards":"res://tests/reward_ui_cases.gd",
- "persistence":"res://tests/persistence_ui_cases.gd"}
+ "persistence":"res://tests/persistence_ui_cases.gd",
+ "update":"res://tests/update_ui_cases.gd"}
 
 func module_checks(selected: Array) -> void:
  for name in UI_MODULES:

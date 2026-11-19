@@ -1,0 +1,155 @@
+extends RefCounted
+
+# docs/spec/update-check.md「界面判据」: the home notice, both jump buttons and the startup
+# switch are driven through the production main.tscn. The suite installs the transport
+# stand-in and its own key before the scene enters the tree; the judgement stays in
+# UpdateManifest (tests/update_cases.gd), this file only asserts what the player sees.
+#
+# A scripted harness never auto-checks (update/update_check.gd::auto_allowed), so the suite
+# calls check() itself — the same entry the deferred startup call uses in a player session.
+
+const Store=preload("res://core/save_store.gd")
+const Cases=preload("res://tests/update_cases.gd")
+const Click=preload("res://tests/interface_ui_cases.gd")
+const SIZE_TEXT="230.1"
+
+static func run(t) -> void:
+ await startup_offer_renders_notice(t)
+ await startup_offline_is_silent(t)
+ await startup_bad_signature_is_silent(t)
+ await toggle_off_skips_startup(t)
+
+# ---- fixtures -------------------------------------------------------------------------
+
+static func signed(version: String, other_signature: bool=false) -> Dictionary:
+ var pair=Cases.keypair()
+ var body=Cases.bytes_of(Cases.document(version))
+ var payload="another manifest".to_utf8_buffer() if other_signature else body
+ return {"manifest":body,"signature":Cases.signature_of(payload,pair),"keys":{"k1":Cases.public_pem(pair)}}
+
+# The stand-in answers the two GETs and reads options.response on every call, so one boot can
+# serve a second answer after the player asks again.
+static func stand_in(ui, options: Dictionary) -> Callable:
+ return func(url: String, _method: int) -> int:
+  options.calls.append(url)
+  var response=options.get("response",{})
+  if response.has("failure"):
+   ui.update_check.deliver(int(response.failure),0,PackedStringArray(),PackedByteArray())
+  elif url.ends_with(".sig"):
+   ui.update_check.deliver(HTTPRequest.RESULT_SUCCESS,int(response.get("status",200)),PackedStringArray(),response.get("signature",PackedByteArray()))
+  else:
+   ui.update_check.deliver(HTTPRequest.RESULT_SUCCESS,int(response.get("status",200)),PackedStringArray(),response.get("manifest",PackedByteArray()))
+  return OK
+
+static func boot(t, options: Dictionary) -> Control:
+ var old=t.ui
+ if is_instance_valid(old):
+  t.root.remove_child(old);old.queue_free()
+ var ui=load("res://main.tscn").instantiate()
+ ui.persistence_enabled=bool(options.get("persist",false))
+ if ui.persistence_enabled: ui.saves=Store.new("res://build/update-saves-%d" % Time.get_ticks_usec())
+ ui.feedback_duration=0.04
+ ui.game_factory=preload("res://tests/game_fixture.gd")
+ ui.game=ui.game_factory.new()
+ ui.display_settings.path=String(options.get("prefs","res://build/update-prefs-%d.cfg" % Time.get_ticks_usec()))
+ ui.display_settings.first_battle_tutorial_seen=true
+ ui.open_url=func(url): options.opened.append(url)
+ ui.update_check.keys=options.get("keys",{})
+ ui.update_check.transport=stand_in(ui,options)
+ options["state"]=JSON.stringify(ui.game.state)
+ t.ui=ui
+ t.root.add_child(ui)
+ await t.frames()
+ return ui
+
+static func visible_text(node: Node) -> String:
+ var parts=[]
+ for child in node.get_children():
+  if child is Label or child is Button: parts.append(String(child.text))
+  parts.append(visible_text(child))
+ return " ".join(parts)
+
+static func open_options(t, ui) -> void:
+ await Click.press(t,"HomeOptions")
+ await t.frames()
+ var scroll=ui.find_child("DisplayOptionsScroll",true,false)
+ if scroll!=null:
+  scroll.scroll_vertical=100000
+  await t.frames(3)
+
+# ---- 主页提示 -------------------------------------------------------------------------
+
+static func startup_offer_renders_notice(t) -> void:
+ var served=signed("0.18.4")
+ var options={"calls":[],"opened":[],"response":served,"keys":served.keys}
+ var ui=await boot(t,options)
+ t.check(not ui.update_check.auto_allowed(),"UPDATE startup_offer_renders_notice: a scripted harness never auto-checks, so suites stay offline")
+ ui.update_check.check()
+ await t.frames()
+ t.check(options.calls.size()==2 and String(options.calls[0]).ends_with("manifest.json") and String(options.calls[1]).ends_with(".sig"),"UPDATE startup_offer_renders_notice: one check reads the manifest then its signature: "+str(options.calls))
+ t.check(JSON.stringify(ui.game.state)==String(options.state),"UPDATE startup_offer_renders_notice: the check never touches the run state")
+ var notice=ui.find_child("HomeUpdateNotice",true,false)
+ t.check(notice!=null and notice.is_visible_in_tree(),"UPDATE startup_offer_renders_notice: a verified newer version shows the home notice")
+ if notice==null: return
+ var text=visible_text(notice)
+ t.check(text.contains("0.18.4") and text.contains(SIZE_TEXT),"UPDATE startup_offer_renders_notice: the notice names the version and the rounded size: "+text)
+ var download=ui.find_child("HomeUpdateDownload",true,false)
+ var mirror=ui.find_child("HomeUpdateMirror",true,false)
+ t.check(download!=null and mirror!=null and download.is_visible_in_tree() and mirror.is_visible_in_tree(),"UPDATE startup_offer_renders_notice: both jump buttons are visible")
+ await Click.press(t,"HomeUpdateDownload")
+ await Click.press(t,"HomeUpdateMirror")
+ t.check(options.opened.size()==2 and String(options.opened[0])==Cases.URL and String(options.opened[1])==Cases.MIRROR,"UPDATE startup_offer_renders_notice: each button opens its own signed link: "+str(options.opened))
+ var home=ui.find_child("GameHome",true,false)
+ var title_area=home.get_children().filter(func(node):return node is Control and node.position.x<1000)
+ t.check(title_area.size()==4 and not home.get_children().has(notice),"UPDATE startup_offer_renders_notice: the notice stays outside the four-child home title area")
+ var save_notice=ui.find_child("HomeSettingsSaveNotice",true,false)
+ t.check(notice.get_global_rect().end.y<=save_notice.get_global_rect().position.y,"UPDATE startup_offer_renders_notice: the notice does not overlap the settings notice")
+
+static func startup_offline_is_silent(t) -> void:
+ var options={"calls":[],"opened":[],"response":{"failure":HTTPRequest.RESULT_TIMEOUT},"keys":{}}
+ var ui=await boot(t,options)
+ ui.update_check.check()
+ await t.frames()
+ t.check(options.calls.size()==1,"UPDATE startup_offline_is_silent: a timeout stays one request and never retries: "+str(options.calls))
+ t.check(String(ui.update_check.offer.get("reason",""))=="network" and not ui.update_check.busy,"UPDATE startup_offline_is_silent: the answer is a silent network rejection: "+str(ui.update_check.offer))
+ t.check(ui.find_child("HomeUpdateNotice",true,false)==null,"UPDATE startup_offline_is_silent: no notice, no popup: ")
+ t.check(ui.find_child("GameHome",true,false)!=null and ui.find_child("HomeContinue",true,false)!=null,"UPDATE startup_offline_is_silent: the home page stays interactive")
+
+static func startup_bad_signature_is_silent(t) -> void:
+ var served=signed("0.18.4",true)
+ var options={"calls":[],"opened":[],"response":served,"keys":served.keys}
+ var ui=await boot(t,options)
+ ui.update_check.check()
+ await t.frames()
+ t.check(options.calls.size()==2,"UPDATE startup_bad_signature_is_silent: a tampered manifest still completes both reads: "+str(options.calls))
+ t.check(String(ui.update_check.offer.get("reason",""))=="signature","UPDATE startup_bad_signature_is_silent: the answer is a signature rejection: "+str(ui.update_check.offer))
+ t.check(ui.find_child("HomeUpdateNotice",true,false)==null,"UPDATE startup_bad_signature_is_silent: a forged manifest never reaches the player")
+
+# ---- 开关与手动检查 -------------------------------------------------------------------
+
+static func toggle_off_skips_startup(t) -> void:
+ var prefs="res://build/update-prefs-%d.cfg" % Time.get_ticks_usec()
+ var served=signed("0.18.4")
+ var options={"persist":true,"prefs":prefs,"calls":[],"opened":[],"response":served,"keys":served.keys}
+ var ui=await boot(t,options)
+ t.check(ui.display_settings.update_check_enabled,"UPDATE toggle_off_skips_startup: the startup check is on by default")
+ await open_options(t,ui)
+ var toggle=ui.find_child("UpdateCheckEnabled",true,false)
+ t.check(toggle!=null and toggle.is_visible_in_tree() and toggle.button_pressed,"UPDATE toggle_off_skips_startup: the display tab shows the switch on")
+ t.check(ui.find_child("UpdateCheckNow",true,false)!=null,"UPDATE toggle_off_skips_startup: the manual check button sits next to the switch")
+ await Click.press(t,"UpdateCheckEnabled")
+ t.check(not ui.display_settings.update_check_enabled,"UPDATE toggle_off_skips_startup: pressing the switch turns the startup check off")
+ var config=ConfigFile.new()
+ t.check(config.load(prefs)==OK and config.get_value("update","check_on_start",true)==false,"UPDATE toggle_off_skips_startup: the choice is saved in the existing settings file")
+ options.calls=[]
+ var again=await boot(t,options)
+ t.check(not again.display_settings.update_check_enabled,"UPDATE toggle_off_skips_startup: the saved choice is loaded on the next launch")
+ t.check(options.calls.is_empty() and again.find_child("HomeUpdateNotice",true,false)==null,"UPDATE toggle_off_skips_startup: a disabled startup check sends nothing: "+str(options.calls))
+ await open_options(t,again)
+ options["response"]=signed(Cases.CURRENT)
+ await Click.press(t,"UpdateCheckNow")
+ await t.frames()
+ t.check(options.calls.size()==2 and String(options.calls[0]).ends_with("manifest.json"),"UPDATE toggle_off_skips_startup: the manual button still checks while the startup check is off: "+str(options.calls))
+ var status=again.find_child("UpdateCheckStatus",true,false)
+ t.check(status!=null and String(status.text)==again._text("ui.update.latest","已是最新版本。"),"UPDATE toggle_off_skips_startup: the panel reports the latest version instead of a notice: "+str(status.text if status!=null else ""))
+ t.check(again.find_child("HomeUpdateNotice",true,false)==null,"UPDATE toggle_off_skips_startup: a same-version answer never shows the home notice")

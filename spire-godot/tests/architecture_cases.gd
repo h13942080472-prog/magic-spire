@@ -1173,6 +1173,7 @@ static func run(t) -> void:
  card_facts_consumes_has_targets_at(t)
  card_facts_keyword_min_query(t)
  slice_dependency_directions(t)
+ update_module_is_a_leaf(t)
  run_identity_single_writer(t)
  feedback_save_single_serializer(t)
  feedback_save_cap_pinned(t)
@@ -6402,6 +6403,25 @@ static func slice_dependency_directions(t) -> void:
   for token in ["res://core","res://ui","res://data"]:
    if source_text(path.trim_prefix("res://")).contains(token): service_references.append(path.trim_prefix("res://")+" references "+token)
  t.check(service_references.is_empty(),"DEP slice_dependency_directions: tools/feedback-service never references game source paths (res://core, res://ui, res://data): "+str(service_references))
+
+# docs/spec/update-check-dependencies.md: update/ is a leaf module. It owns the only update
+# network entry and the only manifest judgement, and it never reaches into ui, core, data or
+# the test harness; the edge points one way (ui -> update).
+static func update_module_is_a_leaf(t) -> void:
+ var updaters=[]
+ for path in script_files("res://update"):
+  for token in ["res://ui","res://core","res://data","res://tests"]:
+   if source_text(path.trim_prefix("res://")).contains(token): updaters.append(path.trim_prefix("res://")+" references "+token)
+ t.check(updaters.is_empty(),"DEP update_module_is_a_leaf: update/ never references ui, core, data or tests: "+str(updaters))
+ var updaters_of_core=[]
+ for path in script_files("res://core")+script_files("res://data"):
+  if source_text(path.trim_prefix("res://")).contains("res://update"): updaters_of_core.append(path.trim_prefix("res://"))
+ t.check(updaters_of_core.is_empty(),"DEP update_module_is_a_leaf: core/data never reference the update module: "+str(updaters_of_core))
+ var entries=[]
+ for path in script_files("res://update"):
+  var text=source_text(path.trim_prefix("res://"))
+  if text.contains("HTTPRequest") or text.contains("HTTPClient"): entries.append(path.trim_prefix("res://"))
+ t.check(entries==["update/update_check.gd"],"DEP update_module_is_a_leaf: update/update_check.gd is the only update file that speaks HTTP: "+str(entries))
 
 static func run_identity_single_writer(t) -> void:
  var clipboard=write_site_names(source_write_sites(["res://core","res://data","res://ui"],"DisplayServer\\.clipboard_set\\s*\\("))

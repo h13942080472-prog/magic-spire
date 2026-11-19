@@ -493,6 +493,124 @@
       "find": " \"_refresh_drawer_section\":[\"_drawer_presentation_key\",\"_drawer_key_hit\",\"_menu_drawer\",\"_items_drawer\"],\n \"_menu_drawer\":[],\n",
       "replace": " \"_refresh_drawer_section\":[\"_drawer_presentation_key\",\"_drawer_key_hit\",\"_items_drawer\"],\n",
       "suite": "architecture"
+    },
+    "newer_latest_yields_notice": {
+      "file": "update/update_manifest.gd",
+      "find": "\"bytes\":int(bytes),\"url\":url",
+      "replace": "\"bytes\":0,\"url\":url",
+      "suite": "update"
+    },
+    "same_or_older_latest_yields_none": {
+      "file": "update/update_manifest.gd",
+      "find": "if offer.revoked or compare(version,current)>0: return offer",
+      "replace": "if offer.revoked or compare(version,current)>=0: return offer",
+      "suite": "update"
+    },
+    "version_order_is_numeric_per_segment": {
+      "file": "update/update_manifest.gd",
+      "find": "if text.is_valid_int(): return [0,text.to_int()]",
+      "replace": "if text.is_valid_int(): return [0,0]",
+      "suite": "update"
+    },
+    "tampered_manifest_fails_signature": {
+      "file": "update/update_manifest.gd",
+      "find": "return Crypto.new().verify(HashingContext.HASH_SHA256,manifest_bytes,raw,key)",
+      "replace": "return true",
+      "suite": "update"
+    },
+    "foreign_key_signature_is_rejected": {
+      "file": "update/update_manifest.gd",
+      "find": "return Crypto.new().verify(HashingContext.HASH_SHA256,manifest_bytes,raw,key)",
+      "replace": "return true",
+      "suite": "update"
+    },
+    "missing_key_entry_is_rejected": {
+      "file": "update/update_manifest.gd",
+      "find": "if key_id.is_empty() or not keys.has(key_id): return none(\"key\")",
+      "replace": "if key_id.is_empty() or not keys.has(key_id): return none(\"signature\")",
+      "suite": "update"
+    },
+    "unusable_signature_is_rejected": {
+      "file": "update/update_manifest.gd",
+      "find": "return Crypto.new().verify(HashingContext.HASH_SHA256,manifest_bytes,raw,key)",
+      "replace": "return true",
+      "suite": "update"
+    },
+    "empty_key_table_yields_no_offer": {
+      "file": "update/update_manifest.gd",
+      "find": "if key_id.is_empty() or not keys.has(key_id): return none(\"key\")",
+      "replace": "if key_id.is_empty() or not keys.has(key_id): return none(\"signature\")",
+      "suite": "update"
+    },
+    "unknown_schema_is_rejected": {
+      "file": "update/update_manifest.gd",
+      "find": "if not (schema is int or schema is float) or int(schema)!=SCHEMA: return none(\"schema\")",
+      "replace": "if not (schema is int or schema is float) or int(schema)<SCHEMA: return none(\"schema\")",
+      "suite": "update"
+    },
+    "missing_platform_yields_none": {
+      "file": "update/update_manifest.gd",
+      "find": "return none(\"platform\")",
+      "replace": "return none(\"json\")",
+      "suite": "update"
+    },
+    "revoked_current_yields_notice": {
+      "file": "update/update_manifest.gd",
+      "find": "if entry is String and compare(entry,current)==0: return true",
+      "replace": "if entry is String and compare(entry,current)==0: return false",
+      "suite": "update"
+    },
+    "oversized_or_broken_manifest_yields_none": {
+      "file": "update/update_manifest.gd",
+      "find": "if manifest_bytes.size()==0 or manifest_bytes.size()>MAX_BYTES: return none(\"size\")",
+      "replace": "if manifest_bytes.size()==0 or manifest_bytes.size()>MAX_BYTES*2: return none(\"size\")",
+      "suite": "update"
+    },
+    "non_https_url_is_rejected": {
+      "file": "update/update_manifest.gd",
+      "find": "if not url.begins_with(HTTPS) or not mirror.begins_with(HTTPS): return none(\"url\")",
+      "replace": "if not url.begins_with(HTTPS): return none(\"url\")",
+      "suite": "update"
+    },
+    "patches_are_ignored": {
+      "file": "update/update_manifest.gd",
+      "find": "\"revoked\":_revoked(manifest,current),\"platform\":platform}",
+      "replace": "\"revoked\":_revoked(manifest,current),\"platform\":platform,\"patches\":((platforms as Dictionary)[platform] as Dictionary).get(\"patches\",[])}",
+      "suite": "update"
+    },
+    "settings_toggle_uses_one_store": {
+      "file": "ui/display_settings.gd",
+      "find": "config.set_value(\"update\",\"check_on_start\",update_check_enabled)",
+      "replace": "config.set_value(\"update\",\"check_on_start\",true)",
+      "suite": "update"
+    },
+    "startup_offer_renders_notice": {
+      "file": "ui/home_screen.gd",
+      "find": " ui._home_update_notice()\n",
+      "replace": "",
+      "suite": "update",
+      "execution": "ui"
+    },
+    "startup_offline_is_silent": {
+      "file": "update/update_check.gd",
+      "find": "_fail(\"network\" if result!=HTTPRequest.RESULT_SUCCESS else \"http\")",
+      "replace": "_fail(\"http\")",
+      "suite": "update",
+      "execution": "ui"
+    },
+    "startup_bad_signature_is_silent": {
+      "file": "update/update_manifest.gd",
+      "find": "return Crypto.new().verify(HashingContext.HASH_SHA256,manifest_bytes,raw,key)",
+      "replace": "return true",
+      "suite": "update",
+      "execution": "ui"
+    },
+    "toggle_off_skips_startup": {
+      "file": "ui/display_settings.gd",
+      "find": "config.set_value(\"update\",\"check_on_start\",update_check_enabled)",
+      "replace": "config.set_value(\"update\",\"check_on_start\",true)",
+      "suite": "update",
+      "execution": "ui"
     }
   }
 }
