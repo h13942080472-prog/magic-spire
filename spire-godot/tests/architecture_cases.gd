@@ -1222,6 +1222,11 @@ static func run(t) -> void:
  var settled=g.export_snapshot()
  g._cleanup()
  t.check(g.export_snapshot()==settled,"ARCH cleanup reaches a fixed point without repeated events")
+ route_history_single_writer(t)
+ route_switch_declared(t)
+ route_reason_branches_declared(t)
+ route_legacy_backfill_is_pinned(t)
+ route_history_no_version(t)
 
 static func tool_registry_boundary(t) -> void:
  var catalog=preload("res://data/field_tools.gd")

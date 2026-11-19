@@ -75,7 +75,7 @@ static func _close(g, record: Dictionary) -> void:
  record["nodes"]=completed.size()
  record["floor"]=_reached_floor(g,record,completed)
 
-# 与 ui/run_review.gd::_progress_text 同口径：已完成房间的最高层加一；没有完成房间时为 0。
+# 与战报面板的进度口径一致（见 docs/spec/run-review.md）：已完成房间的最高层加一；没有完成房间时为 0。
 static func _reached_floor(g, record: Dictionary, completed: Array) -> int:
  var floors=_floors(g,record)
  var highest=0
