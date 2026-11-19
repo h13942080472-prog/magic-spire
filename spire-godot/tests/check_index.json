@@ -901,6 +901,14 @@
       "owner": "ui:services",
       "signals": 3
     },
+    "spire-godot/tests/update_cases.gd": {
+      "owner": "rule:update",
+      "signals": 1
+    },
+    "spire-godot/tests/update_ui_cases.gd": {
+      "owner": "ui:update",
+      "signals": 1
+    },
     "spire-godot/tests/wall_cases.gd": {
       "owner": "rule:wall",
       "signals": 1
@@ -934,7 +942,7 @@
       "signals": 2
     }
   },
-  "digest": "700eb9b9eb1b8288a59220cb811a9d2b1f030cfd83d946b0d9d7a4dc7733ddbb",
+  "digest": "438bf457b0bf2b0946c3966d801d56a603b512cdbc222a9ca03267f8c1a23344",
   "domain_words": {
     "ART": [
       "ui:display",
@@ -1934,13 +1942,14 @@
       ]
     }
   },
-  "generated_from": "22246ccdf17f51103b1f245ff1f39ddab9d056e211f42f298addd5c7ff00bcca",
+  "generated_from": "ade5d8142e81b355549d7e1cec69a6908361766243a6d18488746d80d23d62a4",
   "registries": {
     "rule": [
       "rope_master",
       "enchantments",
       "witch_character",
       "localization",
+      "update",
       "card_power",
       "card_expansion",
       "relics",
@@ -2042,24 +2051,25 @@
       "events",
       "consumables",
       "rewards",
-      "persistence"
+      "persistence",
+      "update"
     ]
   },
   "schema": 1,
   "stats": {
     "blind": 3,
     "blind_by_design": 3,
-    "case_files": 232,
+    "case_files": 234,
     "domains": 65,
     "domains_declared": 65,
     "excluded": 15,
-    "inputs": 376,
-    "rule_suites": 54,
+    "inputs": 378,
+    "rule_suites": 55,
     "source_files": 140,
     "sources_with_edges": 138,
-    "suite_edges": 567,
-    "suites_with_edges": 101,
-    "ui_suites": 50,
+    "suite_edges": 569,
+    "suites_with_edges": 103,
+    "ui_suites": 51,
     "widen": 1
   },
   "suite_files": {
@@ -2846,6 +2856,11 @@
         "preload"
       ],
       "spire-godot/data/restraint_value.gd": [
+        "preload"
+      ]
+    },
+    "rule:update": {
+      "spire-godot/ui/display_settings.gd": [
         "preload"
       ]
     },
@@ -3968,6 +3983,11 @@
         "symbol_ui"
       ],
       "spire-godot/ui/target_queries.gd": [
+        "preload"
+      ]
+    },
+    "ui:update": {
+      "spire-godot/core/save_store.gd": [
         "preload"
       ]
     },
