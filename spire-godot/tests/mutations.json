@@ -493,6 +493,36 @@
       "find": " \"_refresh_drawer_section\":[\"_drawer_presentation_key\",\"_drawer_key_hit\",\"_menu_drawer\",\"_items_drawer\"],\n \"_menu_drawer\":[],\n",
       "replace": " \"_refresh_drawer_section\":[\"_drawer_presentation_key\",\"_drawer_key_hit\",\"_items_drawer\"],\n",
       "suite": "architecture"
+    },
+    "user_dir_name_is_version_free": {
+      "file": "project.godot",
+      "find": "config/custom_user_dir_name=\"Godot/app_userdata/紧缚尖塔\"",
+      "replace": "config/custom_user_dir_name=\"Godot/app_userdata/紧缚尖塔demo v0.18.3.fix\"",
+      "suite": "architecture"
+    },
+    "android_package_name_is_pinned": {
+      "file": "export_presets.cfg",
+      "find": "package/unique_name=\"org.magic.spire\"",
+      "replace": "package/unique_name=\"org.magic.spire.dev\"",
+      "suite": "architecture"
+    },
+    "package_probe_uses_appdata_sandbox": {
+      "file": "tools/check-package.ps1",
+      "find": "$start.Environment['APPDATA']=Join-Path $checkDirectory 'appdata'",
+      "replace": "$start.Environment['APPDATA']=Join-Path $checkDirectory 'profile'",
+      "suite": "architecture"
+    },
+    "user_dir_ignores_project_name": {
+      "file": "project.godot",
+      "find": "config/use_custom_user_dir=true",
+      "replace": "config/use_custom_user_dir=false",
+      "suite": "persistence"
+    },
+    "editor_tag_isolates_dev_user_dir": {
+      "file": "project.godot",
+      "find": "config/custom_user_dir_name.editor=\"Godot/app_userdata/紧缚尖塔-dev\"",
+      "replace": "config/custom_user_dir_name.editor=\"Godot/app_userdata/紧缚尖塔\"",
+      "suite": "persistence"
     }
   }
 }

@@ -728,7 +728,36 @@ static func save_and_random_untouched(t) -> void:
   var refused=g.dispatch(g.command(blocked[0].payload,g.state.version),g.state.version)
   t.check(not refused.ok and store.writes==refused_before,"G9 save_and_random_untouched: a refused command writes nothing")
 
+# D23a（A279，docs/spec/packaging.md「用户数据目录」）：运行时目录由 project.godot 的固定名决定，
+# 与 application/config/name 无关；Windows 上它的父目录是 APPDATA 环境变量，成品探针据此把子进程
+# 隔离到检查目录。`.editor` 覆盖只有在 editor 特性标签生效时才解析：本条以本进程读到的特性标签
+# 为准，钉住「声明存在」与「运行时目录等于解析出的名字」，不预设标签在 --headless --script 下生效。
+static func userdir_normalized(path: String) -> String:
+ return path.replace("\\","/").trim_suffix("/")
+
+static func userdir_setting(key: String) -> String:
+ return String(ProjectSettings.get_setting(key,""))
+
+static func user_dir_ignores_project_name(t) -> void:
+ var directory=userdir_normalized(OS.get_user_data_dir())
+ var name=userdir_normalized(userdir_setting("application/config/custom_user_dir_name"))
+ var project_name=userdir_setting("application/config/name")
+ t.check(name!="" and directory.ends_with("/"+name),"USERDIR user_dir_ignores_project_name: OS.get_user_data_dir() ends with the pinned custom name: dir="+directory+" name="+name)
+ t.check(project_name!="" and not directory.contains(project_name),"USERDIR user_dir_ignores_project_name: the runtime directory does not follow application/config/name: dir="+directory+" name="+project_name)
+ var appdata=userdir_normalized(OS.get_environment("APPDATA"))
+ t.check(OS.get_name()!="Windows" or (appdata!="" and directory.begins_with(appdata+"/")),"USERDIR user_dir_ignores_project_name: on Windows the APPDATA environment variable parents the user directory: appdata="+appdata+" dir="+directory)
+
+static func editor_tag_isolates_dev_user_dir(t) -> void:
+ var override=userdir_normalized(userdir_setting("application/config/custom_user_dir_name.editor"))
+ var base=userdir_normalized(userdir_setting("application/config/custom_user_dir_name"))
+ var directory=userdir_normalized(OS.get_user_data_dir())
+ var activated=OS.has_feature("editor")
+ t.check(base!="" and override.ends_with("-dev") and override!=base,"USERDIR editor_tag_isolates_dev_user_dir: project.godot declares a distinct -dev editor override: override="+override)
+ t.check(directory.ends_with("/"+(override if activated else base)),"USERDIR editor_tag_isolates_dev_user_dir: the runtime directory follows the feature tags this process has: editor="+str(activated)+" dir="+directory)
+
 static func run(t) -> void:
+ user_dir_ignores_project_name(t)
+ editor_tag_isolates_dev_user_dir(t)
  g3_reject_never_writes(t)
  save_and_random_untouched(t)
  initial_seed_is_fixed_at_run_start(t)

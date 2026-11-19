@@ -1188,6 +1188,9 @@ static func run(t) -> void:
  target_queries_stay_stateless(t)
  ui_never_reads_game_state(t)
  mutation_evidence_is_total(t)
+ user_dir_name_is_version_free(t)
+ android_package_name_is_pinned(t)
+ package_probe_uses_appdata_sandbox(t)
  behavior_baseline_equivalence(t)
  removal_end_state(t)
  copy_single_entry_matches_projection(t)
@@ -6782,6 +6785,60 @@ static func mutation_evidence_is_total(t) -> void:
  var both=covered.filter(func(name):return name in declared_gaps)
  var unknown=declared_gaps.filter(func(name):return name not in universe)
  t.check(silent.is_empty() and both.is_empty() and unknown.is_empty(),"MT mutation_evidence_is_total: each judgment is either evidenced or named in known_gaps: silent="+str(silent)+" both="+str(both)+" unknown="+str(unknown))
+
+# D23a（A279，docs/spec/packaging.md「用户数据目录」）：固定目录由 project.godot 的 [application]
+# 三行声明（两行目录名 + 一行 .editor 覆盖），名字不带版本号；`.editor` 特性标签覆盖给工具与开发运行 -dev 名字。运行时代码只允许 D23b 的
+# 旧目录导入器提到 app_userdata 父目录，其余模块不得自行拼用户目录；Android 的目录仍由包名决定。
+const USERDIR_NAME="Godot/app_userdata/紧缚尖塔"
+const USERDIR_NAME_DEV="Godot/app_userdata/紧缚尖塔-dev"
+const USERDIR_APP_USERDATA_REFS=["ui/legacy_import.gd"]
+const USERDIR_PROBE_SCRIPTS=["tools/check-package.ps1","tools/check-android-package.ps1"]
+
+static func userdir_setting(project: String, key: String) -> String:
+ var pattern=RegEx.new()
+ if pattern.compile("(?m)^"+key.replace(".","\\.")+"=\"([^\"]*)\"\\s*$")!=OK: return ""
+ var found=pattern.search(project)
+ return "" if found==null else found.get_string(1)
+
+static func userdir_has_version_tag(text: String) -> bool:
+ var pattern=RegEx.new()
+ if pattern.compile("v?[0-9]+\\.[0-9]+")!=OK: return true
+ return pattern.search(text)!=null
+
+static func user_dir_name_is_version_free(t) -> void:
+ var project=source_text("project.godot")
+ var name=userdir_setting(project,"config/custom_user_dir_name")
+ t.check(project.contains("config/use_custom_user_dir=true"),"USERDIR user_dir_name_is_version_free: project.godot enables application/config/use_custom_user_dir=true")
+ t.check(name==USERDIR_NAME,"USERDIR user_dir_name_is_version_free: application/config/custom_user_dir_name is the pinned version-free directory: "+name)
+ t.check(userdir_setting(project,"config/custom_user_dir_name.editor")==USERDIR_NAME_DEV,"USERDIR user_dir_name_is_version_free: the editor feature-tag override pins the -dev directory")
+ t.check(name.begins_with("Godot/app_userdata/") and not userdir_has_version_tag(name) and not name.ends_with("."),"USERDIR user_dir_name_is_version_free: the pinned name stays under the shared app_userdata parent, free of version numbers and of a trailing dot: "+name)
+ var inherited=[]
+ for root in ["res://core","res://data","res://ui","res://update"]:
+  for path in script_files(root):
+   var relative=path.trim_prefix("res://")
+   if relative in USERDIR_APP_USERDATA_REFS: continue
+   if source_text(relative).contains("app_userdata"): inherited.append(relative)
+ t.check(inherited.is_empty(),"USERDIR user_dir_name_is_version_free: only the pinned legacy importer names the app_userdata parent: "+str(inherited))
+
+static func android_package_name_is_pinned(t) -> void:
+ var presets=source_text("export_presets.cfg")
+ var android=presets.split("name=\"Android ")
+ t.check(android.size()==2,"USERDIR android_package_name_is_pinned: export_presets.cfg declares exactly one Android preset")
+ t.check(android.size()==2 and android[1].contains("package/unique_name=\"org.magic.spire\""),"USERDIR android_package_name_is_pinned: the Android preset keeps the package org.magic.spire, so a mobile user:// directory stays package-scoped")
+
+static func package_probe_uses_appdata_sandbox(t) -> void:
+ var pattern=RegEx.new()
+ var compiled=pattern.compile("\\$start\\.Environment\\['APPDATA'\\]\\s*=\\s*Join-Path\\s+\\$[A-Za-z_][A-Za-z0-9_]*\\s+'appdata'")
+ var missing=[]
+ var late=[]
+ for relative in USERDIR_PROBE_SCRIPTS:
+  var text=source_text(relative)
+  if compiled!=OK or pattern.search(text)==null: missing.append(relative)
+  var assignment=text.find("Environment['APPDATA']")
+  var launched=text.find("[Diagnostics.Process]::Start")
+  if assignment<0 or launched<0 or assignment>launched: late.append(relative)
+ t.check(missing.is_empty(),"USERDIR package_probe_uses_appdata_sandbox: both package probes point the child APPDATA at <check directory>/appdata: "+str(missing))
+ t.check(late.is_empty(),"USERDIR package_probe_uses_appdata_sandbox: the probe sandbox is assigned before the child process starts: "+str(late))
 
 # T 批（R-T5）锚自检：对 tests/frozen-baselines.json 的每处锚重算 `git show <锚提交>:<文件>` 的 sha256，
 # 与所载 anchor.sha256 逐字节比对（大小写不敏感）。期望侧只在两处外部——JSON 声明与 git 对象库的历史
