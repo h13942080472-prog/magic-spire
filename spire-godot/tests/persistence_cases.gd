@@ -794,7 +794,7 @@ static func route_new_run(t):
  var g=CoreGame.new(42)
  t.check(g.state.phase=="departure" and route_history_of(g).size()==1,"ROUTEHIST-1 a real new run opens one record before the first floor")
  t.check(t.action(g,"departure",{"op":"skip"}).ok,"ROUTEHIST-1 the real departure command starts the run")
- var rooms=g.state.rooms.filter(func(room):return int(room.get("floor",-2))==0 and room.next.any(func(next):return String(g.room_data(next).get("pool",""))=="ordinary"))
+ var rooms=g.state.rooms.filter(func(room):return int(room.get("floor",-2))==0 and room.next.any(func(target):return String(g.room_data(target).get("pool",""))=="ordinary"))
  t.check(not rooms.is_empty(),"ROUTEHIST-1 the generated tower has a first floor with an ordinary battle neighbour")
  if rooms.is_empty(): return g
  t.check(t.action(g,"depart",{"room":rooms[0].id}).ok,"ROUTEHIST-1 the first-floor departure is a real command")
@@ -874,6 +874,7 @@ static func route_history_escape_keeps_generation(t) -> void:
   var h=preload("res://tests/prison_cases.gd").intake(t)
   preload("res://tests/prison_cases.gd").clear_fixture(h)
   if route=="vent":
+   preload("res://tests/exploration_fixture.gd").mark_found(h,"vent")
    h.state.prison.vent_hits=h.B.PRISON_VENT_HITS
    preload("res://tests/exploration_fixture.gd").at_site(h,"vent")
    t.check(t.action(h,"prison",{"action":"vent_exit"}).ok,"ROUTEHIST-4 the vent exit is a real escape")
