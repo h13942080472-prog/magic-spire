@@ -76,6 +76,11 @@ static func document(version: String, overrides: Dictionary={}) -> Dictionary:
 static func bytes_of(document_value: Dictionary) -> PackedByteArray:
  return JSON.stringify(document_value).to_utf8_buffer()
 
+# The one temp settings path used by both sides: the switch is always exercised on a real
+# file, never on the player's user:// store.
+static func prefs_path() -> String:
+ return "res://build/update-prefs-%d.cfg" % Time.get_ticks_usec()
+
 # Raw bytes of a committed fixture: the signature covers exactly these bytes, so the file is
 # never parsed before it is verified.
 static func fixture(path: String) -> PackedByteArray:
@@ -255,7 +260,7 @@ static func patches_are_ignored(t, pair: Array, keys: Dictionary) -> void:
 # CC-D22-1: one key in the existing file, no second store and no new user:// file.
 static func settings_toggle_uses_one_store(t) -> void:
  DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://build"))
- var path="res://build/update-prefs-%d.cfg" % Time.get_ticks_usec()
+ var path=prefs_path()
  var settings=Settings.new()
  settings.path=path;settings.persistence_enabled=true
  settings.set_update_check(false)

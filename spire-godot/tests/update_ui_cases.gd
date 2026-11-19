@@ -11,7 +11,6 @@ extends RefCounted
 const Cases=preload("res://tests/update_cases.gd")
 const Palette=preload("res://ui/visual_theme.gd")
 const Click=preload("res://tests/interface_ui_cases.gd")
-const SIZE_TEXT="230.1"
 
 static func run(t) -> void:
  await startup_offer_renders_notice(t)
@@ -20,6 +19,18 @@ static func run(t) -> void:
  await toggle_off_skips_startup(t)
 
 # ---- fixtures -------------------------------------------------------------------------
+
+# One harness shape for every case: request log, launch recorder, the stand-in answer and the
+# key table that verifies it. "response" is either a served manifest or {"failure": result}.
+static func harness(served: Dictionary, prefs: String="") -> Dictionary:
+ var options={"calls":[],"opened":[],"response":served,"keys":served.get("keys",{})}
+ if not prefs.is_empty(): options["preps"]=prefs
+ return options
+
+# The notice prints the fixture size in MB; the expected text derives from the same fixture
+# constant the manifest is built with, so the expectation cannot drift from the fixture.
+static func size_text() -> String:
+ return "%.1f" % (float(Cases.SIZE)/1048576.0)
 
 static func signed(version: String, other_signature: bool=false) -> Dictionary:
  var pair=Cases.keypair()
@@ -52,7 +63,7 @@ static func boot(t, options: Dictionary) -> Control:
  ui.feedback_duration=0.04
  ui.game_factory=preload("res://tests/game_fixture.gd")
  ui.game=ui.game_factory.new()
- ui.display_settings.path=String(options.get("prefs","res://build/update-prefs-%d.cfg" % Time.get_ticks_usec()))
+ ui.display_settings.path=String(options.get("prefs",Cases.prefs_path()))
  ui.display_settings.first_battle_tutorial_seen=true
  ui.open_url=func(url): options.opened.append(url)
  ui.update_check.keys=options.get("keys",{})
@@ -82,7 +93,7 @@ static func open_options(t, ui) -> void:
 
 static func startup_offer_renders_notice(t) -> void:
  var served=signed("0.18.4")
- var options={"calls":[],"opened":[],"response":served,"keys":served.keys}
+ var options=harness(served)
  var ui=await boot(t,options)
  t.check(not ui.update_check.auto_allowed(),"UPDATE startup_offer_renders_notice: a scripted harness never auto-checks, so suites stay offline")
  ui.update_check.check()
@@ -93,7 +104,7 @@ static func startup_offer_renders_notice(t) -> void:
  t.check(notice!=null and notice.is_visible_in_tree(),"UPDATE startup_offer_renders_notice: a verified newer version shows the home notice")
  if notice==null: return
  var text=visible_text(notice)
- t.check(text.contains("0.18.4") and text.contains(SIZE_TEXT),"UPDATE startup_offer_renders_notice: the notice names the version and the rounded size: "+text)
+ t.check(text.contains("0.18.4") and text.contains(size_text()),"UPDATE startup_offer_renders_notice: the notice names the version and the rounded size: "+text)
  var title=notice.get_child(0).get_child(0)
  t.check(title!=null and title.get_theme_color("font_color")==Palette.GOLD,"UPDATE startup_offer_renders_notice: the notice title is styled from the shared palette")
  var download=ui.find_child("HomeUpdateDownload",true,false)
@@ -109,7 +120,7 @@ static func startup_offer_renders_notice(t) -> void:
  t.check(notice.get_global_rect().end.y<=save_notice.get_global_rect().position.y,"UPDATE startup_offer_renders_notice: the notice does not overlap the settings notice")
 
 static func startup_offline_is_silent(t) -> void:
- var options={"calls":[],"opened":[],"response":{"failure":HTTPRequest.RESULT_TIMEOUT},"keys":{}}
+ var options=harness({"failure":HTTPRequest.RESULT_TIMEOUT})
  var ui=await boot(t,options)
  ui.update_check.check()
  await t.frames()
@@ -120,7 +131,7 @@ static func startup_offline_is_silent(t) -> void:
 
 static func startup_bad_signature_is_silent(t) -> void:
  var served=signed("0.18.4",true)
- var options={"calls":[],"opened":[],"response":served,"keys":served.keys}
+ var options=harness(served)
  var ui=await boot(t,options)
  ui.update_check.check()
  await t.frames()
@@ -131,9 +142,9 @@ static func startup_bad_signature_is_silent(t) -> void:
 # ---- 开关与手动检查 -------------------------------------------------------------------
 
 static func toggle_off_skips_startup(t) -> void:
- var prefs="res://build/update-prefs-%d.cfg" % Time.get_ticks_usec()
+ var prefs=Cases.prefs_path()
  var served=signed("0.18.4")
- var options={"prefs":prefs,"calls":[],"opened":[],"response":served,"keys":served.keys}
+ var options=harness(served,prefs)
  var ui=await boot(t,options)
  # The harness keeps main's save persistence off; the settings store is the only writer and
  # its file is the temp path above, so the switch exercises the one production store.
