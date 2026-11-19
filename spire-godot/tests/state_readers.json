@@ -113,11 +113,11 @@
     }
   },
   "generated_from": {
-    "cells": 1303,
-    "fields": 121,
-    "files": 140,
-    "inputs_sha256": "acd79f6ca4e8d5e2e44b408f8b3193ee52246d6bf4dd4fb7d51fb99dc1b43b1c",
-    "sites": 2137,
+    "cells": 1314,
+    "fields": 122,
+    "files": 141,
+    "inputs_sha256": "00f633930e2f32addb737f072b7a144cae69de0af3efd4f30e978e03ae6938b4",
+    "sites": 2148,
     "ui_reads": 0,
     "whole_state": 53
   },
@@ -2316,6 +2316,29 @@
     },
     "core/rope_master.gd::unavailable": {
       "special_equipment": 1
+    },
+    "core/route_history.gd::_close": {
+      "completed_rooms": 1
+    },
+    "core/route_history.gd::_entry": {
+      "demo_cycle": 1,
+      "map_region": 1,
+      "room_encounters": 1,
+      "security": 1,
+      "seed": 1,
+      "tower_generation": 1
+    },
+    "core/route_history.gd::_floors": {
+      "rooms": 1
+    },
+    "core/route_history.gd::_last": {
+      "route_history": 1
+    },
+    "core/route_history.gd::open": {
+      "route_history": 1
+    },
+    "core/route_history.gd::reason": {
+      "demo_cycle": 1
     },
     "core/save_store.gd::fixed_point_text": {
       "save_slot": 1

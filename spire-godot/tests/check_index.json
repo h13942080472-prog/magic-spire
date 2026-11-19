@@ -27,7 +27,7 @@
     },
     "spire-godot/tests/architecture_cases.gd": {
       "owner": "rule:architecture",
-      "signals": 16
+      "signals": 17
     },
     "spire-godot/tests/axe_amulet_cases.gd": {
       "owner": "rule:relics",
@@ -934,7 +934,7 @@
       "signals": 2
     }
   },
-  "digest": "700eb9b9eb1b8288a59220cb811a9d2b1f030cfd83d946b0d9d7a4dc7733ddbb",
+  "digest": "606d03789513fc6de7a0cc6361c50d5f4c16ef2af96722b99f8b1d5546db9d9c",
   "domain_words": {
     "ART": [
       "ui:display",
@@ -1934,7 +1934,7 @@
       ]
     }
   },
-  "generated_from": "22246ccdf17f51103b1f245ff1f39ddab9d056e211f42f298addd5c7ff00bcca",
+  "generated_from": "7cac918e2a465851b77335fde43e39729620b71737597fc018d2c1c4867a5e33",
   "registries": {
     "rule": [
       "rope_master",
@@ -2053,11 +2053,11 @@
     "domains": 65,
     "domains_declared": 65,
     "excluded": 15,
-    "inputs": 376,
+    "inputs": 377,
     "rule_suites": 54,
-    "source_files": 140,
-    "sources_with_edges": 138,
-    "suite_edges": 567,
+    "source_files": 141,
+    "sources_with_edges": 139,
+    "suite_edges": 568,
     "suites_with_edges": 101,
     "ui_suites": 50,
     "widen": 1
@@ -2118,6 +2118,9 @@
         "preload"
       ],
       "spire-godot/core/room_events.gd": [
+        "preload"
+      ],
+      "spire-godot/core/route_history.gd": [
         "preload"
       ],
       "spire-godot/core/save_store.gd": [
