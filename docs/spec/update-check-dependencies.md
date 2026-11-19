@@ -20,6 +20,10 @@
 | `spire-godot/assets/localization/zh_CN.json`、`en_US.json`、`ja_JP.json` | 新增 `ui.update.*` 与 `ui.settings.update_check*`、`ui.settings.update_now` 十条 ID 的文案与译文 | 既有 ID 与文案不变；`en_US`／`ja_JP` 的 `source` 与中文原文逐字相同；不删条目 |
 | `spire-godot/tests/update_cases.gd`（新）、`spire-godot/tests/update_ui_cases.gd`（新）、`spire-godot/tests/test_game.gd` 的 `SUITES`、`spire-godot/tests/ui_smoke.gd` 的 `UI_MODULES` | 本契约的具名 check；登记 `update` suite | 现场 `Crypto.generate_rsa` 生成密钥对并把公钥交给 `evaluate`；`spire-godot/tests/fixtures/update/` 只提交公钥 PEM、清单与签名（OpenSSL 互通夹具），**不提交任何私钥**；不联网（只用 `transport` 替身）；不删除、不放宽既有的 HOME 断言 |
 | `spire-godot/tests/architecture_cases.gd::update_module_is_a_leaf` | 新增 `update/` 的禁止边（不引用 `ui`／`core`／`data`／`tests`；`core`／`data` 不引用 `update`；只有 `update_check.gd` 发 HTTP） | 既有判定函数与既有边不变 |
+| `spire-godot/tests/fixtures/update/` 的 `.gitattributes`（新） | 把三份夹具标为 `-text`，让检出字节等于签名字节 | 不改夹具内容；不引入第二份夹具 |
+| `spire-godot/tests/state_readers.json`（生成物） | 由 `tools/build_state_readers.gd --write` 重写，登记 `update/` 的读取点 | 只经工具写入；不手工编辑；他行不变 |
+| `spire-godot/tests/check_index.json`（生成物） | 由 `tools/check-index.ps1 -Write` 重冻，登记 `update/` 与新增测试文件 | 只经工具写入；不手工编辑；他行不变 |
+| `spire-godot/tests/update_cases.gd.uid`、`spire-godot/tests/update_ui_cases.gd.uid`（新） | 引擎生成的脚本 UID 旁文件 | 只经引擎导入写入；不手工编辑 |
 | `spire-godot/tests/mutations.json` | 为本片具名 check 追加条目 | 既有条目、`known_gaps` 与冻结清单不变；`find` 仍唯一 |
 | `docs/spec/update-check.md`、`docs/spec/update-check-dependencies.md`、根 `AGENTS.md` 文档入口表、`docs/spec/project-map.md` 目录表 | 本契约落盘 | `docs/spec/` 被取代即删；不改 `docs/spec/packaging.md`（它的增补留到 U2） |
 
@@ -39,8 +43,26 @@
 | 一次检查最多两个 HTTPS 请求、不重试、失败静默 | `tests/update_ui_cases.gd::startup_offline_is_silent`、`tests/update_ui_cases.gd::startup_offer_renders_notice` |
 | 生产公钥表为空时任何构建都不显示提示 | `tests/update_cases.gd::empty_key_table_yields_no_offer`（判定面）＋ `docs/spec/update-check.md`「域」的口径 |
 
+## 单一路径（邻接表）
+
+每个语义只有一个入口；边用稳定符号声明，判据一列只点名执行该边的检查。
+
+| 语义 | 唯一入口 | 边 | 机械判据 |
+| --- | --- | --- | --- |
+| 判定（解析／验签／版本比较／撤回） | `spire-godot/update/update_manifest.gd::evaluate` | `::_document`、`::_public_material`、`::_verified`、`::compare`、`::_revoked` | `spire-godot/tests/update_cases.gd` 的 UPDATE 具名 check |
+| 网络（清单与签名各一次 GET） | `spire-godot/update/update_check.gd::check` | `::_secure_url`、`::_send`、`::deliver`，结果交 `spire-godot/update/update_manifest.gd::evaluate` | `spire-godot/tests/update_ui_cases.gd` 的 UPDATE 具名 check；`spire-godot/tests/architecture_cases.gd::update_module_is_a_leaf`（只有 `update_check.gd` 发 HTTP） |
+| 启动门槛 | `spire-godot/update/update_check.gd::auto_allowed` | `::scripted_run`、`::_secure_url`、`ui/display_settings.gd::update_check_enabled` | `spire-godot/tests/update_ui_cases.gd::toggle_off_skips_startup` |
+| 设置写入 | `spire-godot/ui/display_settings.gd::set_update_check` | `::save` 写同一文件的 `update/check_on_start` | `spire-godot/tests/update_cases.gd::settings_toggle_uses_one_store` |
+| 设置读取 | `spire-godot/ui/display_settings.gd::initialize` | 同一文件的 `update/check_on_start` | `spire-godot/tests/update_ui_cases.gd::toggle_off_skips_startup` |
+| 主页提示 | `spire-godot/ui/main.gd::_home_update_notice` | 只读 `spire-godot/update/update_check.gd::offer`；由 `spire-godot/ui/home_screen.gd` 调用 | `spire-godot/tests/update_ui_cases.gd::startup_offer_renders_notice` |
+| 设置页状态 | `spire-godot/ui/main.gd::_update_status_text` | 只读 `offer` 与 `busy` | `spire-godot/tests/update_ui_cases.gd::toggle_off_skips_startup` |
+| 跳转 | `spire-godot/ui/main.gd::_open_update_url` | `open_url`，默认 `OS.shell_open` | `spire-godot/tests/update_ui_cases.gd::startup_offer_renders_notice` |
+
 ## 仍靠人审（无机械判据，本批保留）
 
+- **单点实现**：上表把每条语义固定在一个入口，但「同一实现只出现一处」除
+  `spire-godot/tests/architecture_cases.gd::update_module_is_a_leaf`（模块边与唯一 HTTP 文件）外没有常驻判据；
+  本轮由清洁者以 `git grep` 核对并登记为未建（授权面不含 `tests/architecture_cases.gd`）。
 - 公网清单的**部署与签名**：`update.magicspire.xyz/v1/manifest.json` 与其 `.sig` 尚未发布。
   这一步没做时，只能记「桌面接缝验收通过、公网未验收」，不得宣称已上线。
 - 生产公钥的生成与保管（`spire-godot/update/update_keys.gd::KEYS` 的填写，U1b）：私钥必须在
