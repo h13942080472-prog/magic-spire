@@ -6841,6 +6841,9 @@ static func frozen_anchor_files_match_git(t) -> void:
 # restore_snapshot 的单行回填，追加只由 TRANSITIONS 的 route 列在 _apply_transition 的
 # not-continuation 块里派生。以下检查读源码文本与声明表，不依赖运行期计数器。
 const ROUTE_HISTORY_FILE="core/route_history.gd"
+# The suite loads the owner module so the check index has a real case-file edge to it
+# (tests/check_index.gd counts `preload` targets); the judgments below still read source text.
+const RouteHistoryModule=preload("res://core/route_history.gd")
 
 static func route_history_write_sites() -> Array:
  return source_write_sites(["res://core","res://data","res://ui"],"(?<![A-Za-z0-9_])route_history\\s*(?:=(?!=)|\\[[^\\]]*\\]\\s*=|\\s*\\.(?:append|push_back|insert|erase|clear|remove_at)\\s*\\()")
@@ -6894,3 +6897,6 @@ static func route_history_no_version(t) -> void:
     declared.append(String(part).strip_edges().trim_prefix("\"").trim_suffix("\""))
  declared.sort()
  t.check(declared==["boss","cycle","enter","floor","generation","nodes","region","security","seed"],"ROUTEHIST route_history_no_version: the declared key set carries no time or revision key: "+str(declared))
+ var compiled=RouteHistoryModule.KEYS.duplicate()
+ compiled.sort()
+ t.check(compiled==declared,"ROUTEHIST route_history_no_version: the compiled key constant equals the declared source text: "+str(compiled))
