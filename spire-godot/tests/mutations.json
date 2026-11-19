@@ -514,13 +514,13 @@
     },
     "tampered_manifest_fails_signature": {
       "file": "update/update_manifest.gd",
-      "find": "return Crypto.new().verify(HashingContext.HASH_SHA256,manifest_bytes,raw,key)",
+      "find": "return Crypto.new().verify(HashingContext.HASH_SHA256,_digest(manifest_bytes),raw,key)",
       "replace": "return true",
       "suite": "update"
     },
     "foreign_key_signature_is_rejected": {
       "file": "update/update_manifest.gd",
-      "find": "return Crypto.new().verify(HashingContext.HASH_SHA256,manifest_bytes,raw,key)",
+      "find": "return Crypto.new().verify(HashingContext.HASH_SHA256,_digest(manifest_bytes),raw,key)",
       "replace": "return true",
       "suite": "update"
     },
@@ -532,8 +532,8 @@
     },
     "unusable_signature_is_rejected": {
       "file": "update/update_manifest.gd",
-      "find": "return Crypto.new().verify(HashingContext.HASH_SHA256,manifest_bytes,raw,key)",
-      "replace": "return true",
+      "find": "if not _verified(manifest_bytes,signature,String(keys[key_id])): return none(\"signature\")",
+      "replace": "if false: return none(\"signature\")",
       "suite": "update"
     },
     "empty_key_table_yields_no_offer": {
@@ -600,7 +600,7 @@
     },
     "startup_bad_signature_is_silent": {
       "file": "update/update_manifest.gd",
-      "find": "return Crypto.new().verify(HashingContext.HASH_SHA256,manifest_bytes,raw,key)",
+      "find": "return Crypto.new().verify(HashingContext.HASH_SHA256,_digest(manifest_bytes),raw,key)",
       "replace": "return true",
       "suite": "update",
       "execution": "ui"
