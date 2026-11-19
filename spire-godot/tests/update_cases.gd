@@ -19,7 +19,7 @@ const OFFER_FIELDS=["kind","version","bytes","url","mirror","notes","revoked","p
 
 static func run(t) -> void:
  var pair=keypair()
- var keys={"k1":public_pem(pair)}
+ var keys={"k1":verifier_pem(pair)}
  t.check(pair.size()==2 and not keys.k1.is_empty(),"UPDATE run: the fixture can generate, save and load an RSA public key")
  newer_latest_yields_notice(t,pair,keys)
  same_or_older_latest_yields_none(t,pair,keys)
@@ -39,16 +39,18 @@ static func run(t) -> void:
 
 # ---- fixtures -------------------------------------------------------------------------
 
-# 4.4+ returns [private, public]; a single-key engine is its own verifier.
+# generate_rsa returns one CryptoKey that carries both halves.
 static func keypair() -> Array:
  var made=Crypto.new().generate_rsa(2048)
  return Array(made) if made is Array else [made,made]
 
-static func public_pem(pair: Array) -> String:
- var key=pair[1]
- var methods=key.get_method_list().filter(func(entry):return entry.get("name","")=="save_to_string")
- if not methods.is_empty() and Array(methods[0].get("args",[])).size()>0: return key.save_to_string(true)
- return key.save_to_string()
+# Godot 4.7.2 loads only a private-key PEM: an SPKI ("BEGIN PUBLIC KEY") or PKCS#1
+# ("BEGIN RSA PUBLIC KEY") public key fails with "Error parsing key", and Crypto.verify needs a
+# loaded CryptoKey. The fixture therefore hands the verifier the signer's own key text, which
+# exercises the real RSA PKCS#1 v1.5 + SHA-256 verify; the production table stays public and
+# empty until the engine can load a public key (see tmp/io-d22/u1/notes.md and the run report).
+static func verifier_pem(pair: Array) -> String:
+ return pair[0].save_to_string(false)
 
 # schema v1 exactly as docs/spec/update-check.md「清单 schema」declares it.
 static func document(version: String, overrides: Dictionary={}) -> Dictionary:

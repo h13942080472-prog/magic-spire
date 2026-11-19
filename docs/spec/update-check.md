@@ -19,6 +19,11 @@
 - 生产公钥表在 U1 为空（`spire-godot/update/update_keys.gd::KEYS`）。空表的正确答案是
   `none`／`key`，不是崩溃，也不是跳过验签；发布公钥与部署清单属于 U1b，在此之前
   任何构建都**不会**弹出更新提示。
+- 引擎限制（Godot 4.7.2 实测）：`CryptoKey.load_from_string` 只接受私钥 PEM，公钥 PEM
+  （SPKI 或 PKCS#1）一律返回 `Error parsing key`，而 `Crypto.verify` 只能拿 `CryptoKey`。
+  因此当前引擎无法用公钥验签；生产表填入私钥违反「不把密钥写入仓库」，故 U1 的生产表保持为空。
+  测试夹具改用运行时生成密钥对的私钥文本，证明 `Crypto.verify` 这条通路本身成立；
+  「验签方只需公开材料」这一条在公钥可加载的引擎版本或改用自带大数验签前**未成立**。
 
 ## 接口
 

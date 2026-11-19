@@ -24,7 +24,7 @@ static func signed(version: String, other_signature: bool=false) -> Dictionary:
  var pair=Cases.keypair()
  var body=Cases.bytes_of(Cases.document(version))
  var payload="another manifest".to_utf8_buffer() if other_signature else body
- return {"manifest":body,"signature":Cases.signature_of(payload,pair),"keys":{"k1":Cases.public_pem(pair)}}
+ return {"manifest":body,"signature":Cases.signature_of(payload,pair),"keys":{"k1":Cases.verifier_pem(pair)}}
 
 # The stand-in answers the two GETs and reads options.response on every call, so one boot can
 # serve a second answer after the player asks again.
@@ -150,7 +150,12 @@ static func toggle_off_skips_startup(t) -> void:
  t.check(not again.display_settings.update_check_enabled,"UPDATE toggle_off_skips_startup: the saved choice is loaded on the next launch")
  t.check(options.calls.is_empty() and again.find_child("HomeUpdateNotice",true,false)==null,"UPDATE toggle_off_skips_startup: a disabled startup check sends nothing: "+str(options.calls))
  await open_options(t,again)
- options["response"]=signed(Cases.CURRENT)
+ # A fresh manifest needs its own key: the stand-in answers from the same signed document and
+ # an old table would reject the new signature.
+ var latest=signed(Cases.CURRENT)
+ options["response"]=latest
+ options["keys"]=latest.keys
+ again.update_check.keys=latest.keys
  await Click.press(t,"UpdateCheckNow")
  await t.frames()
  t.check(options.calls.size()==2 and String(options.calls[0]).ends_with("manifest.json"),"UPDATE toggle_off_skips_startup: the manual button still checks while the startup check is off: "+str(options.calls))

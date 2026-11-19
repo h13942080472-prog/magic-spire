@@ -285,7 +285,9 @@ func _home_update_notice() -> void:
  var notice=PanelContainer.new()
  notice.name="HomeUpdateNotice"
  notice.add_theme_stylebox_override("panel",Palette.window_frame())
- _place(notice,Rect2(100,680,850,104))
+ # Sits above the settings-save strip (100,790): the panel is content-sized, so the anchor
+ # leaves room for two text rows plus the button row.
+ _place(notice,Rect2(100,650,850,104))
  var box=VBoxContainer.new();box.add_theme_constant_override("separation",4)
  notice.add_child(box)
  var params={"version":String(offer.get("version","")),"size":size_text}
