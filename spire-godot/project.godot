@@ -34,3 +34,7 @@ theme/default_font_multichannel_signed_distance_field=true
 
 [feedback]
 endpoint="https://script.google.com/macros/s/AKfycbw9SHt60mspbgTUvGsDpmV1ylFKXBJ76zupmjXben_3Sh_2yDA3G0eHmDdhdFlRUoeLMA/exec"
+
+[update]
+manifest_url="https://update.magicspire.xyz/v1/manifest.json"
+check_on_start=true

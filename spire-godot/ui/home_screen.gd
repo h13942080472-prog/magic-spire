@@ -110,6 +110,9 @@ func _ready() -> void:
  ui._place(down,Rect2(1271,751,58,48),self)
  ui._place(up,Rect2(1337,751,58,48),self)
  ui._place(save_notice,Rect2(100,790,850,28),self)
+ # docs/spec/update-check.md「主页提示」: the offer notice is placed on the home layout, not
+ # under this screen, so the title-area child count stays at four (HOME asserts it).
+ ui._home_update_notice()
  # Fixed homepage captions should not retain a tall wrap minimum from initial layout.
  for child in get_children():
   if child is Label:

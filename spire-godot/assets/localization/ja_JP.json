@@ -367,6 +367,46 @@
     "ui.settings.doubao_voice_volume": {
       "source": "豆包语音音量 · {percent}%",
       "text": "豆包ボイス音量・{percent}%"
+    },
+    "ui.settings.update_check": {
+      "source": "启动时检查更新",
+      "text": "起動時に更新を確認する"
+    },
+    "ui.settings.update_check_note": {
+      "source": "只匿名读取一个公开文件，不发送任何信息。",
+      "text": "公開ファイルを匿名で読むだけで、何も送信しません。"
+    },
+    "ui.settings.update_now": {
+      "source": "立即检查",
+      "text": "今すぐ確認"
+    },
+    "ui.update.notice": {
+      "source": "发现新版本 {version}（约 {size} MB）",
+      "text": "新バージョン {version} があります（約 {size} MB）"
+    },
+    "ui.update.notice.revoked": {
+      "source": "当前版本已撤回，建议更新到 {version}（约 {size} MB）",
+      "text": "現在のバージョンは撤回されました。{version} への更新を推奨します（約 {size} MB）"
+    },
+    "ui.update.download": {
+      "source": "下载新版",
+      "text": "新版をダウンロード"
+    },
+    "ui.update.mirror": {
+      "source": "GitHub 备用",
+      "text": "GitHub ミラー"
+    },
+    "ui.update.checking": {
+      "source": "正在检查更新…",
+      "text": "更新を確認しています…"
+    },
+    "ui.update.available": {
+      "source": "发现新版本 {version}。",
+      "text": "新バージョン {version} があります。"
+    },
+    "ui.update.latest": {
+      "source": "已是最新版本。",
+      "text": "最新バージョンです。"
     }
   }
 }

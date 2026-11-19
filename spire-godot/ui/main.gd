@@ -64,6 +64,11 @@ var selected_character="original"
 var feedback_duration=1.3
 var display_settings=preload("res://ui/display_settings.gd").new()
 var localization=preload("res://ui/localization.gd").new()
+# docs/spec/update-check.md「接口」: the check node is created here, before the scene enters the
+# tree, so a probe or a test can install the transport stand-in before the automatic start runs.
+var update_check=preload("res://update/update_check.gd").new()
+# The single launch point for both offer links; a probe or a test replaces it with a recorder.
+var open_url=Callable()
 
 var game_factory=Game
 var game=Game.new()
@@ -223,6 +228,10 @@ func _ready() -> void:
  theme=Palette.controls()
  _restore_startup()
  render(view)
+ update_check.host=self
+ add_child(update_check)
+ update_check.checked.connect(_on_update_checked)
+ _start_update_check()
 
 func _save_progress(replace_incompatible: bool=false) -> void:
  if not persistence_enabled or save_suspended or not session_started: return
@@ -255,6 +264,62 @@ func _home_continue() -> void:
  if session_started:
   _quick_sl()
  else: _continue_save("tower")
+
+# docs/spec/update-check.md「自动检查」: the deferred start never blocks _ready, and the gate is
+# the check node's own decision (factory default, saved preference, player session).
+func _start_update_check() -> void:
+ if update_check.auto_allowed(): update_check.check.call_deferred()
+
+# A finished check only refreshes the page that shows its result. It never touches Game,
+# the saves or the drawers' state beyond rebuilding the panel that displays the answer.
+func _on_update_checked(_offer: Dictionary) -> void:
+ if show_home: render(view)
+ elif show_options: _refresh_drawers()
+
+# docs/spec/update-check.md「主页提示」: the notice is a home-only projection of the offer and
+# lives outside GameHome's title area, so the home layout assertions keep their four children.
+func _home_update_notice() -> void:
+ var offer=update_check.offer
+ if offer.get("kind","none")!="notice": return
+ var size_text="%.1f" % (float(offer.get("bytes",0))/1048576.0)
+ var notice=PanelContainer.new()
+ notice.name="HomeUpdateNotice"
+ notice.add_theme_stylebox_override("panel",Palette.window_frame())
+ _place(notice,Rect2(100,680,850,104))
+ var box=VBoxContainer.new();box.add_theme_constant_override("separation",4)
+ notice.add_child(box)
+ var params={"version":String(offer.get("version","")),"size":size_text}
+ box.add_child(_label(_text("ui.update.notice.revoked","当前版本已撤回，建议更新到 {version}（约 {size} MB）",params) if offer.get("revoked",false) else _text("ui.update.notice","发现新版本 {version}（约 {size} MB）",params),18,GOLD))
+ var notes=String(offer.get("notes",""))
+ if not notes.is_empty(): box.add_child(_label(notes.left(200),13,MUTED))
+ var row=HBoxContainer.new();row.add_theme_constant_override("separation",12)
+ box.add_child(row)
+ var download=_button(_text("ui.update.download","下载新版"),func():_open_update_url(String(offer.get("url",""))),CYAN)
+ download.name="HomeUpdateDownload";download.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ download.add_theme_font_size_override("font_size",16);row.add_child(download)
+ var mirror=_button(_text("ui.update.mirror","GitHub 备用"),func():_open_update_url(String(offer.get("mirror",""))),MUTED)
+ mirror.name="HomeUpdateMirror";mirror.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ mirror.add_theme_font_size_override("font_size",16);row.add_child(mirror)
+
+# docs/spec/update-check.md「跳转」: the single launch entry. The URL comes from the verified
+# offer only, and the Callable seam lets a probe record the target instead of a browser.
+func _open_update_url(url: String) -> void:
+ if not url.begins_with("https://"): return
+ if open_url.is_valid(): open_url.call(url);return
+ OS.shell_open(url)
+
+# The manual entry ignores the startup switch; check() is the only network entry either way.
+func _manual_update_check() -> void:
+ update_check.check()
+ if show_options: _refresh_drawers()
+
+func _update_status_text() -> String:
+ if update_check.busy: return _text("ui.update.checking","正在检查更新…")
+ var offer=update_check.offer
+ if offer.get("kind","none")=="notice":
+  return _text("ui.update.available","发现新版本 {version}。",{"version":String(offer.get("version",""))})
+ if offer.get("reason","idle")=="": return _text("ui.update.latest","已是最新版本。")
+ return ""
 
 func _refresh_save_summaries() -> void:
  for slot in Game.Snapshot.SLOTS: save_summaries[slot]=saves.summary(slot)
@@ -4439,6 +4504,19 @@ func _options_drawer() -> void:
   if is_instance_valid(card_interaction): card_interaction.clear())
  content.add_child(motion)
  content.add_child(_label(_text("ui.settings.vsync_note","开启垂直同步可减少画面撕裂；即使选择无上限，帧率仍可能受显示器刷新率限制。"),13,MUTED))
+ # CC-D22-1 (docs/spec/update-check.md「开关」): the same CheckButton pattern as the options
+ # above; the note is the exact promise the player is asked to accept.
+ var update=CheckButton.new();update.name="UpdateCheckEnabled"
+ update.text=_text("ui.settings.update_check","启动时检查更新")
+ update.button_pressed=display_settings.update_check_enabled
+ update.toggled.connect(func(enabled):display_settings.set_update_check(enabled);_refresh_drawers())
+ content.add_child(update)
+ content.add_child(_label(_text("ui.settings.update_check_note","只匿名读取一个公开文件，不发送任何信息。"),13,MUTED))
+ var check_now=_button(_text("ui.settings.update_now","立即检查"),_manual_update_check,CYAN)
+ check_now.name="UpdateCheckNow";content.add_child(check_now)
+ var status=_update_status_text()
+ if not status.is_empty():
+  var status_label=_label(status,13,MUTED);status_label.name="UpdateCheckStatus";content.add_child(status_label)
  if display_settings.save_error!="": content.add_child(_label(display_settings.save_error,14,RED))
  content.add_child(_label(_text("ui.settings.feedback_speed","敌方行动展示速度"),17,GOLD))
  var speed=OptionButton.new();speed.name="FeedbackSpeed"
