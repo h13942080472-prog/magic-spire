@@ -6794,7 +6794,10 @@ const USERDIR_NAME_DEV="Godot/app_userdata/紧缚尖塔-dev"
 const USERDIR_APP_USERDATA_REFS=["ui/legacy_import.gd"]
 const USERDIR_PROBE_SCRIPTS=["tools/check-package.ps1","tools/check-android-package.ps1"]
 
-static func userdir_setting(project: String, key: String) -> String:
+# 本片唯一从 project.godot 原文读取固定目录声明值的助手（原文是 USERDIR-1 的取源，见 docs/spec/packaging.md
+# 「用户数据目录」）。运行时按特性标签解析出的生效值另由 persistence_cases.gd::userdir_effective 读，
+# 两处取源不同、语义不同，不互相替代。
+static func userdir_declared(project: String, key: String) -> String:
  var pattern=RegEx.new()
  if pattern.compile("(?m)^"+key.replace(".","\\.")+"=\"([^\"]*)\"\\s*$")!=OK: return ""
  var found=pattern.search(project)
@@ -6807,10 +6810,10 @@ static func userdir_has_version_tag(text: String) -> bool:
 
 static func user_dir_name_is_version_free(t) -> void:
  var project=source_text("project.godot")
- var name=userdir_setting(project,"config/custom_user_dir_name")
+ var name=userdir_declared(project,"config/custom_user_dir_name")
  t.check(project.contains("config/use_custom_user_dir=true"),"USERDIR user_dir_name_is_version_free: project.godot enables application/config/use_custom_user_dir=true")
  t.check(name==USERDIR_NAME,"USERDIR user_dir_name_is_version_free: application/config/custom_user_dir_name is the pinned version-free directory: "+name)
- t.check(userdir_setting(project,"config/custom_user_dir_name.editor")==USERDIR_NAME_DEV,"USERDIR user_dir_name_is_version_free: the editor feature-tag override pins the -dev directory")
+ t.check(userdir_declared(project,"config/custom_user_dir_name.editor")==USERDIR_NAME_DEV,"USERDIR user_dir_name_is_version_free: the editor feature-tag override pins the -dev directory")
  t.check(name.begins_with("Godot/app_userdata/") and not userdir_has_version_tag(name) and not name.ends_with("."),"USERDIR user_dir_name_is_version_free: the pinned name stays under the shared app_userdata parent, free of version numbers and of a trailing dot: "+name)
  var inherited=[]
  for root in ["res://core","res://data","res://ui","res://update"]:

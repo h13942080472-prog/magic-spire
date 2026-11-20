@@ -735,19 +735,22 @@ static func save_and_random_untouched(t) -> void:
 static func userdir_normalized(path: String) -> String:
  return path.replace("\\","/").trim_suffix("/")
 
-static func userdir_setting(key: String) -> String:
+# Reads the effective (feature-tag resolved) value of a project setting. The declared literals are pinned exactly
+# once, from the project.godot source text, by architecture_cases.gd::user_dir_name_is_version_free; this helper
+# only feeds the runtime-directory comparison, so the two USERDIR criteria do not read the same value twice.
+static func userdir_effective(key: String) -> String:
  return String(ProjectSettings.get_setting(key,""))
 
 static func user_dir_ignores_project_name(t) -> void:
  var directory=userdir_normalized(OS.get_user_data_dir())
- var project_name=userdir_setting("application/config/name")
+ var project_name=userdir_effective("application/config/name")
  t.check(project_name!="" and not directory.contains(project_name),"USERDIR user_dir_ignores_project_name: the runtime directory does not follow application/config/name: dir="+directory+" name="+project_name)
  var appdata=userdir_normalized(OS.get_environment("APPDATA"))
  t.check(OS.get_name()!="Windows" or (appdata!="" and directory.begins_with(appdata+"/")),"USERDIR user_dir_ignores_project_name: on Windows the APPDATA environment variable parents the user directory: appdata="+appdata+" dir="+directory)
 
 static func editor_tag_isolates_dev_user_dir(t) -> void:
- var override=userdir_normalized(userdir_setting("application/config/custom_user_dir_name.editor"))
- var base=userdir_normalized(userdir_setting("application/config/custom_user_dir_name"))
+ var override=userdir_normalized(userdir_effective("application/config/custom_user_dir_name.editor"))
+ var base=userdir_normalized(userdir_effective("application/config/custom_user_dir_name"))
  var directory=userdir_normalized(OS.get_user_data_dir())
  var activated=OS.has_feature("editor")
  t.check(base!="" and override.ends_with("-dev") and override!=base,"USERDIR editor_tag_isolates_dev_user_dir: project.godot declares a distinct -dev editor override: override="+override)
