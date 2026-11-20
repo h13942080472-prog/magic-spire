@@ -25,26 +25,31 @@ static func none(reason: String) -> Dictionary:
 # docs/spec/update-check.md「版本比较」: split on ".", compare numeric segments as decimal digit
 # strings, and sort a non-numeric segment after a missing one. A missing segment equals a
 # numeric 0, so "0.18" == "0.18.0" and "0.18.3.fix" > "0.18.3". Numeric segments never pass
-# through is_valid_int()/to_int(): a 20-digit segment overflows int64, prints an engine ERROR
-# and would collapse two different versions to a tie.
+# through is_valid_int()/to_int(): a 20-digit segment overflows int64 and collapses two
+# different versions to a tie.
 static func compare(a: String, b: String) -> int:
  var left=a.split(".")
  var right=b.split(".")
  for index in range(maxi(left.size(),right.size())):
-  var first=_segment(left[index] if index<left.size() else "")
-  var second=_segment(right[index] if index<right.size() else "")
-  if first[0]!=second[0]: return 1 if first[0]>second[0] else -1
-  var first_text=String(first[1])
-  var second_text=String(second[1])
+  var first_segment=_segment(left[index] if index<left.size() else "")
+  var second_segment=_segment(right[index] if index<right.size() else "")
+  # _segment tags its answer: 0 = canonical decimal digits, 1 = text; every numeric segment
+  # sorts before every text segment.
+  var first_kind=int(first_segment[0])
+  var second_kind=int(second_segment[0])
+  if first_kind!=second_kind: return 1 if first_kind>second_kind else -1
+  var first_text=String(first_segment[1])
+  var second_text=String(second_segment[1])
   # Numeric segments are digit strings: more digits is larger; equal lengths compare digit by digit.
-  if first[0]==0 and first_text.length()!=second_text.length():
+  if first_kind==0 and first_text.length()!=second_text.length():
    return 1 if first_text.length()>second_text.length() else -1
   if first_text!=second_text: return 1 if first_text>second_text else -1
  return 0
 
 # [0, canonical decimal digits] for a numeric segment (an empty segment is 0); [1, lower-case
 # text] otherwise. A segment is numeric only when every character is 0-9, so a sign-prefixed or
-# other text segment keeps the non-numeric ordering.
+# other text segment keeps the non-numeric ordering. Surrounding whitespace is not part of a
+# segment, and text segments compare case-insensitively (the text is lower-cased once).
 static func _segment(value: String) -> Array:
  var text=value.strip_edges().to_lower()
  if text.is_empty(): return [0,"0"]

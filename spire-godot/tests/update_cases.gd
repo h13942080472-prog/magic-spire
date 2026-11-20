@@ -281,11 +281,6 @@ static func settings_toggle_uses_one_store(t) -> void:
 
 # ---- 输入域穷举（H2）-----------------------------------------------------------------
 
-# Sign and judge arbitrary bytes with the shared pair: the size, encoding and shape cases must
-# exercise evaluate exactly as the production path does.
-static func judge_bytes(body: PackedByteArray, pair: Array, keys: Dictionary) -> Dictionary:
- return Manifest.evaluate(body,signature_of(body,pair),keys,CURRENT,PLATFORM)
-
 # A schema-1 document padded with trailing JSON whitespace to exactly the byte cap. Trailing
 # spaces are legal JSON, so the only thing that can reject it is the size check itself.
 static func document_at_cap() -> PackedByteArray:
@@ -300,16 +295,16 @@ static func document_with_latest(latest_value: Variant) -> PackedByteArray:
 static func manifest_size_and_shape_domain(t, pair: Array, keys: Dictionary) -> void:
  var exact=document_at_cap()
  t.check(exact.size()==Manifest.MAX_BYTES,"UPDATE manifest_size_and_shape_domain: the fixture is exactly the byte cap: "+str(exact.size()))
- var at_cap=judge_bytes(exact,pair,keys)
+ var at_cap=judge(exact,pair,keys)
  t.check(at_cap.get("kind","")=="notice" and String(at_cap.get("version",""))=="0.18.4","UPDATE manifest_size_and_shape_domain: a document exactly at the cap is accepted, not refused as oversized: "+str(at_cap))
  var over=exact.duplicate();over.append(0x20)
- var over_answer=judge_bytes(over,pair,keys)
+ var over_answer=judge(over,pair,keys)
  t.check(over_answer.get("kind","")=="none" and over_answer.get("reason","")=="size","UPDATE manifest_size_and_shape_domain: one byte above the cap is a size rejection: "+str(over_answer))
  var empty=Manifest.evaluate(PackedByteArray(),PackedByteArray(),keys,CURRENT,PLATFORM)
  t.check(empty.get("kind","")=="none" and empty.get("reason","")=="size","UPDATE manifest_size_and_shape_domain: an empty body is a size rejection, never parsed or hashed: "+str(empty))
- var not_utf8=judge_bytes(PackedByteArray([0x7b,0xff,0xfe,0x7d]),pair,keys)
+ var not_utf8=judge(PackedByteArray([0x7b,0xff,0xfe,0x7d]),pair,keys)
  t.check(not_utf8.get("kind","")=="none" and not_utf8.get("reason","")=="json","UPDATE manifest_size_and_shape_domain: a body that is not UTF-8 JSON is a json rejection, not an engine error: "+str(not_utf8))
- var typed=judge_bytes(document_with_latest(1),pair,keys)
+ var typed=judge(document_with_latest(1),pair,keys)
  t.check(typed.get("kind","")=="none" and typed.get("reason","")=="json","UPDATE manifest_size_and_shape_domain: an integer latest.version is a json shape rejection: "+str(typed))
 
 static func manifest_link_domain(t, pair: Array, keys: Dictionary) -> void:
@@ -323,7 +318,7 @@ static func manifest_link_domain(t, pair: Array, keys: Dictionary) -> void:
   t.check(answer.get("kind","")=="none" and answer.get("reason","")=="url","UPDATE manifest_link_domain: url variant "+name+" is refused as url: "+str(answer))
  var manifest=document("0.18.4")
  manifest.platforms[PLATFORM].full.erase("mirror")
- var absent=judge_bytes(JSON.stringify(manifest).to_utf8_buffer(),pair,keys)
+ var absent=judge(JSON.stringify(manifest).to_utf8_buffer(),pair,keys)
  t.check(absent.get("kind","")=="none" and absent.get("reason","")=="url","UPDATE manifest_link_domain: an absent mirror is the same url rejection as a non-https one: "+str(absent))
 
 static func signature_position_and_shape_domain(t, pair: Array, keys: Dictionary) -> void:
@@ -399,20 +394,20 @@ static func signature_outer_whitespace_domain(t, pair: Array, keys: Dictionary) 
 static func missing_field_attribution_domain(t, pair: Array, keys: Dictionary) -> void:
  var without_version=document("0.18.4")
  without_version.latest={"notes_zh":NOTES}
- var no_version=judge_bytes(JSON.stringify(without_version).to_utf8_buffer(),pair,keys)
+ var no_version=judge(JSON.stringify(without_version).to_utf8_buffer(),pair,keys)
  t.check(no_version.get("kind","")=="none" and no_version.get("reason","")=="json","UPDATE missing_field_attribution_domain: a latest without version is a json shape rejection: "+str(no_version))
  var without_latest=document("0.18.4")
  without_latest.erase("latest")
- var no_latest=judge_bytes(JSON.stringify(without_latest).to_utf8_buffer(),pair,keys)
+ var no_latest=judge(JSON.stringify(without_latest).to_utf8_buffer(),pair,keys)
  t.check(no_latest.get("kind","")=="none" and no_latest.get("reason","")=="json","UPDATE missing_field_attribution_domain: an absent latest is the same json rejection: "+str(no_latest))
  var without_url=document("0.18.4")
  without_url.platforms[PLATFORM].full.erase("url")
- var no_url=judge_bytes(JSON.stringify(without_url).to_utf8_buffer(),pair,keys)
+ var no_url=judge(JSON.stringify(without_url).to_utf8_buffer(),pair,keys)
  t.check(no_url.get("kind","")=="none" and no_url.get("reason","")=="url","UPDATE missing_field_attribution_domain: a full block without url is a url rejection, not json: "+str(no_url))
  var empty_url=judge(bytes_of(document("0.18.4",{"full":{"url":""}})),pair,keys)
  t.check(empty_url.get("kind","")=="none" and empty_url.get("reason","")=="url","UPDATE missing_field_attribution_domain: an empty url is the same url rejection: "+str(empty_url))
  var both=document("0.18.4")
  both.latest={"notes_zh":NOTES}
  both.platforms[PLATFORM].full.erase("url")
- var both_answer=judge_bytes(JSON.stringify(both).to_utf8_buffer(),pair,keys)
+ var both_answer=judge(JSON.stringify(both).to_utf8_buffer(),pair,keys)
  t.check(both_answer.get("kind","")=="none" and both_answer.get("reason","")=="url","UPDATE missing_field_attribution_domain: the link check runs first, so a missing url wins over a missing latest version: "+str(both_answer))
