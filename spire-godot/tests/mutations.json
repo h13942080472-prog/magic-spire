@@ -508,8 +508,8 @@
     },
     "version_order_is_numeric_per_segment": {
       "file": "update/update_manifest.gd",
-      "find": "if text.is_valid_int(): return [0,text.to_int()]",
-      "replace": "if text.is_valid_int(): return [0,0]",
+      "find": "return 1 if first_text.length()>second_text.length() else -1",
+      "replace": "return 1 if first_text.length()<second_text.length() else -1",
       "suite": "update"
     },
     "tampered_manifest_fails_signature": {
@@ -692,8 +692,26 @@
     },
     "version_segment_edges": {
       "file": "update/update_manifest.gd",
-      "find": "if text.is_empty(): return [0,0]",
+      "find": "if text.is_empty(): return [0,\"0\"]",
       "replace": "if text.is_empty(): return [1,\"\"]",
+      "suite": "update"
+    },
+    "version_segment_digit_compare": {
+      "file": "update/update_manifest.gd",
+      "find": "while start<text.length()-1 and text[start]==\"0\": start+=1",
+      "replace": "while start<text.length()-1 and text[start]==\"0\" and start<1: start+=1",
+      "suite": "update"
+    },
+    "signature_outer_whitespace_domain": {
+      "file": "update/update_manifest.gd",
+      "find": "var text=signature.get_string_from_utf8().strip_edges()",
+      "replace": "var text=signature.get_string_from_utf8()",
+      "suite": "update"
+    },
+    "missing_field_attribution_domain": {
+      "file": "update/update_manifest.gd",
+      "find": "if not url.begins_with(HTTPS) or not mirror.begins_with(HTTPS): return none(\"url\")",
+      "replace": "if not url.begins_with(HTTPS) or not mirror.begins_with(HTTPS): return none(\"json\")",
       "suite": "update"
     },
     "check_in_flight_keeps_home_interactive": {

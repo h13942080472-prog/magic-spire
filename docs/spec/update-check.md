@@ -35,7 +35,7 @@ static func evaluate(manifest_bytes: PackedByteArray, signature: PackedByteArray
 #   offer = {"kind":"notice", "version":String, "bytes":int, "url":String, "mirror":String,
 #            "notes":String, "revoked":bool, "platform":String}
 #   none  = {"kind":"none", "reason":String}   # reason ∈ REJECTIONS 或 ""（已验签、不是更新）
-static func compare(a: String, b: String) -> int   # 版本比较，-1／0／1
+static func compare(a: String, b: String) -> int   # 版本比较，-1／0／1；数字段按十进制数字串比较，不经整数
 
 const SCHEMA=1
 const MAX_BYTES=65536
@@ -83,6 +83,9 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
 
 - 清单：`v1/manifest.json`，UTF-8 JSON，**≤ 65536 字节**，schema 1；签名是
   `manifest.json.sig`，内容为「对清单原始字节做 RSA PKCS#1 v1.5 + SHA-256」后的 base64。
+  签名文件是**单行** base64：首尾空白与换行由 `strip_edges()` 容忍，内部出现任何空白都不是
+  base64，按 `signature` 拒绝。U1b 的签名脚本必须用 `openssl base64 -A` 输出单行——默认的
+  `base64` 每 64 字符换行，会被这条规则拒绝。
   清单字段：`schema`、`serial`、`issued`、`key_id`、`latest.version`、`latest.notes_zh`、
   `revoked`、`platforms.<platform>.full.{url,mirror,bytes,sha256}`、`platforms.<platform>.patches`。
 - 判定顺序（每步失败即 `none`，不再往下读）：
@@ -92,13 +95,19 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
   4. `signature`：签名缺失、非 base64、公钥不可加载或 `Crypto.verify` 失败；
   5. `schema`：`schema` 不是整数 1；
   6. `platform`：清单 `platforms` 里没有当前平台键；
-  7. `json`：`full`／`latest`／`bytes` 形状不对；
-  8. `url`：`full.url` 或 `full.mirror` 不是 `https://` 开头；
+  7. `json`：`full` 不是对象；`latest` 不是对象、缺 `version` 或 `version` 不是字符串；
+     `bytes` 不存在、不是数字或为负；
+  8. `url`：`full` 缺失，或其 `url`／`mirror` 缺失、为空串、不是 `https://` 开头；
   9. 判定结果：当前版本在 `revoked` 里 → `notice`（`revoked=true`）；
      `compare(latest.version, current)>0` → `notice`（`revoked=false`）；否则 `none`／`""`。
+- 形状与链接两组的实际判定顺序是 `full` 对象 → 两个链接 → `latest` 与 `bytes`：`full.url`
+  缺失或不合格时返回 `url`，即使 `latest.version` 同时缺失；`latest`／`bytes` 的形状错误
+  只在两个链接可用之后才会返回 `json`。
 - 平台键：Windows 用 `windows-x64`，Android 用 `android`；其它平台得到 `none`／`platform` 或空键。
-- 版本比较（Q8）：按 `.` 分段；数字段按数值比较；缺省段等于数字 0；非数字段排在缺省段之后，
-  彼此按文本比较。于是 `0.18.10>0.18.9`、`0.18.3.fix>0.18.3`、`0.18==0.18.0`。
+- 版本比较（Q8）：按 `.` 分段；数字段是纯十进制数字串（只含 `0`–`9`），去掉前导零后位数多者大、
+  位数相同按字典序比较，全程不经引擎整数，因此 20 位以上的数字段也不会溢出或退化成相等；
+  缺省段等于数字 0；非数字段排在缺省段之后，彼此按文本比较。于是 `0.18.10>0.18.9`、
+  `0.18.3.fix>0.18.3`、`0.18==0.18.0`、`01==1`。
 - `patches` 数组 U1 不读、不显示、不产生 `patch` 结果。
 - 请求：HTTPS GET 清单 → HTTPS GET `<manifest_url>.sig`；`timeout=10`、`max_redirects=0`、
   `body_size_limit=65536`；一次检查**最多两个**请求，不重试、不轮询。
@@ -133,10 +142,12 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
 | `UPDATE newer_latest_yields_notice`（更新版本给出 `notice`：版本、字节数、两个链接、说明、`revoked=false`、平台，且不含清单未验签字段） | `update` → `tests/update_cases.gd` |
 | `UPDATE same_or_older_latest_yields_none`（同版本与旧版本都只给 `none`，不提供降级） | `update` → `tests/update_cases.gd` |
 | `UPDATE version_order_is_numeric_per_segment`（数值段、缺省段、非数字段；自反、反对称、传递） | `update` → `tests/update_cases.gd` |
+| `UPDATE version_segment_digit_compare`（20 位数字段按数字串比出大小且不触发引擎溢出；前导零被去掉；`0.18.10>0.18.9`） | `update` → `tests/update_cases.gd` |
 | `UPDATE tampered_manifest_fails_signature`（签后改版本号＝`signature`；清单头 64 字节逐字节翻转与签名 16 字节翻转全部被拒） | `update` → `tests/update_cases.gd` |
 | `UPDATE foreign_key_signature_is_rejected`（用另一把密钥签名仍按 `signature` 拒绝） | `update` → `tests/update_cases.gd` |
 | `UPDATE missing_key_entry_is_rejected`（未知 `key_id` 与缺 `key_id` 都是 `key`） | `update` → `tests/update_cases.gd` |
 | `UPDATE unusable_signature_is_rejected`（空签名与非 base64 文本都是 `signature`） | `update` → `tests/update_cases.gd` |
+| `UPDATE signature_outer_whitespace_domain`（签名文件带尾部换行、前导换行或两端空白时仍验签通过） | `update` → `tests/update_cases.gd` |
 | `UPDATE empty_key_table_yields_no_offer`（空公钥表→`key`，不崩溃、不放行） | `update` → `tests/update_cases.gd` |
 | `UPDATE public_key_pem_verifies_signed_manifest`（`save_to_string(true)` 导出 SPKI 公钥 PEM；引擎按 `public_only=true` 加载；只放公钥的键表验签通过） | `update` → `tests/update_cases.gd` |
 | `UPDATE private_key_table_entry_is_rejected`（表内条目是私钥 PEM 时→`key`，签名有效也不放行） | `update` → `tests/update_cases.gd` |
@@ -146,6 +157,7 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
 | `UPDATE revoked_current_yields_notice`（当前版本被撤回→`notice` 且 `revoked=true`） | `update` → `tests/update_cases.gd` |
 | `UPDATE oversized_or_broken_manifest_yields_none`（超上限→`size`、坏 JSON→`json`，都无引擎错误） | `update` → `tests/update_cases.gd` |
 | `UPDATE non_https_url_is_rejected`（`http://` 的 `url` 与 `mirror` 都→`url`） | `update` → `tests/update_cases.gd` |
+| `UPDATE missing_field_attribution_domain`（`latest` 缺 `version`→`json`；`full` 缺 `url` 或 `url` 为空串→`url`；两组同时不合格时按实际顺序先返回 `url`） | `update` → `tests/update_cases.gd` |
 | `UPDATE patches_are_ignored`（`patches` 非空也不产生补丁结果） | `update` → `tests/update_cases.gd` |
 | `UPDATE settings_toggle_uses_one_store`（开关写既有设置文件的 `update/check_on_start`，不出第二份存储；新装默认为开） | `update` → `tests/update_cases.gd` |
 | `UPDATE startup_offer_renders_notice`（`--script` 会话不自动检查；手动 `check()` 后主页提示、版本与约 MB、两个按钮各自跳到自己那条链接、状态不变、提示不在 `GameHome` 内、与存档提示不相交） | UI `update` → `tests/update_ui_cases.gd` |

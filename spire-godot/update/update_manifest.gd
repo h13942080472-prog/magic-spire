@@ -22,9 +22,11 @@ const BASE64_ALPHABET="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01234
 static func none(reason: String) -> Dictionary:
  return {"kind":"none","reason":reason}
 
-# docs/spec/update-check.md「版本比较」: split on ".", compare numeric segments by value, and
-# sort a non-numeric segment after a missing one. A missing segment equals a numeric 0, so
-# "0.18" == "0.18.0" and "0.18.3.fix" > "0.18.3".
+# docs/spec/update-check.md「版本比较」: split on ".", compare numeric segments as decimal digit
+# strings, and sort a non-numeric segment after a missing one. A missing segment equals a
+# numeric 0, so "0.18" == "0.18.0" and "0.18.3.fix" > "0.18.3". Numeric segments never pass
+# through is_valid_int()/to_int(): a 20-digit segment overflows int64, prints an engine ERROR
+# and would collapse two different versions to a tie.
 static func compare(a: String, b: String) -> int:
  var left=a.split(".")
  var right=b.split(".")
@@ -32,15 +34,26 @@ static func compare(a: String, b: String) -> int:
   var first=_segment(left[index] if index<left.size() else "")
   var second=_segment(right[index] if index<right.size() else "")
   if first[0]!=second[0]: return 1 if first[0]>second[0] else -1
-  if first[1]!=second[1]: return 1 if first[1]>second[1] else -1
+  var first_text=String(first[1])
+  var second_text=String(second[1])
+  # Numeric segments are digit strings: more digits is larger; equal lengths compare digit by digit.
+  if first[0]==0 and first_text.length()!=second_text.length():
+   return 1 if first_text.length()>second_text.length() else -1
+  if first_text!=second_text: return 1 if first_text>second_text else -1
  return 0
 
-# [0, int] for a numeric segment (an empty segment is 0); [1, lower-case text] otherwise.
+# [0, canonical decimal digits] for a numeric segment (an empty segment is 0); [1, lower-case
+# text] otherwise. A segment is numeric only when every character is 0-9, so a sign-prefixed or
+# other text segment keeps the non-numeric ordering.
 static func _segment(value: String) -> Array:
  var text=value.strip_edges().to_lower()
- if text.is_empty(): return [0,0]
- if text.is_valid_int(): return [0,text.to_int()]
- return [1,text]
+ if text.is_empty(): return [0,"0"]
+ for index in text.length():
+  if text[index]<"0" or text[index]>"9": return [1,text]
+ # Drop leading zeros; an all-zero segment is "0" regardless of its length.
+ var start=0
+ while start<text.length()-1 and text[start]=="0": start+=1
+ return [0,text.substr(start)]
 
 static func evaluate(manifest_bytes: PackedByteArray, signature: PackedByteArray, keys: Dictionary, current: String, platform: String) -> Dictionary:
  # Size and parse come first: an oversized or broken document must never be parsed, verified
