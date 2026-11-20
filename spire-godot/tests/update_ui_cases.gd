@@ -229,6 +229,9 @@ static func check_in_flight_ignores_second_call(t) -> void:
  var served=signed("0.18.4")
  var options=harness(served)
  var ui=await boot(t,options)
+ # boot already installed the stand-in that answers; keep it for the resume instead of
+ # building a second one, and swap in the held transport only for the first read.
+ var answers=ui.update_check.transport
  ui.update_check.transport=held_stand_in(options)
  var emitted=[]
  ui.update_check.checked.connect(func(offer): emitted.append(offer))
@@ -239,7 +242,7 @@ static func check_in_flight_ignores_second_call(t) -> void:
  await t.frames()
  t.check(options.calls.size()==1,"UPDATE check_in_flight_ignores_second_call: a second check() while busy issues no request: "+str(options.calls))
  t.check(emitted.is_empty(),"UPDATE check_in_flight_ignores_second_call: a second check() while busy emits no checked: "+str(emitted.size()))
- ui.update_check.transport=stand_in(ui,options)
+ ui.update_check.transport=answers
  ui.update_check.deliver(HTTPRequest.RESULT_SUCCESS,200,PackedStringArray(),served.manifest)
  await t.frames()
  t.check(options.calls.size()==2,"UPDATE check_in_flight_ignores_second_call: the in-flight check still reads the signature after the ignored call: "+str(options.calls))
