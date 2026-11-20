@@ -96,7 +96,7 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
   5. `schema`：`schema` 不是整数 1；
   6. `platform`：清单 `platforms` 里没有当前平台键；
   7. `json`：`full` 不是对象；`latest` 不是对象、缺 `version` 或 `version` 不是字符串；
-     `bytes` 不存在、不是数字或为负；
+     `bytes` 不是数字或为负；
   8. `url`：`full` 缺失，或其 `url`／`mirror` 缺失、为空串、不是 `https://` 开头；
   9. 判定结果：当前版本在 `revoked` 里 → `notice`（`revoked=true`）；
      `compare(latest.version, current)>0` → `notice`（`revoked=false`）；否则 `none`／`""`。
