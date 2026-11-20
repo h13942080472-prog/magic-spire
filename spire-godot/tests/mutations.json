@@ -727,6 +727,20 @@
       "replace": "if result==HTTPRequest.RESULT_SUCCESS:",
       "suite": "update",
       "execution": "ui"
+    },
+    "check_in_flight_ignores_second_call": {
+      "file": "update/update_check.gd",
+      "find": "func check() -> void:\n if busy: return",
+      "replace": "func check() -> void:\n if false: return",
+      "suite": "update",
+      "execution": "ui"
+    },
+    "empty_manifest_url_sends_no_request": {
+      "file": "update/update_check.gd",
+      "find": " if url.is_empty():\n  _finish(Manifest.none(\"url\"));return",
+      "replace": " if false:\n  _finish(Manifest.none(\"url\"));return",
+      "suite": "update",
+      "execution": "ui"
     }
   }
 }

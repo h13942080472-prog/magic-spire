@@ -361,6 +361,9 @@ static func version_segment_edges(t) -> void:
   t.check(signi(Manifest.compare(row[0],row[1]))==row[2],"UPDATE version_segment_edges: compare("+String(row[0]).left(24)+","+String(row[1]).left(24)+")=="+str(row[2]))
  t.check(Manifest.compare("1.0","1.0.0.0")==0 and Manifest.compare("1.0.0.0","1.0")==0,"UPDATE version_segment_edges: missing trailing segments equal numeric zero in both directions")
  t.check(Manifest.compare("01.0","1.0")==0 and Manifest.compare("1.007","1.7")==0,"UPDATE version_segment_edges: leading zeros compare by numeric value, not by text")
+ t.check(Manifest.compare("0.18.3.FIX","0.18.3.fix")==0,"UPDATE version_segment_edges: text segments compare case-insensitively")
+ t.check(Manifest.compare("0.18.3. fix ","0.18.3.fix")==0,"UPDATE version_segment_edges: whitespace around a segment is not part of it")
+ t.check(Manifest.compare("0.18..1","0.18.0.1")==0,"UPDATE version_segment_edges: an explicit empty segment equals numeric zero")
 
 # CC-D22-4: numeric segments compare as decimal digit strings. is_valid_int()/to_int() used to
 # overflow int64 on a 20-digit segment, print an engine ERROR and collapse two different

@@ -11,6 +11,8 @@ extends RefCounted
 const Cases=preload("res://tests/update_cases.gd")
 const Palette=preload("res://ui/visual_theme.gd")
 const Click=preload("res://tests/interface_ui_cases.gd")
+# The static configuration reader is called through the class, not an instance.
+const Check=preload("res://update/update_check.gd")
 
 static func run(t) -> void:
  await startup_offer_renders_notice(t)
@@ -19,6 +21,8 @@ static func run(t) -> void:
  await toggle_off_skips_startup(t)
  await check_in_flight_keeps_home_interactive(t)
  await transport_failures_are_silent(t)
+ await check_in_flight_ignores_second_call(t)
+ await empty_manifest_url_sends_no_request(t)
 
 # ---- fixtures -------------------------------------------------------------------------
 
@@ -215,3 +219,50 @@ static func transport_failures_are_silent(t) -> void:
   await Click.press(t,"HomeOptions")
   await t.frames()
   t.check(ui.show_options,"UPDATE transport_failures_are_silent: the home page stays interactive after "+label)
+
+# ---- re-entry and the empty configuration (F4, CC-D22-9) ---------------------------
+
+# CC-D22-9: a check in flight owns the single result emission. A second check() while busy
+# is ignored -- no request, no checked; the in-flight check emits exactly one checked when
+# it completes, and the offer it publishes is the one the first call started.
+static func check_in_flight_ignores_second_call(t) -> void:
+ var served=signed("0.18.4")
+ var options=harness(served)
+ var ui=await boot(t,options)
+ ui.update_check.transport=held_stand_in(options)
+ var emitted=[]
+ ui.update_check.checked.connect(func(offer): emitted.append(offer))
+ ui.update_check.check()
+ await t.frames()
+ t.check(ui.update_check.busy and options.calls.size()==1,"UPDATE check_in_flight_ignores_second_call: the first check is pending after one request: "+str(options.calls))
+ ui.update_check.check()
+ await t.frames()
+ t.check(options.calls.size()==1,"UPDATE check_in_flight_ignores_second_call: a second check() while busy issues no request: "+str(options.calls))
+ t.check(emitted.is_empty(),"UPDATE check_in_flight_ignores_second_call: a second check() while busy emits no checked: "+str(emitted.size()))
+ ui.update_check.transport=stand_in(ui,options)
+ ui.update_check.deliver(HTTPRequest.RESULT_SUCCESS,200,PackedStringArray(),served.manifest)
+ await t.frames()
+ t.check(options.calls.size()==2,"UPDATE check_in_flight_ignores_second_call: the in-flight check still reads the signature after the ignored call: "+str(options.calls))
+ t.check(emitted.size()==1,"UPDATE check_in_flight_ignores_second_call: the finished check emits checked exactly once: "+str(emitted.size()))
+ t.check(not ui.update_check.busy and String(ui.update_check.offer.get("version",""))=="0.18.4","UPDATE check_in_flight_ignores_second_call: exactly one offer comes out of the completed check: "+str(ui.update_check.offer))
+ t.check(ui.find_child("HomeUpdateNotice",true,false)!=null,"UPDATE check_in_flight_ignores_second_call: the completed check still updates the home notice")
+
+# F4: an empty [update] manifest_url is not a usable target. The startup gate refuses it and
+# the manual "check now" entry answers url without a request, so a missing configuration
+# never turns into a network attempt and never shows a notice.
+static func empty_manifest_url_sends_no_request(t) -> void:
+ var previous=ProjectSettings.get_setting("update/manifest_url","")
+ ProjectSettings.set_setting("update/manifest_url","")
+ var options=harness({})
+ var ui=await boot(t,options)
+ t.check(String(Check._secure_url()).is_empty(),"UPDATE empty_manifest_url_sends_no_request: an empty manifest_url is not a usable https target")
+ t.check(not ui.update_check.auto_allowed(),"UPDATE empty_manifest_url_sends_no_request: the automatic start refuses an empty manifest_url")
+ t.check(options.calls.is_empty(),"UPDATE empty_manifest_url_sends_no_request: booting with an empty manifest_url sends no request: "+str(options.calls))
+ await open_options(t,ui)
+ await Click.press(t,"UpdateCheckNow")
+ await t.frames()
+ t.check(options.calls.is_empty(),"UPDATE empty_manifest_url_sends_no_request: the manual check sends no request for an empty manifest_url: "+str(options.calls))
+ t.check(not ui.update_check.busy and String(ui.update_check.offer.get("reason",""))=="url","UPDATE empty_manifest_url_sends_no_request: the manual check answers url without leaving a pending request: "+str(ui.update_check.offer))
+ t.check(ui.find_child("HomeUpdateNotice",true,false)==null,"UPDATE empty_manifest_url_sends_no_request: an empty manifest_url shows no home notice")
+ t.check(ui.find_child("UpdateCheckStatus",true,false)==null,"UPDATE empty_manifest_url_sends_no_request: an empty manifest_url shows no settings status text")
+ ProjectSettings.set_setting("update/manifest_url",previous)
