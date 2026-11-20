@@ -45,21 +45,27 @@ static func reason(g, kind: String) -> String:
 # Legacy saves without the field start with one unattributable route; nodes/floor wait for the
 # next real close. Loading never raises the save revision.
 static func backfill(s: Dictionary) -> Array:
- return [_record(ENTER_UNKNOWN,s)]
+ var region=String(s.get("map_region",""))
+ var cycle=int(s.get("demo_cycle",0))
+ var generation=int(s.get("tower_generation",0))
+ var run_seed=int(s.get("seed",0))
+ var security=int(s.get("security",0))
+ return [_record(ENTER_UNKNOWN,cycle,generation,region,run_seed,security,s.get("room_encounters",{}))]
 
 static func _entry(g, enter: String) -> Dictionary:
- return _record(enter,g.state)
+ var region=String(g.state.map_region)
+ return _record(enter,int(g.state.demo_cycle),int(g.state.tower_generation),region,int(g.state.seed),int(g.state.security),g.state.room_encounters)
 
-# The single record shape, read from a state dictionary: all nine keys of KEYS, nodes/floor open.
-static func _record(enter: String, s: Dictionary) -> Dictionary:
- var region=String(s.get("map_region",""))
+# The single record shape: all nine keys of KEYS, nodes/floor still open.
+static func _record(enter: String, cycle: int, generation: int, region: String, run_seed: int, security: int, encounters) -> Dictionary:
+ var boss=_boss_of(region,encounters)
  return {"enter":enter,
-  "cycle":int(s.get("demo_cycle",0)),
-  "generation":int(s.get("tower_generation",0)),
+  "cycle":cycle,
+  "generation":generation,
   "region":region,
-  "seed":int(s.get("seed",0)),
-  "boss":_boss_of(region,s.get("room_encounters",{})),
-  "security":int(s.get("security",0)),
+  "seed":run_seed,
+  "boss":boss,
+  "security":security,
   "nodes":-1,
   "floor":-1}
 
