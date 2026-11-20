@@ -4729,3 +4729,13 @@ flowchart LR
 - 域：将来源分支 hotfix/six-binds-freeze 的六个提交（截至 8163113）合入 7587151。保留先前收押热修与两份验证记录，按合并后的源码重新生成状态读者表和测试索引。
 - 隔离工作树的合并结果运行 `-Import -Suite application,replacement,guard,runner -KeepGoing`，运行号 20261118T070028957-12888。四分类共 2556 条断言通过，文档 49 份、2905 个引用通过。独立只读审查确认预筛只用于单件普通安装。随机选择等价证据来自完整枚举与惰性选取对照，两个实例均调用当前 execute 的用例不能独立证明与历史版本执行等价。
 - 本批未复测性能耗时、完整回归或安卓真机。分支原有性能测量和失败记录见上方 2026-11-04 条目。
+
+## 2026-11-21｜D23a 统一用户数据目录（发布线）
+
+- 域：`spire-godot/project.godot` 的 `config/use_custom_user_dir`、`config/custom_user_dir_name`（`Godot/app_userdata/紧缚尖塔`）、`config/custom_user_dir_name.editor`（`…/紧缚尖塔-dev`）；判据 `tests/architecture_cases.gd::user_dir_name_is_version_free`、`::userdir_declarations_are_version_free`、`::userdir_declarations_have_no_trailing_dot`、`::android_package_name_is_pinned`、`::package_probe_uses_appdata_sandbox`，`tests/persistence_cases.gd::user_dir_ignores_project_name`、`::editor_tag_isolates_dev_user_dir`；探针 `tools/check-package.ps1`、`tools/check-android-package.ps1` 的 APPDATA 沙盒；文档 `docs/spec/packaging.md`「用户数据目录」。父提交 `69cf2f1`，本片 `54ab4ce`…`2da5fb0`（分支 `worker/d23-dir`）。
+- 流水线：实现 → 清洁（`4239173`）→ 独立审查（有条件通过：C1 发行目录缺运行期证据、C2 第三条计划突变缺失）→ 低档加固（`83f0280`、`2da5fb0`，补齐 C2 并扫描全部 `custom_user_dir_name*` 声明）→ 窄复审（有条件通过，残余为一处注释措辞）→ 验收。
+- 成品运行期证据（验收 `dsp-20261120T204645Z-5d0b`，APPDATA 沙盒）：`tools/package.ps1` 导出退出 0，`PACKS_ROOT` 临时改 `adjacent` 后逐字节还原；`tools/check-package.ps1` PASS，`native` 探针落 `<沙盒>/Godot/app_userdata/紧缚尖塔`、`pck` 探针落 `…/紧缚尖塔-dev`；成品 EXE 真实输入打到 battle_end 固定点写出 `saves/tower.json`；把 `config/name` 与 `config/version` 临时改为 v0.18.4 再导出，同一沙盒「继续游戏」回到同一固定点，未出现带版本号的新目录。
+- 套件（验收补跑 `dsp-20261120T211436Z-5edb`，`head=2da5fb0`、`dirty=0`）：`-Suite architecture,persistence` 与 `-UIOnly -UISuite home_persistence,persistence` 的 ERROR 行 sha256 与发布线父基线逐字节相同（architecture 5 行、UI persistence 1 行，均为父侧既有红），无新增红。
+- 过程偏差（如实）：`tools/package.ps1` 的导出子进程用编辑器二进制且不设 APPDATA，首轮验收两次导出在真实 `%APPDATA%/Godot/app_userdata/紧缚尖塔-dev` 新建了目录（仅空 `objectdb_snapshots`）；该目录是编辑器开发目录、非玩家目录，未清理，处置待人裁定。导出后的导入阶段重写 727 个 `*.import`，经核对后以 `git checkout -- spire-godot/assets` 还原。今后自动化导出须在调用前设 APPDATA。
+- 未跑（如实，不作通过）：安卓真机（A1.4）；`-Suite all` 全量回归；判据 fail-closed 的「键缺失」「正则编译失败」两情形只有源码推演。
+- **发布闸**：本片不得单独公开发布，须与 D23b（旧目录导入）同版。本节随分支提交；推送到 fork 分支 `worker/d23-dir`，未开 PR、未打 tag、未打包或发布。
