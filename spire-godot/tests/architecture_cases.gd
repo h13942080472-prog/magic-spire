@@ -1189,6 +1189,8 @@ static func run(t) -> void:
  ui_never_reads_game_state(t)
  mutation_evidence_is_total(t)
  user_dir_name_is_version_free(t)
+ userdir_declarations_are_version_free(t)
+ userdir_declarations_have_no_trailing_dot(t)
  android_package_name_is_pinned(t)
  package_probe_uses_appdata_sandbox(t)
  behavior_baseline_equivalence(t)
@@ -6795,26 +6797,46 @@ const USERDIR_APP_USERDATA_REFS=["ui/legacy_import.gd"]
 const USERDIR_PROBE_SCRIPTS=["tools/check-package.ps1","tools/check-android-package.ps1"]
 
 # 本片唯一从 project.godot 原文读取固定目录声明值的助手（原文是 USERDIR-1 的取源，见 docs/spec/packaging.md
-# 「用户数据目录」）。运行时按特性标签解析出的生效值另由 persistence_cases.gd::userdir_effective 读，
+# 「用户数据目录」）。运行时按特性标签解析出的生效值另由 persistence_cases.gd::userdir_declared_value 读，
 # 两处取源不同、语义不同，不互相替代。
-static func userdir_declared(project: String, key: String) -> String:
+static func userdir_declarations(project: String) -> Array:
  var pattern=RegEx.new()
- if pattern.compile("(?m)^"+key.replace(".","\\.")+"=\"([^\"]*)\"\\s*$")!=OK: return ""
- var found=pattern.search(project)
- return "" if found==null else found.get_string(1)
+ if pattern.compile("(?m)^(config/custom_user_dir_name(?:\\.[A-Za-z0-9_]+)*)=\"([^\"]*)\"\\s*$")!=OK: return []
+ var found=[]
+ for hit in pattern.search_all(project): found.append({"key":hit.get_string(1),"value":hit.get_string(2)})
+ return found
+
+static func userdir_declared(project: String, key: String) -> String:
+ for row in userdir_declarations(project):
+  if String(row.key)==key: return String(row.value)
+ return ""
 
 static func userdir_has_version_tag(text: String) -> bool:
  var pattern=RegEx.new()
  if pattern.compile("v?[0-9]+\\.[0-9]+")!=OK: return true
  return pattern.search(text)!=null
 
+# 全部 config/custom_user_dir_name* 声明（含基础键、.editor 与任意平台特性标签覆盖）的单一违规枚举：
+# 父目录前缀、版本号、末尾句点各占一列。主判据与两条按名突变的判据共用本函数，不各自再扫一遍原文。
+static func userdir_declared_violations(project: String) -> Dictionary:
+ var out={"parent":[],"version":[],"dot":[]}
+ for row in userdir_declarations(project):
+  var entry=String(row.key)+"="+String(row.value)
+  if not String(row.value).begins_with("Godot/app_userdata/"): out.parent.append(entry)
+  if userdir_has_version_tag(String(row.value)): out.version.append(entry)
+  if String(row.value).ends_with("."): out.dot.append(entry)
+ return out
+
 static func user_dir_name_is_version_free(t) -> void:
  var project=source_text("project.godot")
  var name=userdir_declared(project,"config/custom_user_dir_name")
+ var violations=userdir_declared_violations(project)
+ var shape=[]
+ for column in ["parent","version","dot"]: shape.append_array(violations[column])
  t.check(project.contains("config/use_custom_user_dir=true"),"USERDIR user_dir_name_is_version_free: project.godot enables application/config/use_custom_user_dir=true")
  t.check(name==USERDIR_NAME,"USERDIR user_dir_name_is_version_free: application/config/custom_user_dir_name is the pinned version-free directory: "+name)
  t.check(userdir_declared(project,"config/custom_user_dir_name.editor")==USERDIR_NAME_DEV,"USERDIR user_dir_name_is_version_free: the editor feature-tag override pins the -dev directory")
- t.check(name.begins_with("Godot/app_userdata/") and not userdir_has_version_tag(name) and not name.ends_with("."),"USERDIR user_dir_name_is_version_free: the pinned name stays under the shared app_userdata parent, free of version numbers and of a trailing dot: "+name)
+ t.check(not userdir_declarations(project).is_empty() and shape.is_empty(),"USERDIR user_dir_name_is_version_free: the pinned name stays under the shared app_userdata parent, free of version numbers and of a trailing dot: "+name+("" if shape.is_empty() else " violations="+str(shape)))
  var inherited=[]
  for root in ["res://core","res://data","res://ui","res://update"]:
   for path in script_files(root):
@@ -6823,11 +6845,25 @@ static func user_dir_name_is_version_free(t) -> void:
    if source_text(relative).contains("app_userdata"): inherited.append(relative)
  t.check(inherited.is_empty(),"USERDIR user_dir_name_is_version_free: only the pinned legacy importer names the app_userdata parent: "+str(inherited))
 
+# USERDIR-1 的两条按名突变锚（A293）：tests/mutations.json 的键必须是本套件的判据函数名
+# （mutation_evidence_is_total 的幽灵检查），而一条判据只挂一条突变，所以「带版本号」与「末尾句点」
+# 各自再声明为一条具名判据，让各自的目标突变有唯一 expect；断言体共用 userdir_declared_violations。
+static func userdir_declarations_are_version_free(t) -> void:
+ var version=userdir_declared_violations(source_text("project.godot")).get("version",[])
+ t.check(version.is_empty(),"USERDIR userdir_declarations_are_version_free: every config/custom_user_dir_name* declaration is free of version numbers: "+str(version))
+
+static func userdir_declarations_have_no_trailing_dot(t) -> void:
+ var dot=userdir_declared_violations(source_text("project.godot")).get("dot",[])
+ t.check(dot.is_empty(),"USERDIR userdir_declarations_have_no_trailing_dot: every config/custom_user_dir_name* declaration is free of a trailing dot: "+str(dot))
+
 static func android_package_name_is_pinned(t) -> void:
  var presets=source_text("export_presets.cfg")
- var android=presets.split("name=\"Android ")
- t.check(android.size()==2,"USERDIR android_package_name_is_pinned: export_presets.cfg declares exactly one Android preset")
- t.check(android.size()==2 and android[1].contains("package/unique_name=\"org.magic.spire\""),"USERDIR android_package_name_is_pinned: the Android preset keeps the package org.magic.spire, so a mobile user:// directory stays package-scoped")
+ var parts=presets.split("name=\"Android ")
+ var bodies=[]
+ for index in range(1,parts.size()): bodies.append(parts[index])
+ var wrong=bodies.filter(func(body):return not body.contains("package/unique_name=\"org.magic.spire\""))
+ t.check(not bodies.is_empty(),"USERDIR android_package_name_is_pinned: export_presets.cfg declares at least one Android preset")
+ t.check(not bodies.is_empty() and wrong.is_empty(),"USERDIR android_package_name_is_pinned: every Android preset keeps the package org.magic.spire, so a mobile user:// directory stays package-scoped: "+str(wrong.size())+"/"+str(bodies.size())+" preset(s) differ")
 
 static func package_probe_uses_appdata_sandbox(t) -> void:
  var pattern=RegEx.new()

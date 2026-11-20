@@ -523,6 +523,18 @@
       "find": "config/custom_user_dir_name.editor=\"Godot/app_userdata/紧缚尖塔-dev\"",
       "replace": "config/custom_user_dir_name.editor=\"Godot/app_userdata/紧缚尖塔\"",
       "suite": "persistence"
+    },
+    "userdir_declarations_are_version_free": {
+      "file": "project.godot",
+      "find": "config/custom_user_dir_name.editor=\"Godot/app_userdata/紧缚尖塔-dev\"",
+      "replace": "config/custom_user_dir_name.editor=\"Godot/app_userdata/紧缚尖塔-dev\"\nconfig/custom_user_dir_name.windows=\"紧缚尖塔 v0.19\"",
+      "suite": "architecture"
+    },
+    "userdir_declarations_have_no_trailing_dot": {
+      "file": "project.godot",
+      "find": "config/custom_user_dir_name=\"Godot/app_userdata/紧缚尖塔\"",
+      "replace": "config/custom_user_dir_name=\"Godot/app_userdata/紧缚尖塔.\"",
+      "suite": "architecture"
     }
   }
 }
