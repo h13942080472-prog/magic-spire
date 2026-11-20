@@ -1,13 +1,17 @@
 extends RefCounted
 
-# docs/spec/save-fixed-points.md「加性字段与只读入口」：state.route_history 按 局→周目→塔路 保存一条
-# 紧凑记录。本文件是它的唯一写入者：open 关闭上一条、追加下一条；另两处写入只有 core/game.gd 的
-# _init 字面与 restore_snapshot 的单行回填。记录键面固定，不含时间、外部标识或随机值，因此同一种子与
-# 同一串指令复现同一段历史。
+# docs/spec/save-fixed-points.md「加性字段与只读入口」: state.route_history keeps one compact
+# entry per tower route (run -> cycle -> route). This module is its only writer: open closes the
+# previous entry and appends the next one. The only other direct writes are the _init literal and
+# the one-line backfill in core/game.gd::restore_snapshot.
 #
-# 切换真正落下的时刻，调用方已经生成了下一张塔路图，所以被关闭那条路线的已完成房间楼层只能按它自己
-# 的 seed／boss／security 重建：Tower.generate 与 Tower.prison_route 都是确定性的。只有测试夹具改名
-# 后的房间 id 无法被生成器复现时，才回落到当前 state.rooms 里找同 id 的楼层。
+# An entry holds stable ids only — no wall clock, no external identity, no random draw — so the
+# same seed and the same command sequence reproduce the same history.
+#
+# A switch lands after the caller has generated the next route, so the closed entry's floor is
+# rebuilt from that entry's own region/seed/boss/security: Tower.generate and Tower.prison_route
+# are deterministic. A fixture room whose id the generator cannot reproduce falls back to the
+# live state.rooms by the same id.
 
 const KEYS=["enter","cycle","generation","region","seed","boss","security","nodes","floor"]
 const REGION_TOWER="tower"
@@ -19,13 +23,14 @@ const ENTER_GATE_EXIT="gate_exit"
 const ENTER_CYCLE="cycle"
 const ENTER_UNKNOWN="unknown"
 
-# 唯一追加点：每次真正换塔路（TRANSITIONS 里 route 标真的三条 kind）只追加一条。
+# Sole append point: one entry per real route switch (the three kinds flagged route in TRANSITIONS).
 static func open(g, kind: String) -> void:
  var history: Array=g.state.route_history
  if not history.is_empty(): _close(g,history[-1])
  history.append(_entry(g,reason(g,kind)))
 
-# 进入理由只看本次 kind 与已记录的历史；换塔时先比较周目，再区分监狱出口，最后才是普通重开。
+# Entry reason: this kind decides first, the recorded history only refines a tower restart. A
+# restart compares the cycle first, then the prison gate, and only then the plain release.
 static func reason(g, kind: String) -> String:
  match kind:
   "setup_init": return ENTER_START
@@ -37,10 +42,18 @@ static func reason(g, kind: String) -> String:
    return ENTER_RELEASE
  return ENTER_UNKNOWN
 
-# 旧档缺字段时的回填形态：一条无法归类的塔路，节点与楼层留待下次真正关闭时补齐；不改存档版本。
+# Legacy saves without the field start with one unattributable route; nodes/floor wait for the
+# next real close. Loading never raises the save revision.
 static func backfill(s: Dictionary) -> Array:
+ return [_record(ENTER_UNKNOWN,s)]
+
+static func _entry(g, enter: String) -> Dictionary:
+ return _record(enter,g.state)
+
+# The single record shape, read from a state dictionary: all nine keys of KEYS, nodes/floor open.
+static func _record(enter: String, s: Dictionary) -> Dictionary:
  var region=String(s.get("map_region",""))
- return [{"enter":ENTER_UNKNOWN,
+ return {"enter":enter,
   "cycle":int(s.get("demo_cycle",0)),
   "generation":int(s.get("tower_generation",0)),
   "region":region,
@@ -48,20 +61,9 @@ static func backfill(s: Dictionary) -> Array:
   "boss":_boss_of(region,s.get("room_encounters",{})),
   "security":int(s.get("security",0)),
   "nodes":-1,
-  "floor":-1}]
-
-static func _entry(g, enter: String) -> Dictionary:
- var region=String(g.state.map_region)
- return {"enter":enter,
-  "cycle":int(g.state.demo_cycle),
-  "generation":int(g.state.tower_generation),
-  "region":region,
-  "seed":int(g.state.seed),
-  "boss":_boss_of(region,g.state.room_encounters),
-  "security":int(g.state.security),
-  "nodes":-1,
   "floor":-1}
 
+# The summit encounter is a stable id; a prison route has none (its guard count is security).
 static func _boss_of(region: String, encounters) -> String:
  if region==REGION_PRISON or not encounters is Dictionary: return ""
  return String(encounters.get("summit",""))
@@ -75,22 +77,23 @@ static func _close(g, record: Dictionary) -> void:
  record["nodes"]=completed.size()
  record["floor"]=_reached_floor(g,record,completed)
 
-# 与战报面板的进度口径一致（见 docs/spec/run-review.md）：已完成房间的最高层加一；没有完成房间时为 0。
+# Same progress reading as the run-review panel (docs/spec/run-review.md): the highest completed
+# room floor plus one, and zero when the route completed nothing.
 static func _reached_floor(g, record: Dictionary, completed: Array) -> int:
  var floors=_floors(g,record)
  var highest=0
  for id in completed:
-  if floors.has(String(id)): highest=maxi(highest,int(floors[String(id)])+1)
+  var key=String(id)
+  if floors.has(key): highest=maxi(highest,int(floors[key])+1)
  return highest
 
 static func _floors(g, record: Dictionary) -> Dictionary:
- var rooms=[]
- if String(record.get("region",""))==REGION_PRISON:
-  rooms=g.Tower.prison_route(int(record.get("security",0)))
- else:
-  rooms=g.Tower.generate(int(record.get("seed",0)),String(record.get("boss","")))
  var floors={}
- for room in rooms: floors[String(room.id)]=int(room.floor)
+ for room in _route_rooms(g,record): floors[String(room.id)]=int(room.floor)
  for room in g.state.rooms:
   if not floors.has(String(room.id)): floors[String(room.id)]=int(room.floor)
  return floors
+
+static func _route_rooms(g, record: Dictionary) -> Array:
+ if String(record.get("region",""))==REGION_PRISON: return g.Tower.prison_route(int(record.get("security",0)))
+ return g.Tower.generate(int(record.get("seed",0)),String(record.get("boss","")))

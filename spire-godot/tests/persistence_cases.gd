@@ -749,8 +749,14 @@ static func route_record(g, index: int) -> Dictionary:
  return history[index] if index>=0 and index<history.size() else {}
 
 static func route_last(g) -> Dictionary:
- var history=route_history_of(g)
- return {} if history.is_empty() else history[-1]
+ return route_record(g,route_history_of(g).size()-1)
+
+# 塔路移动只有 travel_step 一个真实指令；夹具不另造路径。
+static func route_travel(t, g) -> void:
+ var guard=0
+ while g.state.phase=="travel" and guard<20:
+  guard+=1
+  if not t.action(g,"travel_step").ok: break
 
 static func route_keys_sorted(record: Dictionary) -> Array:
  var keys=record.keys().map(func(key):return String(key))
@@ -798,10 +804,7 @@ static func route_new_run(t):
  t.check(not rooms.is_empty(),"ROUTEHIST-1 the generated tower has a first floor with an ordinary battle neighbour")
  if rooms.is_empty(): return g
  t.check(t.action(g,"depart",{"room":rooms[0].id}).ok,"ROUTEHIST-1 the first-floor departure is a real command")
- var guard=0
- while g.state.phase=="travel" and guard<20:
-  guard+=1
-  if not t.action(g,"travel_step").ok: break
+ route_travel(t,g)
  t.check(g.state.phase=="battle","ROUTEHIST-1 arrival starts the first-floor battle")
  return g
 
@@ -837,10 +840,7 @@ static func route_history_release_closes_route(t) -> void:
  t.check(not rooms.is_empty(),"ROUTEHIST-3 the completed room exposes a battle room")
  if rooms.is_empty(): return
  t.check(t.action(g,"depart",{"room":rooms[0].id}).ok,"ROUTEHIST-3 the next battle room departs for real")
- var guard=0
- while g.state.phase=="travel" and guard<20:
-  guard+=1
-  if not t.action(g,"travel_step").ok: break
+ route_travel(t,g)
  route_capture(t,g)
  var k=g.state.completed_rooms.size()
  var expected_floor=0
