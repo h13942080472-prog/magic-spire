@@ -47,6 +47,11 @@ static func run(t) -> void:
  non_https_url_is_rejected(t,pair,keys)
  patches_are_ignored(t,pair,keys)
  settings_toggle_uses_one_store(t)
+ manifest_size_and_shape_domain(t,pair,keys)
+ manifest_link_domain(t,pair,keys)
+ signature_position_and_shape_domain(t,pair,keys)
+ key_table_selection_domain(t)
+ version_segment_edges(t)
 
 # ---- fixtures -------------------------------------------------------------------------
 
@@ -270,3 +275,91 @@ static func settings_toggle_uses_one_store(t) -> void:
  t.check(readable and config.get_value("display","vsync_enabled",null)!=null and config.get_value("localization","locale",null)!=null,"UPDATE settings_toggle_uses_one_store: the switch shares the existing settings file instead of a second store")
  t.check(Settings.new().update_check_enabled,"UPDATE settings_toggle_uses_one_store: a fresh install starts with the startup check on")
  DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+# ---- 输入域穷举（H2）-----------------------------------------------------------------
+
+# Sign and judge arbitrary bytes with the shared pair: the size, encoding and shape cases must
+# exercise evaluate exactly as the production path does.
+static func judge_bytes(body: PackedByteArray, pair: Array, keys: Dictionary) -> Dictionary:
+ return Manifest.evaluate(body,signature_of(body,pair),keys,CURRENT,PLATFORM)
+
+# A schema-1 document padded with trailing JSON whitespace to exactly the byte cap. Trailing
+# spaces are legal JSON, so the only thing that can reject it is the size check itself.
+static func document_at_cap() -> PackedByteArray:
+ var body=JSON.stringify(document("0.18.4"))
+ return (body+" ".repeat(Manifest.MAX_BYTES-body.to_utf8_buffer().size())).to_utf8_buffer()
+
+static func document_with_latest(latest_value: Variant) -> PackedByteArray:
+ var manifest=document("0.18.4")
+ manifest.latest={"version":latest_value,"notes_zh":NOTES}
+ return JSON.stringify(manifest).to_utf8_buffer()
+
+static func manifest_size_and_shape_domain(t, pair: Array, keys: Dictionary) -> void:
+ var exact=document_at_cap()
+ t.check(exact.size()==Manifest.MAX_BYTES,"UPDATE manifest_size_and_shape_domain: the fixture is exactly the byte cap: "+str(exact.size()))
+ var at_cap=judge_bytes(exact,pair,keys)
+ t.check(at_cap.get("kind","")=="notice" and String(at_cap.get("version",""))=="0.18.4","UPDATE manifest_size_and_shape_domain: a document exactly at the cap is accepted, not refused as oversized: "+str(at_cap))
+ var over=exact.duplicate();over.append(0x20)
+ var over_answer=judge_bytes(over,pair,keys)
+ t.check(over_answer.get("kind","")=="none" and over_answer.get("reason","")=="size","UPDATE manifest_size_and_shape_domain: one byte above the cap is a size rejection: "+str(over_answer))
+ var empty=Manifest.evaluate(PackedByteArray(),PackedByteArray(),keys,CURRENT,PLATFORM)
+ t.check(empty.get("kind","")=="none" and empty.get("reason","")=="size","UPDATE manifest_size_and_shape_domain: an empty body is a size rejection, never parsed or hashed: "+str(empty))
+ var not_utf8=judge_bytes(PackedByteArray([0x7b,0xff,0xfe,0x7d]),pair,keys)
+ t.check(not_utf8.get("kind","")=="none" and not_utf8.get("reason","")=="json","UPDATE manifest_size_and_shape_domain: a body that is not UTF-8 JSON is a json rejection, not an engine error: "+str(not_utf8))
+ var typed=judge_bytes(document_with_latest(1),pair,keys)
+ t.check(typed.get("kind","")=="none" and typed.get("reason","")=="json","UPDATE manifest_size_and_shape_domain: an integer latest.version is a json shape rejection: "+str(typed))
+
+static func manifest_link_domain(t, pair: Array, keys: Dictionary) -> void:
+ var variants={
+  "upper_scheme":"HTTPS://update.magicspire.xyz/v1/x.zip",
+  "single_slash":"https:/update.magicspire.xyz/v1/x.zip",
+  "protocol_relative":"//update.magicspire.xyz/v1/x.zip",
+ }
+ for name in variants:
+  var answer=judge(bytes_of(document("0.18.4",{"full":{"url":variants[name]}})),pair,keys)
+  t.check(answer.get("kind","")=="none" and answer.get("reason","")=="url","UPDATE manifest_link_domain: url variant "+name+" is refused as url: "+str(answer))
+ var manifest=document("0.18.4")
+ manifest.platforms[PLATFORM].full.erase("mirror")
+ var absent=judge_bytes(JSON.stringify(manifest).to_utf8_buffer(),pair,keys)
+ t.check(absent.get("kind","")=="none" and absent.get("reason","")=="url","UPDATE manifest_link_domain: an absent mirror is the same url rejection as a non-https one: "+str(absent))
+
+static func signature_position_and_shape_domain(t, pair: Array, keys: Dictionary) -> void:
+ var body=bytes_of(document("0.18.4"))
+ var signature=signature_of(body,pair)
+ var text=signature.get_string_from_utf8()
+ var raw=Marshalls.base64_to_raw(text)
+ t.check(raw.size()==256,"UPDATE signature_position_and_shape_domain: the fixture signature is a 2048-bit RSA block: "+str(raw.size()))
+ var escaped=[]
+ for position in [0,raw.size()/2,raw.size()-1]:
+  var mutated=raw.duplicate()
+  mutated[position]=mutated[position]^0xff
+  var answer=Manifest.evaluate(body,Marshalls.raw_to_base64(mutated).to_utf8_buffer(),keys,CURRENT,PLATFORM)
+  if answer.get("kind","")!="none" or answer.get("reason","")!="signature": escaped.append(position)
+ t.check(escaped.is_empty(),"UPDATE signature_position_and_shape_domain: a flipped signature byte at the head, middle or tail is a signature failure: "+str(escaped))
+ for whitespace in [" ","\n"]:
+  var spaced=(text.substr(0,64)+whitespace+text.substr(65)).to_utf8_buffer()
+  var answer=Manifest.evaluate(body,spaced,keys,CURRENT,PLATFORM)
+  t.check(answer.get("kind","")=="none" and answer.get("reason","")=="signature","UPDATE signature_position_and_shape_domain: base64 with an internal "+("space" if whitespace==" " else "newline")+" is not base64 and is a signature failure: "+str(answer))
+ var truncated=Manifest.evaluate(body,text.substr(0,text.length()-1).to_utf8_buffer(),keys,CURRENT,PLATFORM)
+ t.check(truncated.get("kind","")=="none" and truncated.get("reason","")=="signature","UPDATE signature_position_and_shape_domain: a truncated base64 block is a signature failure: "+str(truncated))
+
+static func key_table_selection_domain(t) -> void:
+ var first=keypair()
+ var second=keypair()
+ var keys={"k1":verifier_pem(first),"k2":verifier_pem(second)}
+ var body=bytes_of(document("0.18.4",{"key_id":"k2"}))
+ var selected=Manifest.evaluate(body,signature_of(body,second),keys,CURRENT,PLATFORM)
+ t.check(selected.get("kind","")=="notice" and String(selected.get("version",""))=="0.18.4","UPDATE key_table_selection_domain: key_id selecting the second entry verifies with that entry's public key: "+str(selected))
+ var mismatch=Manifest.evaluate(body,signature_of(body,first),keys,CURRENT,PLATFORM)
+ t.check(mismatch.get("kind","")=="none" and mismatch.get("reason","")=="signature","UPDATE key_table_selection_domain: a signature from another table entry never verifies the selected key_id: "+str(mismatch))
+ var padded="\n  "+verifier_pem(second)+"\n  "
+ var tolerant=Manifest.evaluate(body,signature_of(body,second),{"k1":verifier_pem(first),"k2":padded},CURRENT,PLATFORM)
+ t.check(tolerant.get("kind","")=="notice","UPDATE key_table_selection_domain: a public PEM with surrounding whitespace still loads and verifies: "+str(tolerant))
+
+static func version_segment_edges(t) -> void:
+ var long="a".repeat(200)
+ var rows=[["1.0","1.0.0.0",0],["01.0","1.0",0],["1.00","1.0",0],[long,long,0],["1."+long+"b","1."+long,1],["1."+long,"1."+long+"b",-1]]
+ for row in rows:
+  t.check(signi(Manifest.compare(row[0],row[1]))==row[2],"UPDATE version_segment_edges: compare("+String(row[0]).left(24)+","+String(row[1]).left(24)+")=="+str(row[2]))
+ t.check(Manifest.compare("1.0","1.0.0.0")==0 and Manifest.compare("1.0.0.0","1.0")==0,"UPDATE version_segment_edges: missing trailing segments equal numeric zero in both directions")
+ t.check(Manifest.compare("01.0","1.0")==0 and Manifest.compare("1.007","1.7")==0,"UPDATE version_segment_edges: leading zeros compare by numeric value, not by text")

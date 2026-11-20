@@ -635,6 +635,80 @@
       "find": "const SIGNATURE_SUFFIX=\".sig\"",
       "replace": "const SIGNATURE_SUFFIX=\".sig\"\n# mutation probe: an update-side reference to the ui module\nconst _MUTATION_PROBE=\"res://ui/main.gd\"",
       "suite": "architecture"
+    },
+    "update_compare_single_entry": {
+      "file": "ui/main.gd",
+      "find": "func _manual_update_check() -> void:\n update_check.check()",
+      "replace": "func _manual_update_check() -> void:\n var _mutation_compare=preload(\"res://update/update_manifest.gd\").compare(\"1.0\",\"1.0\")\n update_check.check()",
+      "suite": "architecture"
+    },
+    "update_document_single_entry": {
+      "file": "ui/main.gd",
+      "find": "func _update_status_text() -> String:",
+      "replace": "func _update_status_text() -> String:\n var _mutation_document=JSON.new()",
+      "suite": "architecture"
+    },
+    "update_verify_single_entry": {
+      "file": "ui/main.gd",
+      "find": "func _start_update_check() -> void:",
+      "replace": "func _start_update_check() -> void:\n var _mutation_verify=CryptoKey.new()",
+      "suite": "architecture"
+    },
+    "update_http_single_entry": {
+      "file": "ui/main.gd",
+      "find": "func _open_update_url(url: String) -> void:",
+      "replace": "func _open_update_url(url: String) -> void:\n var _mutation_http=HTTPRequest.new()",
+      "suite": "architecture"
+    },
+    "update_jump_single_entry": {
+      "file": "ui/main.gd",
+      "find": "func _home_update_notice() -> void:",
+      "replace": "func _home_update_notice() -> void:\n if false: OS.shell_open(\"https://example.test/mutation\")",
+      "suite": "architecture"
+    },
+    "manifest_size_and_shape_domain": {
+      "file": "update/update_manifest.gd",
+      "find": "if manifest_bytes.size()==0 or manifest_bytes.size()>MAX_BYTES: return none(\"size\")",
+      "replace": "if manifest_bytes.size()==0 or manifest_bytes.size()>=MAX_BYTES: return none(\"size\")",
+      "suite": "update"
+    },
+    "manifest_link_domain": {
+      "file": "update/update_manifest.gd",
+      "find": "if not url.begins_with(HTTPS) or not mirror.begins_with(HTTPS): return none(\"url\")",
+      "replace": "if not mirror.begins_with(HTTPS): return none(\"url\")",
+      "suite": "update"
+    },
+    "signature_position_and_shape_domain": {
+      "file": "update/update_manifest.gd",
+      "find": "return Crypto.new().verify(HashingContext.HASH_SHA256,_digest(manifest_bytes),raw,key)",
+      "replace": "return true",
+      "suite": "update"
+    },
+    "key_table_selection_domain": {
+      "file": "update/update_manifest.gd",
+      "find": "var public_pem=String(keys[key_id])",
+      "replace": "var public_pem=String(keys.values()[0])",
+      "suite": "update"
+    },
+    "version_segment_edges": {
+      "file": "update/update_manifest.gd",
+      "find": "if text.is_empty(): return [0,0]",
+      "replace": "if text.is_empty(): return [1,\"\"]",
+      "suite": "update"
+    },
+    "check_in_flight_keeps_home_interactive": {
+      "file": "ui/main.gd",
+      "find": "func _open_drawer(field: String, zone: String=\"deck\") -> void:",
+      "replace": "func _open_drawer(field: String, zone: String=\"deck\") -> void:\n if update_check.busy: return",
+      "suite": "update",
+      "execution": "ui"
+    },
+    "transport_failures_are_silent": {
+      "file": "update/update_check.gd",
+      "find": "if result==HTTPRequest.RESULT_SUCCESS and status==200:",
+      "replace": "if result==HTTPRequest.RESULT_SUCCESS:",
+      "suite": "update",
+      "execution": "ui"
     }
   }
 }

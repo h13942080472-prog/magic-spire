@@ -17,6 +17,8 @@ static func run(t) -> void:
  await startup_offline_is_silent(t)
  await startup_bad_signature_is_silent(t)
  await toggle_off_skips_startup(t)
+ await check_in_flight_keeps_home_interactive(t)
+ await transport_failures_are_silent(t)
 
 # ---- fixtures -------------------------------------------------------------------------
 
@@ -169,3 +171,47 @@ static func toggle_off_skips_startup(t) -> void:
  var status=again.find_child("UpdateCheckStatus",true,false)
  t.check(status!=null and String(status.text)==again._text("ui.update.latest","已是最新版本。"),"UPDATE toggle_off_skips_startup: the panel reports the latest version instead of a notice: "+str(status.text if status!=null else ""))
  t.check(again.find_child("HomeUpdateNotice",true,false)==null,"UPDATE toggle_off_skips_startup: a same-version answer never shows the home notice")
+
+# ---- 检查进行中的主页与失败静默（H3）------------------------------------------------
+
+# A transport that records the request and answers nothing: the check stays in flight while the
+# case talks to the home page, so any synchronous gate or busy modal would be visible here.
+static func held_stand_in(options: Dictionary) -> Callable:
+ return func(url: String, _method: int) -> int:
+  options.calls.append(url)
+  return OK
+
+static func check_in_flight_keeps_home_interactive(t) -> void:
+ var options=harness({})
+ var ui=await boot(t,options)
+ ui.update_check.transport=held_stand_in(options)
+ ui.update_check.check()
+ await t.frames()
+ t.check(ui.update_check.busy and options.calls.size()==1,"UPDATE check_in_flight_keeps_home_interactive: the check is pending with one request held: "+str(options.calls))
+ var new_game=ui.find_child("HomeNewGame",true,false)
+ t.check(new_game!=null and not new_game.disabled,"UPDATE check_in_flight_keeps_home_interactive: home buttons stay enabled while the check is pending")
+ await Click.press(t,"HomeOptions")
+ await t.frames()
+ var status=ui.find_child("UpdateCheckStatus",true,false)
+ t.check(ui.show_options and ui.find_child("UpdateCheckEnabled",true,false)!=null,"UPDATE check_in_flight_keeps_home_interactive: a home button still opens the settings page while the check is pending")
+ t.check(status!=null and String(status.text)==ui._text("ui.update.checking","正在检查更新…"),"UPDATE check_in_flight_keeps_home_interactive: the settings panel reports the in-flight state instead of freezing: "+str(status.text if status!=null else ""))
+ t.check(options.calls.size()==1,"UPDATE check_in_flight_keeps_home_interactive: the pending check issued no extra request: "+str(options.calls))
+
+static func transport_failures_are_silent(t) -> void:
+ for row in [{"failure":HTTPRequest.RESULT_TIMEOUT,"reason":"network"},{"status":404,"reason":"http"},{"status":302,"reason":"http"}]:
+  var options=harness(row)
+  var ui=await boot(t,options)
+  ui.update_check.check()
+  await t.frames()
+  var label="timeout" if row.has("failure") else ("status "+str(row["status"]))
+  t.check(options.calls.size()==1,"UPDATE transport_failures_are_silent: "+label+" ends after one request and never retries: "+str(options.calls))
+  t.check(String(ui.update_check.offer.get("reason",""))==String(row["reason"]) and not ui.update_check.busy,"UPDATE transport_failures_are_silent: "+label+" is a silent "+String(row["reason"])+" rejection: "+str(ui.update_check.offer))
+  t.check(ui.find_child("HomeUpdateNotice",true,false)==null,"UPDATE transport_failures_are_silent: "+label+" shows no home notice")
+  var windows=ui.find_children("*","Window",true,false).filter(func(node):return node.visible)
+  var root_popups=t.root.get_children().filter(func(node):return node is PopupPanel or node is AcceptDialog)
+  t.check(windows.is_empty() and root_popups.is_empty(),"UPDATE transport_failures_are_silent: "+label+" opens no popup or dialog: "+str(windows.size()+root_popups.size()))
+  await t.frames(6)
+  t.check(options.calls.size()==1,"UPDATE transport_failures_are_silent: "+label+" stays one request after waiting, no retry: "+str(options.calls))
+  await Click.press(t,"HomeOptions")
+  await t.frames()
+  t.check(ui.show_options,"UPDATE transport_failures_are_silent: the home page stays interactive after "+label)

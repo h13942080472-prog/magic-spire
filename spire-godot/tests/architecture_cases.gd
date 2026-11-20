@@ -1174,6 +1174,11 @@ static func run(t) -> void:
  card_facts_keyword_min_query(t)
  slice_dependency_directions(t)
  update_module_is_a_leaf(t)
+ update_compare_single_entry(t)
+ update_document_single_entry(t)
+ update_verify_single_entry(t)
+ update_http_single_entry(t)
+ update_jump_single_entry(t)
  run_identity_single_writer(t)
  feedback_save_single_serializer(t)
  feedback_save_cap_pinned(t)
@@ -6422,6 +6427,83 @@ static func update_module_is_a_leaf(t) -> void:
   var text=source_text(path.trim_prefix("res://"))
   if text.contains("HTTPRequest") or text.contains("HTTPClient"): entries.append(path.trim_prefix("res://"))
  t.check(entries==["update/update_check.gd"],"DEP update_module_is_a_leaf: update/update_check.gd is the only update file that speaks HTTP: "+str(entries))
+
+# docs/spec/update-check-dependencies.md「单一路径」: five mechanical single-entry judgments.
+# The feature surface is update/** plus the three ui files the dependency table names for this
+# slice; the scan strips `#` comments and attributes each hit to the enclosing function, so the
+# expected set is a file::function declaration, not a line list. A second implementation in any
+# scanned file changes the set and reddens the named check. Tokens that no unrelated feature
+# uses (compare, CryptoKey/load_from_string/verify, OS.shell_open) are scanned across all of
+# ui/, update/ and core/; JSON parsing and HTTPRequest are scanned on the feature surface only
+# because localization, save, content, art and feedback carry unrelated pre-existing parsers
+# and the feedback uploader's own HTTP transport.
+const UPDATE_FEATURE_UI=["res://ui/main.gd","res://ui/home_screen.gd","res://ui/display_settings.gd"]
+
+static func update_feature_files() -> Array:
+ var files=script_files("res://update")
+ for path in UPDATE_FEATURE_UI:
+  if path not in files and ResourceLoader.exists(path): files.append(path)
+ files.sort()
+ return files
+
+static func update_scan_files(roots: Array) -> Array:
+ var files=[]
+ for root in roots:
+  for path in script_files(root):
+   if path not in files: files.append(path)
+ files.sort()
+ return files
+
+# Same attribution rules as source_write_sites, but over an explicit file list (the feature
+# surface is not a directory for the three ui files). Returns sorted, de-duplicated
+# "file::function" names; "<file>" marks code outside any function.
+static func update_source_sites(files: Array, pattern: String) -> Array:
+ var regex=RegEx.new()
+ if regex.compile(pattern)!=OK: return ["<bad pattern "+pattern+">"]
+ var declaration=RegEx.new()
+ declaration.compile("^\\s*(?:static\\s+)?func\\s+([A-Za-z_][A-Za-z0-9_]*)")
+ var sites=[]
+ for path in files:
+  var relative=String(path).trim_prefix("res://")
+  var lines=source_text(relative).split("\n")
+  var current="<file>"
+  for index in range(lines.size()):
+   var code=String(lines[index]).split("#")[0]
+   var declared=declaration.search(code)
+   if declared!=null: current=declared.get_string(1)
+   if regex.search(code)==null: continue
+   var name=relative+"::"+current
+   if name not in sites: sites.append(name)
+ sites.sort()
+ return sites
+
+static func update_sites_in_files(sites: Array) -> Array:
+ var files=[]
+ for site in sites:
+  var file=String(site).split("::")[0]
+  if file not in files: files.append(file)
+ files.sort()
+ return files
+
+static func update_compare_single_entry(t) -> void:
+ var sites=update_source_sites(update_scan_files(["res://ui","res://update","res://core"]),"(?<![A-Za-z0-9_])compare\\s*\\(")
+ t.check(sites==["update/update_manifest.gd::_revoked","update/update_manifest.gd::compare","update/update_manifest.gd::evaluate"],"DEP update_compare_single_entry: version comparison exists only in update/update_manifest.gd compare/evaluate/_revoked; a second compare( anywhere in ui/update/core is red: "+str(sites))
+
+static func update_document_single_entry(t) -> void:
+ var sites=update_source_sites(update_feature_files(),"JSON\\.(?:new|parse|parse_string)\\s*\\(")
+ t.check(sites==["update/update_manifest.gd::_document"],"DEP update_document_single_entry: manifest parsing exists only in update/update_manifest.gd::_document; a second JSON parse on the update surface is red: "+str(sites))
+
+static func update_verify_single_entry(t) -> void:
+ var sites=update_source_sites(update_scan_files(["res://ui","res://update","res://core"]),"CryptoKey\\.new\\s*\\(|load_from_string\\s*\\(|\\.verify\\s*\\(")
+ t.check(sites==["update/update_manifest.gd::_verified"],"DEP update_verify_single_entry: key loading and signature checking exist only in update/update_manifest.gd::_verified; a second CryptoKey/load_from_string/verify site is red: "+str(sites))
+
+static func update_http_single_entry(t) -> void:
+ var sites=update_source_sites(update_feature_files(),"HTTPRequest|HTTPClient")
+ t.check(sites.size()>0 and update_sites_in_files(sites)==["update/update_check.gd"],"DEP update_http_single_entry: the update surface owns exactly one HTTP transport, update/update_check.gd; the feedback uploader is outside this surface: "+str(sites))
+
+static func update_jump_single_entry(t) -> void:
+ var sites=update_source_sites(update_scan_files(["res://ui","res://update","res://core"]),"OS\\.shell_open\\s*\\(")
+ t.check(sites==["ui/main.gd::_open_update_url"],"DEP update_jump_single_entry: the update buttons launch only through ui/main.gd::_open_update_url (the open_url seam); a second OS.shell_open in ui/update/core is red: "+str(sites))
 
 static func run_identity_single_writer(t) -> void:
  var clipboard=write_site_names(source_write_sites(["res://core","res://data","res://ui"],"DisplayServer\\.clipboard_set\\s*\\("))
