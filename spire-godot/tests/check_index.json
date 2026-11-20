@@ -907,7 +907,7 @@
     },
     "spire-godot/tests/update_ui_cases.gd": {
       "owner": "ui:update",
-      "signals": 1
+      "signals": 3
     },
     "spire-godot/tests/wall_cases.gd": {
       "owner": "rule:wall",
@@ -942,7 +942,7 @@
       "signals": 2
     }
   },
-  "digest": "bac4bd8a7c11ca26e03c7029a96d232be5693f3d388e498e93e7b38d0b9fe529",
+  "digest": "998d35da844b9f2edaf58e836df952e95f21edd6388e0130866a5591815d078f",
   "domain_words": {
     "ART": [
       "ui:display",
@@ -1942,7 +1942,7 @@
       ]
     }
   },
-  "generated_from": "0c4101c6d4ac8ab9cee31bac9cbad279988194df7024492eb951776d085f0fd4",
+  "generated_from": "a42a88171efc1cff9bde8af655bc3a0af4e997d3851c9a0bf59f2e258973bbb0",
   "registries": {
     "rule": [
       "rope_master",
@@ -2067,7 +2067,7 @@
     "rule_suites": 55,
     "source_files": 140,
     "sources_with_edges": 138,
-    "suite_edges": 569,
+    "suite_edges": 571,
     "suites_with_edges": 103,
     "ui_suites": 51,
     "widen": 1
@@ -3987,6 +3987,12 @@
       ]
     },
     "ui:update": {
+      "spire-godot/ui/main.gd": [
+        "symbol_ui"
+      ],
+      "spire-godot/ui/shop_screen.gd": [
+        "symbol_ui"
+      ],
       "spire-godot/ui/visual_theme.gd": [
         "preload"
       ]
