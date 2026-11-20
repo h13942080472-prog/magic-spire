@@ -35,7 +35,6 @@ static func evaluate(manifest_bytes: PackedByteArray, signature: PackedByteArray
 #   offer = {"kind":"notice", "version":String, "bytes":int, "url":String, "mirror":String,
 #            "notes":String, "revoked":bool, "platform":String}
 #   none  = {"kind":"none", "reason":String}   # reason ∈ REJECTIONS 或 ""（已验签、不是更新）
-#   notice 的字段集合固定为上面这八个：清单里的其它字段（如 sha256）不进入 offer
 static func compare(a: String, b: String) -> int   # 版本比较，-1／0／1；数字段按十进制数字串比较，不经整数
 
 const SCHEMA=1
@@ -73,16 +72,17 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
 # 设置页节点：UpdateCheckEnabled（CheckButton）、UpdateCheckNow、UpdateCheckStatus
 ```
 
+- `notice` 只含上面列出的八个字段：清单里的其它字段（如 `sha256`）不进入 `offer`。
 - `check()` 的重入：检查进行中（`busy`）再次调用会被忽略——不发请求、不排队、不另发 `checked`；
   在途那次检查完成时只发一次 `checked(offer)`。
 - 提示位置：主页布局层（`ui.layout`）上的独立面板，**不在** `GameHome` 之内，
   因此主页左侧标题区仍只有原来四个子节点（`HomeTitle`、`LanguageSelection`、
   `HomeDisclaimer`、`HomeSettingsSaveNotice`）。矩形与主页其它控件不相交。
-  首行给出最新版本号与按 `bytes` 换算、保留一位小数的约 MB 大小；`revoked=true` 时改用撤回文案。
-  两个按钮分别打开 `offer.url`（`HomeUpdateDownload`）与 `offer.mirror`
+- 提示内容：首行给出最新版本号与按 `bytes` 换算、保留一位小数的约 MB 大小；`revoked=true` 时改用撤回文案。
+- 提示按钮：两个按钮分别打开 `offer.url`（`HomeUpdateDownload`）与 `offer.mirror`
   （`HomeUpdateMirror`），都只经 `_open_update_url`。
-- 设置页状态（`UpdateCheckStatus`）：`busy` 时显示 `ui.update.checking`；`notice` 显示
-  `ui.update.available`（带版本号）；已验签且不是更新时显示 `ui.update.latest`；拒绝原因不显示文本。
+- 设置页状态（`UpdateCheckStatus`）：检查在途显示 `ui.update.checking`；有 `notice` 时显示
+  `ui.update.available` 与版本号；已验签且不是更新时显示 `ui.update.latest`；拒绝原因不显示文本。
 - 文案走本地化：`ui.update.notice`、`ui.update.notice.revoked`、`ui.update.download`、
   `ui.update.mirror`、`ui.update.checking`、`ui.update.available`、`ui.update.latest`、
   `ui.settings.update_check`、`ui.settings.update_check_note`、`ui.settings.update_now`。
@@ -116,8 +116,9 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
   位数相同按字典序比较，全程不经引擎整数，因此 20 位以上的数字段也不会溢出或退化成相等；
   缺省段等于数字 0；非数字段排在缺省段之后，彼此按文本比较；文本段比较不区分大小写
   （`0.18.3.FIX` 与 `0.18.3.fix` 相等），段两端的空白不算内容（`0.18.3. fix` 与 `0.18.3.fix` 相等），
-  显式空段（如 `0.18..1`）等于数字段 0。于是 `0.18.10>0.18.9`、`0.18.3.fix>0.18.3`、
-  `0.18==0.18.0`、`01==1`。该比较是 `.` 分段上的全序：自反、反对称与传递都成立。
+  显式空段（如 `0.18..1`）等于数字段 0。
+- 版本序：`compare` 是 `.` 分段上的全序（自反、反对称、传递），于是 `0.18.10>0.18.9`、
+  `0.18.3.fix>0.18.3`、`0.18==0.18.0`、`01==1`。
 - `patches` 数组 U1 不读、不显示、不产生 `patch` 结果。
 - 请求：HTTPS GET 清单 → HTTPS GET `<manifest_url>.sig`；`timeout=10`、`max_redirects=0`、
   `body_size_limit=65536`；一次检查**最多两个**请求，不重试、不轮询。
@@ -130,9 +131,9 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
 
 ## 失败语义
 
-- 断网、超时、非 200、3xx、体积超限、签名不符、平台缺失一律**静默**：不弹窗、不重试、
-  不写盘、不改 `Game` 状态与存档，也不改变主页可操作性。`none` 的 `reason` 只进
-  `--verbose` 日志；坏 JSON、超限清单与不合格签名都在判定层返回 `none`，不产生引擎错误。
+- 断网、超时、非 200、3xx、体积超限、坏 JSON、签名不符、平台缺失一律**静默**：判定层只返回
+  `none`（每步带自己的 `reason`，不产生引擎错误），不弹窗、不重试、不写盘、不改 `Game` 状态与存档，
+  也不改变主页可操作性。`none` 的 `reason` 只进 `--verbose` 日志。
 - 检查在 `_ready` 之后延迟启动，主页先渲染；结果到达后只重建当前页面
   （`show_home` → `render`，设置页 → `_refresh_drawers`）。
 - 非 `https://` 的目标即使已在签名清单里也不跳转：`_open_update_url` 先做前缀判断。
@@ -143,11 +144,11 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
 
 ## 证据入口
 
-规则侧走真实 `Crypto.generate_rsa` 现场生成密钥对、把**公钥**交给 `evaluate`；
-`openssl_signed_manifest_interops` 另复放提交在 `tests/fixtures/update/` 的 OpenSSL 夹具
-（公钥 PEM、清单与签名）；UI 侧走真实 `main.tscn` 与真实点击，transport 替身回答两次 GET。
-判据全集、各自的执行符号与规则／窗口落点见
-[update-check-dependencies.md「判据 → 检查」](update-check-dependencies.md)。
+取证方式：规则侧用真实 `Crypto.generate_rsa` 现场生成密钥对、把**公钥**交给 `evaluate`，并复放提交在
+`tests/fixtures/update/` 的 OpenSSL 夹具（公钥 PEM、清单与签名）；UI 侧走真实 `main.tscn` 与真实点击，
+transport 替身回答两次 GET。
+
+判据全集与执行符号见 [update-check-dependencies.md「判据 → 检查」](update-check-dependencies.md)。
 
 命令（在 `spire-godot/` 下执行；范围预检加 `-ListOnly`，不算通过）：
 
