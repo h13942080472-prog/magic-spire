@@ -32,7 +32,7 @@
 判据名＝测试里的具名 check（断言标签 `UPDATE <name>:`／`DEP <name>:` 的 `<name>`，也是该 check 的函数名）。
 表与 `tests/update_cases.gd`、`tests/update_ui_cases.gd`、`tests/architecture_cases.gd` 的 update 具名 check
 **双向相等**：一条判据一行，一行只点名一个检查；漏行、多行、改名或幽灵条目都要同批改表。
-本版共 38 条（规则 26、窗口 6、架构 6），按 `tests/<file>.gd::<name>` 逐名核对。
+本版共 40 条（规则 26、窗口 8、架构 6），按 `tests/<file>.gd::<name>` 逐名核对。
 
 | 判据 | 执行它的检查 |
 | --- | --- |
@@ -68,6 +68,8 @@
 | 关掉后写盘并在下次启动不检查；「立即检查」不受开关影响 | `tests/update_ui_cases.gd::toggle_off_skips_startup`（窗口分类 `update`） |
 | 检查挂起时主页与设置页仍可交互，且不重复请求 | `tests/update_ui_cases.gd::check_in_flight_keeps_home_interactive`（窗口分类 `update`） |
 | 超时／404／302 各只一次请求、静默、无弹窗、不重试 | `tests/update_ui_cases.gd::transport_failures_are_silent`（窗口分类 `update`） |
+| 检查进行中重复调用 `check()` 被忽略（不发请求、不另发 `checked`）；在途那次完成时只发一次 `checked` | `tests/update_ui_cases.gd::check_in_flight_ignores_second_call`（窗口分类 `update`） |
+| `manifest_url` 为空串时自动检查与「立即检查」都不发请求、不显示提示 | `tests/update_ui_cases.gd::empty_manifest_url_sends_no_request`（窗口分类 `update`） |
 | `spire-godot/update/` 不引用 `ui`／`core`／`data`／`tests`；只有 `spire-godot/update/update_check.gd` 发 HTTP | `tests/architecture_cases.gd::update_module_is_a_leaf`（规则分类 `architecture`） |
 | 版本比较只有 `spire-godot/update/update_manifest.gd::compare`／`evaluate`／`_revoked` | `tests/architecture_cases.gd::update_compare_single_entry`（规则分类 `architecture`） |
 | 清单解析只有 `spire-godot/update/update_manifest.gd::_document` | `tests/architecture_cases.gd::update_document_single_entry`（规则分类 `architecture`） |
@@ -82,8 +84,8 @@
 | 语义 | 唯一入口 | 边 | 机械判据 |
 | --- | --- | --- | --- |
 | 判定（解析／验签／版本比较／撤回） | `spire-godot/update/update_manifest.gd::evaluate` | `::_document`、`::_public_material`、`::_verified`、`::compare`、`::_revoked` | `spire-godot/tests/update_cases.gd` 的 UPDATE 具名 check；`spire-godot/tests/architecture_cases.gd::update_compare_single_entry`（版本比较）、`::update_document_single_entry`（解析）、`::update_verify_single_entry`（验签） |
-| 网络（清单与签名各一次 GET） | `spire-godot/update/update_check.gd::check` | `::_secure_url`、`::_send`、`::deliver`，结果交 `spire-godot/update/update_manifest.gd::evaluate` | `spire-godot/tests/update_ui_cases.gd::startup_offline_is_silent`、`::transport_failures_are_silent`；`spire-godot/tests/architecture_cases.gd::update_http_single_entry`（唯一 HTTP 文件） |
-| 启动门槛 | `spire-godot/update/update_check.gd::auto_allowed` | `::scripted_run`、`::_secure_url`、`ui/display_settings.gd::update_check_enabled` | `spire-godot/tests/update_ui_cases.gd::toggle_off_skips_startup` |
+| 网络（清单与签名各一次 GET） | `spire-godot/update/update_check.gd::check` | `::_secure_url`、`::_send`、`::deliver`，结果交 `spire-godot/update/update_manifest.gd::evaluate` | `spire-godot/tests/update_ui_cases.gd::startup_offline_is_silent`、`::transport_failures_are_silent`、`::check_in_flight_ignores_second_call`（在途重入不发请求、只发一次结果）；`spire-godot/tests/architecture_cases.gd::update_http_single_entry`（唯一 HTTP 文件） |
+| 启动门槛 | `spire-godot/update/update_check.gd::auto_allowed` | `::scripted_run`、`::_secure_url`、`ui/display_settings.gd::update_check_enabled` | `spire-godot/tests/update_ui_cases.gd::toggle_off_skips_startup`、`::empty_manifest_url_sends_no_request`（空 `manifest_url` 不发请求） |
 | 设置写入 | `spire-godot/ui/display_settings.gd::set_update_check` | `::save` 写同一文件的 `update/check_on_start` | `spire-godot/tests/update_cases.gd::settings_toggle_uses_one_store` |
 | 设置读取 | `spire-godot/ui/display_settings.gd::initialize` | 同一文件的 `update/check_on_start` | `spire-godot/tests/update_ui_cases.gd::toggle_off_skips_startup` |
 | 主页提示 | `spire-godot/ui/main.gd::_home_update_notice` | 只读 `spire-godot/update/update_check.gd::offer`；由 `spire-godot/ui/home_screen.gd` 调用 | `spire-godot/tests/update_ui_cases.gd::startup_offer_renders_notice`、`::check_in_flight_keeps_home_interactive`（检查进行中主页可交互） |

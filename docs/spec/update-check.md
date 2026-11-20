@@ -35,6 +35,7 @@ static func evaluate(manifest_bytes: PackedByteArray, signature: PackedByteArray
 #   offer = {"kind":"notice", "version":String, "bytes":int, "url":String, "mirror":String,
 #            "notes":String, "revoked":bool, "platform":String}
 #   none  = {"kind":"none", "reason":String}   # reason ∈ REJECTIONS 或 ""（已验签、不是更新）
+#   notice 的字段集合固定为上面这八个：清单里的其它字段（如 sha256）不进入 offer
 static func compare(a: String, b: String) -> int   # 版本比较，-1／0／1；数字段按十进制数字串比较，不经整数
 
 const SCHEMA=1
@@ -72,9 +73,16 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
 # 设置页节点：UpdateCheckEnabled（CheckButton）、UpdateCheckNow、UpdateCheckStatus
 ```
 
+- `check()` 的重入：检查进行中（`busy`）再次调用会被忽略——不发请求、不排队、不另发 `checked`；
+  在途那次检查完成时只发一次 `checked(offer)`。
 - 提示位置：主页布局层（`ui.layout`）上的独立面板，**不在** `GameHome` 之内，
   因此主页左侧标题区仍只有原来四个子节点（`HomeTitle`、`LanguageSelection`、
   `HomeDisclaimer`、`HomeSettingsSaveNotice`）。矩形与主页其它控件不相交。
+  首行给出最新版本号与按 `bytes` 换算、保留一位小数的约 MB 大小；`revoked=true` 时改用撤回文案。
+  两个按钮分别打开 `offer.url`（`HomeUpdateDownload`）与 `offer.mirror`
+  （`HomeUpdateMirror`），都只经 `_open_update_url`。
+- 设置页状态（`UpdateCheckStatus`）：`busy` 时显示 `ui.update.checking`；`notice` 显示
+  `ui.update.available`（带版本号）；已验签且不是更新时显示 `ui.update.latest`；拒绝原因不显示文本。
 - 文案走本地化：`ui.update.notice`、`ui.update.notice.revoked`、`ui.update.download`、
   `ui.update.mirror`、`ui.update.checking`、`ui.update.available`、`ui.update.latest`、
   `ui.settings.update_check`、`ui.settings.update_check_note`、`ui.settings.update_now`。
@@ -106,8 +114,10 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
 - 平台键：Windows 用 `windows-x64`，Android 用 `android`；其它平台得到 `none`／`platform` 或空键。
 - 版本比较（Q8）：按 `.` 分段；数字段是纯十进制数字串（只含 `0`–`9`），去掉前导零后位数多者大、
   位数相同按字典序比较，全程不经引擎整数，因此 20 位以上的数字段也不会溢出或退化成相等；
-  缺省段等于数字 0；非数字段排在缺省段之后，彼此按文本比较。于是 `0.18.10>0.18.9`、
-  `0.18.3.fix>0.18.3`、`0.18==0.18.0`、`01==1`。
+  缺省段等于数字 0；非数字段排在缺省段之后，彼此按文本比较；文本段比较不区分大小写
+  （`0.18.3.FIX` 与 `0.18.3.fix` 相等），段两端的空白不算内容（`0.18.3. fix` 与 `0.18.3.fix` 相等），
+  显式空段（如 `0.18..1`）等于数字段 0。于是 `0.18.10>0.18.9`、`0.18.3.fix>0.18.3`、
+  `0.18==0.18.0`、`01==1`。该比较是 `.` 分段上的全序：自反、反对称与传递都成立。
 - `patches` 数组 U1 不读、不显示、不产生 `patch` 结果。
 - 请求：HTTPS GET 清单 → HTTPS GET `<manifest_url>.sig`；`timeout=10`、`max_redirects=0`、
   `body_size_limit=65536`；一次检查**最多两个**请求，不重试、不轮询。
@@ -122,49 +132,22 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
 
 - 断网、超时、非 200、3xx、体积超限、签名不符、平台缺失一律**静默**：不弹窗、不重试、
   不写盘、不改 `Game` 状态与存档，也不改变主页可操作性。`none` 的 `reason` 只进
-  `--verbose` 日志。
+  `--verbose` 日志；坏 JSON、超限清单与不合格签名都在判定层返回 `none`，不产生引擎错误。
 - 检查在 `_ready` 之后延迟启动，主页先渲染；结果到达后只重建当前页面
   （`show_home` → `render`，设置页 → `_refresh_drawers`）。
 - 非 `https://` 的目标即使已在签名清单里也不跳转：`_open_update_url` 先做前缀判断。
 - 公钥表为空时 `evaluate` 返回 `none`／`key`：这是「没有可用公钥」的正确回答，
   不得退化成只看 sha256、只看 HTTPS 或跳过验签。
 - 落地失败不影响玩家：`project.godot` 缺 `[update]` 时 `manifest_url` 为空 → 门槛不成立，
-  一次请求都不发。
+  一次请求都不发；手动 `check()` 同样不发请求，按 `url` 拒绝且不显示提示。
 
 ## 证据入口
 
-具名 check（规则侧走真实 `Crypto.generate_rsa` 现场生成密钥对、把**公钥**交给 `evaluate`；
+规则侧走真实 `Crypto.generate_rsa` 现场生成密钥对、把**公钥**交给 `evaluate`；
 `openssl_signed_manifest_interops` 另复放提交在 `tests/fixtures/update/` 的 OpenSSL 夹具
-（公钥 PEM、清单与签名）；UI 侧走真实 `main.tscn` 与真实点击，transport 替身回答两次 GET）：
-
-| 判据 | 落点（分类 → 用例文件） |
-| --- | --- |
-| `UPDATE newer_latest_yields_notice`（更新版本给出 `notice`：版本、字节数、两个链接、说明、`revoked=false`、平台，且不含清单未验签字段） | `update` → `tests/update_cases.gd` |
-| `UPDATE same_or_older_latest_yields_none`（同版本与旧版本都只给 `none`，不提供降级） | `update` → `tests/update_cases.gd` |
-| `UPDATE version_order_is_numeric_per_segment`（数值段、缺省段、非数字段；自反、反对称、传递） | `update` → `tests/update_cases.gd` |
-| `UPDATE version_segment_digit_compare`（20 位数字段按数字串比出大小且不触发引擎溢出；前导零被去掉；`0.18.10>0.18.9`） | `update` → `tests/update_cases.gd` |
-| `UPDATE tampered_manifest_fails_signature`（签后改版本号＝`signature`；清单头 64 字节逐字节翻转与签名 16 字节翻转全部被拒） | `update` → `tests/update_cases.gd` |
-| `UPDATE foreign_key_signature_is_rejected`（用另一把密钥签名仍按 `signature` 拒绝） | `update` → `tests/update_cases.gd` |
-| `UPDATE missing_key_entry_is_rejected`（未知 `key_id` 与缺 `key_id` 都是 `key`） | `update` → `tests/update_cases.gd` |
-| `UPDATE unusable_signature_is_rejected`（空签名与非 base64 文本都是 `signature`） | `update` → `tests/update_cases.gd` |
-| `UPDATE signature_outer_whitespace_domain`（签名文件带尾部换行、前导换行或两端空白时仍验签通过） | `update` → `tests/update_cases.gd` |
-| `UPDATE empty_key_table_yields_no_offer`（空公钥表→`key`，不崩溃、不放行） | `update` → `tests/update_cases.gd` |
-| `UPDATE public_key_pem_verifies_signed_manifest`（`save_to_string(true)` 导出 SPKI 公钥 PEM；引擎按 `public_only=true` 加载；只放公钥的键表验签通过） | `update` → `tests/update_cases.gd` |
-| `UPDATE private_key_table_entry_is_rejected`（表内条目是私钥 PEM 时→`key`，签名有效也不放行） | `update` → `tests/update_cases.gd` |
-| `UPDATE openssl_signed_manifest_interops`（OpenSSL 3072 位 RSA 签名的清单夹具验签通过；签后改一字节→`signature`） | `update` → `tests/update_cases.gd` |
-| `UPDATE unknown_schema_is_rejected`（schema 2→`schema`） | `update` → `tests/update_cases.gd` |
-| `UPDATE missing_platform_yields_none`（清单无当前平台→`platform`） | `update` → `tests/update_cases.gd` |
-| `UPDATE revoked_current_yields_notice`（当前版本被撤回→`notice` 且 `revoked=true`） | `update` → `tests/update_cases.gd` |
-| `UPDATE oversized_or_broken_manifest_yields_none`（超上限→`size`、坏 JSON→`json`，都无引擎错误） | `update` → `tests/update_cases.gd` |
-| `UPDATE non_https_url_is_rejected`（`http://` 的 `url` 与 `mirror` 都→`url`） | `update` → `tests/update_cases.gd` |
-| `UPDATE missing_field_attribution_domain`（`latest` 缺 `version`→`json`；`full` 缺 `url` 或 `url` 为空串→`url`；两组同时不合格时按实际顺序先返回 `url`） | `update` → `tests/update_cases.gd` |
-| `UPDATE patches_are_ignored`（`patches` 非空也不产生补丁结果） | `update` → `tests/update_cases.gd` |
-| `UPDATE settings_toggle_uses_one_store`（开关写既有设置文件的 `update/check_on_start`，不出第二份存储；新装默认为开） | `update` → `tests/update_cases.gd` |
-| `UPDATE startup_offer_renders_notice`（`--script` 会话不自动检查；手动 `check()` 后主页提示、版本与约 MB、两个按钮各自跳到自己那条链接、状态不变、提示不在 `GameHome` 内、与存档提示不相交） | UI `update` → `tests/update_ui_cases.gd` |
-| `UPDATE startup_offline_is_silent`（超时只剩一个请求、无提示、主页仍可操作） | UI `update` → `tests/update_ui_cases.gd` |
-| `UPDATE startup_bad_signature_is_silent`（被改的清单读完两次请求后按签名拒绝、不显示） | UI `update` → `tests/update_ui_cases.gd` |
-| `UPDATE toggle_off_skips_startup`（默认开；关掉后写盘并在下次启动不检查；「立即检查」不受开关影响，同版本显示「已是最新版本。」且不显示提示） | UI `update` → `tests/update_ui_cases.gd` |
-| `update/` 是叶子模块：不引用 `ui`、`core`、`data`、`tests`；`core`／`data` 不引用 `update`；只有 `update_check.gd` 发 HTTP | `architecture` → `tests/architecture_cases.gd::update_module_is_a_leaf` |
+（公钥 PEM、清单与签名）；UI 侧走真实 `main.tscn` 与真实点击，transport 替身回答两次 GET。
+判据全集、各自的执行符号与规则／窗口落点见
+[update-check-dependencies.md「判据 → 检查」](update-check-dependencies.md)。
 
 命令（在 `spire-godot/` 下执行；范围预检加 `-ListOnly`，不算通过）：
 
@@ -176,6 +159,3 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
 
 - 判据：退出码 0；每分类 `SUITE RESULT: <name> PASS`；`summary.json` 的 `status=passed` 且
   `before==after` 指纹（`source_changed` 不算通过）。
-- 生产公钥表为空时，**不宣称**任何构建会显示更新提示；公网清单未部署时，只记「桌面接缝
-  验收通过、公网未验收」，不得宣称已上线。
-- 依赖约束（cleaner 可核对）见 [update-check-dependencies.md](update-check-dependencies.md)。
