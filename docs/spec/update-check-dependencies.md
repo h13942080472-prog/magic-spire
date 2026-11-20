@@ -29,26 +29,51 @@
 
 ## 判据 → 检查
 
+判据名＝测试里的具名 check（断言标签 `UPDATE <name>:`／`DEP <name>:` 的 `<name>`，也是该 check 的函数名）。
+表与 `tests/update_cases.gd`、`tests/update_ui_cases.gd`、`tests/architecture_cases.gd` 的 update 具名 check
+**双向相等**：一条判据一行，一行只点名一个检查；漏行、多行、改名或幽灵条目都要同批改表。
+本版共 38 条（规则 26、窗口 6、架构 6），按 `tests/<file>.gd::<name>` 逐名核对。
+
 | 判据 | 执行它的检查 |
 | --- | --- |
-| 判定只由 `UpdateManifest.evaluate` 给出：`size`→`json`→`key`→`signature`→`schema`→`platform`→形状→`url`→`revoked`／新版本 | `tests/update_cases.gd` 的 UPDATE 具名 check（规则分类 `update`） |
-| 版本比较按 `.` 分段、数字段按数值、缺省段为 0、非数字段排在缺省段之后 | `tests/update_cases.gd::version_order_is_numeric_per_segment` |
-| 空公钥表只给 `none`／`key`，不放行、不崩溃（CC-D22-2） | `tests/update_cases.gd::empty_key_table_yields_no_offer` |
-| 公钥 PEM（SPKI）以 `public_only=true` 加载后验签通过 | `tests/update_cases.gd::public_key_pem_verifies_signed_manifest` |
-| 键表条目是私钥 PEM 时一律 `none`／`key`，签名有效也不放行 | `tests/update_cases.gd::private_key_table_entry_is_rejected` |
-| OpenSSL 签名与引擎验签互通；签后改一字节即 `signature` | `tests/update_cases.gd::openssl_signed_manifest_interops` |
-| 启动开关写入既有设置文件的 `update/check_on_start`，不出第二份存储（CC-D22-1） | `tests/update_cases.gd::settings_toggle_uses_one_store` |
-| 主页提示、两个跳转按钮、设置页开关与「立即检查」的真实点击语义 | `tests/update_ui_cases.gd` 的 UPDATE 具名 check（窗口分类 `update`） |
-| `update/` 是叶子模块：不引用 `ui`、`core`、`data`、`tests`；`core`／`data` 不引用 `update` | `tests/architecture_cases.gd::update_module_is_a_leaf` |
-| 一次检查最多两个 HTTPS 请求、不重试、失败静默 | `tests/update_ui_cases.gd::startup_offline_is_silent`、`tests/update_ui_cases.gd::startup_offer_renders_notice` |
-| 生产公钥表为空时任何构建都不显示提示 | `tests/update_cases.gd::empty_key_table_yields_no_offer`（判定面）＋ `docs/spec/update-check.md`「域」的口径 |
-| 单点实现：版本比较、清单解析、验签与公钥加载、HTTP 传输、跳转各只有一个入口 | `tests/architecture_cases.gd::update_compare_single_entry`、`::update_document_single_entry`、`::update_verify_single_entry`、`::update_http_single_entry`、`::update_jump_single_entry` |
-| 清单字节域：恰好上限、上限+1、空 body、非 UTF-8、`latest.version` 类型 | `tests/update_cases.gd::manifest_size_and_shape_domain` |
-| 链接域：`url`／`mirror` 的 https 前缀变体与缺失 mirror | `tests/update_cases.gd::manifest_link_domain` |
-| 签名域：头／中／尾翻转、base64 内部空白与截断 | `tests/update_cases.gd::signature_position_and_shape_domain` |
-| 键表域：多 key 按 `key_id` 选择、错配、PEM 前后空白 | `tests/update_cases.gd::key_table_selection_domain` |
-| 版本段边界：缺省段、前导零、超长文本段 | `tests/update_cases.gd::version_segment_edges` |
-| 检查进行中主页仍可交互；超时／非 200／3xx 静默且不重试 | `tests/update_ui_cases.gd::check_in_flight_keeps_home_interactive`、`::transport_failures_are_silent` |
+| 已签名的更新版本给出 `notice`，只暴露清单覆盖的字段 | `tests/update_cases.gd::newer_latest_yields_notice`（规则分类 `update`） |
+| 同版本与旧版本只给 `none`／空 reason，不提供降级 | `tests/update_cases.gd::same_or_older_latest_yields_none`（规则分类 `update`） |
+| 版本比较的数值段、缺省段与非数字段；自反、反对称、传递 | `tests/update_cases.gd::version_order_is_numeric_per_segment`（规则分类 `update`） |
+| 签后改版本、清单头字节翻转与签名翻转都被拒 | `tests/update_cases.gd::tampered_manifest_fails_signature`（规则分类 `update`） |
+| 另一把密钥签的清单按 `signature` 拒绝 | `tests/update_cases.gd::foreign_key_signature_is_rejected`（规则分类 `update`） |
+| 未知或缺失 `key_id` 都是 `key` | `tests/update_cases.gd::missing_key_entry_is_rejected`（规则分类 `update`） |
+| 空签名与非 base64 文本都是 `signature` | `tests/update_cases.gd::unusable_signature_is_rejected`（规则分类 `update`） |
+| 空公钥表只给 `key`；这也是生产键表为空时任何构建都不提示的判定面 | `tests/update_cases.gd::empty_key_table_yields_no_offer`（规则分类 `update`） |
+| SPKI 公钥 PEM 以 `public_only=true` 加载后验签通过 | `tests/update_cases.gd::public_key_pem_verifies_signed_manifest`（规则分类 `update`） |
+| 键表条目是私钥 PEM 时一律 `key`，签名有效也不放行 | `tests/update_cases.gd::private_key_table_entry_is_rejected`（规则分类 `update`） |
+| OpenSSL 签名夹具验签通过；签后改一字节→`signature` | `tests/update_cases.gd::openssl_signed_manifest_interops`（规则分类 `update`） |
+| `schema` 不是 1→`schema` | `tests/update_cases.gd::unknown_schema_is_rejected`（规则分类 `update`） |
+| 清单缺当前平台→`platform` | `tests/update_cases.gd::missing_platform_yields_none`（规则分类 `update`） |
+| 当前版本被撤回→`notice` 且 `revoked=true` | `tests/update_cases.gd::revoked_current_yields_notice`（规则分类 `update`） |
+| 超上限／空 body→`size`；坏 JSON→`json`，都无引擎错误 | `tests/update_cases.gd::oversized_or_broken_manifest_yields_none`（规则分类 `update`） |
+| `url`／`mirror` 不是 `https://` 开头→`url` | `tests/update_cases.gd::non_https_url_is_rejected`（规则分类 `update`） |
+| `patches` 非空也不产生补丁结果 | `tests/update_cases.gd::patches_are_ignored`（规则分类 `update`） |
+| 开关写既有设置文件的 `update/check_on_start`，不出第二份存储；新装默认开 | `tests/update_cases.gd::settings_toggle_uses_one_store`（规则分类 `update`） |
+| 恰好上限、上限+1、空 body、非 UTF-8、`latest.version` 类型 | `tests/update_cases.gd::manifest_size_and_shape_domain`（规则分类 `update`） |
+| `url`／`mirror` 的 `https` 前缀变体与缺失 mirror | `tests/update_cases.gd::manifest_link_domain`（规则分类 `update`） |
+| 签名头／中／尾翻转、base64 内部空白与截断 | `tests/update_cases.gd::signature_position_and_shape_domain`（规则分类 `update`） |
+| 多 key 按 `key_id` 选择、错配与 PEM 前后空白 | `tests/update_cases.gd::key_table_selection_domain`（规则分类 `update`） |
+| 缺省段、前导零与超长文本段 | `tests/update_cases.gd::version_segment_edges`（规则分类 `update`） |
+| 20 位数字段按数字串比较且不溢出；前导零与全零段 | `tests/update_cases.gd::version_segment_digit_compare`（规则分类 `update`） |
+| 签名文件首尾换行／空白仍验签通过 | `tests/update_cases.gd::signature_outer_whitespace_domain`（规则分类 `update`） |
+| 缺 `version` 或 `latest`→`json`；缺／空 `url`→`url`；两者同时坏先报 `url` | `tests/update_cases.gd::missing_field_attribution_domain`（规则分类 `update`） |
+| 手动检查后主页提示、版本与约 MB、两个按钮各开自己的链接；状态不变 | `tests/update_ui_cases.gd::startup_offer_renders_notice`（窗口分类 `update`） |
+| 超时只发一次请求、无提示、主页仍可操作 | `tests/update_ui_cases.gd::startup_offline_is_silent`（窗口分类 `update`） |
+| 被改清单读完两次请求后按 `signature` 静默拒绝 | `tests/update_ui_cases.gd::startup_bad_signature_is_silent`（窗口分类 `update`） |
+| 关掉后写盘并在下次启动不检查；「立即检查」不受开关影响 | `tests/update_ui_cases.gd::toggle_off_skips_startup`（窗口分类 `update`） |
+| 检查挂起时主页与设置页仍可交互，且不重复请求 | `tests/update_ui_cases.gd::check_in_flight_keeps_home_interactive`（窗口分类 `update`） |
+| 超时／404／302 各只一次请求、静默、无弹窗、不重试 | `tests/update_ui_cases.gd::transport_failures_are_silent`（窗口分类 `update`） |
+| `spire-godot/update/` 不引用 `ui`／`core`／`data`／`tests`；只有 `spire-godot/update/update_check.gd` 发 HTTP | `tests/architecture_cases.gd::update_module_is_a_leaf`（规则分类 `architecture`） |
+| 版本比较只有 `spire-godot/update/update_manifest.gd::compare`／`evaluate`／`_revoked` | `tests/architecture_cases.gd::update_compare_single_entry`（规则分类 `architecture`） |
+| 清单解析只有 `spire-godot/update/update_manifest.gd::_document` | `tests/architecture_cases.gd::update_document_single_entry`（规则分类 `architecture`） |
+| 键加载与验签只有 `spire-godot/update/update_manifest.gd::_verified` | `tests/architecture_cases.gd::update_verify_single_entry`（规则分类 `architecture`） |
+| 更新特性面只有 `spire-godot/update/update_check.gd` 一处 HTTP | `tests/architecture_cases.gd::update_http_single_entry`（规则分类 `architecture`） |
+| 跳转只有 `spire-godot/ui/main.gd::_open_update_url` 一处 `OS.shell_open` | `tests/architecture_cases.gd::update_jump_single_entry`（规则分类 `architecture`） |
 
 ## 单一路径（邻接表）
 
