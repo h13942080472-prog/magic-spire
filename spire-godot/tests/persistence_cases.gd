@@ -1148,6 +1148,7 @@ static func legacy_skips_invalid_saves_and_keeps_the_rest(t) -> void:
  var newer_parent=newer.path_join("legacy")
  var newer_source=newer_parent.path_join(LEGACY_NAME_PREFIX+"0.17.2")
  legacy_dir(newer_source.path_join("saves"))
+ legacy_saves(newer_source.path_join("saves"),"practice",1)
  var snapshot=Game.new(7).export_snapshot()
  snapshot.save_revision=Game.Snapshot.REVISION+1
  var written=FileAccess.open(newer_source.path_join("saves").path_join("tower.json"),FileAccess.WRITE)
