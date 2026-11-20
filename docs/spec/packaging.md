@@ -72,15 +72,21 @@
 - 目录名不带版本号：改版本号或改 `config/name` 都不再搬家。旧版本各自带版本号的目录**仍在原处**，
   复制一次由 D23b 的旧目录导入负责；本条不删除、不改名、不覆盖任何旧目录。
 - 名字不得带版本号，也不得以 `.` 结尾（Windows 会去掉末尾句点，声明值与实际目录就不一致）。
-  判据：`spire-godot/tests/architecture_cases.gd::user_dir_name_is_version_free`、
+  判据：`spire-godot/tests/architecture_cases.gd::user_dir_name_is_version_free`（扫描全部
+  `config/custom_user_dir_name*` 键）、`::userdir_declarations_are_version_free`、
+  `::userdir_declarations_have_no_trailing_dot`、
   `spire-godot/tests/persistence_cases.gd::user_dir_ignores_project_name`。
 - `editor` 覆盖只在 `editor` 特性标签生效时解析；运行时目录与该解析是否一致，由
   `spire-godot/tests/persistence_cases.gd::editor_tag_isolates_dev_user_dir` 钉住。
 - Android 不受影响：该设置只在桌面平台生效，移动端目录按包名分配，包名仍为 `org.magic.spire`。
-  判据：`spire-godot/tests/architecture_cases.gd::android_package_name_is_pinned`。
+  判据：`spire-godot/tests/architecture_cases.gd::android_package_name_is_pinned`（逐个 Android 预设核对）。
 - 成品探针：`spire-godot/tools/check-package.ps1` 与 `spire-godot/tools/check-android-package.ps1`
   在启动子进程前把 `APPDATA` 指到 `<检查目录>/appdata`，引擎日志与设置不落进真实 `%APPDATA%`。
   判据：`spire-godot/tests/architecture_cases.gd::package_probe_uses_appdata_sandbox`。
+- 两个探针落的目录不同，**验收以 `native` 探针为准**：`pck` 探针用编辑器二进制启动（`Find-SpireGodot`），
+  `editor` 特性标签为真，因此落到 `<检查目录>/appdata/Godot/app_userdata/紧缚尖塔-dev`；只有 `native` 探针
+  （`<发布目录>/紧缚尖塔.exe`，`editor` 为假）落到发行目录 `<检查目录>/appdata/Godot/app_userdata/紧缚尖塔`。
+  拿 `pck` 探针的日志核对发行目录会误判。
 
 **发布闸**：第一个包含用户数据目录改动的公开发布必须同时包含 D23b（旧目录导入）；否则升级的玩家
 看到空存档、旧目录又被遗弃，等于再丢一次档。D23-2 裁定为「不迁移」时本条不适用。
