@@ -14,6 +14,8 @@
   `spire-godot/update/update_manifest.gd::evaluate` 判定，主页与设置页只显示判定结果。
 - 不含：下载、校验包体、挂载补丁、写入 `user://` 或 EXE 目录、改 `run/main_scene`（U2）、
   发布侧生成清单与签名脚本（U1b）、反馈上传（D20）。
+- 模块边界：`spire-godot/update/` 是叶子模块，不引用 `ui`、`core`、`data`、`tests`；
+  `core` 与 `data` 也不引用 `update`。发 HTTP 的只有 `spire-godot/update/update_check.gd`。
 - 明文口径：**U1 只读一个公开文件**。请求不带存档、种子、设备标识、账号或自定义标识头。
 - 生产公钥表在 U1 为空（`spire-godot/update/update_keys.gd::KEYS`）。空表的正确答案是
   `none`／`key`，不是崩溃，也不是跳过验签；发布公钥与部署清单属于 U1b，在此之前
