@@ -14,9 +14,7 @@
         "url": "https://update.magicspire.xyz/v1/0.18.4/spire-v0.18.4-windows64.zip",
         "mirror": "https://github.com/h13942080472-prog/magic-spire/releases/tag/v0.18.4",
         "bytes": 241247340,
-        "sha256": "
-0000000000000000000000000000000000000000000000000000000000000000
-"
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
       },
       "patches": []
     }
