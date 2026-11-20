@@ -70,7 +70,7 @@ state.route_history: Array   # 塔路历史：每条 {enter,cycle,generation,reg
 #   is_current 通过后、Snapshot.check 之前，对副本回填 initial_seed = seed（缺字段时）；
 #   同一位置把缺字段的 route_history 回填为一条 enter="unknown" 记录（nodes／floor 留 -1）
 
-# 唯一写入者与唯一追加点（route 列＝TRANSITIONS 里的声明，语义见本片「塔路历史记录」）：
+# 唯一写入者与唯一追加点（route 列＝TRANSITIONS 里的声明，语义见 docs/spec/route-history.md）：
 #   core/route_history.gd::open／reason／backfill
 #   core/game.gd::_apply_transition 的 not-continuation 块按 TRANSITIONS 的 route 列调用 open
 ```
@@ -88,22 +88,13 @@ state.route_history: Array   # 塔路历史：每条 {enter,cycle,generation,reg
 
 ### 塔路历史记录（现行）
 
-- 每条记录的字段：`enter` ∈ `start`／`release`／`escape`／`gate_exit`／`cycle`／`unknown`（进入理由）；
-  `cycle`＝当时的 `demo_cycle`；`generation`＝当时的 `tower_generation`；`region`＝当时的 `map_region`
-  （`tower`／`prison`）；`seed`＝该条路线自己的塔种子（换塔后不等于新的 `state.seed`）；
-  `boss`＝该路线峰顶遭遇（监狱路线为空）；`security`＝当时的 `security`；
-  `nodes`＝该路线完成房间数；`floor`＝完成房间的最高层＋1（没有完成房间为 `0`），与
-  `ui/run_review.gd::_progress_text` 同口径。
-- `nodes`／`floor` 在该路线被关闭（下一条 `open`）时补齐：按记录自身的 `region`／`seed`／`boss`／`security`
-  重建当时的路线图（`Tower.generate`／`Tower.prison_route` 都是确定性的），不读切换后的新图。
-  最后一条尚未关闭的记录保持 `-1`／`-1`。
-- 记录只含上述九个键，不含时间、存档修订号、外部标识或随机值，也不消费任何随机域；同一种子与
-  同一串指令复现同一段历史（依据：`core/route_history.gd::open` 只读已生成的塔路与已记录的路线）。
-- 写入面收口：唯一写入者是 `core/route_history.gd`；唯一追加点是 `core/game.gd::_apply_transition`
-  的 `not-continuation` 块（同一 kind 的房间／阶段两段写入只追加一条）；直接赋值只有 `_init` 字面与
-  `restore_snapshot` 的单行回填。三条开启路线的 kind 在 `TRANSITIONS` 里以 `route` 列声明。
+`state.route_history` 的记录形状、进入原因、关闭口径、写入面与切换点见
+`docs/spec/route-history.md`；本文件只登记它对本域的影响：
 
-- `_scene_key` 不变；固定点身份与写入时机不受影响。
+- 缺 `route_history` 的旧档由 `core/game.gd::restore_snapshot` 的单行回填补一条 `enter="unknown"`
+  记录（`nodes`／`floor` 留 `-1`），位置在 `initial_seed` 回填之后、`Snapshot.check` 之前；
+  回填只发生在载入副本上，读不写盘。
+- 该字段是加性的，不升 `Snapshot.REVISION`；`_scene_key` 不变，固定点身份与写入时机不受影响。
 - 本节的字段与回填语义、`fixed_point_text` 的消费方（反馈附件）与玩家可见标识见
   `docs/spec/seed-identity.md` 与 `docs/spec/feedback-deployment.md`。
 

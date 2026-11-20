@@ -994,6 +994,126 @@ static func route_history_roundtrip(t) -> void:
  t.check(route_history_of(restored)==history,"ROUTEHIST-12 the written and read history is identical")
  t.check(restored.state.save_revision==CoreGame.Snapshot.REVISION,"ROUTEHIST-12 the roundtrip keeps the current revision")
 
+# ==== D23f0 加固矩阵：五类真实切换 × 三种存档形态（plan.md §9）====
+# 存档形态只改载入路径：本片写出的档、擦掉 route_history 的旧档、同一旧档标成 IRON_DRONE_REVISION。
+# 每一格都从真实命令推进到切换点，再经真实 dispatch 触发切换；判据只读 state.route_history 与
+# restore_snapshot 的结果（不直接调用 core/route_history.gd）。见 docs/spec/route-history.md「输入域」。
+const ROUTE_MATRIX_CAUSES=["start","release","escape","gate_exit","cycle"]
+
+# 切换点夹具：返回切换发生前的真实局面。start 之外都不触发目标切换。
+static func route_matrix_prepare(t, cause: String):
+ var g=null
+ match cause:
+  "start":
+   g=CoreGame.new(42)
+  "release":
+   g=route_new_run(t)
+   route_win_battle(t,g)
+   var rooms=g.route_view().filter(func(room):return String(room.get("status",""))=="available" and String(room.get("icon","")) in ["battle","boss"])
+   t.check(not rooms.is_empty(),"ROUTEHIST route_history_switch_matrix: the release fixture exposes a battle room")
+   if not rooms.is_empty():
+    t.check(t.action(g,"depart",{"room":rooms[0].id}).ok,"ROUTEHIST route_history_switch_matrix: the release fixture departs for a real battle")
+    route_travel(t,g)
+    route_capture(t,g)
+    g.state.prison.key=true
+    g.state.prison.served_turns=g.Prison.sentence_limit(g)-1
+  "escape":
+   g=route_new_run(t)
+   route_capture(t,g)
+   preload("res://tests/exploration_fixture.gd").at_site(g,"door")
+   g.state.prison.key=true
+   t.check(t.action(g,"prison",{"action":"key"}).ok,"ROUTEHIST route_history_switch_matrix: the escape fixture holds the cell key")
+  "gate_exit":
+   g=route_new_run(t)
+   route_capture(t,g)
+   preload("res://tests/prison_cases.gd").exit_to_route(t,g)
+   preload("res://tests/prison_cases.gd").travel_route(t,g,"prison_rest")
+   t.check(t.action(g,"rest_begin").ok,"ROUTEHIST route_history_switch_matrix: the gate fixture starts the prison rest room")
+   t.check(t.action(g,"finish_rest").ok,"ROUTEHIST route_history_switch_matrix: the gate fixture ends the prison rest room")
+   preload("res://tests/prison_cases.gd").travel_route(t,g,"prison_gate")
+  "cycle":
+   g=route_new_run(t)
+   route_win_battle(t,g)
+   preload("res://tests/demo_exit_cases.gd").exit_fixture(g)
+ return g
+
+# 载入形态：只有存档字节不同。新档保留字段；旧档与迁移档都缺字段，由 restore_snapshot 回填。
+static func route_matrix_load(t, source, form: String):
+ var saved=source.export_snapshot()
+ if form!="new":
+  saved.erase("route_history")
+  if form=="migration": saved.save_revision=CoreGame.Snapshot.IRON_DRONE_REVISION
+ var twin=CoreGame.new(7)
+ var result=twin.restore_snapshot(saved)
+ t.check(result.ok,"ROUTEHIST route_history_switch_matrix: the "+form+" save loads: "+String(result.get("error","")))
+ return twin
+
+# 真实切换：只发正式指令，不碰 RouteHistory。
+static func route_matrix_switch(t, cause: String, g) -> void:
+ match cause:
+  "start":
+   return
+  "release":
+   t.check(t.action(g,"end").ok,"ROUTEHIST route_history_switch_matrix: release closes the sentence through a real turn end")
+  "escape":
+   t.check(t.action(g,"prison",{"action":"door_exit"}).ok,"ROUTEHIST route_history_switch_matrix: escape leaves through the real door exit")
+  "gate_exit":
+   route_win_battle(t,g)
+  "cycle":
+   t.check(t.action(g,"demo_continue").ok,"ROUTEHIST route_history_switch_matrix: the cycle switch is the real continue command")
+
+# §3.5 的期望：条数、进入原因、周目、代数、区域；boss 由区域与 state.room_encounters 决定。
+static func route_matrix_expected(form: String, cause: String) -> Dictionary:
+ var counts={"new":{"start":1,"release":2,"escape":2,"gate_exit":3,"cycle":2},
+  "legacy":{"start":1,"release":2,"escape":2,"gate_exit":2,"cycle":2},
+  "migration":{"start":1,"release":2,"escape":2,"gate_exit":2,"cycle":2}}
+ var cycles={"start":0,"release":0,"escape":0,"gate_exit":0,"cycle":1}
+ var generations={"start":0,"release":1,"escape":0,"gate_exit":1,"cycle":1}
+ var regions={"start":"tower","release":"tower","escape":"prison","gate_exit":"tower","cycle":"tower"}
+ return {"count":int(counts[form][cause]),"cycle":int(cycles[cause]),"generation":int(generations[cause]),"region":String(regions[cause])}
+
+static func route_history_switch_matrix(t) -> void:
+ for cause in ROUTE_MATRIX_CAUSES:
+  var source=route_matrix_prepare(t,cause)
+  t.check(source!=null,"ROUTEHIST route_history_switch_matrix: the "+cause+" fixture builds a real run")
+  if source==null: continue
+  var before=route_history_of(source).duplicate(true)
+  for form in ["new","legacy","migration"]:
+   var g=route_matrix_load(t,source,form)
+   var loaded=route_history_of(g).duplicate(true)
+   if form=="new":
+    t.check(loaded==before,"ROUTEHIST route_history_switch_matrix: "+cause+"/new keeps the field written by this slice")
+   else:
+    t.check(loaded.size()==1 and String(route_record(g,0).get("enter",""))==ROUTE_UNKNOWN,"ROUTEHIST route_history_switch_matrix: "+cause+"/"+form+" backfills exactly one unknown record")
+   route_matrix_switch(t,cause,g)
+   var expected=route_matrix_expected(form,cause)
+   var history=route_history_of(g)
+   var label=" "+cause+"/"+form
+   t.check(history.size()==int(expected.count),"ROUTEHIST route_history_switch_matrix:"+label+" keeps "+str(expected.count)+" records: "+str(history.size()))
+   if history.is_empty(): continue
+   var record=history[-1]
+   print("ROUTEHIST MATRIX cell "+cause+"/"+form+" count="+str(history.size())+" first="+String(history[0].get("enter",""))+" last="+String(record.get("enter",""))+" cycle="+str(record.get("cycle",""))+" generation="+str(record.get("generation",""))+" region="+String(record.get("region",""))+" boss="+String(record.get("boss","")))
+   var want_enter=cause if form=="new" or cause!="start" else ROUTE_UNKNOWN
+   t.check(String(record.get("enter",""))==want_enter,"ROUTEHIST route_history_switch_matrix:"+label+" opens with "+want_enter)
+   t.check(int(record.get("cycle",-1))==int(expected.cycle),"ROUTEHIST route_history_switch_matrix:"+label+" records cycle "+str(expected.cycle))
+   t.check(int(record.get("generation",-1))==int(expected.generation),"ROUTEHIST route_history_switch_matrix:"+label+" records generation "+str(expected.generation))
+   t.check(String(record.get("region",""))==String(expected.region),"ROUTEHIST route_history_switch_matrix:"+label+" records region "+String(expected.region))
+   var want_boss="" if String(expected.region)=="prison" else String(g.state.room_encounters.get("summit",""))
+   t.check(String(record.get("boss",""))==want_boss,"ROUTEHIST route_history_switch_matrix:"+label+" records the summit id "+want_boss)
+   t.check(int(record.get("seed",-1))==int(g.state.seed),"ROUTEHIST route_history_switch_matrix:"+label+" records the opened route seed")
+   t.check(int(record.get("security",-1))==int(g.state.security),"ROUTEHIST route_history_switch_matrix:"+label+" records the opened security count")
+   t.check(int(record.get("nodes",0))==-1 and int(record.get("floor",0))==-1,"ROUTEHIST route_history_switch_matrix:"+label+" leaves the new record open")
+   if history.size()>1:
+    var closed=history[-2]
+    t.check(int(closed.get("nodes",-1))>=0 and int(closed.get("floor",-1))>=0,"ROUTEHIST route_history_switch_matrix:"+label+" closes the previous record")
+   if form!="new" and cause!="start":
+    var backfilled=history[0]
+    t.check(int(backfilled.get("nodes",-1))>=0 and int(backfilled.get("floor",-1))>=0,"ROUTEHIST route_history_switch_matrix:"+label+" closes the backfilled record")
+   if cause=="release":
+    t.check(String(record.get("boss",""))==String(route_record(g,0).get("boss","")),"ROUTEHIST route_history_switch_matrix:"+label+" keeps the summit within the cycle")
+   if cause=="gate_exit" and form=="new":
+    t.check(String(record.get("boss",""))==String(route_record(g,0).get("boss","")),"ROUTEHIST route_history_switch_matrix:"+label+" keeps the previous tower summit")
+
 static func route_history_cases(t) -> void:
  route_history_start_record(t)
  route_history_practice_isolated(t)
@@ -1007,6 +1127,7 @@ static func route_history_cases(t) -> void:
  route_history_legacy_backfills(t)
  route_history_pre_revision_backfill(t)
  route_history_roundtrip(t)
+ route_history_switch_matrix(t)
 
 static func run(t) -> void:
  g3_reject_never_writes(t)

@@ -523,6 +523,12 @@
       "find": "const KEYS=[\"enter\"",
       "replace": "# version probe\nconst KEYS=[\"enter\"",
       "suite": "architecture"
+    },
+    "route_history_switch_matrix": {
+      "file": "core/game.gd",
+      "find": " \"prison_escape\":{\"phases\":[\"map\"],\"room\":true,\"route\":true,\"tx\":true,\"owners\":[\"Prison.escape\"]},",
+      "replace": " \"prison_escape\":{\"phases\":[\"map\"],\"room\":true,\"tx\":true,\"owners\":[\"Prison.escape\"]},",
+      "suite": "persistence"
     }
   }
 }
