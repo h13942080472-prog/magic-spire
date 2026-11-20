@@ -5,6 +5,18 @@ const Store=preload("res://core/save_store.gd")
 const Guard=preload("res://core/guard.gd")
 const EventCases=preload("res://tests/event_cases.gd")
 const ExitCases=preload("res://tests/demo_exit_cases.gd")
+# D23b：旧目录导入器与两个设置属主模块；夹具父目录/目标/标记全部走参数。
+const LegacyImport=preload("res://ui/legacy_import.gd")
+const DisplaySettings=preload("res://ui/display_settings.gd")
+const KeyBindings=preload("res://ui/key_bindings.gd")
+const LEGACY_NAME_PREFIX="紧缚尖塔demo v"
+
+# LEGACY-7 的宿主替身：只提供 run_once 解引用的三个字段；属主对象可以缺失，用来证明关闸时
+# 在任何路径解析之前返回。
+class LegacyImportHost extends RefCounted:
+ var persistence_enabled=true
+ var display_settings=null
+ var keyboard_input=null
 
 # docs/spec/save-fixed-points.md「证据入口」：进度固定点只由本次提交产生的迁移条目命名，生产侧的写盘规则只有
 # 一条（`ui/main.gd` 的 `_submit`：`result.checkpoint` 非空才写盘）。测试侧用同一个 SaveStore 子类计数，
@@ -761,6 +773,14 @@ static func editor_tag_isolates_dev_user_dir(t) -> void:
 static func run(t) -> void:
  user_dir_ignores_project_name(t)
  editor_tag_isolates_dev_user_dir(t)
+ legacy_source_is_the_newest_directory_with_a_readable_save(t)
+ legacy_source_follows_save_mtime_not_version(t)
+ legacy_never_imports_into_a_non_empty_target(t)
+ legacy_import_runs_only_once(t)
+ legacy_leaves_every_legacy_byte_untouched(t)
+ legacy_skips_invalid_saves_and_keeps_the_rest(t)
+ legacy_stays_off_without_persistence_or_desktop(t)
+ legacy_interrupted_copy_converges(t)
  g3_reject_never_writes(t)
  save_and_random_untouched(t)
  initial_seed_is_fixed_at_run_start(t)
@@ -928,3 +948,223 @@ static func run(t) -> void:
  var incompatible=FileAccess.get_file_as_string(store.path("tower"))
  t.check(not store.write_game(g).ok and FileAccess.get_file_as_string(store.path("tower"))==incompatible,"SAVE incompatible file appearing mid-session cannot be overwritten automatically")
  t.check(store.write_game(Game.new(42),true).ok and store.read_slot("tower").ok,"SAVE explicit new run can replace incompatible primary")
+
+# ---------------------------------------------------------------------------
+# D23b 旧目录导入（docs/spec/save-fixed-points.md「旧目录导入」）。夹具父目录、目标目录与标记都由
+# 参数传进 ui/legacy_import.gd；测试只在 res://build/ 下造旧目录，从不读写真实 user://。
+static func legacy_root(label: String) -> String:
+ return "res://build/d23b-"+label+"-"+str(Time.get_ticks_usec())
+
+static func legacy_dir(path: String) -> void:
+ DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(path))
+
+static func legacy_bytes(path: String) -> PackedByteArray:
+ return FileAccess.get_file_as_bytes(path)
+
+static func legacy_same_file(left: String, right: String) -> bool:
+ return FileAccess.file_exists(left) and FileAccess.file_exists(right) and legacy_bytes(left)==legacy_bytes(right)
+
+# 旧目录的整棵快照：相对名、字节与 mtime；只读扫描，不改任何字节。
+static func legacy_tree(directory: String) -> Array:
+ var rows=[]
+ var pending=[directory]
+ while not pending.is_empty():
+  var current=String(pending.pop_back())
+  var handle=DirAccess.open(current)
+  if handle==null: continue
+  for name in handle.get_files():
+   var file=current.path_join(String(name))
+   rows.append(file+":"+str(FileAccess.get_modified_time(file))+":"+legacy_bytes(file).hex_encode())
+  for name in handle.get_directories(): pending.append(current.path_join(String(name)))
+ rows.sort()
+ return rows
+
+# 用真实写盘入口造有效旧档：writes=2 时第二写产生 .bak（与生产备份顺序一致）。
+static func legacy_saves(directory: String, slot: String, writes: int) -> void:
+ legacy_dir(directory)
+ var store=Store.new(directory)
+ var g=Game.new(42,slot=="practice")
+ for index in range(writes): store.write_game(g)
+
+static func legacy_settings(directory: String) -> void:
+ legacy_dir(directory)
+ var display=DisplaySettings.new()
+ display.path=directory.path_join("display-settings.cfg")
+ display.frame_limit=120
+ display.locale="ja_JP"
+ display.card_music_enabled=false;display.card_music_volume=0.35
+ display.save()
+ var keys=KeyBindings.new()
+ keys.path=directory.path_join("key-bindings.cfg")
+ keys.assign("card_1",0,KEY_F1)
+
+static func legacy_marker(path: String) -> Dictionary:
+ var parsed=JSON.parse_string(FileAccess.get_file_as_string(path))
+ return parsed if parsed is Dictionary else {}
+
+static func legacy_has_skip(data: Dictionary, file: String, reason: String) -> bool:
+ var rows=data.get("skipped",[])
+ if not rows is Array: return false
+ return rows.any(func(row):return row is Dictionary and String(row.get("file",""))==file and String(row.get("reason",""))==reason)
+
+# LEGACY-1：含有效存档的兄弟目录里按存档 mtime 选源；两个位的存档与 .bak 逐字节复制；
+# display-settings.cfg 与 key-bindings.cfg 经各自属主模块的 import_from 写出；标记 schema=1 逐项登记。
+static func legacy_source_is_the_newest_directory_with_a_readable_save(t) -> void:
+ var root=legacy_root("legacy-source")
+ var parent=root.path_join("legacy")
+ var source=parent.path_join(LEGACY_NAME_PREFIX+"0.17.1")
+ legacy_saves(source.path_join("saves"),"tower",2)
+ legacy_settings(source)
+ legacy_dir(parent.path_join(LEGACY_NAME_PREFIX+"0.18.3").path_join("logs"))
+ legacy_dir(parent.path_join(LEGACY_NAME_PREFIX+"0.18.3").path_join("shader_cache"))
+ legacy_saves(parent.path_join("紧缚尖塔-dev").path_join("saves"),"tower",1)
+ var target=root.path_join("target")
+ legacy_dir(target)
+ var marker=target.path_join("legacy-import.json")
+ var result=LegacyImport.run(parent,target,marker)
+ t.check(String(result.get("source",""))==LEGACY_NAME_PREFIX+"0.17.1","LEGACY the source is the newest directory that holds a readable save, not the highest version name or the dev directory: "+str(result.get("source","")))
+ t.check(legacy_same_file(source.path_join("saves").path_join("tower.json"),target.path_join("saves").path_join("tower.json")) and legacy_same_file(source.path_join("saves").path_join("tower.json.bak"),target.path_join("saves").path_join("tower.json.bak")),"LEGACY the two copied save files stay byte identical to the legacy ones")
+ var imported=ConfigFile.new()
+ t.check(imported.load(target.path_join("display-settings.cfg"))==OK and int(imported.get_value("display","frame_limit",0))==120 and String(imported.get_value("localization","locale",""))=="ja_JP" and imported.get_value("audio","card_music_enabled",true)==false,"LEGACY the display settings are written through their owner's save entry and read back with the legacy values")
+ var keys=KeyBindings.new()
+ keys.path=target.path_join("key-bindings.cfg")
+ keys.initialize(true)
+ t.check(keys.bindings.get("card_1",[])==[KEY_F1],"LEGACY the key bindings are written through their owner's save entry and read back with the legacy values: "+str(keys.bindings.get("card_1",[])))
+ var listed=legacy_marker(marker)
+ t.check(int(listed.get("schema",0))==1 and listed.get("copied",[])==["saves/tower.json","saves/tower.json.bak","display-settings.cfg","key-bindings.cfg"],"LEGACY the marker declares schema 1 and lists the four copied files: "+str(listed))
+
+# LEGACY-2：选源按 tower.json/practice.json 的 mtime，不按目录名里的版本号。
+static func legacy_source_follows_save_mtime_not_version(t) -> void:
+ var root=legacy_root("legacy-mtime")
+ var parent=root.path_join("legacy")
+ var higher=parent.path_join(LEGACY_NAME_PREFIX+"0.17.1")
+ legacy_saves(higher.path_join("saves"),"tower",1)
+ OS.delay_msec(1100)
+ var lower=parent.path_join(LEGACY_NAME_PREFIX+"0.16")
+ legacy_saves(lower.path_join("saves"),"tower",1)
+ t.check(FileAccess.get_modified_time(lower.path_join("saves").path_join("tower.json"))>FileAccess.get_modified_time(higher.path_join("saves").path_join("tower.json")),"LEGACY the fixture puts the newer save mtime on the lower version directory")
+ var found=LegacyImport.find_source(parent)
+ t.check(String(found.get("name",""))==LEGACY_NAME_PREFIX+"0.16","LEGACY the source follows the save mtime, not the version number in the name: "+str(found.get("name","")))
+
+# LEGACY-3：目标已有任何存档（主档或 .bak）时不复制任何文件，标记记 target_not_empty。
+static func legacy_never_imports_into_a_non_empty_target(t) -> void:
+ var root=legacy_root("legacy-nonempty")
+ var parent=root.path_join("legacy")
+ var source=parent.path_join(LEGACY_NAME_PREFIX+"0.17.1")
+ legacy_saves(source.path_join("saves"),"tower",2)
+ legacy_settings(source)
+ var target=root.path_join("target")
+ legacy_saves(target.path_join("saves"),"practice",1)
+ var before=legacy_tree(target.path_join("saves"))
+ var marker=target.path_join("legacy-import.json")
+ var result=LegacyImport.run(parent,target,marker)
+ t.check(result.get("ok",false)==true and String(result.get("reason",""))=="target_not_empty","LEGACY a non empty target stops the import before any copy: "+str(result))
+ t.check(legacy_tree(target.path_join("saves"))==before,"LEGACY a non empty target keeps every byte and mtime of its own saves")
+ t.check(not FileAccess.file_exists(target.path_join("display-settings.cfg")) and not FileAccess.file_exists(target.path_join("key-bindings.cfg")),"LEGACY a non empty target receives no settings file")
+ var listed=legacy_marker(marker)
+ t.check(legacy_has_skip(listed,"*","target_not_empty") and listed.get("copied",[]).is_empty(),"LEGACY the marker records the target_not_empty skip: "+str(listed))
+
+# LEGACY-4：标记存在即短路，不再扫描也不再复制（第二次运行不读旧目录）。
+static func legacy_import_runs_only_once(t) -> void:
+ var root=legacy_root("legacy-once")
+ var parent=root.path_join("legacy")
+ var source=parent.path_join(LEGACY_NAME_PREFIX+"0.17.1")
+ legacy_saves(source.path_join("saves"),"tower",2)
+ legacy_settings(source)
+ var target=root.path_join("target")
+ legacy_dir(target)
+ var marker=target.path_join("legacy-import.json")
+ var first=LegacyImport.run(parent,target,marker)
+ t.check(String(first.get("source",""))==LEGACY_NAME_PREFIX+"0.17.1" and legacy_marker(marker).get("copied",[]).size()==4,"LEGACY the first run imports and records the marker")
+ var marker_bytes=legacy_bytes(marker)
+ var copied=legacy_tree(target)
+ # 把旧档改成损坏内容：标记未命中时第二次运行会重新扫描并把标记改写为 none。
+ for name in ["tower.json","tower.json.bak"]:
+  var file=FileAccess.open(source.path_join("saves").path_join(name),FileAccess.WRITE)
+  file.store_string("{broken");file.close()
+ var second=LegacyImport.run(parent,target,marker)
+ t.check(second.get("ok",false)==true and second.get("ran",true)==false and String(second.get("reason",""))=="marker","LEGACY a written marker short-circuits the import before any scan: "+str(second))
+ t.check(legacy_bytes(marker)==marker_bytes,"LEGACY the second run leaves the marker bytes untouched")
+ t.check(legacy_tree(target)==copied,"LEGACY the second run copies nothing")
+
+# LEGACY-5：旧目录的字节、mtime 与文件名集合都不变。
+static func legacy_leaves_every_legacy_byte_untouched(t) -> void:
+ var root=legacy_root("legacy-readonly")
+ var parent=root.path_join("legacy")
+ var source=parent.path_join(LEGACY_NAME_PREFIX+"0.17.1")
+ legacy_saves(source.path_join("saves"),"tower",2)
+ legacy_saves(source.path_join("saves"),"practice",1)
+ legacy_settings(source)
+ var before=legacy_tree(parent)
+ var target=root.path_join("target")
+ legacy_dir(target)
+ var result=LegacyImport.run(parent,target,target.path_join("legacy-import.json"))
+ t.check(result.get("ok",false)==true and result.get("ran",false)==true,"LEGACY the read only import completes: "+str(result))
+ t.check(legacy_tree(parent)==before,"LEGACY leaves every legacy byte untouched: "+str(before.size())+" file(s) compared")
+
+# LEGACY-6：坏档与新修订号档不复制且记 invalid/version，其他文件照常复制。
+static func legacy_skips_invalid_saves_and_keeps_the_rest(t) -> void:
+ var root=legacy_root("legacy-invalid")
+ var parent=root.path_join("legacy")
+ var source=parent.path_join(LEGACY_NAME_PREFIX+"0.17.1")
+ legacy_saves(source.path_join("saves"),"tower",2)
+ legacy_settings(source)
+ var tower=source.path_join("saves").path_join("tower.json")
+ var envelope=JSON.parse_string(FileAccess.get_file_as_string(tower))
+ envelope.checksum="0".repeat(64)
+ var file=FileAccess.open(tower,FileAccess.WRITE);file.store_string(JSON.stringify(envelope));file.close()
+ var target=root.path_join("target")
+ legacy_dir(target)
+ var marker=target.path_join("legacy-import.json")
+ LegacyImport.run(parent,target,marker)
+ var listed=legacy_marker(marker)
+ t.check(legacy_has_skip(listed,"saves/tower.json","invalid") and listed.get("copied",[])==["saves/tower.json.bak","display-settings.cfg","key-bindings.cfg"],"LEGACY a damaged save is skipped with reason invalid while the rest is copied: "+str(listed))
+ t.check(not FileAccess.file_exists(target.path_join("saves").path_join("tower.json")) and legacy_same_file(source.path_join("saves").path_join("tower.json.bak"),target.path_join("saves").path_join("tower.json.bak")),"LEGACY the damaged file never lands in the target and the valid backup does")
+ var newer=root.path_join("newer")
+ var newer_parent=newer.path_join("legacy")
+ var newer_source=newer_parent.path_join(LEGACY_NAME_PREFIX+"0.17.2")
+ legacy_dir(newer_source.path_join("saves"))
+ var snapshot=Game.new(7).export_snapshot()
+ snapshot.save_revision=Game.Snapshot.REVISION+1
+ var written=FileAccess.open(newer_source.path_join("saves").path_join("tower.json"),FileAccess.WRITE)
+ written.store_string(Store.pack(snapshot));written.close()
+ var newer_target=newer.path_join("target")
+ legacy_dir(newer_target)
+ var newer_marker=newer_target.path_join("legacy-import.json")
+ LegacyImport.run(newer_parent,newer_target,newer_marker)
+ var newer_listed=legacy_marker(newer_marker)
+ t.check(legacy_has_skip(newer_listed,"saves/tower.json","version") and not FileAccess.file_exists(newer_target.path_join("saves").path_join("tower.json")),"LEGACY a save from a newer revision is skipped with reason version and never lands: "+str(newer_listed))
+
+# LEGACY-7：关持久化的会话与非桌面构建都不导入；替身的属主对象为 null，提前返回就不会解引用。
+static func legacy_stays_off_without_persistence_or_desktop(t) -> void:
+ t.check(LegacyImport.enabled(true,true) and not LegacyImport.enabled(false,true) and not LegacyImport.enabled(true,false),"LEGACY the gate needs both a persisted session and a desktop build")
+ var host=LegacyImportHost.new()
+ host.persistence_enabled=false
+ var off_persistence=LegacyImport.run_once(host,true)
+ host.persistence_enabled=true
+ var off_desktop=LegacyImport.run_once(host,false)
+ t.check(bool(off_persistence.get("ran",true))==false and String(off_persistence.get("reason",""))=="disabled","LEGACY a session without persistence never runs the import and never touches a path: "+str(off_persistence))
+ t.check(bool(off_desktop.get("ran",true))==false and String(off_desktop.get("reason",""))=="disabled","LEGACY a non desktop build never runs the import (injected platform stub false): "+str(off_desktop))
+
+# LEGACY-8：复制中断（目标已有前两份、标记未写）下次启动按 target_not_empty 收敛；
+# 已落地的文件仍能经正式读档入口读回。
+static func legacy_interrupted_copy_converges(t) -> void:
+ var root=legacy_root("legacy-interrupted")
+ var parent=root.path_join("legacy")
+ var source=parent.path_join(LEGACY_NAME_PREFIX+"0.17.1")
+ legacy_saves(source.path_join("saves"),"tower",2)
+ legacy_settings(source)
+ var target=root.path_join("target")
+ legacy_dir(target.path_join("saves"))
+ for name in ["tower.json","tower.json.bak"]:
+  var file=FileAccess.open(target.path_join("saves").path_join(name),FileAccess.WRITE)
+  file.store_buffer(legacy_bytes(source.path_join("saves").path_join(name)));file.close()
+ var before=legacy_tree(target.path_join("saves"))
+ var marker=target.path_join("legacy-import.json")
+ t.check(not FileAccess.file_exists(marker),"LEGACY the interrupted fixture has no marker yet")
+ var result=LegacyImport.run(parent,target,marker)
+ var listed=legacy_marker(marker)
+ t.check(result.get("ok",false)==true and legacy_has_skip(listed,"*","target_not_empty") and listed.get("copied",[]).is_empty(),"LEGACY an interrupted copy converges on target_not_empty: "+str(listed))
+ t.check(legacy_tree(target.path_join("saves"))==before,"LEGACY the files copied before the interruption stay byte identical")
+ t.check(Store.new(target.path_join("saves")).read_slot("tower").ok,"LEGACY the file copied before the interruption still reads through the formal slot entry")
+ t.check(not FileAccess.file_exists(target.path_join("display-settings.cfg")),"LEGACY the interrupted import writes no settings file afterwards")

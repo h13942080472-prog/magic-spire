@@ -535,6 +535,42 @@
       "find": "config/custom_user_dir_name=\"Godot/app_userdata/紧缚尖塔\"",
       "replace": "config/custom_user_dir_name=\"Godot/app_userdata/紧缚尖塔.\"",
       "suite": "architecture"
+    },
+    "legacy_source_follows_save_mtime_not_version": {
+      "file": "ui/legacy_import.gd",
+      "find": " if key>best_key:",
+      "replace": " if name.replace(SOURCE_PREFIX,\"\").replace(\".\",\"\").to_int()>best_key:",
+      "suite": "persistence"
+    },
+    "legacy_never_imports_into_a_non_empty_target": {
+      "file": "ui/legacy_import.gd",
+      "find": " if _target_has_saves(store):",
+      "replace": " if false:",
+      "suite": "persistence"
+    },
+    "legacy_import_runs_only_once": {
+      "file": "ui/legacy_import.gd",
+      "find": " if FileAccess.file_exists(marker):",
+      "replace": " if false:",
+      "suite": "persistence"
+    },
+    "legacy_import_opens_legacy_read_only": {
+      "file": "ui/legacy_import.gd",
+      "find": " var file=FileAccess.open(path,FileAccess.READ)",
+      "replace": " var file=FileAccess.open(path,FileAccess.WRITE)",
+      "suite": "architecture"
+    },
+    "saves_single_writer": {
+      "file": "ui/display_settings.gd",
+      "find": " config.set_value(\"audio\",\"interaction_audio_volume\",interaction_audio_volume)",
+      "replace": " config.set_value(\"audio\",\"interaction_audio_volume\",interaction_audio_volume)\n var probe=FileAccess.open(ProjectSettings.globalize_path(\"user://saves/tower.json\"),FileAccess.WRITE)\n if probe!=null: probe.close()",
+      "suite": "architecture"
+    },
+    "legacy_import_is_wired_once": {
+      "file": "ui/main.gd",
+      "find": "preload(\"res://ui/legacy_import.gd\").run_once(self,OS.has_feature(\"pc\"))",
+      "replace": "preload(\"res://ui/legacy_import.gd\").run_once(self,true)",
+      "suite": "architecture"
     }
   }
 }
