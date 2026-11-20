@@ -538,8 +538,8 @@
     },
     "legacy_source_follows_save_mtime_not_version": {
       "file": "ui/legacy_import.gd",
-      "find": " if key>best_key:",
-      "replace": " if name.replace(SOURCE_PREFIX,\"\").replace(\".\",\"\").to_int()>best_key:",
+      "find": "  var key=_source_key(saves)",
+      "replace": "  var key=directory.replace(SOURCE_PREFIX,\"\").replace(\".\",\"\").to_int()",
       "suite": "persistence"
     },
     "legacy_never_imports_into_a_non_empty_target": {
