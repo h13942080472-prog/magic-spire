@@ -52,6 +52,9 @@ static func run(t) -> void:
  signature_position_and_shape_domain(t,pair,keys)
  key_table_selection_domain(t)
  version_segment_edges(t)
+ version_segment_digit_compare(t)
+ signature_outer_whitespace_domain(t,pair,keys)
+ missing_field_attribution_domain(t,pair,keys)
 
 # ---- fixtures -------------------------------------------------------------------------
 
@@ -363,3 +366,53 @@ static func version_segment_edges(t) -> void:
   t.check(signi(Manifest.compare(row[0],row[1]))==row[2],"UPDATE version_segment_edges: compare("+String(row[0]).left(24)+","+String(row[1]).left(24)+")=="+str(row[2]))
  t.check(Manifest.compare("1.0","1.0.0.0")==0 and Manifest.compare("1.0.0.0","1.0")==0,"UPDATE version_segment_edges: missing trailing segments equal numeric zero in both directions")
  t.check(Manifest.compare("01.0","1.0")==0 and Manifest.compare("1.007","1.7")==0,"UPDATE version_segment_edges: leading zeros compare by numeric value, not by text")
+
+# CC-D22-4: numeric segments compare as decimal digit strings. is_valid_int()/to_int() used to
+# overflow int64 on a 20-digit segment, print an engine ERROR and collapse two different
+# versions to a tie. The rows below are the gherkin boundary table plus the overflow case.
+static func version_segment_digit_compare(t) -> void:
+ var overlong="99999999999999999999"
+ var overlong_lower="99999999999999999998"
+ t.check(Manifest.compare("1."+overlong,"1."+overlong_lower)==1,"UPDATE version_segment_digit_compare: a 20-digit segment compares digit by digit instead of overflowing int64: "+str(Manifest.compare("1."+overlong,"1."+overlong_lower)))
+ t.check(Manifest.compare("1."+overlong_lower,"1."+overlong)==-1,"UPDATE version_segment_digit_compare: the 20-digit order is antisymmetric")
+ t.check(Manifest.compare("1."+overlong,"1."+overlong)==0,"UPDATE version_segment_digit_compare: an equal 20-digit segment is a tie")
+ t.check(Manifest.compare("1."+overlong,"1.1"+"0".repeat(20))==-1,"UPDATE version_segment_digit_compare: one extra digit wins over the same leading digit")
+ t.check(Manifest.compare("0.18.10","0.18.9")==1,"UPDATE version_segment_digit_compare: the gherkin boundary 0.18.10>0.18.9 still holds")
+ t.check(Manifest.compare("01","1")==0,"UPDATE version_segment_digit_compare: leading zeros are stripped before the length comparison")
+ t.check(Manifest.compare("1.007","1.7")==0,"UPDATE version_segment_digit_compare: a padded numeric segment keeps its numeric value")
+ t.check(Manifest.compare("1."+"0".repeat(20),"1.0")==0,"UPDATE version_segment_digit_compare: an all-zero segment of any length equals numeric zero")
+
+# CC-D22-5: the signature file is a single base64 line. Outer whitespace and line breaks are
+# tolerated by strip_edges(); internal whitespace is not base64 and stays a signature rejection
+# (signature_position_and_shape_domain). U1b must emit one line with `openssl base64 -A`.
+static func signature_outer_whitespace_domain(t, pair: Array, keys: Dictionary) -> void:
+ var body=bytes_of(document("0.18.4"))
+ var text=signature_of(body,pair).get_string_from_utf8()
+ var variants={"a trailing newline":text+"\n","a leading newline":"\n"+text,"spaces and line breaks at both ends":" \n"+text+"\n "}
+ for name in variants:
+  var answer=Manifest.evaluate(body,variants[name].to_utf8_buffer(),keys,CURRENT,PLATFORM)
+  t.check(answer.get("kind","")=="notice" and String(answer.get("version",""))=="0.18.4","UPDATE signature_outer_whitespace_domain: a signature file with "+name+" still verifies: "+str(answer))
+
+# CC-D22-6: attribution is per field. A latest without a string version is a shape failure
+# (json); a missing or empty full.url is a link failure (url), never json. The two checks are
+# interleaved in evaluate: the links come first, so a manifest with both defects answers url.
+static func missing_field_attribution_domain(t, pair: Array, keys: Dictionary) -> void:
+ var without_version=document("0.18.4")
+ without_version.latest={"notes_zh":NOTES}
+ var no_version=judge_bytes(JSON.stringify(without_version).to_utf8_buffer(),pair,keys)
+ t.check(no_version.get("kind","")=="none" and no_version.get("reason","")=="json","UPDATE missing_field_attribution_domain: a latest without version is a json shape rejection: "+str(no_version))
+ var without_latest=document("0.18.4")
+ without_latest.erase("latest")
+ var no_latest=judge_bytes(JSON.stringify(without_latest).to_utf8_buffer(),pair,keys)
+ t.check(no_latest.get("kind","")=="none" and no_latest.get("reason","")=="json","UPDATE missing_field_attribution_domain: an absent latest is the same json rejection: "+str(no_latest))
+ var without_url=document("0.18.4")
+ without_url.platforms[PLATFORM].full.erase("url")
+ var no_url=judge_bytes(JSON.stringify(without_url).to_utf8_buffer(),pair,keys)
+ t.check(no_url.get("kind","")=="none" and no_url.get("reason","")=="url","UPDATE missing_field_attribution_domain: a full block without url is a url rejection, not json: "+str(no_url))
+ var empty_url=judge(bytes_of(document("0.18.4",{"full":{"url":""}})),pair,keys)
+ t.check(empty_url.get("kind","")=="none" and empty_url.get("reason","")=="url","UPDATE missing_field_attribution_domain: an empty url is the same url rejection: "+str(empty_url))
+ var both=document("0.18.4")
+ both.latest={"notes_zh":NOTES}
+ both.platforms[PLATFORM].full.erase("url")
+ var both_answer=judge_bytes(JSON.stringify(both).to_utf8_buffer(),pair,keys)
+ t.check(both_answer.get("kind","")=="none" and both_answer.get("reason","")=="url","UPDATE missing_field_attribution_domain: the link check runs first, so a missing url wins over a missing latest version: "+str(both_answer))
