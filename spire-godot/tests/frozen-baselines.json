@@ -7,7 +7,7 @@
    "subject": "Merge six-binds enemy-turn freeze hotfix",
    "file": "spire-godot/tests/architecture_cases.gd",
    "sha256": "CE9C18F1565773C5D0397FFE6F8E73B558AABEE7B9BFC91CC547571059BC1237",
-   "note": "链节 C 的 PRE（2026-11-21 重冻批，A304／A310）：五个 R5 面与移动的 R1 snapshot／rng 在此 blob 的 R5_BASELINE／R1_BASELINE 字面里逐字可查；rows_payloads／logs／reject_invalid／submit_keys 取自 a6fb649 提交树（c8882cc 之前、三条判据对自身字面全部成立的最后一棵树）的探针值，由 tests/architecture_cases.gd::baseline_diff_is_declared 的自证逐格证明（换回后重算等于本 blob 的 R5_BASELINE.record）。"
+   "note": "链节 C 的 PRE（2026-11-21 经人批准的重冻批）：五个 R5 面与移动的 R1 snapshot／rng 在此 blob 的 R5_BASELINE／R1_BASELINE 字面里逐字可查；rows_payloads／logs／reject_invalid／submit_keys 取自 a6fb649 提交树（c8882cc 之前、三条判据对自身字面全部成立的最后一棵树）的探针值，由 tests/architecture_cases.gd::baseline_diff_is_declared 的自证逐格证明（换回后重算等于本 blob 的 R5_BASELINE.record）。"
   },
   "baseline_pre_digests": {
    "commit": "7fcc817",

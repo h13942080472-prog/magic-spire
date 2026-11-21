@@ -2266,8 +2266,8 @@ const R5_FIRST_TURN={"takeover:0":"8bf0e226191edacd337b525691d9e36a","takeover:1
 # submit_keys（成功结果键面摘要）与由其派生的 <record> 摘要随之变化；本批只重算这两个面，mask 不变
 # （R5_VIEW_MASK／R5_RECORD_MASK／R5_RECORD_ADDED 原值），其余记录字段与 G6 其余断言逐字不变。
 # 差异只来自该键的自证在 docs/record/verification.md：旧键面复算摘要与旧冻结值逐 cell 相等。
-# 2026-11-21 re-freeze, link C (A304 = human-approved slice; A310 = human ruling on groups A-G once the prepare
-# rng cause was proved and that cause became the group E reason in E_DECLARED_DIFF): only the moved faces were
+# 2026-11-21 human-approved re-freeze, link C (the human ruling on groups A-G came once the prepare rng cause
+# was proved, and that cause became the group E reason in E_DECLARED_DIFF): only the moved faces were
 # recomputed, on the committed tree 69cf2f1 (HEAD=69cf2f1, dirty=0) -- R5_BASELINE facts_text x26, facts_verdicts
 # x18, view x26, record x26; R1_BASELINE snapshot x18 and rng x4; PREFIX_BRANCH_TABLE_BASELINE two states. Every
 # other field, R5_FIRST_TURN, R3_VIEW_KEYS_BASE and the masks are byte-identical. All moves first appear in
@@ -3401,8 +3401,9 @@ const E_SUBMIT_KEYS=["ok","version","resource_feedback","card_feedback","music_f
 # 战斗相位词表（测试内字面期望）：guarded 过载态＝state.overloaded ∧ phase ∈ 本表（core/game.gd::dispatch 的
 # overloaded 必须与它同值——这条期望不取自实现）。
 const E_COMBAT_PHASES=["battle","prepare","rest","prison"]
-# K4 declaration table: link -> cell -> field -> reason. Link C is this batch (A310 ruling 2); the E-batch link
-# is history and is not replayed here -- its self-proof stays in the docs/record/verification.md E entries.
+# K4 declaration table: link -> cell -> field -> reason. Link C is this batch (the 2026-11-21 human-approved
+# re-freeze replays link C only); the E-batch link is history and is not replayed here -- its self-proof stays
+# in the docs/record/verification.md E entries.
 # Fields are the PRE-carried faces of tests/frozen-baselines.json::baseline_pre_cells_c: the five R5 faces plus
 # the six moved record paths. One reason constant per attribution group of the 2026-11-21 re-freeze; every
 # group traces to c8882cc.
@@ -3741,8 +3742,9 @@ static func submit_result_scalars_are_pinned(t) -> void:
  t.check(submits>=3 and key_problems.is_empty() and value_problems.is_empty(),"K4 submit_result_scalars_are_pinned: every sampled submit carries both scalars with the declared values: submits="+str(submits)+" keys="+str(key_problems.slice(0,2))+" values="+str(value_problems.slice(0,2)))
  print("E SUBMIT SCALARS submits=%d" % submits)
 
-# Link C (gherkin E-7 procedure, A310 ruling 2): the declared diff of the 2026-11-21 re-freeze, replayed against
-# the current values. PRE = tests/frozen-baselines.json::baseline_pre_cells_c, anchored to the 69cf2f1 test file;
+# Link C (gherkin E-7 procedure; the only replayed link): the declared diff of the 2026-11-21 human-approved
+# re-freeze, replayed against the current values. PRE = tests/frozen-baselines.json::baseline_pre_cells_c,
+# anchored to the 69cf2f1 test file;
 # POST = r1_record now. Two-way: every moved PRE-carried face is declared and every declaration moved. Self-proof:
 # the declared record paths take their PRE value back and the recomputed <record> digest equals PRE.record cell by
 # cell, so an undeclared move among the 59 paths or a wrong carried PRE value is red. The submit key face is tied
@@ -4838,7 +4840,7 @@ static func point_query_builds_no_table(t) -> void:
  print("POINT QUERY NO TABLE fixtures=%d rows=%d distinct_answered=%d rebased_covered=%d phase_unit_exempt=%s takeover_builds=1" % [fixtures.size(),rows_seen,compared,covered.size(),str(exempt_hits.keys())])
 
 # Freeze branch identity, command shape, availability, and presentation reasons.
-# 2026-11-21 re-freeze (A304/A310): flag:equipment_spell and flag:relic_rows were recomputed on the committed
+# 2026-11-21 human-approved re-freeze: flag:equipment_spell and flag:relic_rows were recomputed on the committed
 # tree 69cf2f1 (the c8882cc literals held on no commit tree); the other 61 states are unchanged. The source sha256
 # is taken over the raw blob bytes of 69cf2f1:spire-godot/core/game.gd (`git show` output, LF as committed),
 # the source that reproduces all 63 frozen faces.
