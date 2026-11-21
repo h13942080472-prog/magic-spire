@@ -18,9 +18,11 @@ param(
 # name, never the value). The script never prints, logs or stores the private key, the
 # passphrase or a hash of either; its scratch directory holds public material and the signature
 # only, and is removed on every exit path. An existing <manifest>.sig is never overwritten.
-# Errors name the parameter and the value that failed, except that the -PrivateKey and a
-# malformed -PassphraseEnv value are never echoed: a misused parameter could carry the key or
-# the passphrase itself.
+# Errors name the parameter and the value that failed, except that the script's own messages
+# never echo the -PrivateKey value or a malformed -PassphraseEnv value: a misused parameter
+# could carry the key or the passphrase itself. openssl diagnostics, passed through when a step
+# fails, may name the key file's path; a value that is not an existing absolute file path never
+# reaches openssl.
 #
 # Test seam (测试接缝): -KeyTable points the guard at another file of the same shape. It exists
 # only so that test fixtures can be signed with a one-time key; release signing never passes it

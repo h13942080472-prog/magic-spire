@@ -175,8 +175,8 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
   签名后把 `.sig` 解码，用该条目公钥 `openssl dgst -verify` 复核。
 - 口令只经 `-PassphraseEnv` 点名的环境变量交给 `openssl -passin env:<名>`，不接受口令明文参数；
   脚本不打印私钥、口令或二者的哈希；临时目录只放公开材料与签名，任何出口都会删除。
-  错误信息点名出错的参数与取值，唯独不回显 `-PrivateKey` 与格式不对的 `-PassphraseEnv`
-  （误用时它们可能就是私钥或口令）。
+  错误信息点名出错的参数与取值；脚本自己的报错不回显 `-PrivateKey` 与格式不对的 `-PassphraseEnv`
+  （误用时它们可能就是私钥或口令），openssl 失败时透传的诊断可能含私钥文件路径。
 - `-KeyTable <同形状的 .gd 绝对路径>` 是测试接缝：只用于一次性测试密钥产出夹具时替换比较对象；
   发布签名不传它，一律用默认的 `update/update_keys.gd`。
 - 私钥保管与生产签名（只由维护者本人运行）的操作见 `skills/repo-ops/SKILL.md`「更新签名私钥保管」。
