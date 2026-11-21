@@ -26,7 +26,7 @@
   `tests/` 不在输入面（避免自指：`tests/state_reader_scan.gd` 不扫自己）；`tests/state_readers.json` 与
   `tests/state_reader_scan.gd` 也不进 `tests/check_index.json` 的 `case_files`（前者不是 `.gd`，
   后者无 `static func run(`）——本片的重冻触发只有 `tests/architecture_cases.gd`；索引的完整输入面见
-  `docs/spec/check-routing.md` §4（扫描文本换行归一之后起含 `tests/source_text.gd`）。
+  `docs/spec/check-routing.md` §4（含归一读取叶 `tests/source_text.gd`）。
 - `--write` 是确定性的：同一输入的两次运行输出逐字节相同，无时间戳、键序稳定
   （`tests/state_reader_scan.gd::canonical`）。
 - 本片改了 `tests/architecture_cases.gd` ⇒ 同批必须 `tools/check-index.ps1 -Write` 重冻
