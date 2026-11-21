@@ -638,6 +638,12 @@
       "replace": " if false: return _answer(false,true,\"write\",source_name,copied,skipped)",
       "suite": "persistence"
     },
+    "legacy_scan_failure_keeps_the_import_retryable": {
+      "file": "ui/legacy_import.gd",
+      "find": " if found.has(\"code\"): return _answer(false,true,String(found.code),\"\",[],[])",
+      "replace": " if found.has(\"code\"): return _finish_import(marker,String(found.code),\"\",[],[],store)",
+      "suite": "persistence"
+    },
     "atomic_commit_is_single": {
       "file": "core/save_store.gd",
       "find": "   var code=commit_file(directory.path_join(file_name),bytes,func(temp):return read_file(temp).ok)",

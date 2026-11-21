@@ -34,9 +34,12 @@ static func enabled(persistence_enabled: bool, desktop: bool) -> bool:
 # _source_rank plus their name, so a tie on mtime falls to the read save's saved_at, then its
 # snapshot.save_revision, then the directory name in descending order, and the choice never
 # depends on the order the file system lists the directories in.
+# Returns {name, path} of that directory, or {} when the parent opens but holds no candidate (the
+# none verdict). A parent that cannot be opened returns {"code":"scan"}: an IO failure, not a
+# verdict (in production the parent is app_userdata, which holds the user directory itself).
 static func find_source(parent: String, store) -> Dictionary:
  var handle=DirAccess.open(parent)
- if handle==null: return {}
+ if handle==null: return {"code":"scan"}
  var best={}
  var best_rank=[]
  for name in handle.get_directories():
@@ -105,6 +108,9 @@ static func _import(parent: String, marker: String, display_settings, key_bindin
  if _target_has_saves(store): return _finish_import(marker,"target_not_empty","",[],[{"file":"*","code":"target_not_empty"}],store)
  var found=find_source(parent,store)
  if found.is_empty(): return _finish_import(marker,"none","",[],[],store)
+ # A parent that cannot be opened ends the run like a write failure below: unfinished, with no
+ # terminal marker, so the next start scans again instead of short-circuiting on a false none.
+ if found.has("code"): return _answer(false,true,String(found.code),"",[],[])
  var source_name=String(found.name)
  var source_root=String(found.path)
  var copied=[]
@@ -122,7 +128,8 @@ static func _import(parent: String, marker: String, display_settings, key_bindin
   if owner==null or not owner.import_from(path): skipped.append({"file":String(entry.file),"code":"invalid"})
   else: copied.append(String(entry.file))
  # A write failure leaves the import unfinished: no terminal marker, so the next start retries. The
- # marker only closes a finished copy or a validation verdict (invalid, version, target_not_empty, none).
+ # marker only closes a finished copy or a validation verdict (invalid, version, target_not_empty, none);
+ # the two IO failures, scan and write, never close it.
  if skipped.any(func(row):return String(row.code)=="write"): return _answer(false,true,"write",source_name,copied,skipped)
  return _finish_import(marker,"copied",source_name,copied,skipped,store)
 
