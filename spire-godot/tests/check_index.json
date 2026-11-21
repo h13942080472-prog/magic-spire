@@ -934,7 +934,7 @@
       "signals": 2
     }
   },
-  "digest": "700eb9b9eb1b8288a59220cb811a9d2b1f030cfd83d946b0d9d7a4dc7733ddbb",
+  "digest": "d43150f3d75005ab8e2a926fd2ec55429a6545cc244df46e777b7ec3891bdcf4",
   "domain_words": {
     "ART": [
       "ui:display",
@@ -1934,7 +1934,7 @@
       ]
     }
   },
-  "generated_from": "22246ccdf17f51103b1f245ff1f39ddab9d056e211f42f298addd5c7ff00bcca",
+  "generated_from": "7cc3fbc425849430c8bbd0ab89b6dab7e72d1dc884c4b57867f4da3f4713b417",
   "registries": {
     "rule": [
       "rope_master",
@@ -2053,7 +2053,7 @@
     "domains": 65,
     "domains_declared": 65,
     "excluded": 15,
-    "inputs": 376,
+    "inputs": 377,
     "rule_suites": 54,
     "source_files": 140,
     "sources_with_edges": 138,
