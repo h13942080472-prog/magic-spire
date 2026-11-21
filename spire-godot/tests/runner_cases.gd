@@ -221,12 +221,14 @@ static func index_route_examples_are_pinned(t) -> void:
  t.check(Index.suites_for(["spire-godot/ui/first_turn_presenter.gd"]).ui==["card_power","status"],"RUNNER index_route_examples_are_pinned: the CONTROL domain resolves ui/first_turn_presenter.gd")
  t.check(Index.suites_for(["spire-godot/ui/run_review.gd"]).ui==["casting","route"],"RUNNER index_route_examples_are_pinned: the ROUTE domain resolves ui/run_review.gd")
 
-# ----------------------------------------------------- scanned source text (EOL-1a)
+# ------------------------------------------------- scanned source text (newline normalization)
 # docs/spec/check-routing.md §4「扫描输入」and docs/spec/state-readers.md「真源与唯一写者」: both
 # frozen fingerprints hash the normalized text and both scans read the same normalized text, so
-# one commit gives one value on an LF, a CRLF or a mixed checkout. C1/C1′ pin the leaf on inputs
-# they write themselves, so their RED never depends on this checkout's line endings; C2/C2′ pin
-# that the two scan modules read through it instead of the raw text primitive.
+# one commit gives one value on an LF, a CRLF or a mixed checkout.
+# source_text_folds_crlf_pairs and source_text_keeps_lone_cr pin the leaf on inputs they write
+# themselves, so their RED never depends on this checkout's line endings;
+# state_reader_reads_through_one_entry and check_index_reads_through_one_entry pin that the two
+# scan modules read through it instead of the raw text primitive.
 const SOURCE_TEXT_LEAF_PATH="res://tests/source_text.gd"
 # The only places allowed to digest with .sha256_text(): the canonical serialization or one of
 # the two join forms. A scanned source text is only hashed through
@@ -247,10 +249,10 @@ static func _require_leaf(t, judgment: String):
  t.check(ready,"RUNNER "+judgment+": "+SOURCE_TEXT_LEAF_PATH+" is loadable with normalized_text and normalized_text_sha256")
  return leaf if ready else null
 
-# C1: the leaf folds CRLF pairs onto LF, so one logical text written with LF, with CRLF and with
-# both line endings in the same file reads as one text and one digest (checks.md C1 assertions
-# 1, 2, 4, 5, 6; one judgement line per input domain). The digest truth is the LF text's own
-# digest, so the RED does not depend on the checkout's line endings.
+# source_text_folds_crlf_pairs: the leaf folds CRLF pairs onto LF, so one logical text written
+# with LF, with CRLF and with both line endings in the same file reads as one text and one digest
+# (one judgement line per input domain). The digest truth is the LF text's own digest, so the RED
+# does not depend on the checkout's line endings.
 static func source_text_folds_crlf_pairs(t) -> void:
  var leaf=_require_leaf(t,"source_text_folds_crlf_pairs")
  if leaf==null: return
@@ -274,11 +276,13 @@ static func source_text_folds_crlf_pairs(t) -> void:
   var path=String(paths[domain])
   var text=String(leaf.normalized_text(path))
   t.check(text==lf and not text.contains("\r\n") and String(leaf.normalized_text_sha256(path))==lf.sha256_text(),"RUNNER source_text_folds_crlf_pairs: the "+domain+" input folds to the LF text and the LF digest")
- # BOM row: a byte-order mark is not a line ending; both variants must fold to the same text and
- # the fold must neither add nor drop the mark (the reader decides whether it keeps it).
+ # BOM row: a byte-order mark is not a line ending, and the read primitive (not this leaf) decides
+ # its fate. Godot 4.7.2 drops a UTF-8 BOM, so both variants must read as the LF text with
+ # has_bom==false; pinning that current engine behaviour is what lets this row redden for a reader
+ # that keeps the mark. The current input face has no BOM file.
  var bom_lf=String(leaf.normalized_text(paths.bom_lf))
  var bom_crlf=String(leaf.normalized_text(paths.bom_crlf))
- t.check(bom_lf==bom_crlf and not bom_lf.contains("\r\n") and bom_lf.trim_prefix("\ufeff")==lf,"RUNNER source_text_folds_crlf_pairs: the BOM plus LF input and the BOM plus CRLF input fold to one text whose body is the LF text")
+ t.check(bom_lf==lf and bom_crlf==lf,"RUNNER source_text_folds_crlf_pairs: the BOM plus LF input and the BOM plus CRLF input read as the LF text with no BOM left")
  # Empty-file and no-trailing-newline rows.
  t.check(String(leaf.normalized_text(paths.empty))=="" and String(leaf.normalized_text_sha256(paths.empty))==empty_digest,"RUNNER source_text_folds_crlf_pairs: the empty input folds to the empty text and the empty digest")
  var noeol_lf=String(leaf.normalized_text(paths.noeol_lf))
@@ -289,8 +293,8 @@ static func source_text_folds_crlf_pairs(t) -> void:
  for path in paths.values(): DirAccess.remove_absolute(String(path))
  DirAccess.remove_absolute(folder)
 
-# C1′: only CRLF pairs are folded. A lone CR (a byte no checkout conversion touches) stays, and
-# the CRLF pair in the same text still folds (checks.md C1 assertion 3).
+# source_text_keeps_lone_cr: only CRLF pairs are folded. A lone CR (a byte no checkout conversion
+# touches) stays, and the CRLF pair in the same text still folds.
 static func source_text_keeps_lone_cr(t) -> void:
  var leaf=_require_leaf(t,"source_text_keeps_lone_cr")
  if leaf==null: return
@@ -302,8 +306,10 @@ static func source_text_keeps_lone_cr(t) -> void:
  DirAccess.remove_absolute(path)
  DirAccess.remove_absolute(folder)
 
-# C2: the state-reader scan reads every scanned text through the leaf, and only the frozen table
-# is still opened with a raw primitive (checks.md C2 assertions 1, 2).
+# state_reader_reads_through_one_entry: the state-reader scan reads every scanned text through the
+# leaf, and only the frozen table is still opened with a raw primitive. The two reads in this file
+# (_require_leaf, _code_text) are judgment self-checks, not fingerprint inputs: a scanned source
+# text still reaches a fingerprint only through the leaf.
 static func state_reader_reads_through_one_entry(t) -> void:
  var relative="tests/state_reader_scan.gd"
  var code=_code_text(relative)
@@ -313,9 +319,9 @@ static func state_reader_reads_through_one_entry(t) -> void:
  var digests=_raw_digest_sites(relative,code)
  t.check(digests.is_empty(),"RUNNER state_reader_reads_through_one_entry: a scanned text is only hashed through normalized_text_sha256: "+str(digests))
 
-# C2′: the same contract for the index derivation, plus its input face -- the leaf is one of the
-# hashed inputs, so changing the normalization rule re-freezes the index (checks.md C2
-# assertions 1, 2, 3).
+# check_index_reads_through_one_entry: the same contract for the index derivation, plus its input
+# face -- the leaf is one of the hashed inputs, so changing the normalization rule re-freezes the
+# index.
 static func check_index_reads_through_one_entry(t) -> void:
  var relative="tests/check_index.gd"
  var code=_code_text(relative)
