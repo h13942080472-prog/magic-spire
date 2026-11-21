@@ -50,11 +50,11 @@ core/route_history.gd::backfill(s: Dictionary) -> Array   # 旧档回填为单�
   - `tower_restart`：`demo_cycle` 大于上一条的 `cycle` → `cycle`；否则挂载点当时 `state.prison` 仍非空
     → `release`（服刑出狱：`core/prison.gd::completed_turn` 路径；`core/game.gd::_restart_tower` 在
     挂载点之后才清空牢房）；否则上一条 `region=="prison"`（越狱路线）→ `gate_exit`；其余 → `release`。
-  - 依据：`DemoExit.continue_run` 先 `demo_cycle+=1` 再 `_restart_tower(true)`；`Prison.escape` 清空
-    `state.prison`，击败出口守卫后 `core/prison.gd::return_to_tower` 执行时牢房已空。越狱路线在出口
-    守卫战再次被收押、服满刑期时，上一条记录的 `region` 仍是 `prison` 而牢房非空，所以判别信号取
-    当时的 `state.prison`；按上一条 `region` 推断会把这条「服刑出狱」误记成 `gate_exit`。
-    调换这两步顺序会让 `cycle` 被误判为 `release`。
+  - 依据：`DemoExit.continue_run` 先 `demo_cycle+=1` 再 `_restart_tower(true)`，调换这两步顺序会让
+    `cycle` 被误判为 `release`。`Prison.escape` 清空 `state.prison`，击败出口守卫后
+    `core/prison.gd::return_to_tower` 执行时牢房已空。越狱路线在出口守卫战再次被收押、服满刑期时，
+    上一条记录的 `region` 仍是 `prison` 而牢房非空，所以判别信号取当时的 `state.prison`；按上一条
+    `region` 推断会把这条「服刑出狱」误记成 `gate_exit`。
 - **关闭口径**：`open` 先用当前 `completed_rooms` 关闭上一条；楼层按**该条记录自己的**
   `region`／`seed`／`boss`／`security` 重建当时的路线图（`Tower.generate`／`Tower.prison_route`
   都是确定性的），不读切换后的新图；夹具改名后的 id 才回落到当前 `state.rooms` 的同名房间。
