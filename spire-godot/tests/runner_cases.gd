@@ -278,7 +278,7 @@ static func source_text_folds_crlf_pairs(t) -> void:
   t.check(text==lf and not text.contains("\r\n") and String(leaf.normalized_text_sha256(path))==lf.sha256_text(),"RUNNER source_text_folds_crlf_pairs: the "+domain+" input folds to the LF text and the LF digest")
  # BOM row: a byte-order mark is not a line ending, and the read primitive (not this leaf) decides
  # its fate. Godot 4.7.2 drops a UTF-8 BOM, so both variants must read as the LF text with
- # has_bom==false; pinning that current engine behaviour is what lets this row redden for a reader
+ # has_bom==false; pinning that current engine behavior is what lets this row redden for a reader
  # that keeps the mark. The current input face has no BOM file.
  var bom_lf=String(leaf.normalized_text(paths.bom_lf))
  var bom_crlf=String(leaf.normalized_text(paths.bom_crlf))
@@ -307,9 +307,9 @@ static func source_text_keeps_lone_cr(t) -> void:
  DirAccess.remove_absolute(folder)
 
 # state_reader_reads_through_one_entry: the state-reader scan reads every scanned text through the
-# leaf, and only the frozen table is still opened with a raw primitive. The two reads in this file
-# (_require_leaf, _code_text) are judgment self-checks, not fingerprint inputs: a scanned source
-# text still reaches a fingerprint only through the leaf.
+# leaf, and only the frozen table is still opened with a raw primitive. The two raw reads in this
+# section (_require_leaf, _code_text) are judgment self-checks, not fingerprint inputs: a scanned
+# source text still reaches a frozen fingerprint only through the leaf.
 static func state_reader_reads_through_one_entry(t) -> void:
  var relative="tests/state_reader_scan.gd"
  var code=_code_text(relative)
