@@ -113,6 +113,7 @@ core/route_history.gd::backfill(s: Dictionary) -> Array   # 旧档回填为单�
 | `route_history_references_are_pinned`（引用白名单：`core`／`data`／`ui` 里引用 `route_history` 的位置只允许 owner 模块与 `core/game.gd` 的三行） | `tests/architecture_cases.gd`（`architecture`） |
 | `route_switch_declared`（带 `route` 的 kind 恰为三个） | `tests/architecture_cases.gd`（`architecture`） |
 | `route_reason_branches_declared`（`cycle` 分支先于 `prison` 分支） | `tests/architecture_cases.gd`（`architecture`） |
+| `route_reason_called_only_by_open`（`reason` 只由 `open` 调用，`_serving_sentence` 只由 `reason` 调用；`core`／`data`／`ui` 里经 `RouteHistory` 句柄调用这两个函数，或给句柄起别名，都判红） | `tests/architecture_cases.gd`（`architecture`） |
 | `route_legacy_backfill_is_pinned`（回填位置与次数） | `tests/architecture_cases.gd`（`architecture`） |
 | `route_history_no_version`（记录键与源文本不含时间／版本／随机值） | `tests/architecture_cases.gd`（`architecture`） |
 
