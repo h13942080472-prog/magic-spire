@@ -161,6 +161,51 @@ func write_game(game, replace_incompatible: bool=false, map_drawings: Dictionary
  if DirAccess.rename_absolute(temp,filename)!=OK: return failure("保存失败：无法替换存档，原存档保留。")
  return {"ok":true,"slot":slot,"message":"练习场景起点已保存。" if slot=="practice" else "塔路场景起点已保存。"}
 
+# D23b legacy directory import (docs/spec/save-fixed-points.md「旧目录导入」): copy the legacy
+# slot files byte for byte. Each source file is validated with unpack() first, and every accepted
+# copy goes through the same .tmp -> readback -> rename path as write_game, so a partial copy can
+# never replace a primary file and the .bak keeps its own name. The source is only read.
+func adopt_legacy(source: String) -> Dictionary:
+ var copied=[]
+ var skipped=[]
+ for slot in Game.Snapshot.SLOTS:
+  for suffix in ["",".bak"]:
+   var name=String(slot)+".json"+suffix
+   var from=source.path_join(name)
+   if not FileAccess.file_exists(from): continue
+   var bytes=_read_bytes(from)
+   var result=unpack(bytes.get_string_from_utf8())
+   if not result.ok:
+    skipped.append({"file":name,"reason":String(result.get("code","invalid"))})
+    continue
+   var issue=_commit_bytes(bytes,name)
+   if issue!="": skipped.append({"file":name,"reason":issue})
+   else: copied.append(name)
+ return {"ok":true,"copied":copied,"skipped":skipped}
+
+func _read_bytes(filename: String) -> PackedByteArray:
+ var file=FileAccess.open(filename,FileAccess.READ)
+ if file==null: return PackedByteArray()
+ var bytes=file.get_buffer(file.get_length())
+ file.close()
+ return bytes
+
+# Same temp/readback/rename shape as write_game, without the backup step: adopt_legacy only
+# runs when the target holds no slot file yet, so there is no previous content to keep.
+func _commit_bytes(bytes: PackedByteArray, name: String) -> String:
+ var folder=ProjectSettings.globalize_path(directory)
+ if DirAccess.make_dir_recursive_absolute(folder)!=OK: return "write"
+ var filename=directory.path_join(name)
+ var temp=filename+".tmp"
+ var file=FileAccess.open(temp,FileAccess.WRITE)
+ if file==null: return "write"
+ file.store_buffer(bytes);file.flush()
+ var write_error=file.get_error();file.close()
+ if write_error!=OK: return "write"
+ if not read_file(temp).ok: return "invalid"
+ if DirAccess.rename_absolute(temp,filename)!=OK: return "write"
+ return ""
+
 func summary(slot: String) -> Dictionary:
  var result=read_slot(slot)
  if not result.ok: return {"available":false,"text":result.error}

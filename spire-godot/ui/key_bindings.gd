@@ -39,6 +39,28 @@ func initialize(enabled: bool) -> void:
  if bindings.heavy==[KEY_X] and bindings.kick==[KEY_V]:
   bindings.heavy=[KEY_V];bindings.kick=[KEY_X];save()
 
+# D23b legacy import (docs/spec/save-fixed-points.md「旧目录导入」): accept the same shape and
+# range checks as initialize() from another path, then write this module's own path through save().
+# initialize() remains the single source of the accepted rules; the block is repeated because only
+# import_from may be added to this file. The old heavy/kick pair stays as read and is migrated by
+# initialize() on the next launch.
+func import_from(source: String) -> bool:
+ if not persist: return false
+ var config=ConfigFile.new()
+ if config.load(source)!=OK: return false
+ var saved=config.get_value("keyboard","bindings",{})
+ if not saved is Dictionary or saved.keys().size()!=ACTIONS.size(): return false
+ var used=[]
+ for id in ACTIONS:
+  if not saved.has(id) or not saved[id] is Array or saved[id].size()!=ACTIONS[id].size()-1: return false
+  for key in saved[id]:
+   if not key is int or key<=0 or (key & KEY_CODE_MASK)==KEY_ESCAPE or key in used: return false
+   used.append(key)
+ bindings=saved.duplicate(true)
+ hold_end=config.get_value("keyboard","hold_end",false)==true
+ save()
+ return error==""
+
 func assign(id: String, slot: int, key: int) -> bool:
  error=""
  if (key & KEY_CODE_MASK)==KEY_ESCAPE:

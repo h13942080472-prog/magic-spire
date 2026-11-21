@@ -2,7 +2,8 @@
   "blind": [
     "spire-godot/core/item_presentation.gd",
     "spire-godot/core/tool_rules.gd",
-    "spire-godot/data/phases.gd"
+    "spire-godot/data/phases.gd",
+    "spire-godot/ui/legacy_import.gd"
   ],
   "case_files": {
     "spire-godot/tests/action_copy_cases.gd": {
@@ -615,7 +616,7 @@
     },
     "spire-godot/tests/persistence_cases.gd": {
       "owner": "rule:persistence",
-      "signals": 5
+      "signals": 7
     },
     "spire-godot/tests/persistence_ui_cases.gd": {
       "owner": "ui:persistence",
@@ -934,7 +935,7 @@
       "signals": 2
     }
   },
-  "digest": "700eb9b9eb1b8288a59220cb811a9d2b1f030cfd83d946b0d9d7a4dc7733ddbb",
+  "digest": "6f912e2882d912126178a1403720dab96f03d9b252bf897a9a521a7ba2668d55",
   "domain_words": {
     "ART": [
       "ui:display",
@@ -1934,7 +1935,7 @@
       ]
     }
   },
-  "generated_from": "034a7561d25a0eac644433e5e18bac7f3515e4ae4e0811b920ee975621f0217a",
+  "generated_from": "3890b746bab7870d2996b0326268e4e7413f1a1d7ec9bc4fd69ece4750f8d4be",
   "registries": {
     "rule": [
       "rope_master",
@@ -2047,17 +2048,17 @@
   },
   "schema": 1,
   "stats": {
-    "blind": 3,
+    "blind": 4,
     "blind_by_design": 3,
     "case_files": 232,
     "domains": 65,
     "domains_declared": 65,
     "excluded": 15,
-    "inputs": 376,
+    "inputs": 377,
     "rule_suites": 54,
-    "source_files": 140,
+    "source_files": 141,
     "sources_with_edges": 138,
-    "suite_edges": 567,
+    "suite_edges": 569,
     "suites_with_edges": 101,
     "ui_suites": 50,
     "widen": 1
@@ -2609,6 +2610,12 @@
         "domain"
       ],
       "spire-godot/data/room_events.gd": [
+        "preload"
+      ],
+      "spire-godot/ui/display_settings.gd": [
+        "preload"
+      ],
+      "spire-godot/ui/key_bindings.gd": [
         "preload"
       ]
     },
