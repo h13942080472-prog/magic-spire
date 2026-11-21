@@ -935,7 +935,7 @@
       "signals": 2
     }
   },
-  "digest": "6f912e2882d912126178a1403720dab96f03d9b252bf897a9a521a7ba2668d55",
+  "digest": "9290186655be706cce3b4e7d509d6e24942b660b40ab9fc9c0bf9d81c8796f00",
   "domain_words": {
     "ART": [
       "ui:display",
@@ -1935,7 +1935,7 @@
       ]
     }
   },
-  "generated_from": "c2a535a39858ef7bfc655a038f0c0fb62ff590d73029828b9d3efdc2facc254a",
+  "generated_from": "58f1add878ade8d099bfe353238ff88daab25e54d6ae5facf44e155ccd977ce3",
   "registries": {
     "rule": [
       "rope_master",
@@ -2049,7 +2049,7 @@
   "schema": 1,
   "stats": {
     "blind": 4,
-    "blind_by_design": 3,
+    "blind_by_design": 4,
     "case_files": 232,
     "domains": 65,
     "domains_declared": 65,

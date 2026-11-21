@@ -122,7 +122,8 @@ const EXCLUDE=[
 const BLIND_BY_DESIGN=[
  {"path":"spire-godot/core/tool_rules.gd","reason":"状态相关工具查询经 g.Tools 间接消费，没有专属域词；由 spire-godot/core/ 闭包（all-dev）兜住"},
  {"path":"spire-godot/core/item_presentation.gd","reason":"道具文案是只读投影，无专属域词；由 spire-godot/core/ 闭包（all-dev）兜住"},
- {"path":"spire-godot/data/phases.gd","reason":"阶段定义只被存档校验与文案间接消费，无专属域词；由 spire-godot/data/ 闭包（all-dev）兜住"}
+ {"path":"spire-godot/data/phases.gd","reason":"阶段定义只被存档校验与文案间接消费，无专属域词；由 spire-godot/data/ 闭包（all-dev）兜住"},
+ {"path":"spire-godot/ui/legacy_import.gd","reason":"一次性旧目录迁移入口：由 ui/main.gd 接线、读写经 SaveStore 与进程内夹具，无专属域词；由 spire-godot/ui/ 闭包（all-dev-ui）与 persistence 套件兜住"}
 ]
 
 const INDEX_DEFECTS=[
