@@ -95,6 +95,34 @@ git worktree list
 - **打包的环境前置**：Godot 导出模板须装在 `%APPDATA%\Godot\export_templates\<引擎版本>\`；引擎版本与 `docs/spec/packaging.md` 的当前契约一致。`find-godot.ps1` 不校验版本，存在偏差时先处理，不能将不同环境的产物宣称为已按约验收。
 - **打包读取的输入**（改动前先确认仍在原位）：模块根 `基础操作教学.txt`（随包分发）、`docs/record/release-notes/release-v<版本>.txt`（作为包内 `版本更新内容.txt`）与 `docs/record/release-notes/release-android-v<版本>.txt`、`spire-godot/packaging/licenses/GODOT-LICENSE.txt`／`GODOT-COPYRIGHT.txt`、`assets/vendor/CREDITS.md`、`assets/fonts/OFL`、仓库根 `LICENSE`／`ASSET_RIGHTS.md`／`版本更新内容.txt`。玩家面副本与启动器另存于仓库根 `release/`（`基础操作教学.txt`、`开始游戏.cmd`、`开始游戏.vbs`；从 `release/` 启动时回退找 `../spire-godot/tools/launch.ps1`）。
 
+## 更新签名私钥保管
+
+- 私钥只放维护者本机的仓外目录（当前 `C:/1/Private/keys/spire-update/`），另做一份离线备份；
+  不进仓库、日志、CI、云端秘密变量或任何 agent 的工作目录。仓库只有公钥：
+  `spire-godot/update/update_keys.gd::KEYS`（`k1`，DER sha256 由
+  `tests/update_cases.gd::production_key_table_pins_k1` 钉住）。
+- 生产签名只由维护者本人在本机运行；agent 不运行生产签名，也不读取、列出或复制私钥目录。
+  接口与签名防错见 `docs/spec/update-check.md`「发布侧脚本」：
+
+```powershell
+# 在 spire-godot/ 下，PowerShell 7；路径一律绝对路径
+& tools/update-manifest.ps1 -Version <版本> -NotesFile <说明.txt> -Serial <上一份清单 serial + 1> -Out <发布目录>/manifest.json `
+    -WindowsZip <发行 ZIP> -WindowsUrl <https://…> -WindowsMirror <https://…> `
+    -AndroidManifest <package-android 输出目录>/manifest.json -AndroidUrl <https://…> -AndroidMirror <https://…>
+& tools/sign-update-manifest.ps1 -Manifest <发布目录>/manifest.json -PrivateKey <私钥目录>/<私钥文件>
+# 私钥加密时：不给 -PassphraseEnv 则 openssl 在控制台提示输入；脚本化时给 -PassphraseEnv <变量名>，
+# 变量只在本次会话内设置，不写进脚本、历史或日志。
+```
+
+- 签名脚本拒签（私钥与表内公钥不配、`key_id` 无条目、`.sig` 已存在）时不产生 `.sig`；先核对用的是哪把私钥，
+  不要改表去迁就私钥。
+- 轮换：生成新密钥对 → 新公钥以 `k2` 与 `k1` 并列写入 `KEYS`，同批更新钉住判据 → 发一个版本
+  （只有携带 `k2` 的构建能验 `k2` 清单）→ 之后的清单用 `-KeyId k2` → 用 `k1` 签名的清单全部被替换后，
+  从 `KEYS` 删除 `k1` 并销毁其私钥与备份。
+- 泄露处置：立即生成新密钥对，新 `key_id` 入表并发版；之后只用新键签发清单；从 `KEYS` 删除旧键再发版，
+  销毁旧私钥与备份。旧构建在升级前仍信任旧键，可能显示伪造的更新提示（U1 只提示与跳转，不下载安装）；
+  处置期间核对公网清单与 `.sig`，必要时先撤下公网清单。
+
 ## 产物与清理
 
 - 计时脚本、基准数据、验收补充脚本等一次性产物放已忽略的 `spire-godot/build/`，
