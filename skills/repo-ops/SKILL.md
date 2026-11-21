@@ -98,14 +98,13 @@ git worktree list
 ## 更新签名私钥保管
 
 - 私钥只放维护者本机的仓外目录（当前 `C:/1/Private/keys/spire-update/`），另做一份离线备份；
-  不进仓库、日志、CI、云端秘密变量或任何 agent 的工作目录。仓库只有公钥：
-  `spire-godot/update/update_keys.gd::KEYS`（`k1`，DER sha256 由
-  `tests/update_cases.gd::production_key_table_pins_k1` 钉住）。
+  不进仓库、日志、CI、云端秘密变量或任何 agent 的工作目录。仓库只放公钥
+  （`spire-godot/update/update_keys.gd::KEYS`）。
 - 生产签名只由维护者本人在本机运行；agent 不运行生产签名，也不读取、列出或复制私钥目录。
-  接口与签名防错见 `docs/spec/update-check.md`「发布侧脚本」：
+  参数、哈希单一来源、签名防错与轮换顺序见 `docs/spec/update-check.md`「发布侧脚本」，这里只写操作：
 
 ```powershell
-# 在 spire-godot/ 下，PowerShell 7；路径一律绝对路径
+# 在 spire-godot/ 下用 PowerShell 7（pwsh）执行
 & tools/update-manifest.ps1 -Version <版本> -NotesFile <说明.txt> -Serial <上一份清单 serial + 1> -Out <发布目录>/manifest.json `
     -WindowsZip <发行 ZIP> -WindowsUrl <https://…> -WindowsMirror <https://…> `
     -AndroidManifest <package-android 输出目录>/manifest.json -AndroidUrl <https://…> -AndroidMirror <https://…>
@@ -114,11 +113,10 @@ git worktree list
 # 变量只在本次会话内设置，不写进脚本、历史或日志。
 ```
 
-- 签名脚本拒签（私钥与表内公钥不配、`key_id` 无条目、`.sig` 已存在）时不产生 `.sig`；先核对用的是哪把私钥，
-  不要改表去迁就私钥。
-- 轮换：生成新密钥对 → 新公钥以 `k2` 与 `k1` 并列写入 `KEYS`，同批更新钉住判据 → 发一个版本
-  （只有携带 `k2` 的构建能验 `k2` 清单）→ 之后的清单用 `-KeyId k2` → 用 `k1` 签名的清单全部被替换后，
-  从 `KEYS` 删除 `k1` 并销毁其私钥与备份。
+- 签名脚本拒签时先核对用的是哪把私钥，不要改表去迁就私钥。
+- 轮换：生成新密钥对 → 新公钥以 `k2` 与 `k1` 并列写入 `KEYS`，同批更新钉住判据
+  `tests/update_cases.gd::production_key_table_pins_k1` → 发一个版本 → 之后的清单用 `-KeyId k2` →
+  用 `k1` 签名的清单全部被替换后，从 `KEYS` 删除 `k1` 并销毁其私钥与备份。
 - 泄露处置：立即生成新密钥对，新 `key_id` 入表并发版；之后只用新键签发清单；从 `KEYS` 删除旧键再发版，
   销毁旧私钥与备份。旧构建在升级前仍信任旧键，可能显示伪造的更新提示（U1 只提示与跳转，不下载安装）；
   处置期间核对公网清单与 `.sig`，必要时先撤下公网清单。
