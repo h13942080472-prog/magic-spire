@@ -113,11 +113,11 @@
     }
   },
   "generated_from": {
-    "cells": 1314,
+    "cells": 1315,
     "fields": 122,
     "files": 141,
-    "inputs_sha256": "41e65a22ab6eae203f269faaae7a561c913d22d9b3cfa241f67ea2bd1d5e898a",
-    "sites": 2148,
+    "inputs_sha256": "a61fc3acfcae828514a846e670ef1edda0afb15807ef9c70570e08314771618f",
+    "sites": 2149,
     "ui_reads": 0,
     "whole_state": 53
   },
@@ -2333,6 +2333,9 @@
     },
     "core/route_history.gd::_last": {
       "route_history": 1
+    },
+    "core/route_history.gd::_serving_sentence": {
+      "prison": 1
     },
     "core/route_history.gd::open": {
       "route_history": 1

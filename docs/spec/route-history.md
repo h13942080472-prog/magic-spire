@@ -44,17 +44,22 @@ core/route_history.gd::backfill(s: Dictionary) -> Array   # 旧档回填为单�
 - **唯一追加点**：`core/game.gd::_apply_transition` 的 `if not continuation:` 块，由迁移声明表
   `TRANSITIONS` 的 `route` 列派生（`setup_init`／`tower_restart`／`prison_escape`）。同一 kind 的
   房间／阶段两段写入只追加一条（沿用 `continuation` 语义）。三个调用方共用这一处写入。
-- **进入原因**（`reason`，只看 `kind` 与已记录的条目）：
+- **进入原因**（`reason`，只读 `kind`、上一条记录与挂载点当时的 `state`）：
   - `setup_init` → `start`；
   - `prison_escape` → `escape`；
-  - `tower_restart`：`demo_cycle` 大于上一条的 `cycle` → `cycle`；否则上一条 `region=="prison"`
-    → `gate_exit`；否则 → `release`。
-  - 依据：`DemoExit.continue_run` 先 `demo_cycle+=1` 再 `_restart_tower(true)`；越狱路线的
-    `map_region` 是 `prison`，而牢房期间仍是 `tower`。调换这两步顺序会让 `cycle` 被误判为 `release`。
+  - `tower_restart`：`demo_cycle` 大于上一条的 `cycle` → `cycle`；否则挂载点当时 `state.prison` 仍非空
+    → `release`（服刑出狱：`core/prison.gd::completed_turn` 路径；`core/game.gd::_restart_tower` 在
+    挂载点之后才清空牢房）；否则上一条 `region=="prison"`（越狱路线）→ `gate_exit`；其余 → `release`。
+  - 依据：`DemoExit.continue_run` 先 `demo_cycle+=1` 再 `_restart_tower(true)`；`Prison.escape` 清空
+    `state.prison`，击败出口守卫后 `core/prison.gd::return_to_tower` 执行时牢房已空。越狱路线在出口
+    守卫战再次被收押、服满刑期时，上一条记录的 `region` 仍是 `prison` 而牢房非空，所以判别信号取
+    当时的 `state.prison`；按上一条 `region` 推断会把这条「服刑出狱」误记成 `gate_exit`。
+    调换这两步顺序会让 `cycle` 被误判为 `release`。
 - **关闭口径**：`open` 先用当前 `completed_rooms` 关闭上一条；楼层按**该条记录自己的**
   `region`／`seed`／`boss`／`security` 重建当时的路线图（`Tower.generate`／`Tower.prison_route`
   都是确定性的），不读切换后的新图；夹具改名后的 id 才回落到当前 `state.rooms` 的同名房间。
-  `nodes`／`floor` 与 `ui/run_review.gd::_progress_text` 同口径。
+  `nodes` 是已完成房间数；`floor` 是**已完成房间**的最高层＋1。这与 `ui/run_review.gd::_progress_text`
+  的口径不同：那里把当前所在房间也计入 `floor`，当前房间比最高已完成房间更深时两者给出不同的层数。
 - **回填**：`core/game.gd::restore_snapshot` 在 `initial_seed` 回填之后、`Snapshot.check` 之前，对
   **载入副本**补一条 `enter="unknown"` 记录（`nodes`／`floor` 留 `-1`，等下一次真正关闭时补齐）。
   读不写盘；调用方字典与文件字节都不变。`Snapshot.check` 零改动：通用逐字段循环要求该字段存在且为
@@ -80,6 +85,8 @@ core/route_history.gd::backfill(s: Dictionary) -> Array   # 旧档回填为单�
 
 - 同周目内 `boss` 保留：`release` 与 `gate_exit` 的 `_restart_tower` 不带 `from_exit`，沿用
   `state.room_encounters` 的峰顶遭遇；只有 `cycle`（`from_exit=true`）才可能换首领。
+- `release` 覆盖两条真实路径：塔路内被捕后服刑出狱，以及越狱路线在出口守卫战再次被收押后服刑出狱；
+  `gate_exit` 只对应「击败出口守卫、整备完成回到塔路」这一条路径。
 - 越狱路线 `region=="prison"` 且 `boss==""`，守卫数取 `security`。
 - 练习局不经过 `setup_init`；`Prison.exit_practice` 会走 `escape`，所以练习位里可能出现一条
   `escape` 记录。练习局不归档，core 不为此加练习判断。
@@ -99,8 +106,11 @@ core/route_history.gd::backfill(s: Dictionary) -> Array   # 旧档回填为单�
 | 判据 | 落点（分类） |
 | --- | --- |
 | `ROUTEHIST-1`～`ROUTEHIST-12`（正例、最近反例、四种切换、去重、确定性、原子性、旧档与迁移回填、不升版） | `tests/persistence_cases.gd`（`persistence`） |
+| `route_history_second_capture_release`（越狱路线在出口守卫战再次被收押后服刑，`enter=="release"`） | `tests/persistence_cases.gd`（`persistence`） |
+| `route_history_cycle_capture_release`（`cycle` 之后在新一代塔路被捕服刑，`enter=="release"`） | `tests/persistence_cases.gd`（`persistence`） |
 | `route_history_switch_matrix`（15 格切换矩阵：条数与 `enter`／`cycle`／`generation`／`region`／`boss`） | `tests/persistence_cases.gd`（`persistence`） |
-| `route_history_single_writer`（唯一写入者、唯一调用点、追加在 `not continuation` 块内） | `tests/architecture_cases.gd`（`architecture`） |
+| `route_history_single_writer`（唯一写入者、唯一调用点、追加在 `not continuation` 块内、无别名写） | `tests/architecture_cases.gd`（`architecture`） |
+| `route_history_references_are_pinned`（引用白名单：`core`／`data`／`ui` 里引用 `route_history` 的位置只允许 owner 模块与 `core/game.gd` 的三行） | `tests/architecture_cases.gd`（`architecture`） |
 | `route_switch_declared`（带 `route` 的 kind 恰为三个） | `tests/architecture_cases.gd`（`architecture`） |
 | `route_reason_branches_declared`（`cycle` 分支先于 `prison` 分支） | `tests/architecture_cases.gd`（`architecture`） |
 | `route_legacy_backfill_is_pinned`（回填位置与次数） | `tests/architecture_cases.gd`（`architecture`） |
