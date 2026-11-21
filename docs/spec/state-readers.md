@@ -1,6 +1,6 @@
 # 状态字段读者声明与反向溯源：现行契约
 
-域：`spire-godot/tests/state_reader_scan.gd`（唯一静态派生模块）、`tests/source_text.gd`（被扫描源码的归一读取）、
+域：`spire-godot/tests/state_reader_scan.gd`（唯一静态派生模块）、`tests/source_text.gd`（被扫描的源码文本的归一读取）、
 `tests/state_readers.json`（冻结真源）、`tools/build_state_readers.gd`（唯一重生成入口）与
 `tests/architecture_cases.gd` 的三条 `STATEREAD` 判据。
 「state 字段的读者面」＝`core|data|ui` 源码文本里对 `state` 字典的字段读点。本片是**静态**契约：
@@ -24,7 +24,8 @@
   这些路径下**任何**文本变化（含注释）都让判据红，必须同批重生成并提交（fail-closed）。
   `tests/` 不在输入面（避免自指：`tests/state_reader_scan.gd` 不扫自己）；`tests/state_readers.json` 与
   `tests/state_reader_scan.gd` 也不进 `tests/check_index.json` 的 `case_files`（前者不是 `.gd`，
-  后者无 `static func run(`）——重冻索引只在 `tests/architecture_cases.gd` 文本变化时发生。
+  后者无 `static func run(`）——本片的重冻触发只有 `tests/architecture_cases.gd`；索引的完整输入面见
+  `docs/spec/check-routing.md` §4（EOL-1a 起含 `tests/source_text.gd`）。
 - `--write` 是确定性的：同一输入的两次运行输出逐字节相同，无时间戳、键序稳定
   （`tests/state_reader_scan.gd::canonical`）。
 - 本片改了 `tests/architecture_cases.gd` ⇒ 同批必须 `tools/check-index.ps1 -Write` 重冻

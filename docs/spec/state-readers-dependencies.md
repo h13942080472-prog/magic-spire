@@ -37,18 +37,19 @@
 
 ## 依赖方向（本片允许的边）
 
-- `tests/architecture_cases.gd` → `tests/state_reader_scan.gd` → `FileAccess`（只读源码文本）。
-- `tests/state_reader_scan.gd` → `tests/source_text.gd`（被扫描源码的归一读取）；叶只依赖 `FileAccess`，
-  不 preload 产品码、测试夹具或本模块。
+- `tests/architecture_cases.gd` → `tests/state_reader_scan.gd` → `tests/source_text.gd` → `FileAccess`
+  （`tests/state_reader_scan.gd` 自身只用 `FileAccess` 读冻结物 `FROZEN_PATH`）；叶不 preload 产品码、
+  测试夹具或本模块。
 - `tools/build_state_readers.gd` → `tests/state_reader_scan.gd`。
 - 禁止：`tests/state_reader_scan.gd` 引 `core/`／`ui/`／`data/`／测试夹具（它只读文本，不 preload 产品码）；
   产品码引 `tests/`；`tests/architecture_cases.gd` 出现第二套 state 扫描实现（三条判据只消费同一派生模块，
   不自行枚举源码）。
-- 扫描原语边界：被扫描文本的读取收口在 `tests/source_text.gd`（`normalized_text`／`normalized_text_sha256`，
-  CRLF 对折成 LF）；`tests/state_reader_scan.gd` 只保留最小枚举原语 `_rel_files` 与单次运行内的文本缓存
-  `_source_text`，不再自带读文本原语。`tests/check_index.gd` 与 `tests/runner_cases.gd` 的判据共用同一读入口
-  （边见 `docs/spec/check-routing-dependencies.md`）：归一规则一处声明，哈希与扫描吃同一段文本。
-  `tests/architecture_cases.gd::source_text` 仍是架构判据侧的独立小原语（不在本片允许面内，本批未改）。
+- 扫描原语边界：被扫描的源码文本的读取收口在 `tests/source_text.gd`（`normalized_text`／`normalized_text_sha256`，
+  只把 CRLF 对折成 LF）；`tests/state_reader_scan.gd` 只保留最小枚举原语 `_rel_files` 与单次运行内的文本缓存
+  `_source_text`，不再自带读文本原语。`tests/check_index.gd` 的扫描与逐文件哈希、`tests/runner_cases.gd` 的
+  C1／C1′ 共用同一读入口（边见 `docs/spec/check-routing-dependencies.md`）：归一规则一处声明，扫描与哈希
+  吃同一段归一文本。`tests/architecture_cases.gd::source_text` 仍是架构判据侧的独立小原语（不在本片允许面内，
+  本批未改）。
 
 ## 行数线
 
