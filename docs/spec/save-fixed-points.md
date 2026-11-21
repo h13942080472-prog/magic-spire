@@ -93,8 +93,8 @@ D23a 之后用户目录是固定名；旧版本各自带版本号的目录**仍�
   逐字节复制，写入路径与 `write_game` 相同（`.tmp` → 回读 `read_file(temp).ok` → 改名，见
   `core/save_store.gd::adopt_legacy`）；`display-settings.cfg`、`key-bindings.cfg` 交给
   `ui/display_settings.gd::import_from` 与 `ui/key_bindings.gd::import_from` 读出校验后写各自路径。
-  坏档与新修订号档不落地，记入标记的 `skipped`（键 `code`，值 `invalid`／`version`）。不复制 `feedback-draft.json`
-  等其他文件。
+  坏档、新修订号档与落盘失败的档不落地，记入标记的 `skipped`（键 `code`，值 `invalid`／`version`／
+  `write`）。不复制 `feedback-draft.json` 等其他文件。
 - 目标非空即不复制：`saves` 下已有任一位主档或 `.bak` 时不动任何文件，标记记 `target_not_empty`。
   中断的复制因此在下一次启动收敛到同一结果，不产生第二条写入口。
 - 标记：目标根下 `legacy-import.json`，`schema=1`，含 `source`／`copied`／`skipped`／`at`；

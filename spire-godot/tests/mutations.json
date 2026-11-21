@@ -556,8 +556,8 @@
     },
     "legacy_import_opens_legacy_read_only": {
       "file": "ui/legacy_import.gd",
-      "find": " var file=FileAccess.open(path,FileAccess.READ)",
-      "replace": " var file=FileAccess.open(path,FileAccess.WRITE)",
+      "find": " var adopted=store.adopt_legacy(source_root.path_join(\"saves\"))",
+      "replace": " var probe=FileAccess.open(source_root.path_join(\"saves/tower.json\"),FileAccess.WRITE)\n if probe!=null: probe.close()\n var adopted=store.adopt_legacy(source_root.path_join(\"saves\"))",
       "suite": "architecture"
     },
     "saves_single_writer": {

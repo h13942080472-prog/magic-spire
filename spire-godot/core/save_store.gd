@@ -165,24 +165,28 @@ func write_game(game, replace_incompatible: bool=false, map_drawings: Dictionary
 # slot files byte for byte. Each source file is validated with unpack() first, and every accepted
 # copy goes through the same .tmp -> readback -> rename path as write_game, so a partial copy can
 # never replace a primary file and the .bak keeps its own name. The source is only read.
+# Returns {"ok":true,"copied":[file names],"skipped":[{"file","code"}]}; a skip code is the
+# unpack() failure code ("invalid"/"version") or "write" when the copy cannot be committed.
 func adopt_legacy(source: String) -> Dictionary:
  var copied=[]
  var skipped=[]
  for slot in Game.Snapshot.SLOTS:
   for suffix in ["",".bak"]:
-   var name=String(slot)+".json"+suffix
-   var from=source.path_join(name)
-   if not FileAccess.file_exists(from): continue
-   var bytes=_read_bytes(from)
+   var file_name=String(slot)+".json"+String(suffix)
+   var origin=source.path_join(file_name)
+   if not FileAccess.file_exists(origin): continue
+   var bytes=_read_bytes(origin)
    var result=unpack(bytes.get_string_from_utf8())
    if not result.ok:
-    skipped.append({"file":name,"code":String(result.get("code","invalid"))})
+    skipped.append({"file":file_name,"code":String(result.get("code","invalid"))})
     continue
-   var issue=_commit_bytes(bytes,name)
-   if issue!="": skipped.append({"file":name,"code":issue})
-   else: copied.append(name)
+   var code=_commit_bytes(bytes,file_name)
+   if code!="": skipped.append({"file":file_name,"code":code})
+   else: copied.append(file_name)
  return {"ok":true,"copied":copied,"skipped":skipped}
 
+# The source is opened for reading only; an unreadable file yields empty bytes, which unpack()
+# then rejects as invalid, so a failed open can never be copied.
 func _read_bytes(filename: String) -> PackedByteArray:
  var file=FileAccess.open(filename,FileAccess.READ)
  if file==null: return PackedByteArray()
@@ -192,10 +196,11 @@ func _read_bytes(filename: String) -> PackedByteArray:
 
 # Same temp/readback/rename shape as write_game, without the backup step: adopt_legacy only
 # runs when the target holds no slot file yet, so there is no previous content to keep.
-func _commit_bytes(bytes: PackedByteArray, name: String) -> String:
+# Returns "" when the copy is committed, or the skip code ("write"/"invalid") otherwise.
+func _commit_bytes(bytes: PackedByteArray, file_name: String) -> String:
  var folder=ProjectSettings.globalize_path(directory)
  if DirAccess.make_dir_recursive_absolute(folder)!=OK: return "write"
- var filename=directory.path_join(name)
+ var filename=directory.path_join(file_name)
  var temp=filename+".tmp"
  var file=FileAccess.open(temp,FileAccess.WRITE)
  if file==null: return "write"
