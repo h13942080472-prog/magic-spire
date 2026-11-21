@@ -1069,7 +1069,7 @@ static func legacy_cfg_defaults(root: String) -> Dictionary:
  var keys=KeyBindings.new()
  keys.path=root.path_join("key-defaults.cfg")
  keys.save()
- return {"display":legacy_cfg_values(display.path),"keys":legacy_cfg_values(keys.path)}
+ return {"display":legacy_cfg_values(display.path),"bindings":legacy_cfg_values(keys.path)}
 
 static func legacy_marker(path: String) -> Dictionary:
  var parsed=JSON.parse_string(FileAccess.get_file_as_string(path))
@@ -1128,8 +1128,8 @@ static func legacy_source_is_the_newest_directory_with_a_readable_save(t) -> voi
  var keys_diff=legacy_cfg_diff(legacy_keys,legacy_cfg_values(target.path_join("key-bindings.cfg")))
  t.check(not legacy_keys.is_empty() and keys_diff.is_empty(),"LEGACY legacy_source_is_the_newest_directory_with_a_readable_save: the key bindings are written through their owner's save entry and the whole file reads back equal to the legacy one: differing="+str(keys_diff))
  var defaults=legacy_cfg_defaults(root.path_join("defaults"))
- var display_defaults=Dictionary(defaults.display)
- var key_defaults=Dictionary(defaults.keys)
+ var display_defaults=Dictionary(defaults["display"])
+ var key_defaults=Dictionary(defaults["bindings"])
  var at_default=[]
  for key in display_defaults:
   if String(key)!="art/fixed_hero_portrait" and legacy_display.get(key)==display_defaults[key]: at_default.append(String(key))
