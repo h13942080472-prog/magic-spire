@@ -288,8 +288,8 @@
     },
     "baseline_diff_is_declared": {
       "file": "tests/architecture_cases.gd",
-      "find": " \"battle:0\":{\"record\":E_SUBMIT_KEYS_REASON},\n",
-      "replace": "",
+      "find": "\"battle:0\":{\"facts_text\":C_COPY_REASON,\"facts_verdicts\":C_COPY_REASON,\"record\":C_RECORD_REASON,",
+      "replace": "\"battle:0\":{\"facts_text\":C_COPY_REASON,\"facts_verdicts\":C_COPY_REASON,",
       "suite": "architecture"
     },
     "frozen_anchor_files_match_git": {
