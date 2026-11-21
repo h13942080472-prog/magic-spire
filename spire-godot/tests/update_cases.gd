@@ -34,7 +34,8 @@ const PRODUCTION_KEY_DER_SHA256="a4311195c39051d64a0fc5bec6352316eebc9a836d93f09
 # U1b release-scripts fixture: tools/update-manifest.ps1 built manifest.json from the committed
 # inputs (notes.txt, android-package-manifest.json in tools/package-android.ps1's shape, and
 # windows.zip) with the links below, -Serial 4, -KeyId t1 and -Revoked 0.18.3;
-# tools/sign-update-manifest.ps1 signed it with a one-time key whose private half was deleted.
+# tools/sign-update-manifest.ps1 signed it through its -KeyTable test seam with a one-time key
+# whose private half was deleted.
 const RELEASE_DIRECTORY=FIXTURE_DIRECTORY+"release-scripts/"
 const RELEASE_KEY_ID="t1"
 const RELEASE_VERSION="0.18.4"
@@ -290,9 +291,9 @@ static func openssl_signed_manifest_interops(t) -> void:
 
 # U1b: the release scripts' own output verifies through evaluate on both platforms and carries
 # exactly the scripts' inputs. Android bytes/sha256 must equal the package manifest they were
-# copied from; the Windows pair must equal an independent hash of the committed ZIP (the
-# generator is the only place that hashes it). One byte changed after signing is a signature
-# failure.
+# copied from; the Windows pair must equal an independent hash of the committed ZIP (in the
+# release pipeline the generator is the only place that hashes it). One byte changed after
+# signing is a signature failure.
 static func release_scripts_manifest_interops(t) -> void:
  var names=["manifest.json","manifest.json.sig","public.pem","notes.txt","android-package-manifest.json","windows.zip"]
  var missing=names.filter(func(name):return not FileAccess.file_exists(RELEASE_DIRECTORY+name))
@@ -310,7 +311,7 @@ static func release_scripts_manifest_interops(t) -> void:
  var line=signature.get_string_from_utf8().strip_edges()
  t.check(not line.contains("\n") and Marshalls.base64_to_raw(line).size()==384,"UPDATE release_scripts_manifest_interops: the signature is one base64 line holding a 3072-bit RSA block")
  var inputs={
-  "windows-x64":{"bytes":FileAccess.get_file_as_bytes(zip_path).size(),"sha256":FileAccess.get_sha256(zip_path)},
+  "windows-x64":{"bytes":fixture(zip_path).size(),"sha256":FileAccess.get_sha256(zip_path)},
   "android":{"bytes":int(package_json.data.get("bytes",-1)),"sha256":String(package_json.data.get("sha256",""))},
  }
  var keys={RELEASE_KEY_ID:public_pem}
