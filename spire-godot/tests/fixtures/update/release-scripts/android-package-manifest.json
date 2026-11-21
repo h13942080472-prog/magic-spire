@@ -1,0 +1,9 @@
+{
+  "version": "0.18.4",
+  "platform": "Android ARM64 + ARMv7",
+  "package": "org.magic.spire",
+  "build": "u1b-fixture",
+  "file": "spire-v0.18.4.apk",
+  "bytes": 257242143,
+  "sha256": "8ee88a6ac46ac1e5a1c47be89162632e0c7ed6cd808ffa96d4336295539132d1"
+}

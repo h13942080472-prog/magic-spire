@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "serial": 4,
+  "issued": "2026-11-21T17:34:21Z",
+  "key_id": "t1",
+  "latest": {
+    "version": "0.18.4",
+    "notes_zh": "发布脚本互通夹具：update-manifest.ps1 生成两平台清单，sign-update-manifest.ps1 用一次性密钥签名。"
+  },
+  "revoked": [
+    "0.18.3"
+  ],
+  "platforms": {
+    "windows-x64": {
+      "full": {
+        "url": "https://update.magicspire.xyz/v1/0.18.4/spire-v0.18.4-windows64.zip",
+        "mirror": "https://github.com/h13942080472-prog/magic-spire/releases/tag/v0.18.4",
+        "bytes": 231,
+        "sha256": "f49e6fb8dfa0ae0a8aac7de8f7084d920befe44d0e18b8f8260782fafcb3c015"
+      },
+      "patches": []
+    },
+    "android": {
+      "full": {
+        "url": "https://update.magicspire.xyz/v1/0.18.4/spire-v0.18.4.apk",
+        "mirror": "https://github.com/h13942080472-prog/magic-spire/releases/tag/v0.18.4",
+        "bytes": 257242143,
+        "sha256": "8ee88a6ac46ac1e5a1c47be89162632e0c7ed6cd808ffa96d4336295539132d1"
+      },
+      "patches": []
+    }
+  }
+}

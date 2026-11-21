@@ -630,6 +630,18 @@
       "replace": "if false: return none(\"signature\")",
       "suite": "update"
     },
+    "production_key_table_pins_k1": {
+      "file": "update/update_keys.gd",
+      "find": "EqdHqX+i5E2c3pzKVekjXcMax3zVO3a9y/bgmX+9+c8degft9gS/rjUkYXAszvo8",
+      "replace": "EqdHqX+i5E2c3pzKWekjXcMax3zVO3a9y/bgmX+9+c8degft9gS/rjUkYXAszvo8",
+      "suite": "update"
+    },
+    "release_scripts_manifest_interops": {
+      "file": "update/update_manifest.gd",
+      "find": "var release=(platforms as Dictionary)[platform].get(\"full\",{})",
+      "replace": "var release=(platforms as Dictionary).values()[0].get(\"full\",{})",
+      "suite": "update"
+    },
     "update_module_is_a_leaf": {
       "file": "update/update_check.gd",
       "find": "const SIGNATURE_SUFFIX=\".sig\"",
