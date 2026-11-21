@@ -46,8 +46,9 @@
   不自行枚举源码）。
 - 扫描原语边界：被扫描的源码文本的读取收口在 `tests/source_text.gd`（`normalized_text`／`normalized_text_sha256`，
   只把 CRLF 对折成 LF）；`tests/state_reader_scan.gd` 只保留最小枚举原语 `_rel_files` 与单次运行内的文本缓存
-  `_source_text`，不再自带读文本原语。`tests/check_index.gd` 的扫描与逐文件哈希、`tests/runner_cases.gd` 的
-  C1／C1′ 共用同一读入口（边见 `docs/spec/check-routing-dependencies.md`）：归一规则一处声明，扫描与哈希
+  `_source_text`，不再自带读文本原语。`tests/check_index.gd` 的扫描与逐文件哈希、
+  `tests/runner_cases.gd::source_text_folds_crlf_pairs`／`tests/runner_cases.gd::source_text_keeps_lone_cr`
+  共用同一读入口（边见 `docs/spec/check-routing-dependencies.md`）：归一规则一处声明，扫描与哈希
   吃同一段归一文本。`tests/architecture_cases.gd::source_text` 仍是架构判据侧的独立小原语（不在本片允许面内，
   本批未改）。
 
