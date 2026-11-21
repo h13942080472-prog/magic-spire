@@ -18,10 +18,15 @@ param(
 # name, never the value). The script never prints, logs or stores the private key, the
 # passphrase or a hash of either; its scratch directory holds public material and the signature
 # only, and is removed on every exit path. An existing <manifest>.sig is never overwritten.
+# Errors name the parameter and the value that failed, except that the -PrivateKey and a
+# malformed -PassphraseEnv value are never echoed: a misused parameter could carry the key or
+# the passphrase itself.
 #
-# -KeyTable points the guard at another file of the same shape. It exists for test fixtures
-# signed with a one-time key; release signing uses the default, update/update_keys.gd.
+# Test seam (测试接缝): -KeyTable points the guard at another file of the same shape. It exists
+# only so that test fixtures can be signed with a one-time key; release signing never passes it
+# and uses the default, update/update_keys.gd.
 $ErrorActionPreference = 'Stop'
+$utf8 = [Text.UTF8Encoding]::new($false, $true)
 
 function Find-OpenSsl {
     if ($env:OPENSSL_BIN) {
@@ -44,44 +49,57 @@ function Invoke-OpenSsl {
     return $output
 }
 
+# -Secret keeps the value out of the message (see the header).
+function Assert-AbsoluteFile {
+    param([string]$Path, [string]$Name, [switch]$Secret)
+    $shown = if ($Secret) { ' (value not echoed)' } else { ': ' + $Path }
+    if (-not [IO.Path]::IsPathFullyQualified($Path)) { throw ('-' + $Name + ' must be an absolute path' + $shown) }
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw ('-' + $Name + ' does not name a file' + $shown) }
+}
+
+function Get-Sha256Hex {
+    param([string]$Path)
+    return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+}
+
 # key_id -> PEM text of every triple-quoted entry in the KEYS constant. The table is read as text
 # on purpose: signing needs no engine.
 function Read-KeyTable {
     param([string]$Path)
-    $text = [IO.File]::ReadAllText($Path, [Text.UTF8Encoding]::new($false, $true)).Replace("`r`n", "`n")
+    $text = [IO.File]::ReadAllText($Path, $utf8).Replace("`r`n", "`n")
     $start = $text.IndexOf('const KEYS=')
-    if ($start -lt 0) { throw "No 'const KEYS=' in key table: $Path" }
+    if ($start -lt 0) { throw "-KeyTable has no 'const KEYS=': $Path" }
     $table = @{}
     foreach ($match in [regex]::Matches($text.Substring($start), '(?s)"([A-Za-z0-9_-]+)"\s*:\s*"""(.*?)"""')) {
         $name = $match.Groups[1].Value
-        if ($table.ContainsKey($name)) { throw "Key table names '$name' twice: $Path" }
+        if ($table.ContainsKey($name)) { throw "-KeyTable names key_id '$name' twice: $Path" }
         $table[$name] = $match.Groups[2].Value
     }
     return $table
 }
 
-if (-not [IO.Path]::IsPathFullyQualified($Manifest)) { throw "-Manifest must be an absolute path: $Manifest" }
-if (-not [IO.Path]::IsPathFullyQualified($PrivateKey)) { throw '-PrivateKey must be an absolute path.' }
-if (-not (Test-Path -LiteralPath $Manifest -PathType Leaf)) { throw "-Manifest does not name a file: $Manifest" }
-if (-not (Test-Path -LiteralPath $PrivateKey -PathType Leaf)) { throw '-PrivateKey does not name a file.' }
+# ---- parameters ----
+Assert-AbsoluteFile $Manifest 'Manifest'
+Assert-AbsoluteFile $PrivateKey 'PrivateKey' -Secret
 $signaturePath = $Manifest + '.sig'
-if (Test-Path -LiteralPath $signaturePath) { throw "Signature already exists: $signaturePath" }
+if (Test-Path -LiteralPath $signaturePath) { throw "-Manifest already has a signature, which is never overwritten: $signaturePath" }
 $passin = @()
 if ($PassphraseEnv) {
-    if ($PassphraseEnv -cnotmatch '^[A-Za-z_][A-Za-z0-9_]*$') { throw '-PassphraseEnv takes an environment variable name.' }
-    if (-not [Environment]::GetEnvironmentVariable($PassphraseEnv)) { throw "Environment variable $PassphraseEnv is not set." }
+    if ($PassphraseEnv -cnotmatch '^[A-Za-z_][A-Za-z0-9_]*$') { throw '-PassphraseEnv takes the name of an environment variable, not the passphrase (value not echoed).' }
+    if (-not [Environment]::GetEnvironmentVariable($PassphraseEnv)) { throw "-PassphraseEnv names environment variable $PassphraseEnv, which is not set." }
     $passin = @('-passin', ('env:' + $PassphraseEnv))
 }
 if (-not $KeyTable) { $KeyTable = Join-Path (Split-Path -Parent $PSScriptRoot) 'update/update_keys.gd' }
-if (-not [IO.Path]::IsPathFullyQualified($KeyTable) -or -not (Test-Path -LiteralPath $KeyTable -PathType Leaf)) { throw "-KeyTable must name an existing file by absolute path: $KeyTable" }
+Assert-AbsoluteFile $KeyTable 'KeyTable'
 $script:openssl = Find-OpenSsl
 Write-Output ('OPENSSL: ' + $script:openssl + ' (' + ((Invoke-OpenSsl 'version' @('version')) -join ' ') + ')')
 
-# The manifest's own key_id selects the table entry, exactly as evaluate() does.
-$document = [Text.Json.JsonDocument]::Parse([IO.File]::ReadAllText($Manifest, [Text.UTF8Encoding]::new($false, $true)), [Text.Json.JsonDocumentOptions]::new())
+# ---- inputs: the manifest's own key_id selects the table entry, exactly as evaluate() does ----
+try { $document = [Text.Json.JsonDocument]::Parse([IO.File]::ReadAllText($Manifest, $utf8), [Text.Json.JsonDocumentOptions]::new()) }
+catch { throw "-Manifest is not strict UTF-8 JSON: $Manifest ($($_.Exception.GetBaseException().Message))" }
 try {
     $keyProperty = [Text.Json.JsonElement]::new()
-    if (-not $document.RootElement.TryGetProperty('key_id', [ref]$keyProperty) -or $keyProperty.ValueKind -ne [Text.Json.JsonValueKind]::String) { throw "Manifest has no string key_id: $Manifest" }
+    if (-not $document.RootElement.TryGetProperty('key_id', [ref]$keyProperty) -or $keyProperty.ValueKind -ne [Text.Json.JsonValueKind]::String) { throw "-Manifest has no string key_id: $Manifest" }
     $keyId = $keyProperty.GetString()
 } finally { $document.Dispose() }
 $table = Read-KeyTable $KeyTable
@@ -96,11 +114,11 @@ try {
     $raw = Join-Path $scratch 'signature.bin'
     $encoded = Join-Path $scratch 'signature.b64'
     $decoded = Join-Path $scratch 'signature-check.bin'
-    [IO.File]::WriteAllText($tablePem, $table[$keyId], [Text.UTF8Encoding]::new($false))
+    [IO.File]::WriteAllText($tablePem, $table[$keyId], $utf8)
     Invoke-OpenSsl 'pkey (table entry)' @('pkey', '-pubin', '-in', $tablePem, '-outform', 'DER', '-out', $tableDer) | Out-Null
     Invoke-OpenSsl 'pkey (public half of -PrivateKey)' (@('pkey', '-in', $PrivateKey) + $passin + @('-pubout', '-outform', 'DER', '-out', $derivedDer)) | Out-Null
-    $expected = (Get-FileHash -LiteralPath $tableDer -Algorithm SHA256).Hash.ToLowerInvariant()
-    if ((Get-FileHash -LiteralPath $derivedDer -Algorithm SHA256).Hash.ToLowerInvariant() -cne $expected) {
+    $expected = Get-Sha256Hex $tableDer
+    if ((Get-Sha256Hex $derivedDer) -cne $expected) {
         throw "REFUSED: -PrivateKey does not match key table entry '$keyId' (table DER sha256 $expected); nothing was signed."
     }
     Write-Output ("KEY MATCH: key_id=$keyId table DER sha256=$expected")
