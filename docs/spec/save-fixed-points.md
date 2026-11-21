@@ -80,6 +80,49 @@ state.initial_seed: int    # = _init 的 run_seed；state.seed 仍由 _restart_t
 - 本节的字段与回填语义、`fixed_point_text` 的消费方（反馈附件）与玩家可见标识见
   `docs/spec/seed-identity.md` 与 `docs/spec/feedback-deployment.md`。
 
+## 旧目录导入（一次性复制）
+
+D23a 之后用户目录是固定名；旧版本各自带版本号的目录**仍在同一父目录下**。`ui/legacy_import.gd` 在首次
+启动把它们复制一次进新目录，旧目录只读：**不删除、不改名、不覆盖任何字节**。
+
+- 选源（`ui/legacy_import.gd::find_source`）：父目录（运行时 `user://` 的上一级）下名字以
+  `紧缚尖塔demo v` 开头、且至少有一个存档能通过 `core/save_store.gd::unpack` 的兄弟目录，取**最新存档
+  mtime** 的一个（`tower.json`／`practice.json` 及 `.bak` 都算）。与目录名里的版本号无关；
+  `紧缚尖塔-dev` 与无关目录不参与。
+- 复制面：`saves/tower.json`、`saves/tower.json.bak`、`saves/practice.json`、`saves/practice.json.bak`
+  逐字节复制，写入路径与 `write_game` 相同（`.tmp` → 回读 `read_file(temp).ok` → 改名，见
+  `core/save_store.gd::adopt_legacy`）；`display-settings.cfg`、`key-bindings.cfg` 交给
+  `ui/display_settings.gd::import_from` 与 `ui/key_bindings.gd::import_from` 读出校验后写各自路径。
+  坏档与新修订号档不落地，记入标记的 `skipped`（键 `code`，值 `invalid`／`version`）。不复制 `feedback-draft.json`
+  等其他文件。
+- 目标非空即不复制：`saves` 下已有任一位主档或 `.bak` 时不动任何文件，标记记 `target_not_empty`。
+  中断的复制因此在下一次启动收敛到同一结果，不产生第二条写入口。
+- 标记：目标根下 `legacy-import.json`，`schema=1`，含 `source`／`copied`／`skipped`／`at`；
+  **标记存在即不再扫描、不再写**。该文件是 `ui/legacy_import.gd` 唯一的写。
+- 关闸与接线：`persistence_enabled=false` 或非桌面构建（`OS.has_feature("pc")` 为假）都不解析任何
+  用户路径；接线只有 `ui/main.gd::_ready` 在 `_restore_startup()` 之前的一行。
+- 生效时机：存档复制后由既有读档路径加载；键位在当次会话即生效（同一属主对象），显示设置与语言在
+  下一次启动由 `initialize()` 读入。
+
+判据（全部走 `persistence` 与 `architecture` 两个规则套件；函数名即判据名）：
+
+| 场景 | 判据 |
+| --- | --- |
+| LEGACY-1 最新旧目录 → 逐字节复制两个存档位与两个设置文件、标记 `schema=1` 逐项登记 | `legacy_source_is_the_newest_directory_with_a_readable_save` |
+| LEGACY-2 选源按存档 mtime，不按目录名版本号 | `legacy_source_follows_save_mtime_not_version` |
+| LEGACY-3 目标已有存档时不复制任何文件 | `legacy_never_imports_into_a_non_empty_target` |
+| LEGACY-4 标记存在即短路，只导入一次 | `legacy_import_runs_only_once` |
+| LEGACY-5 旧目录字节与 mtime 不变 | `legacy_leaves_every_legacy_byte_untouched` |
+| LEGACY-6 坏档与新修订号档跳过并记 `invalid`／`version` | `legacy_skips_invalid_saves_and_keeps_the_rest` |
+| LEGACY-7 关持久化或非桌面构建不导入 | `legacy_stays_off_without_persistence_or_desktop` |
+| LEGACY-8 中断的复制下一次启动收敛 | `legacy_interrupted_copy_converges` |
+| 旧路径只读、`legacy-import.json` 只被本模块命名 | `legacy_import_opens_legacy_read_only` |
+| `user://saves` 单一写者（豁免处只碰自己的常量） | `saves_single_writer` |
+| 接线恰一行且在 `_restore_startup()` 之前、闸先于路径解析 | `legacy_import_is_wired_once` |
+
+前八条在 `tests/persistence_cases.gd`，后三条在 `tests/architecture_cases.gd`；三条架构判据各配一条
+登记突变（`tests/mutations.json`）。
+
 ## 输入域
 
 三个固定点（写入内容一律＝写入时刻的 `restart_snapshot()` ＋当时线稿）：
