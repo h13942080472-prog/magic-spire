@@ -802,6 +802,7 @@ static func run(t) -> void:
  legacy_run_once_derives_paths_from_the_injected_store(t)
  legacy_display_import_follows_initialize_domains(t)
  legacy_write_failure_keeps_the_import_retryable(t)
+ legacy_scan_failure_keeps_the_import_retryable(t)
  g3_reject_never_writes(t)
  save_and_random_untouched(t)
  initial_seed_is_fixed_at_run_start(t)
@@ -1383,6 +1384,9 @@ static func legacy_directory_matrix_matches_the_plan(t) -> void:
   var target=cell_root.path_join("target")
   var marker=target.path_join(LEGACY_MARKER_NAME)
   legacy_dir(target)
+  # A330 CC-D23-3: the parent is always a readable directory, so dirs=0 is the none verdict of a readable
+  # parent without candidates; a parent that cannot be opened is not a verdict (LEGACY-19).
+  legacy_dir(parent)
   # 三个有效候选的 mtime 必须有先后，否则「取最新」不可判；只给这一格付秒级等待，其他格不依赖顺序。
   var ordered=int(cell.dirs)==3 and String(cell.saves)=="valid" and String(cell.target)=="empty" and not bool(cell.marker)
   var names=[]
@@ -1746,3 +1750,39 @@ static func legacy_write_failure_keeps_the_import_retryable(t) -> void:
  DirAccess.remove_absolute(ProjectSettings.globalize_path(blocker))
  var third=module.run(parent,target,marker,Store.new(blocker))
  t.check(String(third.get("code",""))=="copied" and legacy_marker(marker).get("copied",[])==["saves/tower.json","saves/tower.json.bak","display-settings.cfg","key-bindings.cfg"] and legacy_same_file(source.path_join("saves").path_join("tower.json"),target.path_join("saves").path_join("tower.json")),"LEGACY legacy_write_failure_keeps_the_import_retryable: once the blocker is gone the retry completes the import and writes the marker: "+str(third))
+
+# LEGACY-19 (A330 CC-D23-3): a scanned parent that cannot be opened (DirAccess.open returns null) is an IO
+# failure, not the none verdict. The run ends unfinished (ok=false, code=scan), writes no terminal marker and
+# lands nothing in the target, so the next start scans again. Two unopenable parents: a missing path, and a
+# plain file where the directory should be. Once the parent opens, the next start decides as usual: a
+# readable legacy save is copied and recorded, and a readable parent without candidates closes as none.
+static func legacy_scan_failure_keeps_the_import_retryable(t) -> void:
+ var ready=legacy_ready(t,"legacy_scan_failure_keeps_the_import_retryable","legacy-scan-failure")
+ if ready.is_empty(): return
+ var module=ready.module
+ var root=String(ready.root)
+ var cases=[
+  {"name":"[missing parent, then a readable legacy save]","file":false,"expect":"copied"},
+  {"name":"[a file in place of the parent, then an empty directory]","file":true,"expect":"none"},
+ ]
+ for index in range(cases.size()):
+  var row=cases[index]
+  var label=" "+String(row.name)
+  var parent=root.path_join("parent-%d" % index)
+  var target=root.path_join("target-%d" % index)
+  legacy_dir(target)
+  if bool(row.file): legacy_write(parent,"not a directory")
+  var marker=target.path_join(LEGACY_MARKER_NAME)
+  var first=module.run(parent,target,marker,Store.new(target.path_join("saves")))
+  t.check(first.get("ok",true)==false and bool(first.get("ran",false)) and String(first.get("code",""))=="scan","LEGACY legacy_scan_failure_keeps_the_import_retryable"+label+": a parent that cannot be opened ends the run unfinished with code scan, not with the none verdict: "+str(first))
+  t.check(not FileAccess.file_exists(marker) and legacy_tree(target).is_empty(),"LEGACY legacy_scan_failure_keeps_the_import_retryable"+label+": a scan failure writes no terminal marker and lands nothing in the target: "+str(legacy_tree(target)))
+  if bool(row.file): DirAccess.remove_absolute(ProjectSettings.globalize_path(parent))
+  var source=parent.path_join(LEGACY_NAME_PREFIX+"0.17.1")
+  if String(row.expect)=="copied": legacy_saves(source.path_join("saves"),"tower",2)
+  else: legacy_dir(parent)
+  var second=module.run(parent,target,marker,Store.new(target.path_join("saves")))
+  var listed=legacy_marker(marker)
+  if String(row.expect)=="copied":
+   t.check(String(second.get("code",""))=="copied" and listed.get("copied",[])==["saves/tower.json","saves/tower.json.bak"] and legacy_same_file(source.path_join("saves").path_join("tower.json"),target.path_join("saves").path_join("tower.json")),"LEGACY legacy_scan_failure_keeps_the_import_retryable"+label+": once the parent opens, the next start imports the legacy save and writes the marker: "+str(second))
+  else:
+   t.check(String(second.get("code",""))=="none" and int(listed.get("schema",0))==1 and listed.get("copied",[]).is_empty(),"LEGACY legacy_scan_failure_keeps_the_import_retryable"+label+": once the parent opens without a candidate, the next start closes the import as none: "+str(second))
