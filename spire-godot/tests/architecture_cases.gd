@@ -2266,13 +2266,13 @@ const R5_FIRST_TURN={"takeover:0":"8bf0e226191edacd337b525691d9e36a","takeover:1
 # submit_keys（成功结果键面摘要）与由其派生的 <record> 摘要随之变化；本批只重算这两个面，mask 不变
 # （R5_VIEW_MASK／R5_RECORD_MASK／R5_RECORD_ADDED 原值），其余记录字段与 G6 其余断言逐字不变。
 # 差异只来自该键的自证在 docs/record/verification.md：旧键面复算摘要与旧冻结值逐 cell 相等。
-# 2026-11-21 re-freeze, link C (human approvals recorded as coordinator A304 = open the slice, A310 = groups A-G
-# approved once the prepare rng cause was proved; that cause is the group E reason in E_DECLARED_DIFF): only the
-# moved faces were recomputed, on the committed tree 69cf2f1 (HEAD=69cf2f1, dirty=0) -- R5_BASELINE facts_text x26,
-# facts_verdicts x18, view x26, record x26; R1_BASELINE snapshot x18 and rng x4; PREFIX_BRANCH_TABLE_BASELINE two
-# states. Every other field, R5_FIRST_TURN, R3_VIEW_KEYS_BASE and the masks are byte-identical. All moves first
-# appear in c8882cc; no later commit moves any of the 59 record paths. Self-proof: baseline_diff_is_declared
-# (link C: PRE in tests/frozen-baselines.json::baseline_pre_cells_c, anchored to 69cf2f1 of this file).
+# 2026-11-21 re-freeze, link C (A304 = human-approved slice; A310 = human ruling on groups A-G once the prepare
+# rng cause was proved and that cause became the group E reason in E_DECLARED_DIFF): only the moved faces were
+# recomputed, on the committed tree 69cf2f1 (HEAD=69cf2f1, dirty=0) -- R5_BASELINE facts_text x26, facts_verdicts
+# x18, view x26, record x26; R1_BASELINE snapshot x18 and rng x4; PREFIX_BRANCH_TABLE_BASELINE two states. Every
+# other field, R5_FIRST_TURN, R3_VIEW_KEYS_BASE and the masks are byte-identical. All moves first appear in
+# c8882cc; no later commit moves any of the 59 record paths. Self-proof: baseline_diff_is_declared (link C: PRE
+# in tests/frozen-baselines.json::baseline_pre_cells_c, anchored to 69cf2f1 of this file).
 const R5_BASELINE={"battle:0":{"facts_text":"40a4d210c68e14379ae87d2a4419f9ed","facts_verdicts":"58ddff06a8777547cf19a95603cf2575","record":"4c47bb0b616b894435f838e29bb07658","view":"28f7dcd6fe1af626b2d60f3c9ac16cb8","view_display_facts":"88"},"battle:12":{"facts_text":"b57bdda97ce965c74ad29d90396aaa73","facts_verdicts":"22222590d86f98ce80b2a57a6fac0eb3","record":"e2dc62dcb133331b042f737150f5bb56","view":"f030f7caf47e18efee9ecfdb4d0bb89e","view_display_facts":"100"},"battle:26":{"facts_text":"ba9f2afb44775b5c391dbafdd98ffd5f","facts_verdicts":"e34414d2e1e4fedafe15ba2ad3787f26","record":"1104d857003f8e94dd93fbce961045d1","view":"e44a48a777ba68bf4f47ac40fbfdb594","view_display_facts":"184"},"battle:44":{"facts_text":"6a3dd64413351af46b6fcca5c6104944","facts_verdicts":"43de7a265628a576aecda6cf290d2d5c","record":"5b14ae8812b6967612552abe1a3da544","view":"ac0dd50437a5a6cefa0f0b5c287fc920","view_display_facts":"292"},"event:0":{"facts_text":"5860c09b436ab1dd964cd159bfe4f3dd","facts_verdicts":"301c30de8e315e52e768df1a8bc52564","record":"6ab0179e645749da69e17f9f04e9c840","view":"6bf2396d18fb208044c6da0934f213d5","view_display_facts":"3"},"event:12":{"facts_text":"5860c09b436ab1dd964cd159bfe4f3dd","facts_verdicts":"301c30de8e315e52e768df1a8bc52564","record":"e53f32ac70fcc5a3f87107b2c51edb08","view":"1067ff2346f1088dfef0736edf4627b0","view_display_facts":"3"},"event:26":{"facts_text":"5860c09b436ab1dd964cd159bfe4f3dd","facts_verdicts":"301c30de8e315e52e768df1a8bc52564","record":"3f7005ee8356200ecbea5394668e284a","view":"6e83f5cb1c03f2ce50203cd45cc8f6f5","view_display_facts":"3"},"event:44":{"facts_text":"5860c09b436ab1dd964cd159bfe4f3dd","facts_verdicts":"301c30de8e315e52e768df1a8bc52564","record":"a71999504c1a630015007193447a13d5","view":"2c2599643cfecc7918805cfce798cce0","view_display_facts":"3"},"prepare:0":{"facts_text":"35d111160b215f4820077f9cfae836b8","facts_verdicts":"a207d352b3ead77348d03ab23dc23416","record":"25c8ad0ff7069a67a493b87332aadf2e","view":"04c328dc5f758939312b729ddb5e1cef","view_display_facts":"72"},"prepare:12":{"facts_text":"0d0b38f1a302c28c7303d2f290403a8f","facts_verdicts":"07ff1cd2ec0ae9b079769037f0ae9f99","record":"70e6c373fd8cedc726dadfaa8212221b","view":"068d0cc783b0133073682c969a1d43a7","view_display_facts":"84"},"prepare:26":{"facts_text":"93321cf4d7dea65dc5441a5039ac6f45","facts_verdicts":"0ace794497a6e99111add9d22c517258","record":"00e54d522fbffcd5067a2da085960fc6","view":"2f9b0a5cf6743a0c1dfa48479839abca","view_display_facts":"168"},"prepare:44":{"facts_text":"af80e0fd836990a6ba7801b0e712a88b","facts_verdicts":"2b17257b31e0236d0b1999cb45ee28ad","record":"3ea614f5463a0514fb0f09f0864cee4a","view":"21997c7314f3d3784c1763b93e7a4492","view_display_facts":"276"},"prison:0":{"facts_text":"92dedaa0bf14ff8ccdadd91bbe3947a0","facts_verdicts":"1d3b80e35444048c4fefa17a6650188d","record":"8cd5a589d85ac268746b7d59136b6942","view":"b16f98442200df668da88216e59910ab","view_display_facts":"79"},"prison:12":{"facts_text":"a80fb4a52bd24adc851245e4a4b52bb8","facts_verdicts":"0c751baa0b71341fc8e132e86e624c32","record":"e3d284026c1f3ee5b2ea2c4da18038ed","view":"39b25de413e19f7bab2ecdb2c5518c0f","view_display_facts":"88"},"prison:26":{"facts_text":"7a7e0623f103962faad199bc5739b30f","facts_verdicts":"ccded0c8e9469038d8b2edbce6ad52d5","record":"c8bc29e0964f548ae9d86c6200e07e0d","view":"002556d8fd7a2a270b2d6dd182257079","view_display_facts":"172"},"prison:44":{"facts_text":"8477136b679b6950888e7a83f8c01842","facts_verdicts":"ac169f281089f76ffc114f45a6ac5b8a","record":"901c988e5f9272577711de1139c6a1ef","view":"cbae0d69faaf0190778674c2888d905a","view_display_facts":"280"},"rest:0":{"facts_text":"9c5da512c4dfc98c894ed8f4eb47428c","facts_verdicts":"ff9de61ab1421e01d3c2f4500c66177d","record":"2f6938f27350c50dda386939c60b0181","view":"3babe3e3c2219ebcc91e36c35d76e2a9","view_display_facts":"78"},"rest:12":{"facts_text":"db3a071e1db26fc2d449f8034bdd2760","facts_verdicts":"75989c1a33a6ddc0e609dad181e67bd1","record":"20d09b03d7b88dd72ca1df6e96300817","view":"3e3348888b1c5b5d3248908614010cc1","view_display_facts":"126"},"rest:26":{"facts_text":"ddaa89c4f14d47594b248cf00a0f54a7","facts_verdicts":"6b49ee5c267b36c61d09e42b009b0802","record":"48359b6f7311ca73c9b85e875592d276","view":"de50d3ba14ce55cde7ec111b2cf88fcf","view_display_facts":"252"},"rest:44":{"facts_text":"2b6c714543bd3a75ed9ad84d76f00c4f","facts_verdicts":"8d0fbb5f1ffacada217671c0716a318a","record":"05dc29d448e47ed209238dddcfeff8ab","view":"b4aa2ab3b60779add5afca4b821411d2","view_display_facts":"414"},"shop:0":{"facts_text":"a51d08de698b5a75070bf0ec0e036470","facts_verdicts":"b35ecaa120573ce7221efb885cdce1de","record":"9b8d471f0c517493b107980b48e81ee6","view":"66db98effdb692ef974de9528656cdf1","view_display_facts":"49"},"shop:12":{"facts_text":"b65be5105b6001dfe9e6982c7c509cc4","facts_verdicts":"898b1cbf0d1f2c82f95564aae9b204d9","record":"daff316fc15850fcf1c491c28941a50e","view":"34cbe3ce86839a50071cf8f1cdaf3545","view_display_facts":"73"},"shop:26":{"facts_text":"78d331663b163d14358305dd48e3c805","facts_verdicts":"9dd6c6caf8d3ee28bab06f2815f5777d","record":"a74c4cd20adbc5be287b4279adada0e2","view":"2943a47af0fe5d7a158007dd0e7b0373","view_display_facts":"101"},"shop:44":{"facts_text":"6714bce0f807a6079849561c9260edeb","facts_verdicts":"45f3c9972f3720db6475312a9d28ad5b","record":"b48d8e37174a06ca87cd08a088eeba16","view":"f986c2ab272f1b9d7f4929e30b9d8ba6","view_display_facts":"137"},"takeover:0":{"facts_text":"02488919238e451443a843b1b9dbdd34","facts_verdicts":"ce70738d924558046d93e5ced7fb9f02","record":"aa8a4adcf90b5cda2eca57ee5af284e3","view":"c627712afdbed789e72cf7b073f8e04f","view_display_facts":"80"},"takeover:12":{"facts_text":"8dafc962a76e6aa11f8887318d4dff62","facts_verdicts":"1ac4897cca9c5e3dfda1aa08177e9c69","record":"d58f3766d7d689d2edd7b387a23b6c2b","view":"da06b958d0373be573ebeaab5caa7bc2","view_display_facts":"92"}}
 const R3_VIEW_KEYS_BASE=["action_log","arms","battle_item_drop","battle_relic_drop","battle_rewards","bodies","body_coverage","body_groups","body_regions","candidates","capacity","capture","card_chain","card_costs","card_instances","card_texts","carried_items","casting","character_id","climax","composite_portrait_layers","content_status","deck_cards","deck_count","demo_cycle","demo_exit","demo_finished","discard_cards","discard_count","draw_cards","draw_count","encounter","end_turn_locked","enemies","energy","energy_max","equipment_fireball_unlocked","equipment_portrait_layers","first_turn_control","guard_bind","hand","has_restraint_level","hook_contact","hook_environment_name","hook_location","hook_uses","initial_seed","items","journey","legs","logs","mana","mana_flask","mana_max","map_name","map_region","movement","npc_speech","order","pending_retain","phase","phase_caption","pose_name","posture","powers","practice","practice_description","practice_focus","practice_hint","practice_kind","practice_options","preparation_turns","prepare_left","pressure","prison","relics","rest_left","retain_left","reward_count","reward_destination","reward_panel","reward_title","room_event","room_name","rooms_completed","round","route","run_header","security","seed","shop","speech","statuses","summary","temporary_mana","tower_generation","tower_start_pending","travel_log","travel_turns","version","wall","wall_position","wall_text"]
 
@@ -3401,10 +3401,11 @@ const E_SUBMIT_KEYS=["ok","version","resource_feedback","card_feedback","music_f
 # 战斗相位词表（测试内字面期望）：guarded 过载态＝state.overloaded ∧ phase ∈ 本表（core/game.gd::dispatch 的
 # overloaded 必须与它同值——这条期望不取自实现）。
 const E_COMBAT_PHASES=["battle","prepare","rest","prison"]
-# K4 declaration table: link -> cell -> field -> reason (A310 ruling 2: only this batch's link C is replayed; the
-# E-batch link is history and its self-proof stays in the docs/record/verification.md E entries). Fields are the
-# PRE-carried faces of tests/frozen-baselines.json::baseline_pre_cells_c: the five R5 faces plus the moved record
-# paths. One reason constant per attribution group of the 2026-11-21 re-freeze; every group traces to c8882cc.
+# K4 declaration table: link -> cell -> field -> reason. Link C is this batch (A310 ruling 2); the E-batch link
+# is history and is not replayed here -- its self-proof stays in the docs/record/verification.md E entries.
+# Fields are the PRE-carried faces of tests/frozen-baselines.json::baseline_pre_cells_c: the five R5 faces plus
+# the six moved record paths. One reason constant per attribution group of the 2026-11-21 re-freeze; every
+# group traces to c8882cc.
 const BASELINE_DIFF_LINK="C"
 const C_COPY_REASON="A 文案（c8882cc 前端文案精简）：行的 reason／detail／risk 文本改写，行数、键、顺序、valid、费用、魔力不变 ⇒ facts_text／facts_verdicts 摘要变更（只改 detail 的格 facts_verdicts 不动）"
 const C_PREVIEW_REASON="B 皮革伤害预览（c8882cc）：行载荷 preview 新增 material_factor（皮革1.5），damage／scaled_damage／environment_true 随之改变 ⇒ rows_payloads 摘要变更"
@@ -3740,48 +3741,49 @@ static func submit_result_scalars_are_pinned(t) -> void:
  t.check(submits>=3 and key_problems.is_empty() and value_problems.is_empty(),"K4 submit_result_scalars_are_pinned: every sampled submit carries both scalars with the declared values: submits="+str(submits)+" keys="+str(key_problems.slice(0,2))+" values="+str(value_problems.slice(0,2)))
  print("E SUBMIT SCALARS submits=%d" % submits)
 
-# Link C (gherkin E-7 procedure, A310 ruling 2): the declared diff of the 2026-11-21 re-freeze, replayed against the
-# current values. PRE = tests/frozen-baselines.json::baseline_pre_cells_c (external, anchored); POST = r1_record now.
-# Two-way: every PRE-carried field that moved is declared and every declaration moved (a move outside the link,
-# or a declaration without a move, is red). Self-proof: the declared record paths take their PRE value back and
-# the recomputed <record> digest equals PRE.record cell by cell, so any undeclared path move among the 59, or a
-# wrong carried PRE value, is red. The submit key face is tied to its reason both ways (POST == E_SUBMIT_KEYS,
-# PRE == E_SUBMIT_KEYS minus the declared sound_feedback).
+# Link C (gherkin E-7 procedure, A310 ruling 2): the declared diff of the 2026-11-21 re-freeze, replayed against
+# the current values. PRE = tests/frozen-baselines.json::baseline_pre_cells_c, anchored to the 69cf2f1 test file;
+# POST = r1_record now. Two-way: every moved PRE-carried face is declared and every declaration moved. Self-proof:
+# the declared record paths take their PRE value back and the recomputed <record> digest equals PRE.record cell by
+# cell, so an undeclared move among the 59 paths or a wrong carried PRE value is red. The submit key face is tied
+# to its reason both ways (POST == E_SUBMIT_KEYS, PRE == E_SUBMIT_KEYS minus the declared sound_feedback).
 static func baseline_diff_is_declared(t) -> void:
  var link=BASELINE_DIFF_LINK
+ var pre_key="baseline_pre_cells_"+link.to_lower()
  var frozen=frozen_baselines()
- var pre_cells=frozen.get("baseline_pre_cells_"+link.to_lower(),{})
- var anchors=frozen.get("anchor",{})
+ var pre_cells=frozen.get(pre_key,{})
+ var anchor_table=frozen.get("anchor",{})
  t.check(pre_cells is Dictionary and (pre_cells as Dictionary).size()==r1_cells().size(),"K4 baseline_diff_is_declared: the link "+link+" PRE face lives in the external file "+FROZEN_BASELINES_JSON+" and covers every frozen cell")
- t.check(anchors is Dictionary and (anchors as Dictionary).has("baseline_pre_cells_"+link.to_lower()),"K4 baseline_diff_is_declared: the link "+link+" PRE is anchored to a commit blob in "+FROZEN_BASELINES_JSON)
+ t.check(anchor_table is Dictionary and (anchor_table as Dictionary).has(pre_key),"K4 baseline_diff_is_declared: the link "+link+" PRE is anchored to a commit blob in "+FROZEN_BASELINES_JSON)
  t.check(E_DECLARED_DIFF.keys()==[link],"K4 baseline_diff_is_declared: the declaration table holds exactly the replayed link "+link+" have="+str(E_DECLARED_DIFF.keys()))
  if not pre_cells is Dictionary: return
- var declared_link=E_DECLARED_DIFF.get(link,{})
+ var declared_cells=E_DECLARED_DIFF.get(link,{})
  var post_keys=r1_digest(JSON.stringify(E_SUBMIT_KEYS))
  var pre_keys=r1_digest(JSON.stringify(E_SUBMIT_KEYS.filter(func(name):return name!="sound_feedback")))
  t.check(post_keys!=pre_keys,"K4 baseline_diff_is_declared: the declared submit key addition is real (the two key faces differ)")
- var moved_all={}
+ var moved_by_cell={}
  var self_proof=[]
  var problems=[]
  for cell in r1_cells():
   var key="%s:%d" % [cell[0],cell[1]]
   var record=r1_record(r1_build(cell[0],cell[1]),cell[0],cell[1])
+  var record_digest=r1_record_digest(record)
   var pre=pre_cells.get(key,{})
   if not pre is Dictionary or pre.is_empty():
    problems.append(key+": no frozen pre face")
    continue
-  var declared=declared_link.get(key,{})
+  var declared_fields=declared_cells.get(key,{})
   var moved={}
   for field in pre:
-   var post=r1_record_digest(record) if field=="record" else str(record.get(field,"<missing>"))
+   var post=record_digest if field=="record" else str(record.get(field,"<missing>"))
    if post!=String(pre[field]): moved[field]=true
-  moved_all[key]=moved
+  moved_by_cell[key]=moved
   var paths=record.keys()
   paths.sort()
   var lines=[]
   for path in paths:
    var value=str(record[path])
-   if declared.has(path):
+   if declared_fields.has(path):
     if pre.has(path): value=String(pre[path])
     else: problems.append(key+"."+str(path)+": a declared path carries no PRE value")
    lines.append(str(path)+"="+value)
@@ -3791,18 +3793,18 @@ static func baseline_diff_is_declared(t) -> void:
  var undeclared=[]
  var missing_move=[]
  var moved_cells=0
- for key in moved_all:
-  for field in moved_all[key]:
-   if not (declared_link.has(key) and declared_link[key].has(field)): undeclared.append(key+"."+field)
-  if not moved_all[key].is_empty(): moved_cells+=1
- for key in declared_link:
-  for field in declared_link[key]:
-   if not (moved_all.has(key) and moved_all[key].has(field)): missing_move.append(key+"."+field)
+ for key in moved_by_cell:
+  for field in moved_by_cell[key]:
+   if not (declared_cells.has(key) and declared_cells[key].has(field)): undeclared.append(key+"."+field)
+  if not moved_by_cell[key].is_empty(): moved_cells+=1
+ for key in declared_cells:
+  for field in declared_cells[key]:
+   if not (moved_by_cell.has(key) and moved_by_cell[key].has(field)): missing_move.append(key+"."+field)
  t.check(problems.is_empty() and self_proof.is_empty(),"K4 baseline_diff_is_declared: the declared paths move from their PRE values and the PRE <record> is derivable from the POST record: "+str(problems.slice(0,3))+" "+str(self_proof.slice(0,3)))
  t.check(undeclared.is_empty(),"K4 baseline_diff_is_declared: every moved cell field is declared (a move outside link "+link+" is red): "+str(undeclared.slice(0,4)))
  t.check(missing_move.is_empty(),"K4 baseline_diff_is_declared: every declared move happened (a declaration without a move is red): "+str(missing_move.slice(0,4)))
- t.check(declared_link.size()==r1_cells().size() and moved_cells==declared_link.size(),"K4 baseline_diff_is_declared: the declaration covers the frozen cells one by one have="+str(declared_link.size())+" moved="+str(moved_cells))
- print("BASELINE DIFF link=%s declared_cells=%d moved_cells=%d" % [link,declared_link.size(),moved_cells])
+ t.check(declared_cells.size()==r1_cells().size() and moved_cells==declared_cells.size(),"K4 baseline_diff_is_declared: the declaration covers the frozen cells one by one have="+str(declared_cells.size())+" moved="+str(moved_cells))
+ print("BASELINE DIFF link=%s declared_cells=%d moved_cells=%d" % [link,declared_cells.size(),moved_cells])
 
 # ==== F 批（K5 接线；plan §3 F 行；acceptance.md §1 F 段与 §4 F 命令清单）====
 # 顺序（acceptance.md §5 第 5 条）：C-F-1／2／3／8／9 先绿，才进 C-F-6（契约文本与 mask）；C-F-7 常驻、期望零移动。
@@ -4839,7 +4841,7 @@ static func point_query_builds_no_table(t) -> void:
 # 2026-11-21 re-freeze (A304/A310): flag:equipment_spell and flag:relic_rows were recomputed on the committed
 # tree 69cf2f1 (the c8882cc literals held on no commit tree); the other 61 states are unchanged. The source sha256
 # is taken over the raw blob bytes of 69cf2f1:spire-godot/core/game.gd (`git show` output, LF as committed),
-# the source all 63 states were measured on.
+# the source that reproduces all 63 frozen faces.
 const PREFIX_BRANCH_TABLE_SOURCE_SHA256="EF4B981CBF0E350CCD14A7937DC5496088A7792BED26FBF57C7B4704128BBA41"
 # 状态数（字面）：branch_sweep_states() 与下表都必须恰为这个数——「删一态＋同步删基线」在此红。
 const PREFIX_BRANCH_TABLE_STATE_COUNT=63
