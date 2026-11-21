@@ -85,34 +85,48 @@ state.initial_seed: int    # = _init 的 run_seed；state.seed 仍由 _restart_t
 D23a 之后用户目录是固定名；旧版本各自带版本号的目录**仍在同一父目录下**。`ui/legacy_import.gd` 在首次
 启动把它们复制一次进新目录，旧目录只读：**不删除、不改名、不覆盖任何字节**。
 
+- 路径来源（`ui/legacy_import.gd::run_once`）：目标目录、标记与选源父目录一律从宿主注入的存档 store
+  （`host.saves.directory`）推导——目标＝存档目录的上一级，标记在目标根下，父目录＝目标的上一级。生产中
+  `host.saves` 是 `user://saves`，目标即用户目录、父目录即 `app_userdata`；测试 store 指向 `res://build/…`
+  时，标记与复制都留在 build 下，不碰 `user://`。不另设第二套路径来源。
 - 判定顺序（`ui/legacy_import.gd::_import`）：标记 → 目标非空 → 选源 → 复制。标记存在即短路；目标非空时
   不扫描父目录，只写标记；两者都不成立才扫描兄弟目录选源。
-- 选源（`ui/legacy_import.gd::find_source`）：父目录（运行时 `user://` 的上一级）下名字以
-  `紧缚尖塔demo v` 开头、且至少有一个存档能通过 `core/save_store.gd::unpack` 的兄弟目录，取**最新存档
-  mtime** 的一个（`tower.json`／`practice.json` 及 `.bak` 都算）。与目录名里的版本号无关；
-  `紧缚尖塔-dev` 与无关目录不参与。
+- 选源（`ui/legacy_import.gd::find_source`）：父目录下名字以 `紧缚尖塔demo v` 开头、且 `saves/` 里至少一份档
+  （主档或 `.bak`）能通过 `core/save_store.gd::read_file` 读出的兄弟目录是候选；按**可读主档**
+  （`tower.json`／`practice.json`）的修改时间取最新，`.bak` 不参与排序（只有 `.bak` 可读的候选排在所有
+  有可读主档的候选之后）。与目录名里的版本号无关；`紧缚尖塔-dev` 与无关目录不参与。
+  修改时间相同时依次比较：该主档读出的 `saved_at`、其 `snapshot.save_revision`，最后按目录名字典序
+  **降序**兜底；排序值取自判定可读性的那一次读档，不再解包第二次，结果不依赖文件系统的目录枚举顺序。
 - 复制面：`saves/tower.json`、`saves/tower.json.bak`、`saves/practice.json`、`saves/practice.json.bak`
-  逐字节复制，写入路径与 `write_game` 相同（`.tmp` → 回读 `read_file(temp).ok` → 改名，见
-  `core/save_store.gd::adopt_legacy`）；`display-settings.cfg`、`key-bindings.cfg` 交给
-  `ui/display_settings.gd::import_from` 与 `ui/key_bindings.gd::import_from` 读出校验后写各自路径。
-  坏档、新修订号档与落盘失败的档不落地，记入标记的 `skipped`（键 `code`，值 `invalid`／`version`／
-  `write`）。不复制 `feedback-draft.json` 等其他文件。
+  逐字节复制（`core/save_store.gd::adopt_legacy`）；`display-settings.cfg`、`key-bindings.cfg` 交给
+  `ui/display_settings.gd::import_from` 与 `ui/key_bindings.gd::import_from`：读入属主 `save()` 写出的全部键
+  （含 `display/mode`、`display/resolution`），按各自 `initialize()` 的取值域校验，不合法的值保持属主未读该键
+  时的取值（新实例即默认值），再经各自的 `save()` 写自己的路径。坏档与新修订号档不落地，记入标记的
+  `skipped`（键 `code`，值 `invalid`／`version`）。不复制 `feedback-draft.json` 等其他文件。
+- 唯一原子写：`.tmp` → 回读 → 改名 全仓只有 `core/save_store.gd::commit_file` 一份。`write_game`
+  （改名前把可读主档轮换进 `.bak`）、`adopt_legacy`（回读即 `read_file(temp).ok`）与迁移标记（逐字节回读）
+  都经它提交。
+- 写入失败可重试：任一存档提交失败（`skipped` 出现 `write`）时**不写终结标记**，结果 `ok=false`、
+  `code=write`，下一次启动重试。终结标记只用于导入完成与校验类结论（`invalid`／`version`／
+  `target_not_empty`／`none`）。
 - 目标非空即不复制：`saves` 下已有任一位主档或 `.bak` 时不动任何文件，标记记 `target_not_empty`
   （父目录里有没有候选都一样）。中断的复制因此在下一次启动收敛到同一结果：`.tmp` 写完、改名之前退出时
   目标仍视为空，下一次启动重试并完成复制，`.tmp` 被提交的档替换；复制到一半退出时按 `target_not_empty`
-  收敛，已落地的档不再重写。不产生第二条写入口。
-- 标记：目标根下 `legacy-import.json`，`schema=1`，含 `source`／`copied`／`skipped`／`at`；
-  **标记存在即不再扫描、不再写**。该文件是 `ui/legacy_import.gd` 唯一的写。
+  收敛，已落地的档不再重写。两个崩溃点的判据经 `core/save_store.gd::commit_file` 里的故障注入点
+  （`debug_crash`，默认关闭，由 `OS.is_debug_build()` 守卫，发行包不可达）在真实提交序列中触发。
+- 标记：目标根下 `legacy-import.json`，`schema=1`，含 `source`／`copied`／`skipped`／`at`；经
+  `core/save_store.gd::commit_file` 原子提交，半写不会留下截断的标记。**标记存在即不再扫描、不再写**。
+  只有 `ui/legacy_import.gd` 发起这次写入。
 - 关闸与接线：`persistence_enabled=false` 或非桌面构建（`OS.has_feature("pc")` 为假）都不解析任何
   用户路径；接线只有 `ui/main.gd::_ready` 在 `_restore_startup()` 之前的一行。
-- 生效时机：存档复制后由既有读档路径加载；键位在当次会话即生效（同一属主对象），显示设置与语言在
-  下一次启动由 `initialize()` 读入。
+- 生效时机：存档复制后由既有读档路径加载；键位在当次会话即生效（同一属主对象），显示设置（含窗口模式与
+  分辨率）与语言在下一次启动由 `initialize()` 读入。
 
 判据（全部走 `persistence` 与 `architecture` 两个规则套件；函数名即判据名）：
 
 | 场景 | 判据 |
 | --- | --- |
-| LEGACY-1 最新旧目录 → 逐字节复制两个存档位与两个设置文件、标记 `schema=1` 逐项登记 | `legacy_source_is_the_newest_directory_with_a_readable_save` |
+| LEGACY-1 最新旧目录 → 逐字节复制两个存档位、两个设置文件整份读回与源相等、标记 `schema=1` 逐项登记 | `legacy_source_is_the_newest_directory_with_a_readable_save` |
 | LEGACY-2 选源按存档 mtime，不按目录名版本号 | `legacy_source_follows_save_mtime_not_version` |
 | LEGACY-3 目标已有存档时不复制任何文件 | `legacy_never_imports_into_a_non_empty_target` |
 | LEGACY-4 标记存在即短路，只导入一次 | `legacy_import_runs_only_once` |
@@ -120,19 +134,25 @@ D23a 之后用户目录是固定名；旧版本各自带版本号的目录**仍�
 | LEGACY-6 坏档与新修订号档跳过并记 `invalid`／`version` | `legacy_skips_invalid_saves_and_keeps_the_rest` |
 | LEGACY-7 关持久化或非桌面构建不导入 | `legacy_stays_off_without_persistence_or_desktop` |
 | LEGACY-8 中断的复制下一次启动收敛 | `legacy_interrupted_copy_converges` |
-| 旧路径只读、`legacy-import.json` 只被本模块命名 | `legacy_import_opens_legacy_read_only` |
-| `user://saves` 单一写者（豁免处只碰自己的常量） | `saves_single_writer` |
-| 接线恰一行且在 `_restore_startup()` 之前、闸先于路径解析 | `legacy_import_is_wired_once` |
 | LEGACY-9 目录组合穷举（旧目录 {0,1,3} × 有无 `saves/` × 档状态 × 目标 {空,非空} × 标记 {有,无}）逐格合 §2.1，旧目录（相对路径, 大小, sha256）不变 | `legacy_directory_matrix_matches_the_plan` |
-| LEGACY-10 `.tmp` 写完、改名之前退出后的下一次启动收敛为完整复制 | `legacy_crash_after_temp_write_converges` |
-| LEGACY-11 复制到一半（标记未写）后的下一次启动收敛为 `target_not_empty`，不重写已落地档 | `legacy_crash_midway_before_marker_converges` |
-| LEGACY-12 两个候选存档 mtime 相同仍取确定来源 | `legacy_source_tie_is_deterministic` |
+| LEGACY-10 注入点在 `.tmp` 写完、改名之前杀掉真实提交后，下一次启动收敛为完整复制 | `legacy_crash_after_temp_write_converges` |
+| LEGACY-11 注入点在复制到一半（标记未写）时杀掉真实提交后，下一次启动收敛为 `target_not_empty`，不重写已落地档 | `legacy_crash_midway_before_marker_converges` |
+| LEGACY-12 平手按 `saved_at` → `save_revision` → 目录名降序取契约指定的候选 | `legacy_source_tie_is_deterministic` |
 | LEGACY-13 名字像 demo 但没有可读档的目录不是候选 | `legacy_source_ignores_directories_without_saves` |
 | LEGACY-14 `紧缚尖塔-dev` 与新目录自身不参与选源 | `legacy_source_never_picks_dev_or_target_name` |
 | LEGACY-15 非 ASCII 或多余空格的名字仍按前缀匹配（前缀内部多空格不匹配） | `legacy_source_accepts_non_ascii_and_spaced_names` |
+| LEGACY-16 生产入口的目标、标记与父目录从注入的 store 推导，不碰真实 `user://` | `legacy_run_once_derives_paths_from_the_injected_store` |
+| LEGACY-17 窗口模式与分辨率按 `initialize()` 的取值域导入，非法值保持默认 | `legacy_display_import_follows_initialize_domains` |
+| LEGACY-18 写入失败不写终结标记，下一次启动重试并能完成 | `legacy_write_failure_keeps_the_import_retryable` |
+| 旧路径只读、`legacy-import.json` 只被本模块命名、模块唯一的写是经 store 原子提交的标记 | `legacy_import_opens_legacy_read_only` |
+| `user://saves` 单一写者（豁免处只碰自己的常量） | `saves_single_writer` |
+| 接线恰一行且在 `_restore_startup()` 之前、闸先于路径解析 | `legacy_import_is_wired_once` |
+| `.tmp` → 回读 → 改名 全仓唯一，`write_game` 与 `adopt_legacy` 都经 `commit_file` | `atomic_commit_is_single` |
+| 崩溃注入点只在 debug 构建生效、只在 `_debug_crash_point` 里被读 | `commit_crash_injection_is_debug_only` |
 
-前十五条在 `tests/persistence_cases.gd`，后三条在 `tests/architecture_cases.gd`；三条架构判据各配一条
-登记突变（`tests/mutations.json`），加固新增的七条 LEGACY 判据也各配一条。
+LEGACY-1 至 LEGACY-18 在 `tests/persistence_cases.gd`，后五条在 `tests/architecture_cases.gd`。
+LEGACY-1、LEGACY-2、LEGACY-3、LEGACY-4、LEGACY-9 至 LEGACY-18 与五条架构判据各配一条登记突变
+（`tests/mutations.json`）。
 
 ## 输入域
 
