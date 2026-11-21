@@ -911,7 +911,7 @@ static func route_history_gate_exit_appends(t) -> void:
  t.check(int(closed.get("nodes",-1))>0 and int(closed.get("floor",-1))>0,"ROUTEHIST-5 the closed escape route records completed prison nodes and floor")
  t.check(int(opened.get("security",-1))==int(closed.get("security",-2)),"ROUTEHIST-5 cumulative security survives the return")
 
-# 换塔后入口的下一个房间层全是普通战斗（data/tower.gd::generate）；只发真实 depart／travel_step。
+# 换塔后塔底入口的下一层是第 0 层，data/tower.gd::generate 把第 0 层固定为战斗房；只发真实 depart／travel_step。
 static func route_depart_first_battle(t, g) -> bool:
  var targets=[]
  for id in g.room_data(g.state.room).get("next",[]):

@@ -29,11 +29,13 @@ static func open(g, kind: String) -> void:
  if not history.is_empty(): _close(g,history[-1])
  history.append(_entry(g,reason(g,kind)))
 
-# Entry reason: the cycle comparison decides first. The remaining tower restarts are decided by
-# the state that still exists at the mount point, not by the closed entry's region: a completed
-# sentence keeps state.prison until game.gd::_restart_tower clears it after the mount, while the
-# exit-guard return runs after Prison.escape already cleared it. Only an inactive cell that
-# follows the prison route can therefore be gate_exit; everything else is release.
+# Entry reason. Only tower_restart has more than one answer, decided in this order:
+# - cycle first: DemoExit.continue_run raises demo_cycle before _restart_tower(true);
+# - a completed sentence is always release, whatever region the closed entry has, because its
+#   cell is still in state.prison at the mount (_serving_sentence);
+# - gate_exit only for the exit-guard return: the cell is empty and the closed entry is the
+#   prison route;
+# - anything else is release.
 static func reason(g, kind: String) -> String:
  match kind:
   "setup_init": return ENTER_START
@@ -46,11 +48,12 @@ static func reason(g, kind: String) -> String:
    return ENTER_RELEASE
  return ENTER_UNKNOWN
 
-# A completed sentence still holds its cell at the mount point; an escaped prison route has
-# already cleared it. This is what tells the two tower_restart paths with region=prison apart.
+# Prison.completed_turn mounts while its cell is still in state.prison (core/game.gd::_restart_tower
+# empties it only after _apply_transition); the exit-guard return mounts after Prison.escape
+# already emptied it. Every writer assigns state.prison a Dictionary and Snapshot.check pins the
+# field type, so emptiness alone tells the two tower_restart paths with region=prison apart.
 static func _serving_sentence(g) -> bool:
- var prison=g.state.prison
- return prison is Dictionary and not prison.is_empty()
+ return not g.state.prison.is_empty()
 
 # Legacy saves without the field start with one unattributable route; nodes/floor wait for the
 # next real close. Loading never raises the save revision.

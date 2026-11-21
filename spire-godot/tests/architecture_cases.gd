@@ -6857,8 +6857,9 @@ const ROUTE_HISTORY_WRITE_PATTERN="(?<![A-Za-z0-9_])route_history\\s*(?:\\[[^\\]
 # A local name bound to the field is a write path by another name; only the owner module may
 # hold one. Catch the binding itself, which is what a later history.append(…) would rely on.
 const ROUTE_HISTORY_ALIAS_PATTERN="^\\s*(?:var\\s+)?([A-Za-z_][A-Za-z0-9_]*)\\s*(?::[^=\\n]*)?=\\s*[^#\\n]*route_history"
-# Every reference of the field in runtime code must be one of these registered sites; the owner
-# module is allowed wholesale because it is the single writer.
+# The registered sites outside the owner module, each pinned by its anchor text: every runtime
+# line in core/data/ui that names route_history (the field, or the owner module path in the
+# game.gd preload) must be one of them. The owner module is allowed wholesale as the single writer.
 const ROUTE_HISTORY_REFERENCE_SITES=["core/game.gd::<file>","core/game.gd::_init","core/game.gd::restore_snapshot"]
 const ROUTE_HISTORY_REFERENCE_ANCHORS={"<file>":"preload(\"res://core/route_history.gd\")","_init":"\"route_history\":[]","restore_snapshot":"candidate.route_history=RouteHistory.backfill(candidate)"}
 
@@ -6878,9 +6879,8 @@ static func route_history_single_writer(t) -> void:
  t.check(text.contains("func open(") and text.contains("func reason(") and text.contains("func backfill("),"ROUTEHIST route_history_single_writer: the owner module declares the three contracted entry points")
  t.check(source_text("core/game.gd").contains("\"route_history\":[]"),"ROUTEHIST route_history_single_writer: the _init literal still creates the field once")
 
-# F2 whitelist (review): aliasing reads too. Every code reference of state.route_history in
-# core/data/ui must sit in the owner module or on one of the three registered game.gd lines, so an
-# alias, a nested element write or an unregistered read fails instead of hiding behind the field name.
+# Review F2: a whitelist of the sites above rather than a list of write shapes, so an alias, a
+# chained element write or an unregistered read is red even when no write pattern matches it.
 static func route_history_reference_sites() -> Array:
  return source_write_sites(["res://core","res://data","res://ui"],"(?<![A-Za-z0-9_])route_history\\b")
 
