@@ -1324,7 +1324,10 @@ static func legacy_directory_matrix_matches_the_plan(t) -> void:
     if state=="mixed": state=String(["valid","corrupt","version"][dir_index])
     legacy_matrix_save(parent.path_join(directory_name).path_join("saves"),state)
    if ordered and dir_index<2: OS.delay_msec(1100)
-  var expected_source=String(names.back()) if String(expect.code)=="copied" else ""
+  var expected_source=""
+ if String(expect.code)=="copied":
+  # Only the valid directory is a candidate: in the mixed cell that is the first one, not the newest name.
+  expected_source=String(names[0]) if String(cell.saves)=="mixed" else String(names.back())
   if String(cell.target)=="nonempty": legacy_saves(target.path_join("saves"),"practice",1)
   if bool(cell.marker): legacy_write(marker,JSON.stringify({"schema":1,"source":"kept","copied":[],"skipped":[],"at":"kept"}))
   var marker_before=legacy_bytes(marker)
