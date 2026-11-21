@@ -4,9 +4,12 @@ extends RefCounted
 # pure call to UpdateManifest.evaluate. Most cases sign with a freshly generated RSA pair and
 # hand the verifier only its public half; the OpenSSL case replays a committed fixture (public
 # PEM, manifest and signature) so the release pipeline's independent signer is pinned to the
-# engine. Nothing here touches the network, the production key table or the player's files.
+# engine, and the release-scripts case replays what tools/update-manifest.ps1 and
+# tools/sign-update-manifest.ps1 produced. The production key table is only read, by its pin;
+# nothing here touches the network or the player's files.
 
 const Manifest=preload("res://update/update_manifest.gd")
+const Keys=preload("res://update/update_keys.gd")
 # CC-D22-1: the startup switch is one key of the existing settings file, never a second store.
 const Settings=preload("res://ui/display_settings.gd")
 
@@ -24,6 +27,23 @@ const OPENSSL_MANIFEST=FIXTURE_DIRECTORY+"openssl-manifest.json"
 const OPENSSL_SIGNATURE=FIXTURE_DIRECTORY+"openssl-manifest.json.sig"
 const OPENSSL_PUBLIC_KEY=FIXTURE_DIRECTORY+"openssl-public.pem"
 const OPENSSL_VERSION="0.18.4"
+# U1b production key: the DER sha256 of the k1 public key the maintainer generated offline
+# (`openssl pkey -pubin -outform DER | sha256` over the PEM in update/update_keys.gd).
+const PRODUCTION_KEY_ID="k1"
+const PRODUCTION_KEY_DER_SHA256="a4311195c39051d64a0fc5bec6352316eebc9a836d93f0982d52006bcbb8727c"
+# U1b release-scripts fixture: tools/update-manifest.ps1 built manifest.json from the committed
+# inputs (notes.txt, android-package-manifest.json in tools/package-android.ps1's shape, and
+# windows.zip) with the links below, -Serial 4, -KeyId t1 and -Revoked 0.18.3;
+# tools/sign-update-manifest.ps1 signed it with a one-time key whose private half was deleted.
+const RELEASE_DIRECTORY=FIXTURE_DIRECTORY+"release-scripts/"
+const RELEASE_KEY_ID="t1"
+const RELEASE_VERSION="0.18.4"
+const RELEASE_SERIAL=4
+const RELEASE_REVOKED=["0.18.3"]
+const RELEASE_LINKS={
+ "windows-x64":["https://update.magicspire.xyz/v1/0.18.4/spire-v0.18.4-windows64.zip","https://github.com/h13942080472-prog/magic-spire/releases/tag/v0.18.4"],
+ "android":["https://update.magicspire.xyz/v1/0.18.4/spire-v0.18.4.apk","https://github.com/h13942080472-prog/magic-spire/releases/tag/v0.18.4"],
+}
 
 static func run(t) -> void:
  var pair=keypair()
@@ -37,9 +57,11 @@ static func run(t) -> void:
  missing_key_entry_is_rejected(t,pair,keys)
  unusable_signature_is_rejected(t,pair,keys)
  empty_key_table_yields_no_offer(t,pair)
+ production_key_table_pins_k1(t)
  public_key_pem_verifies_signed_manifest(t)
  private_key_table_entry_is_rejected(t)
  openssl_signed_manifest_interops(t)
+ release_scripts_manifest_interops(t)
  unknown_schema_is_rejected(t,pair,keys)
  missing_platform_yields_none(t,pair,keys)
  revoked_current_yields_notice(t,pair,keys)
@@ -97,6 +119,20 @@ static func fixture(path: String) -> PackedByteArray:
  var bytes=handle.get_buffer(handle.get_length())
  handle.close()
  return bytes
+
+# SHA-256 (hex) of the DER that a PEM body encodes; the BEGIN/END lines are not part of it.
+# This is the value `openssl pkey -pubin -outform DER | sha256` prints for a public PEM.
+static func pem_der_sha256(pem: String) -> String:
+ var body=""
+ for line in pem.replace("\r","").split("\n"):
+  var text=line.strip_edges()
+  if not text.is_empty() and not text.begins_with("-----"): body+=text
+ var der=Marshalls.base64_to_raw(body) if not body.is_empty() else PackedByteArray()
+ if der.is_empty(): return ""
+ var context=HashingContext.new()
+ context.start(HashingContext.HASH_SHA256)
+ context.update(der)
+ return context.finish().hex_encode()
 
 # Crypto.sign takes the digest, so the fixture hashes the manifest bytes first, exactly like
 # the production verifier does.
@@ -185,11 +221,31 @@ static func unusable_signature_is_rejected(t, pair: Array, keys: Dictionary) -> 
  t.check(empty.get("kind","")=="none" and empty.get("reason","")=="signature","UPDATE unusable_signature_is_rejected: a missing signature is a signature failure: "+str(empty))
  t.check(text.get("kind","")=="none" and text.get("reason","")=="signature","UPDATE unusable_signature_is_rejected: non-base64 signature text is a signature failure: "+str(text))
 
-# CC-D22-2: with no production public key the only correct answer is "key".
+# CC-D22-2: an empty key table answers "key". The table is passed explicitly: the production
+# table carries k1 since U1b, and its shape is pinned by production_key_table_pins_k1.
 static func empty_key_table_yields_no_offer(t, pair: Array) -> void:
  var body=bytes_of(document("0.18.4"))
  var offer=Manifest.evaluate(body,signature_of(body,pair),{},CURRENT,PLATFORM)
  t.check(offer.get("kind","")=="none" and offer.get("reason","")=="key","UPDATE empty_key_table_yields_no_offer: an empty key table answers key instead of crashing or trusting the manifest: "+str(offer))
+
+# U1b: the production table holds exactly the maintainer's k1 public key. The pin is the SHA-256
+# of the DER that the PEM body encodes, so one edited character of the pasted key is red here.
+# The table must also pass evaluate's key step as it is (public material only, no private PEM):
+# a k1 manifest with an unverifiable signature then fails at signature, never at key.
+static func production_key_table_pins_k1(t) -> void:
+ var table=Keys.KEYS
+ t.check(table.size()==1 and table.has(PRODUCTION_KEY_ID),"UPDATE production_key_table_pins_k1: the production table holds exactly one entry, k1: "+str(table.keys()))
+ var pem=String(table.get(PRODUCTION_KEY_ID,""))
+ var block=pem.strip_edges()
+ t.check(block.begins_with("-----BEGIN PUBLIC KEY-----") and block.ends_with("-----END PUBLIC KEY-----") and block.count("-----BEGIN ")==1,"UPDATE production_key_table_pins_k1: k1 is exactly one SPKI public PEM block and nothing else")
+ var zeros=PackedByteArray()
+ zeros.resize(384)
+ var unsigned=Manifest.evaluate(bytes_of(document("0.18.4")),Marshalls.raw_to_base64(zeros).to_utf8_buffer(),table,CURRENT,PLATFORM)
+ t.check(unsigned.get("kind","")=="none" and unsigned.get("reason","")=="signature","UPDATE production_key_table_pins_k1: the production table passes evaluate's key step as public material; only the signature fails: "+str(unsigned))
+ var loaded=CryptoKey.new()
+ t.check(not pem.is_empty() and loaded.load_from_string(pem,true)==OK,"UPDATE production_key_table_pins_k1: the engine loads k1 with public_only=true")
+ var digest=pem_der_sha256(pem)
+ t.check(digest==PRODUCTION_KEY_DER_SHA256,"UPDATE production_key_table_pins_k1: the k1 DER sha256 is the maintainer's key: "+digest)
 
 # The verifier is handed public material only: save_to_string(true) is the SPKI PEM that
 # load_from_string reads when public_only is set, which is the shape the production table uses.
@@ -231,6 +287,58 @@ static func openssl_signed_manifest_interops(t) -> void:
    if tampered[index]!=body[index]: changed+=1
  var rejected=Manifest.evaluate(tampered,signature,{"k1":public_pem},CURRENT,PLATFORM)
  t.check(changed==1 and rejected.get("kind","")=="none" and rejected.get("reason","")=="signature","UPDATE openssl_signed_manifest_interops: a one-byte edit after signing is a signature failure: "+str(rejected)+" changed="+str(changed))
+
+# U1b: the release scripts' own output verifies through evaluate on both platforms and carries
+# exactly the scripts' inputs. Android bytes/sha256 must equal the package manifest they were
+# copied from; the Windows pair must equal an independent hash of the committed ZIP (the
+# generator is the only place that hashes it). One byte changed after signing is a signature
+# failure.
+static func release_scripts_manifest_interops(t) -> void:
+ var names=["manifest.json","manifest.json.sig","public.pem","notes.txt","android-package-manifest.json","windows.zip"]
+ var missing=names.filter(func(name):return not FileAccess.file_exists(RELEASE_DIRECTORY+name))
+ t.check(missing.is_empty(),"UPDATE release_scripts_manifest_interops: the committed fixture supplies the scripts' manifest, its signature, the one-time public PEM and the three inputs: missing="+str(missing))
+ if not missing.is_empty(): return
+ var body=fixture(RELEASE_DIRECTORY+"manifest.json")
+ var signature=fixture(RELEASE_DIRECTORY+"manifest.json.sig")
+ var public_pem=fixture(RELEASE_DIRECTORY+"public.pem").get_string_from_utf8()
+ var notes=fixture(RELEASE_DIRECTORY+"notes.txt").get_string_from_utf8().replace("\r\n","\n").strip_edges()
+ var package_json=JSON.new()
+ var package_read=package_json.parse(fixture(RELEASE_DIRECTORY+"android-package-manifest.json").get_string_from_utf8())==OK and package_json.data is Dictionary
+ var zip_path=RELEASE_DIRECTORY+"windows.zip"
+ t.check(package_read and not notes.is_empty() and public_pem.contains("BEGIN PUBLIC KEY"),"UPDATE release_scripts_manifest_interops: the inputs parse: the package manifest is a JSON object, the notes are not empty and the PEM is public")
+ if not package_read: return
+ var line=signature.get_string_from_utf8().strip_edges()
+ t.check(not line.contains("\n") and Marshalls.base64_to_raw(line).size()==384,"UPDATE release_scripts_manifest_interops: the signature is one base64 line holding a 3072-bit RSA block")
+ var inputs={
+  "windows-x64":{"bytes":FileAccess.get_file_as_bytes(zip_path).size(),"sha256":FileAccess.get_sha256(zip_path)},
+  "android":{"bytes":int(package_json.data.get("bytes",-1)),"sha256":String(package_json.data.get("sha256",""))},
+ }
+ var keys={RELEASE_KEY_ID:public_pem}
+ for platform in RELEASE_LINKS:
+  var expected={"kind":"notice","version":RELEASE_VERSION,"bytes":int(inputs[platform].bytes),"url":RELEASE_LINKS[platform][0],
+   "mirror":RELEASE_LINKS[platform][1],"notes":notes,"revoked":false,"platform":platform}
+  var offer=Manifest.evaluate(body,signature,keys,CURRENT,platform)
+  var wrong=expected.keys().filter(func(key):return not offer.has(key) or offer[key]!=expected[key])
+  t.check(wrong.is_empty() and offer.size()==expected.size(),"UPDATE release_scripts_manifest_interops: "+platform+" verifies to a notice carrying exactly the script inputs: wrong="+str(wrong)+" "+str(offer))
+  var revoked=Manifest.evaluate(body,signature,keys,RELEASE_REVOKED[0],platform)
+  t.check(revoked.get("kind","")=="notice" and revoked.get("revoked",false)==true,"UPDATE release_scripts_manifest_interops: "+platform+": the -Revoked version is recommended for update: "+str(revoked))
+ var parser=JSON.new()
+ var signed=parser.parse(body.get_string_from_utf8())==OK and parser.data is Dictionary
+ t.check(signed and int(parser.data.get("serial",0))==RELEASE_SERIAL and String(parser.data.get("key_id",""))==RELEASE_KEY_ID and parser.data.get("revoked",null)==RELEASE_REVOKED,"UPDATE release_scripts_manifest_interops: serial, key_id and the revoked list are the script inputs")
+ if not signed: return
+ for platform in RELEASE_LINKS:
+  var entry=(parser.data.platforms as Dictionary).get(platform,{})
+  var full=entry.get("full",{}) if entry is Dictionary else {}
+  t.check(String(full.get("sha256",""))==String(inputs[platform].sha256) and int(full.get("bytes",-1))==int(inputs[platform].bytes) and entry.get("patches",null)==[],"UPDATE release_scripts_manifest_interops: "+platform+" bytes/sha256 come from its single hash source and patches is empty: "+str(full))
+ var tampered=body.get_string_from_utf8().replace("\"serial\": 4","\"serial\": 5").to_utf8_buffer()
+ var changed=0
+ if tampered.size()!=body.size(): changed=-1
+ else:
+  for index in range(body.size()):
+   if tampered[index]!=body[index]: changed+=1
+ for platform in RELEASE_LINKS:
+  var rejected=Manifest.evaluate(tampered,signature,keys,CURRENT,platform)
+  t.check(changed==1 and rejected.get("kind","")=="none" and rejected.get("reason","")=="signature","UPDATE release_scripts_manifest_interops: "+platform+": a one-byte edit after signing is a signature failure: "+str(rejected)+" changed="+str(changed))
 
 static func unknown_schema_is_rejected(t, pair: Array, keys: Dictionary) -> void:
  var offer=judge(bytes_of(document("0.18.4",{"schema":2})),pair,keys)
