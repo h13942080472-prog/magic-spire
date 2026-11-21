@@ -911,6 +911,73 @@ static func route_history_gate_exit_appends(t) -> void:
  t.check(int(closed.get("nodes",-1))>0 and int(closed.get("floor",-1))>0,"ROUTEHIST-5 the closed escape route records completed prison nodes and floor")
  t.check(int(opened.get("security",-1))==int(closed.get("security",-2)),"ROUTEHIST-5 cumulative security survives the return")
 
+# 换塔后入口的下一个房间层全是普通战斗（data/tower.gd::generate）；只发真实 depart／travel_step。
+static func route_depart_first_battle(t, g) -> bool:
+ var targets=[]
+ for id in g.room_data(g.state.room).get("next",[]):
+  var room=g.room_data(String(id))
+  if int(room.get("floor",-2))==0 and String(room.get("kind",""))=="battle": targets.append(String(id))
+ t.check(not targets.is_empty(),"ROUTEHIST the new tower exposes a first-floor battle")
+ if targets.is_empty(): return false
+ if not t.action(g,"depart",{"room":targets[0]}).ok: return false
+ route_travel(t,g)
+ return g.state.phase=="battle"
+
+# 越狱路线走到出口守卫战并以投降再次被收押：只经真实指令推进，不碰 core/route_history.gd。
+static func route_escape_to_gate_capture(t):
+ var g=route_new_run(t)
+ route_capture(t,g)
+ preload("res://tests/prison_cases.gd").exit_to_route(t,g)
+ preload("res://tests/prison_cases.gd").travel_route(t,g,"prison_rest")
+ t.check(t.action(g,"rest_begin").ok and g.state.phase=="rest","ROUTEHIST the prison rest room starts for real")
+ t.check(t.action(g,"finish_rest").ok,"ROUTEHIST the prison rest room ends for real")
+ preload("res://tests/prison_cases.gd").travel_route(t,g,"prison_gate")
+ t.check(g.state.phase=="battle" and g.state.map_region=="prison","ROUTEHIST the exit gate starts the guard battle inside the prison region")
+ route_capture(t,g)
+ t.check(g.state.map_region=="prison","ROUTEHIST the second capture keeps the prison region, the old gate_exit guess")
+ return g
+
+# CC-D23-1（审查 F1）：越狱路线在出口守卫战再次被收押后服满刑期，进入原因仍是 release。
+# 判别信号取挂载点当时的状态（state.prison 仍非空），不按上一条记录的 region。
+static func route_history_second_capture_release(t) -> void:
+ var g=route_escape_to_gate_capture(t)
+ var history=route_history_of(g)
+ t.check(history.size()==2,"ROUTEHIST route_history_second_capture_release: the escape route holds two records before serving")
+ var escape=route_record(g,1)
+ t.check(String(escape.get("enter",""))==ROUTE_ESCAPE and String(escape.get("region",""))=="prison","ROUTEHIST route_history_second_capture_release: the second capture opens no tower record")
+ t.check(not g.state.prison.is_empty() and bool(g.state.prison.get("active",false)),"ROUTEHIST route_history_second_capture_release: the mount point still sees the active cell")
+ g.state.prison.key=true
+ g.state.prison.served_turns=g.Prison.sentence_limit(g)-1
+ t.check(t.action(g,"end").ok,"ROUTEHIST route_history_second_capture_release: the sentence ends on a real completed turn")
+ history=route_history_of(g)
+ t.check(history.size()==3,"ROUTEHIST route_history_second_capture_release: the release appends exactly one record")
+ var opened=route_record(g,2)
+ t.check(String(opened.get("enter",""))==ROUTE_RELEASE,"ROUTEHIST route_history_second_capture_release: a sentence release after a second capture opens release, not gate_exit: "+String(opened.get("enter","")))
+ t.check(int(opened.get("generation",-1))==int(escape.get("generation",-2))+1 and String(opened.get("region",""))=="tower" and int(opened.get("cycle",-1))==0,"ROUTEHIST route_history_second_capture_release: the release opens the next generation on the tower without changing cycle")
+ t.check(String(opened.get("boss",""))==String(route_record(g,0).get("boss","")),"ROUTEHIST route_history_second_capture_release: the same cycle keeps the previous summit")
+ t.check(int(opened.get("nodes",0))==-1 and int(opened.get("floor",0))==-1,"ROUTEHIST route_history_second_capture_release: the new record stays open")
+
+# CC-D23-1 第二条（审查 V2 未跑成的序列）：cycle 之后在新一代塔路内被捕并服刑，进入原因也是 release。
+static func route_history_cycle_capture_release(t) -> void:
+ var g=route_new_run(t)
+ route_win_battle(t,g)
+ preload("res://tests/demo_exit_cases.gd").exit_fixture(g)
+ t.check(t.action(g,"demo_continue").ok,"ROUTEHIST route_history_cycle_capture_release: the real continue opens the next cycle")
+ var cycle=route_record(g,1)
+ t.check(route_history_of(g).size()==2 and String(cycle.get("enter",""))==ROUTE_CYCLE,"ROUTEHIST route_history_cycle_capture_release: the cycle switch is recorded before the capture")
+ t.check(g.state.phase=="map" and g.state.room=="tower_bottom","ROUTEHIST route_history_cycle_capture_release: the new generation starts at the tower bottom")
+ t.check(route_depart_first_battle(t,g),"ROUTEHIST route_history_cycle_capture_release: a real departure starts the new generation battle")
+ route_capture(t,g)
+ t.check(not g.state.prison.is_empty(),"ROUTEHIST route_history_cycle_capture_release: the new generation capture opens a real cell")
+ g.state.prison.key=true
+ g.state.prison.served_turns=g.Prison.sentence_limit(g)-1
+ t.check(t.action(g,"end").ok,"ROUTEHIST route_history_cycle_capture_release: the sentence ends on a real completed turn")
+ var history=route_history_of(g)
+ t.check(history.size()==3,"ROUTEHIST route_history_cycle_capture_release: the release appends exactly one record")
+ var opened=route_record(g,2)
+ t.check(String(opened.get("enter",""))==ROUTE_RELEASE,"ROUTEHIST route_history_cycle_capture_release: a capture inside the new cycle also opens release: "+String(opened.get("enter","")))
+ t.check(int(opened.get("cycle",-1))==1 and int(opened.get("generation",-1))==int(cycle.get("generation",-2))+1 and String(opened.get("region",""))=="tower","ROUTEHIST route_history_cycle_capture_release: the release keeps cycle one and advances the generation")
+
 static func route_history_cycle_and_cleared_rooms(t) -> void:
  var g=route_new_run(t)
  route_win_battle(t,g)
@@ -1120,6 +1187,8 @@ static func route_history_cases(t) -> void:
  route_history_release_closes_route(t)
  route_history_escape_keeps_generation(t)
  route_history_gate_exit_appends(t)
+ route_history_second_capture_release(t)
+ route_history_cycle_capture_release(t)
  route_history_cycle_and_cleared_rooms(t)
  route_history_one_per_switch(t)
  route_history_is_reproducible(t)
