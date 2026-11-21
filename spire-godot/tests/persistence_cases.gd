@@ -781,6 +781,13 @@ static func run(t) -> void:
  legacy_skips_invalid_saves_and_keeps_the_rest(t)
  legacy_stays_off_without_persistence_or_desktop(t)
  legacy_interrupted_copy_converges(t)
+ legacy_directory_matrix_matches_the_plan(t)
+ legacy_crash_after_temp_write_converges(t)
+ legacy_crash_midway_before_marker_converges(t)
+ legacy_source_tie_is_deterministic(t)
+ legacy_source_ignores_directories_without_saves(t)
+ legacy_source_never_picks_dev_or_target_name(t)
+ legacy_source_accepts_non_ascii_and_spaced_names(t)
  g3_reject_never_writes(t)
  save_and_random_untouched(t)
  initial_seed_is_fixed_at_run_start(t)
@@ -1214,3 +1221,315 @@ static func legacy_interrupted_copy_converges(t) -> void:
  t.check(legacy_tree(target.path_join("saves"))==before,"LEGACY legacy_interrupted_copy_converges: the files copied before the interruption stay byte identical")
  t.check(Store.new(target.path_join("saves")).read_slot("tower").ok,"LEGACY legacy_interrupted_copy_converges: the file copied before the interruption still reads through the formal slot entry")
  t.check(not FileAccess.file_exists(target.path_join("display-settings.cfg")),"LEGACY legacy_interrupted_copy_converges: the interrupted import writes no settings file afterwards")
+
+# ---------------------------------------------------------------------------
+# D23b 加固（A311，tmp/io-d23/d23bhard-brief.md 任务 1–3）。以下判据只经 ui/legacy_import.gd 的公开入口
+# （find_source／run）与既有 SaveStore 入口观察；夹具全部在 res://build/ 下现造，不读写真实 user://，
+# 也不使用玩家存档。
+
+const LEGACY_MARKER_NAME="legacy-import.json"
+
+# 旧目录的字节三元组：相对路径、大小、sha256。brief 要求「按文件逐个比较相对路径、大小、sha256 三元组」，
+# legacy_tree 的（绝对名, mtime, hex）形状不能替代这一条。
+static func legacy_triples(root: String) -> Array:
+ var rows=[]
+ var prefix=String(root).trim_suffix("/")+"/"
+ var pending=[root]
+ while not pending.is_empty():
+  var current=String(pending.pop_back())
+  var handle=DirAccess.open(current)
+  if handle==null: continue
+  for name in handle.get_files():
+   var file=current.path_join(String(name))
+   var bytes=FileAccess.get_file_as_bytes(file)
+   rows.append(file.trim_prefix(prefix)+":"+str(bytes.size())+":"+legacy_sha256(bytes))
+  for name in handle.get_directories(): pending.append(current.path_join(String(name)))
+ rows.sort()
+ return rows
+
+static func legacy_sha256(bytes: PackedByteArray) -> String:
+ var context=HashingContext.new()
+ if context.start(HashingContext.HASH_SHA256)!=OK: return "hash-unavailable"
+ context.update(bytes)
+ return context.finish().hex_encode()
+
+# 目录树的（名, mtime, 字节）快照，去掉一个顶层文件名（标记）；用来证明「除了标记，目标一个字节没动」。
+static func legacy_tree_without(directory: String, name: String) -> Array:
+ var head=String(directory).trim_suffix("/")+"/"+String(name)+":"
+ return legacy_tree(directory).filter(func(row):return not String(row).begins_with(head))
+
+# 一格的旧目录档：有效＝真实写入口写出的一份塔路档；损坏＝坏 JSON；修订号不兼容＝当前修订号 +1。
+static func legacy_matrix_save(saves: String, state: String) -> void:
+ legacy_dir(saves)
+ if state=="valid":
+  legacy_saves(saves,"tower",1)
+ elif state=="corrupt":
+  legacy_write(saves.path_join("tower.json"),"{broken")
+ else:
+  var snapshot=Game.new(7).export_snapshot()
+  snapshot.save_revision=Game.Snapshot.REVISION+1
+  legacy_write(saves.path_join("tower.json"),Store.pack(snapshot))
+
+# 目录组合穷举的格表：旧目录 {0,1,3} × 有无 saves/ × 档 {有效, 损坏, 修订号不兼容} × 目标 {空, 非空}
+# × 标记 {有, 无}；三目录的档状态混合（有效＋损坏＋不兼容）单列一行，用来证明候选只由可读档产生。
+# 格与期望分开声明：期望按 §2.1 的判定顺序写死，不由被测实现推导。
+static func legacy_matrix_cells() -> Array:
+ var cells=[]
+ for count in [0,1,3]:
+  for target in ["empty","nonempty"]:
+   for marker in [false,true]:
+    if count==0:
+     cells.append({"dirs":0,"saves":"nosaves","target":target,"marker":marker})
+     continue
+    var states=["nosaves","valid","corrupt","version"]
+    if count==3: states.append("mixed")
+    for state in states: cells.append({"dirs":count,"saves":state,"target":target,"marker":marker})
+ return cells
+
+# §2.1 的判定顺序：标记存在 → 短路；目标非空 → target_not_empty（先于扫描）；没有可读档的候选 → none；
+# 有候选 → copied。copied 只列夹具里实际会落地的文件（夹具只有一个有效 tower.json）。
+static func legacy_matrix_expect(cell: Dictionary) -> Dictionary:
+ if bool(cell.marker): return {"code":"marker","copied":[],"skipped":[]}
+ if String(cell.target)=="nonempty": return {"code":"target_not_empty","copied":[],"skipped":[{"file":"*","code":"target_not_empty"}]}
+ if int(cell.dirs)<=0: return {"code":"none","copied":[],"skipped":[]}
+ if String(cell.saves) in ["valid","mixed"]: return {"code":"copied","copied":["saves/tower.json"],"skipped":[]}
+ return {"code":"none","copied":[],"skipped":[]}
+
+# 任务 1：目录组合穷举。每格核结果码、是否运行、copied／skipped、标记内容、旧目录三元组不变，
+# 以及目标里除标记以外的文件在「不复制」格前后相等。
+static func legacy_directory_matrix_matches_the_plan(t) -> void:
+ var ready=legacy_ready(t,"legacy_directory_matrix_matches_the_plan","legacy-matrix")
+ if ready.is_empty(): return
+ var module=ready.module
+ var root=String(ready.root)
+ var cells=legacy_matrix_cells()
+ for index in range(cells.size()):
+  var cell=cells[index]
+  var name="[dirs=%d saves=%s target=%s marker=%s]" % [int(cell.dirs),String(cell.saves),String(cell.target),"yes" if bool(cell.marker) else "no"]
+  var expect=legacy_matrix_expect(cell)
+  var cell_root=root.path_join("cell-%02d" % index)
+  var parent=cell_root.path_join("legacy")
+  var target=cell_root.path_join("target")
+  var marker=target.path_join(LEGACY_MARKER_NAME)
+  legacy_dir(target)
+  # 三个有效候选的 mtime 必须有先后，否则「取最新」不可判；只给这一格付秒级等待，其他格不依赖顺序。
+  var ordered=int(cell.dirs)==3 and String(cell.saves)=="valid" and String(cell.target)=="empty" and not bool(cell.marker)
+  var names=[]
+  for dir_index in range(int(cell.dirs)):
+   var directory_name=LEGACY_NAME_PREFIX+("0.1%d" % dir_index)
+   names.append(directory_name)
+   var state=String(cell.saves)
+   if state=="nosaves": legacy_dir(parent.path_join(directory_name).path_join("logs"))
+   else:
+    if state=="mixed": state=String(["valid","corrupt","version"][dir_index])
+    legacy_matrix_save(parent.path_join(directory_name).path_join("saves"),state)
+   if ordered and dir_index<2: OS.delay_msec(1100)
+  var expected_source=String(names.back()) if String(expect.code)=="copied" else ""
+  if String(cell.target)=="nonempty": legacy_saves(target.path_join("saves"),"practice",1)
+  if bool(cell.marker): legacy_write(marker,JSON.stringify({"schema":1,"source":"kept","copied":[],"skipped":[],"at":"kept"}))
+  var marker_before=legacy_bytes(marker)
+  var target_before=legacy_tree_without(target,LEGACY_MARKER_NAME)
+  var legacy_before=legacy_triples(parent)
+  var result=module.run(parent,target,marker,Store.new(target.path_join("saves")))
+  t.check(String(result.get("code",""))==String(expect.code),"LEGACY legacy_directory_matrix_matches_the_plan "+name+": the outcome code follows §2.1: "+str(result))
+  t.check(bool(result.get("ran",false))==(not bool(cell.marker)),"LEGACY legacy_directory_matrix_matches_the_plan "+name+": only a missing marker lets the import run: "+str(result))
+  t.check(Array(result.get("copied",[]))==expect.copied,"LEGACY legacy_directory_matrix_matches_the_plan "+name+": the copied list matches §2.1: "+str(result.get("copied",[])))
+  t.check(Array(result.get("skipped",[]))==expect.skipped,"LEGACY legacy_directory_matrix_matches_the_plan "+name+": the skipped list matches §2.1: "+str(result.get("skipped",[])))
+  t.check(legacy_triples(parent)==legacy_before,"LEGACY legacy_directory_matrix_matches_the_plan "+name+": the legacy directories keep their (path,size,sha256) triples")
+  if bool(cell.marker):
+   t.check(legacy_bytes(marker)==marker_before and legacy_tree_without(target,LEGACY_MARKER_NAME)==target_before,"LEGACY legacy_directory_matrix_matches_the_plan "+name+": an existing marker short-circuits before any write")
+   continue
+  var listed=legacy_marker(marker)
+  t.check(int(listed.get("schema",0))==1 and String(listed.get("source",""))==expected_source,"LEGACY legacy_directory_matrix_matches_the_plan "+name+": the marker records schema 1 and the selected source: "+str(listed))
+  t.check(Array(listed.get("copied",[]))==expect.copied and Array(listed.get("skipped",[]))==expect.skipped,"LEGACY legacy_directory_matrix_matches_the_plan "+name+": the marker carries the outcome lists: "+str(listed))
+  if String(expect.code)=="copied":
+   var identical=true
+   for file in expect.copied:
+    identical=identical and legacy_same_file(parent.path_join(expected_source).path_join(String(file)),target.path_join(String(file)))
+   t.check(identical and Store.new(target.path_join("saves")).read_slot("tower").ok,"LEGACY legacy_directory_matrix_matches_the_plan "+name+": every copied file is byte identical and the slot reads back")
+  else:
+   t.check(legacy_tree_without(target,LEGACY_MARKER_NAME)==target_before,"LEGACY legacy_directory_matrix_matches_the_plan "+name+": nothing in the target changes when the plan copies nothing")
+
+# 任务 2 崩溃点 1：`.tmp` 写完、改名之前进程退出（注入的故障状态＝与源逐字节相同的 .tmp，标记未写）。
+# 再次启动时目标仍视为空，复制重试并收敛到完整复制；.tmp 被提交的档替换，不残留。
+static func legacy_crash_after_temp_write_converges(t) -> void:
+ var ready=legacy_ready(t,"legacy_crash_after_temp_write_converges","legacy-crash-temp")
+ if ready.is_empty(): return
+ var module=ready.module
+ var root=String(ready.root)
+ var parent=String(ready.parent)
+ var source=String(ready.source)
+ legacy_saves(source.path_join("saves"),"tower",2)
+ legacy_settings(source)
+ var target=root.path_join("target")
+ legacy_dir(target.path_join("saves"))
+ legacy_write(target.path_join("saves").path_join("tower.json.tmp"),legacy_bytes(source.path_join("saves").path_join("tower.json")))
+ var legacy_before=legacy_triples(parent)
+ var marker=target.path_join(LEGACY_MARKER_NAME)
+ var result=module.run(parent,target,marker,Store.new(target.path_join("saves")))
+ var listed=legacy_marker(marker)
+ t.check(String(result.get("code",""))=="copied" and listed.get("copied",[])==["saves/tower.json","saves/tower.json.bak","display-settings.cfg","key-bindings.cfg"],"LEGACY legacy_crash_after_temp_write_converges: the retry finishes the interrupted copy and records it: "+str(listed))
+ t.check(not FileAccess.file_exists(target.path_join("saves").path_join("tower.json.tmp")),"LEGACY legacy_crash_after_temp_write_converges: the committed file replaces the leftover temp, so no temp survives")
+ t.check(legacy_same_file(source.path_join("saves").path_join("tower.json"),target.path_join("saves").path_join("tower.json")) and legacy_same_file(source.path_join("saves").path_join("tower.json.bak"),target.path_join("saves").path_join("tower.json.bak")),"LEGACY legacy_crash_after_temp_write_converges: the two saves land byte identical to their legacy originals")
+ t.check(Store.new(target.path_join("saves")).read_slot("tower").ok,"LEGACY legacy_crash_after_temp_write_converges: the recovered slot reads through the formal entry")
+ t.check(legacy_triples(parent)==legacy_before,"LEGACY legacy_crash_after_temp_write_converges: the legacy directories keep their (path,size,sha256) triples")
+
+# 任务 2 崩溃点 2：复制到一半退出（目标已有前 N 个文件、标记未写）。再次启动按 target_not_empty 收敛：
+# 已落地的档不重复覆盖（字节与 mtime 都不变），仍能经 read_slot 读出，标记登记 target_not_empty。
+static func legacy_crash_midway_before_marker_converges(t) -> void:
+ var ready=legacy_ready(t,"legacy_crash_midway_before_marker_converges","legacy-crash-midway")
+ if ready.is_empty(): return
+ var module=ready.module
+ var root=String(ready.root)
+ var parent=String(ready.parent)
+ var source=String(ready.source)
+ legacy_saves(source.path_join("saves"),"tower",2)
+ legacy_settings(source)
+ var legacy_before=legacy_triples(parent)
+ var halfway=[["saves/tower.json"],["saves/tower.json","saves/tower.json.bak"],["saves/tower.json","saves/tower.json.bak","display-settings.cfg"]]
+ for index in range(halfway.size()):
+  var copied=halfway[index]
+  var name="[after=%d file(s)]" % copied.size()
+  var target=root.path_join("target-%d" % index)
+  legacy_dir(target)
+  for file in copied:
+   legacy_dir(target.path_join(String(file)).get_base_dir())
+   legacy_write(target.path_join(String(file)),legacy_bytes(source.path_join(String(file))))
+  var marker=target.path_join(LEGACY_MARKER_NAME)
+  t.check(not FileAccess.file_exists(marker),"LEGACY legacy_crash_midway_before_marker_converges "+name+": the interrupted fixture has no marker yet")
+  var target_before=legacy_tree(target)
+  var result=module.run(parent,target,marker,Store.new(target.path_join("saves")))
+  var listed=legacy_marker(marker)
+  t.check(String(result.get("code",""))=="target_not_empty" and legacy_has_skip(listed,"*","target_not_empty") and listed.get("copied",[]).is_empty(),"LEGACY legacy_crash_midway_before_marker_converges "+name+": the next start converges on target_not_empty instead of copying again: "+str(listed))
+  t.check(legacy_tree_without(target,LEGACY_MARKER_NAME)==target_before,"LEGACY legacy_crash_midway_before_marker_converges "+name+": the files copied before the interruption keep their bytes and mtimes")
+  t.check(Store.new(target.path_join("saves")).read_slot("tower").ok,"LEGACY legacy_crash_midway_before_marker_converges "+name+": the file copied before the interruption still reads through the formal slot entry")
+  t.check(legacy_triples(parent)==legacy_before,"LEGACY legacy_crash_midway_before_marker_converges "+name+": the legacy directories keep their (path,size,sha256) triples")
+
+# 任务 3 选源边界 1：两个候选的存档 mtime 相同。§2.1 没有规定平手规则，因此只钉「确定性」：
+# 同一父目录连续两次选源相同、两次独立导入取同一来源、复制字节来自该来源。平手规则本身作为
+# 保留判断交回协调者（tmp/io-d23/d23bhard/notes.md），不自行裁决。
+static func legacy_source_tie_is_deterministic(t) -> void:
+ var ready=legacy_ready(t,"legacy_source_tie_is_deterministic","legacy-tie")
+ if ready.is_empty(): return
+ var module=ready.module
+ var root=String(ready.root)
+ var parent=""
+ var attempt=-1
+ for candidate_index in range(4):
+  var candidate=root.path_join("attempt-%d" % candidate_index).path_join("legacy")
+  var older=candidate.path_join(LEGACY_NAME_PREFIX+"0.15")
+  var newer=candidate.path_join(LEGACY_NAME_PREFIX+"0.16")
+  legacy_saves(older.path_join("saves"),"tower",1)
+  legacy_saves(newer.path_join("saves"),"tower",1)
+  if FileAccess.get_modified_time(older.path_join("saves").path_join("tower.json"))==FileAccess.get_modified_time(newer.path_join("saves").path_join("tower.json")):
+   parent=candidate
+   attempt=candidate_index
+   break
+ t.check(parent!="","LEGACY legacy_source_tie_is_deterministic: the fixture puts both candidate saves in the same second (attempts="+str(attempt+1)+")")
+ if parent=="": return
+ var store=Store.new(root.path_join("store-never-written"))
+ var first=module.find_source(parent,store)
+ var second=module.find_source(parent,store)
+ var chosen=String(first.get("name",""))
+ t.check(chosen!="" and chosen==String(second.get("name","")),"LEGACY legacy_source_tie_is_deterministic: a tied mtime still yields one and the same source on both calls: "+str(chosen))
+ t.check(chosen in [LEGACY_NAME_PREFIX+"0.15",LEGACY_NAME_PREFIX+"0.16"],"LEGACY legacy_source_tie_is_deterministic: a tie picks one of the two tied candidates, never a third one: "+str(chosen))
+ for target_index in range(2):
+  var target=root.path_join("target-%d" % target_index)
+  legacy_dir(target)
+  var marker=target.path_join(LEGACY_MARKER_NAME)
+  var result=module.run(parent,target,marker,Store.new(target.path_join("saves")))
+  t.check(String(result.get("source",""))==chosen,"LEGACY legacy_source_tie_is_deterministic: an independent import takes the same tied source every time: "+str(result.get("source","")))
+  t.check(legacy_same_file(parent.path_join(chosen).path_join("saves").path_join("tower.json"),target.path_join("saves").path_join("tower.json")),"LEGACY legacy_source_tie_is_deterministic: the copied bytes come from the selected tied source")
+
+# 任务 3 选源边界 2：名字形如 紧缚尖塔demo v* 但没有 saves/（或 saves/ 为空、只有非存档文件）的目录
+# 不是候选；有可读档的目录照样被选中。
+static func legacy_source_ignores_directories_without_saves(t) -> void:
+ var ready=legacy_ready(t,"legacy_source_ignores_directories_without_saves","legacy-nosaves")
+ if ready.is_empty(): return
+ var module=ready.module
+ var root=String(ready.root)
+ var parent=String(ready.parent)
+ legacy_dir(parent.path_join(LEGACY_NAME_PREFIX+"0.19.9").path_join("logs"))
+ legacy_dir(parent.path_join(LEGACY_NAME_PREFIX+"0.19.8").path_join("saves"))
+ legacy_dir(parent.path_join(LEGACY_NAME_PREFIX+"0.19.7").path_join("saves"))
+ legacy_write(parent.path_join(LEGACY_NAME_PREFIX+"0.19.7").path_join("saves").path_join("notes.txt"),"not a save")
+ var legacy_before=legacy_triples(parent)
+ var target=root.path_join("target")
+ legacy_dir(target)
+ var marker=target.path_join(LEGACY_MARKER_NAME)
+ var result=module.run(parent,target,marker,Store.new(target.path_join("saves")))
+ t.check(String(result.get("code",""))=="none" and legacy_marker(marker).get("copied",[]).is_empty(),"LEGACY legacy_source_ignores_directories_without_saves: directories without a readable save never become the source: "+str(result))
+ t.check(legacy_tree_without(target,LEGACY_MARKER_NAME).is_empty() and not FileAccess.file_exists(target.path_join("saves").path_join("tower.json")),"LEGACY legacy_source_ignores_directories_without_saves: no file is copied out of a directory that has no readable save")
+ t.check(legacy_triples(parent)==legacy_before,"LEGACY legacy_source_ignores_directories_without_saves: the legacy directories keep their (path,size,sha256) triples")
+ var readable=parent.path_join(LEGACY_NAME_PREFIX+"0.16")
+ legacy_saves(readable.path_join("saves"),"tower",1)
+ var with_readable=legacy_triples(parent)
+ var second_target=root.path_join("target-readable")
+ legacy_dir(second_target)
+ var second_marker=second_target.path_join(LEGACY_MARKER_NAME)
+ var second=module.run(parent,second_target,second_marker,Store.new(second_target.path_join("saves")))
+ t.check(String(second.get("source",""))==LEGACY_NAME_PREFIX+"0.16" and legacy_same_file(readable.path_join("saves").path_join("tower.json"),second_target.path_join("saves").path_join("tower.json")),"LEGACY legacy_source_ignores_directories_without_saves: the only directory with a readable save is the source regardless of the other names: "+str(second))
+ t.check(legacy_triples(parent)==with_readable,"LEGACY legacy_source_ignores_directories_without_saves: the second run also leaves the legacy triples untouched")
+
+# 任务 3 选源边界 3：紧缚尖塔-dev 与新目录自身（紧缚尖塔）都不参与选源，即使它们的存档更新。
+static func legacy_source_never_picks_dev_or_target_name(t) -> void:
+ var ready=legacy_ready(t,"legacy_source_never_picks_dev_or_target_name","legacy-dev-self")
+ if ready.is_empty(): return
+ var module=ready.module
+ var root=String(ready.root)
+ var parent=root.path_join("parent")
+ var demo=parent.path_join(LEGACY_NAME_PREFIX+"0.17.1")
+ legacy_saves(demo.path_join("saves"),"tower",1)
+ # 让 -dev 与自身名字目录的存档 mtime 严格更新：前缀过滤失效时它们会赢。
+ OS.delay_msec(1100)
+ legacy_saves(parent.path_join("紧缚尖塔-dev").path_join("saves"),"tower",1)
+ OS.delay_msec(1100)
+ legacy_saves(parent.path_join("紧缚尖塔").path_join("saves"),"tower",1)
+ var legacy_before=legacy_triples(parent)
+ var target=root.path_join("target")
+ legacy_dir(target)
+ var marker=target.path_join(LEGACY_MARKER_NAME)
+ var result=module.run(parent,target,marker,Store.new(target.path_join("saves")))
+ t.check(String(result.get("source",""))==LEGACY_NAME_PREFIX+"0.17.1" and legacy_same_file(demo.path_join("saves").path_join("tower.json"),target.path_join("saves").path_join("tower.json")),"LEGACY legacy_source_never_picks_dev_or_target_name: the demo directory is the source even though the dev and the new-name directory hold newer saves: "+str(result))
+ t.check(legacy_triples(parent)==legacy_before,"LEGACY legacy_source_never_picks_dev_or_target_name: the legacy directories keep their (path,size,sha256) triples")
+ var only=root.path_join("only-dev")
+ legacy_saves(only.path_join("紧缚尖塔-dev").path_join("saves"),"tower",1)
+ legacy_saves(only.path_join("紧缚尖塔").path_join("saves"),"tower",1)
+ var only_before=legacy_triples(only)
+ var empty_target=root.path_join("target-none")
+ legacy_dir(empty_target)
+ var empty_marker=empty_target.path_join(LEGACY_MARKER_NAME)
+ var none=module.run(only,empty_target,empty_marker,Store.new(empty_target.path_join("saves")))
+ t.check(String(none.get("code",""))=="none" and legacy_marker(empty_marker).get("copied",[]).is_empty(),"LEGACY legacy_source_never_picks_dev_or_target_name: a dev or new-name directory alone is never a source: "+str(none))
+ t.check(legacy_triples(only)==only_before,"LEGACY legacy_source_never_picks_dev_or_target_name: the dev and new-name directories stay untouched")
+
+# 任务 3 选源边界 4：名字里有非 ASCII 字符或多余空格的旧目录仍按前缀匹配，来源名与复制字节逐字保真；
+# 前缀内部多一个空格就不再匹配（前缀是精确的 紧缚尖塔demo v）。
+static func legacy_source_accepts_non_ascii_and_spaced_names(t) -> void:
+ var ready=legacy_ready(t,"legacy_source_accepts_non_ascii_and_spaced_names","legacy-names")
+ if ready.is_empty(): return
+ var module=ready.module
+ var root=String(ready.root)
+ var cases=[
+  {"parent":root.path_join("suffix"),"name":LEGACY_NAME_PREFIX+"0.17.1 副本","accepted":true},
+  {"parent":root.path_join("parens"),"name":LEGACY_NAME_PREFIX+"0.18.0（旧）","accepted":true},
+  {"parent":root.path_join("ideographic"),"name":LEGACY_NAME_PREFIX+"0.16"+char(0x3000),"accepted":true},
+  {"parent":root.path_join("extra-space"),"name":LEGACY_NAME_PREFIX.replace(" ","  ")+"0.19","accepted":false},
+ ]
+ for index in range(cases.size()):
+  var parent=String(cases[index].parent)
+  var name=String(cases[index].name)
+  var source=parent.path_join(name)
+  legacy_saves(source.path_join("saves"),"tower",1)
+  var legacy_before=legacy_triples(parent)
+  var target=root.path_join("target-%d" % index)
+  legacy_dir(target)
+  var marker=target.path_join(LEGACY_MARKER_NAME)
+  var result=module.run(parent,target,marker,Store.new(target.path_join("saves")))
+  var listed=legacy_marker(marker)
+  if bool(cases[index].accepted):
+   t.check(String(result.get("source",""))==name and String(listed.get("source",""))==name,"LEGACY legacy_source_accepts_non_ascii_and_spaced_names ["+name+"]: the directory is selected and its name is recorded verbatim: "+str(listed))
+   t.check(legacy_same_file(source.path_join("saves").path_join("tower.json"),target.path_join("saves").path_join("tower.json")),"LEGACY legacy_source_accepts_non_ascii_and_spaced_names ["+name+"]: the copied save stays byte identical")
+  else:
+   t.check(String(result.get("code",""))=="none" and listed.get("copied",[]).is_empty(),"LEGACY legacy_source_accepts_non_ascii_and_spaced_names ["+name+"]: a name with an extra space inside the prefix is not a demo directory: "+str(result))
+  t.check(legacy_triples(parent)==legacy_before,"LEGACY legacy_source_accepts_non_ascii_and_spaced_names ["+name+"]: the legacy directories keep their (path,size,sha256) triples")
