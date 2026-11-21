@@ -1,7 +1,9 @@
 param(
     [Parameter(Mandatory)][string]$Version,
     [Parameter(Mandatory)][string]$NotesFile,
-    [Parameter(Mandatory)][ValidateRange(1, 2147483647)][int]$Serial,
+    # Untyped on purpose: an [int] parameter rounds 1.5 (or '1.5') to 2 while binding, before any
+    # check can see the value. The parameter checks below accept whole numbers only.
+    [Parameter(Mandatory)][object]$Serial,
     [string]$KeyId = 'k1',
     [string[]]$Revoked = @(),
     [Parameter(Mandatory)][string]$Out,
@@ -92,6 +94,11 @@ function Assert-UpdateManifest {
 # ---- parameters: nothing is read yet ----
 if (-not $Version.Trim() -or $Version -match '\s') { throw "-Version must be one token without whitespace: '$Version'" }
 if ($KeyId -cnotmatch '^[A-Za-z0-9_-]+$') { throw "-KeyId may contain only letters, digits, '_' and '-': '$KeyId'" }
+# -Serial is an integer or a string of decimal digits from 1 to 2147483647; 1.5, '1.5', '1e3',
+# ' 7' and $true are refused, never rounded or coerced.
+$serialNumber = 0
+$serialText = if ($Serial -is [int] -or $Serial -is [long]) { [string]$Serial } elseif ($Serial -is [string]) { $Serial } else { '' }
+if (-not [int]::TryParse($serialText, [Globalization.NumberStyles]::None, [Globalization.CultureInfo]::InvariantCulture, [ref]$serialNumber) -or $serialNumber -lt 1) { throw "-Serial must be a whole number from 1 to 2147483647: '$Serial'" }
 # Comma-separated like check.ps1 -Suite, so `pwsh -File` callers can pass several versions.
 $revokedList = @($Revoked | ForEach-Object { ([string]$_) -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 $spaced = @($revokedList | Where-Object { $_ -match '\s' })
@@ -118,7 +125,8 @@ if ($android) {
     try { $package = $packageText | ConvertFrom-Json } catch { throw "-AndroidManifest is not JSON: $AndroidManifest ($($_.Exception.GetBaseException().Message))" }
     if ([string]$package.version -cne $Version) { throw "-AndroidManifest is version '$($package.version)', not -Version '$Version': $AndroidManifest" }
     if (-not ($package.bytes -is [long] -or $package.bytes -is [int]) -or [long]$package.bytes -le 0) { throw "-AndroidManifest bytes must be a positive integer, not '$($package.bytes)': $AndroidManifest" }
-    if ([string]$package.sha256 -cnotmatch '^[0-9a-f]{64}$') { throw "-AndroidManifest sha256 must be 64 lower-case hex digits, not '$($package.sha256)': $AndroidManifest" }
+    # \z, not $: in .NET `$` also matches before a final line feed, so '<64 hex>\n' would pass.
+    if ([string]$package.sha256 -cnotmatch '^[0-9a-f]{64}\z') { throw "-AndroidManifest sha256 must be 64 lower-case hex digits, not '$($package.sha256)': $AndroidManifest" }
 }
 
 # ---- platforms, in manifest order ----
@@ -131,7 +139,7 @@ if ($android) { Add-Platform 'android' $AndroidUrl $AndroidMirror ([long]$packag
 
 $document = [ordered]@{
     schema = 1
-    serial = $Serial
+    serial = $serialNumber
     issued = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ', [Globalization.CultureInfo]::InvariantCulture)
     key_id = $KeyId
     latest = [ordered]@{ version = $Version; notes_zh = $notes }
@@ -150,5 +158,5 @@ try {
     if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force }
     throw
 }
-Write-Output ('UPDATE MANIFEST: ' + $Out + ' (' + $size + ' bytes, key_id=' + $KeyId + ', serial=' + $Serial + ', platforms=' + (@($platforms.Keys) -join ',') + ')')
+Write-Output ('UPDATE MANIFEST: ' + $Out + ' (' + $size + ' bytes, key_id=' + $KeyId + ', serial=' + $serialNumber + ', platforms=' + (@($platforms.Keys) -join ',') + ')')
 Write-Output 'Next: tools/sign-update-manifest.ps1 -Manifest <this file> -PrivateKey <maintainer key>'

@@ -162,7 +162,9 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
 ```
 
 - 生成：字段与「输入域」逐项一致；`issued` 取生成时刻的 UTC（`yyyy-MM-ddTHH:mm:ssZ`），`patches` 为 `[]`；
-  平台按需给一组或两组，一组的三个参数缺一即拒绝，至少要有一个平台。
+  平台按需给一组或两组，一组的三个参数缺一即拒绝，至少要有一个平台。`-Serial` 只收整数或十进制数字串
+  （1–2147483647），`1.5`、`'1.5'` 之类直接拒绝，不取整；Android 包清单的 `sha256` 必须恰好是
+  64 位小写十六进制，末尾多一个换行也拒绝。
 - 哈希单一来源：Android 的 `bytes`／`sha256` 直接取自 `tools/package-android.ps1` 写在 APK 旁的
   `manifest.json`，不重算，且其 `version` 必须等于 `-Version`；Windows 发行 ZIP 在 `tools/package.ps1`
   之后人工打成，流水线里没有它的哈希，`update-manifest.ps1` 是计算它的唯一位置（`Get-FileHash`，一次）。
