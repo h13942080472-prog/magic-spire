@@ -1226,6 +1226,7 @@ static func run(t) -> void:
  route_history_references_are_pinned(t)
  route_switch_declared(t)
  route_reason_branches_declared(t)
+ route_reason_called_only_by_open(t)
  route_legacy_backfill_is_pinned(t)
  route_history_no_version(t)
 
@@ -6920,6 +6921,23 @@ static func route_reason_branches_declared(t) -> void:
  t.check(cycle>=0 and gate>cycle,"ROUTEHIST route_reason_branches_declared: the cycle branch is decided before the prison gate branch")
  t.check(body.find("demo_cycle")>=0 and body.find("region")>=0,"ROUTEHIST route_reason_branches_declared: the reason reads the cycle and the previous region")
  t.check(body.find("return ENTER_START")>=0 and body.find("return ENTER_ESCAPE")>=0,"ROUTEHIST route_reason_branches_declared: setup and escape keep their own reasons")
+
+# A334 H2: the entry reason has one path, open -> reason -> _serving_sentence, all inside the
+# owner module. A call through the module handle (RouteHistory.reason( or g.RouteHistory.reason()
+# names no route_history token, so the reference whitelist above cannot see it: this scan reads
+# the handle form in core/data/ui and the bare form inside the owner module. The handle is bound
+# once (the game.gd preload) and is only ever followed by a member, so no alias hides a call.
+static func route_reason_called_only_by_open(t) -> void:
+ var roots=["res://core","res://data","res://ui"]
+ var reasons=source_write_sites(roots,"(?<![A-Za-z0-9_])RouteHistory\\s*\\.\\s*reason\\b")
+ reasons.append_array(declaration_text(source_write_sites(roots,"(?<![A-Za-z0-9_.])reason\\s*\\(").filter(func(hit):return String(hit.file)==ROUTE_HISTORY_FILE),"func reason("))
+ t.check(reasons.size()==1 and write_site_names(reasons)==[ROUTE_HISTORY_FILE+"::open"],"ROUTEHIST route_reason_called_only_by_open: reason has one call, inside open, and none through the RouteHistory handle: "+str(reasons.map(func(hit):return verdict_site(hit))))
+ var serving=source_write_sites(roots,"(?<![A-Za-z0-9_])_serving_sentence\\b")
+ var owned=[ROUTE_HISTORY_FILE+"::_serving_sentence",ROUTE_HISTORY_FILE+"::reason"]
+ owned.sort()
+ t.check(serving.size()==2 and write_site_names(serving)==owned,"ROUTEHIST route_reason_called_only_by_open: _serving_sentence is named only by its declaration and the one call inside reason: "+str(serving.map(func(hit):return verdict_site(hit))))
+ var handles=source_write_sites(roots,"(?<![A-Za-z0-9_])RouteHistory\\b(?!\\s*\\.)")
+ t.check(handles.size()==1 and write_site_names(handles)==["core/game.gd::<file>"],"ROUTEHIST route_reason_called_only_by_open: the RouteHistory handle is bound once, by the game.gd preload, and never taken as a value: "+str(handles.map(func(hit):return verdict_site(hit))))
 
 static func route_legacy_backfill_is_pinned(t) -> void:
  var body=game_function_body("restore_snapshot")

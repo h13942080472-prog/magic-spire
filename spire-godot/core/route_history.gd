@@ -96,8 +96,10 @@ static func _close(g, record: Dictionary) -> void:
  record["nodes"]=completed.size()
  record["floor"]=_reached_floor(g,record,completed)
 
-# Same progress reading as the run-review panel (docs/spec/run-review.md): the highest completed
-# room floor plus one, and zero when the route completed nothing.
+# docs/spec/route-history.md「关闭口径」: the highest completed room floor plus one, and zero when
+# the route completed nothing. The run-review panel's _progress_text reads differently: it also
+# counts the room the player is still in, so the two disagree when that room is deeper than every
+# completed one.
 static func _reached_floor(g, record: Dictionary, completed: Array) -> int:
  var floors=_floors(g,record)
  var highest=0
