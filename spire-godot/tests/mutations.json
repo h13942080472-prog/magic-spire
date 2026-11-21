@@ -538,7 +538,7 @@
     },
     "legacy_source_follows_save_mtime_not_version": {
       "file": "ui/legacy_import.gd",
-      "find": "  var key=_source_key(saves)",
+      "find": "  var key=_source_key(root.path_join(\"saves\"),store)",
       "replace": "  var key=directory.replace(SOURCE_PREFIX,\"\").replace(\".\",\"\").to_int()",
       "suite": "persistence"
     },

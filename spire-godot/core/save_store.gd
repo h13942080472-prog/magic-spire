@@ -176,10 +176,10 @@ func adopt_legacy(source: String) -> Dictionary:
    var bytes=_read_bytes(from)
    var result=unpack(bytes.get_string_from_utf8())
    if not result.ok:
-    skipped.append({"file":name,"reason":String(result.get("code","invalid"))})
+    skipped.append({"file":name,"code":String(result.get("code","invalid"))})
     continue
    var issue=_commit_bytes(bytes,name)
-   if issue!="": skipped.append({"file":name,"reason":issue})
+   if issue!="": skipped.append({"file":name,"code":issue})
    else: copied.append(name)
  return {"ok":true,"copied":copied,"skipped":skipped}
 
