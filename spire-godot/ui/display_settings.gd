@@ -148,11 +148,13 @@ func initialize(target: Window, persist: bool=true) -> void:
  if resolution not in choices(): resolution=choices().back()
  apply()
 
-# D23b legacy import (docs/spec/save-fixed-points.md「旧目录导入」): accept the same keys, shapes
-# and ranges as initialize() from another path, then write this module's own path through save().
-# No window work happens here, so the import stays safe before the window exists and in headless
-# runs. initialize() remains the single source of the accepted rules; the read block is repeated
-# because only import_from may be added to this file.
+# D23b legacy import (docs/spec/save-fixed-points.md「旧目录导入」): accept every key save() writes,
+# with the same shapes and ranges as initialize(), from another path, then write this module's own
+# path through save(). A value initialize() would reject keeps what this owner held without that key
+# (a fresh instance: the default). display/mode and display/resolution are imported too, but no window
+# work happens here, so the import stays safe before the window exists and in headless runs; the next
+# initialize() applies them. initialize() remains the single source of the accepted rules; the read
+# block is repeated because only import_from may be changed in this file.
 func import_from(source: String) -> bool:
  if not persistence_enabled: return false
  var config=ConfigFile.new()
@@ -203,6 +205,11 @@ func import_from(source: String) -> bool:
  if saved_motion is bool: reduced_card_motion=saved_motion
  if saved_limit is int and saved_limit in FRAME_LIMITS: frame_limit=saved_limit
  if saved_vsync is bool: vsync_enabled=saved_vsync
+ var saved_mode=config.get_value("display","mode",mode)
+ var saved_size=config.get_value("display","resolution",resolution)
+ if saved_mode is int and saved_mode in range(MODES.size()): mode=saved_mode
+ if saved_size is Vector2i and saved_size.x>=640 and saved_size.y>=360: resolution=saved_size
+ if resolution not in choices(): resolution=choices().back()
  save()
  return save_error==""
 

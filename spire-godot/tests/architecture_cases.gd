@@ -1196,6 +1196,8 @@ static func run(t) -> void:
  legacy_import_opens_legacy_read_only(t)
  saves_single_writer(t)
  legacy_import_is_wired_once(t)
+ atomic_commit_is_single(t)
+ commit_crash_injection_is_debug_only(t)
  behavior_baseline_equivalence(t)
  removal_end_state(t)
  copy_single_entry_matches_projection(t)
@@ -6884,7 +6886,8 @@ static func package_probe_uses_appdata_sandbox(t) -> void:
  t.check(late.is_empty(),"USERDIR package_probe_uses_appdata_sandbox: the probe sandbox is assigned before the child process starts: "+str(late))
 
 # D23b（A302，docs/spec/save-fixed-points.md「旧目录导入」）：旧目录只读——打开旧路径只用
-# FileAccess.READ；模块唯一的写是迁移标记，且 legacy-import.json 只有这个模块命名。
+# FileAccess.READ；模块唯一的写是迁移标记，且 legacy-import.json 只有这个模块命名。A317 F8 起标记也走
+# store 的原子提交：模块自己不以写方式打开任何文件，唯一一次 commit_file 的目标是 marker。
 static func legacy_import_opens_legacy_read_only(t) -> void:
  var source=source_text("ui/legacy_import.gd")
  var writes=[]
@@ -6892,7 +6895,11 @@ static func legacy_import_opens_legacy_read_only(t) -> void:
  if pattern.compile("FileAccess\\.open\\(([^,\\n]+),\\s*FileAccess\\.([A-Z_]+)")==OK:
   for found in pattern.search_all(source):
    if found.get_string(2)!="READ": writes.append(found.get_string(1).strip_edges())
- t.check(not writes.is_empty() and writes.all(func(target):return target=="marker"),"ARCH legacy_import_opens_legacy_read_only: ui/legacy_import.gd opens only the migration marker for writing and every legacy path with FileAccess.READ: "+str(writes))
+ var commits=[]
+ var commit=RegEx.new()
+ if commit.compile("commit_file\\(([^,\\n]+),")==OK:
+  for found in commit.search_all(source): commits.append(found.get_string(1).strip_edges())
+ t.check(writes.is_empty() and commits==["marker"],"ARCH legacy_import_opens_legacy_read_only: ui/legacy_import.gd opens every legacy path with FileAccess.READ, opens nothing for writing itself, and its only write is the migration marker through the store's atomic commit: writes="+str(writes)+" commits="+str(commits))
  var destructive=["DirAccess.remove","DirAccess.rename","DirAccess.copy","remove_absolute","rename_absolute","copy_absolute","make_dir"]
  var hits=destructive.filter(func(token):return source.contains(token))
  t.check(hits.is_empty(),"ARCH legacy_import_opens_legacy_read_only: ui/legacy_import.gd never deletes, renames, copies or creates directories: "+str(hits))
@@ -6903,8 +6910,9 @@ static func legacy_import_opens_legacy_read_only(t) -> void:
  t.check(owners==["ui/legacy_import.gd"],"ARCH legacy_import_opens_legacy_read_only: legacy-import.json is named only by ui/legacy_import.gd: "+str(owners))
 
 # D23b（tmp/io-d23/dependencies.md D23b 行）：user://saves 的写入只允许 core/save_store.gd 一处；
-# 另外两处非存档写各自只碰自己的常量（反馈草稿、迁移标记）。
-const SAVES_WRITE_EXEMPT={"ui/feedback_report.gd":"DRAFT","ui/legacy_import.gd":"marker"}
+# 另一处非存档写只碰自己的常量（反馈草稿）。迁移标记自 A317 F8 起经 core/save_store.gd::commit_file 提交，
+# ui/legacy_import.gd 不再有写点。
+const SAVES_WRITE_EXEMPT={"ui/feedback_report.gd":"DRAFT"}
 
 static func saves_single_writer(t) -> void:
  var hits=source_write_sites(["res://core","res://data","res://ui"],"FileAccess\\.open\\([^\\n]*FileAccess\\.(?:WRITE|READ_WRITE|APPEND)|rename_absolute|remove_absolute|copy_absolute")
@@ -6913,7 +6921,7 @@ static func saves_single_writer(t) -> void:
   var file=String(hit.file)
   if file not in files: files.append(file)
  files.sort()
- t.check(files==["core/save_store.gd","ui/feedback_report.gd","ui/legacy_import.gd"],"ARCH saves_single_writer: every runtime writer of user://saves/** is core/save_store.gd, and the only other writers are the feedback draft and the migration marker: "+str(files))
+ t.check(files==["core/save_store.gd","ui/feedback_report.gd"],"ARCH saves_single_writer: every runtime writer of user://saves/** is core/save_store.gd, the migration marker is committed there too, and the only other writer is the feedback draft: "+str(files))
  var stray=[]
  for hit in hits:
   var file=String(hit.file)
@@ -6939,6 +6947,34 @@ static func legacy_import_is_wired_once(t) -> void:
  t.check(gate_at>=0 and (path_at<0 or gate_at<path_at),"ARCH legacy_import_is_wired_once: run_once decides the gate before resolving any user path (gate="+str(gate_at)+" path="+str(path_at)+")")
  var enabled=source_func_body_code("res://ui/legacy_import.gd","enabled")
  t.check(enabled.contains("persistence_enabled") and enabled.contains("desktop"),"ARCH legacy_import_is_wired_once: the gate requires persistence and a desktop build: "+enabled.strip_edges())
+
+# D23b 返工（A317 F7＋F8，docs/spec/save-fixed-points.md「旧目录导入」）：`.tmp` → 回读 → 改名 在运行时代码里
+# 只有 core/save_store.gd::commit_file 一份；write_game 与 adopt_legacy 都经它提交，迁移标记由
+# legacy_import_opens_legacy_read_only 钉住同一入口。注释不算（逐行去掉 # 之后再数）。
+static func atomic_commit_is_single(t) -> void:
+ var temps=[]
+ for root in ["res://core","res://data","res://ui"]:
+  for path in script_files(root):
+   var relative=path.trim_prefix("res://")
+   var count=0
+   for line in source_text(relative).split("\n"): count+=String(line).split("#")[0].count("+\".tmp\"")
+   if count>0: temps.append(relative+"="+str(count))
+ t.check(temps==["core/save_store.gd=1"] and source_func_body_code("res://core/save_store.gd","commit_file").contains("+\".tmp\""),"ARCH atomic_commit_is_single: exactly one runtime site names a .tmp file and it is core/save_store.gd::commit_file: "+str(temps))
+ var bypass=[]
+ for name in ["write_game","adopt_legacy"]:
+  if not source_func_body_code("res://core/save_store.gd",name).contains("commit_file("): bypass.append(name)
+ t.check(bypass.is_empty(),"ARCH atomic_commit_is_single: write_game and adopt_legacy commit through commit_file: missing="+str(bypass))
+
+# D23b 返工（A317 F3）：崩溃注入点只在 debug 构建生效——core/save_store.gd 只在 _debug_crash_point 里读
+# debug_crash，该函数第一句就以 OS.is_debug_build() 短路，运行时其他源码不提 debug_crash；发行包里注入点
+# 因此不可达（AGENTS「额外诊断与重复一致性断言走 debug 通路」）。
+static func commit_crash_injection_is_debug_only(t) -> void:
+ var point=source_func_body_code("res://core/save_store.gd","_debug_crash_point").strip_edges()
+ t.check(point.begins_with("if not OS.is_debug_build() or debug_crash.is_empty(): return false"),"ARCH commit_crash_injection_is_debug_only: the crash point returns false before anything else unless this is a debug build: "+point.get_slice("\n",0))
+ var readers=[]
+ for hit in source_write_sites(["res://core","res://data","res://ui"],"debug_crash\\b"):
+  if String(hit.file)!="core/save_store.gd" or (String(hit.function)!="_debug_crash_point" and not String(hit.text).begins_with("var debug_crash")): readers.append(String(hit.file)+"::"+String(hit.function)+" "+String(hit.text))
+ t.check(readers.is_empty(),"ARCH commit_crash_injection_is_debug_only: debug_crash is declared in core/save_store.gd and read only inside _debug_crash_point: "+str(readers))
 
 # T 批（R-T5）锚自检：对 tests/frozen-baselines.json 的每处锚重算 `git show <锚提交>:<文件>` 的 sha256，
 # 与所载 anchor.sha256 逐字节比对（大小写不敏感）。期望侧只在两处外部——JSON 声明与 git 对象库的历史

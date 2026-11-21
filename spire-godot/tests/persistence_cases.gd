@@ -1424,8 +1424,16 @@ static func legacy_directory_matrix_matches_the_plan(t) -> void:
   else:
    t.check(legacy_tree_without(target,LEGACY_MARKER_NAME)==target_before,"LEGACY legacy_directory_matrix_matches_the_plan "+name+": nothing in the target changes when the plan copies nothing")
 
-# 任务 2 崩溃点 1：`.tmp` 写完、改名之前进程退出（注入的故障状态＝与源逐字节相同的 .tmp，标记未写）。
-# 再次启动时目标仍视为空，复制重试并收敛到完整复制；.tmp 被提交的档替换，不残留。
+# 崩溃点经真实写入路径注入（A317 F3）：core/save_store.gd::commit_file 的 debug-only 注入点 debug_crash 在
+# 第 k 次提交的指定步骤停下，此后这只 store 不再写任何文件，等同进程在那一刻退出。设置文件由属主经
+# ConfigFile 写出、不经该提交序列，注入点停不住它们，所以崩溃后的残留只断言 saves/ 与标记两处。
+static func legacy_saves_listing(saves: String) -> Array:
+ var names=Array(DirAccess.get_files_at(saves)) if DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(saves)) else []
+ names.sort()
+ return names
+
+# 任务 2 崩溃点 1：第一次提交在 `.tmp` 写完、改名之前被杀（标记因此未写）。再次启动（新 store、未布防）时
+# 目标仍视为空，复制重试并收敛到完整复制；.tmp 被提交的档替换，不残留。
 static func legacy_crash_after_temp_write_converges(t) -> void:
  var ready=legacy_ready(t,"legacy_crash_after_temp_write_converges","legacy-crash-temp")
  if ready.is_empty(): return
@@ -1436,20 +1444,25 @@ static func legacy_crash_after_temp_write_converges(t) -> void:
  legacy_saves(source.path_join("saves"),"tower",2)
  legacy_settings(source)
  var target=root.path_join("target")
- legacy_dir(target.path_join("saves"))
- legacy_write(target.path_join("saves").path_join("tower.json.tmp"),legacy_bytes(source.path_join("saves").path_join("tower.json")))
+ legacy_dir(target)
  var legacy_before=legacy_triples(parent)
  var marker=target.path_join(LEGACY_MARKER_NAME)
+ var crashed=Store.new(target.path_join("saves"))
+ crashed.debug_crash={"commit":1,"at":"temp"}
+ module.run(parent,target,marker,crashed)
+ var temp=target.path_join("saves").path_join("tower.json.tmp")
+ t.check(OS.is_debug_build() and legacy_saves_listing(target.path_join("saves"))==["tower.json.tmp"] and legacy_same_file(source.path_join("saves").path_join("tower.json"),temp) and not FileAccess.file_exists(marker),"LEGACY legacy_crash_after_temp_write_converges: the injected crash stops the real commit once its .tmp holds the full copy: nothing is renamed and no marker exists: "+str(legacy_saves_listing(target.path_join("saves"))))
  var result=module.run(parent,target,marker,Store.new(target.path_join("saves")))
  var listed=legacy_marker(marker)
  t.check(String(result.get("code",""))=="copied" and listed.get("copied",[])==["saves/tower.json","saves/tower.json.bak","display-settings.cfg","key-bindings.cfg"],"LEGACY legacy_crash_after_temp_write_converges: the retry finishes the interrupted copy and records it: "+str(listed))
- t.check(not FileAccess.file_exists(target.path_join("saves").path_join("tower.json.tmp")),"LEGACY legacy_crash_after_temp_write_converges: the committed file replaces the leftover temp, so no temp survives")
+ t.check(not FileAccess.file_exists(target.path_join("saves").path_join("tower.json.tmp")) and not FileAccess.file_exists(marker+".tmp"),"LEGACY legacy_crash_after_temp_write_converges: the committed file replaces the leftover temp, so no temp survives")
  t.check(legacy_same_file(source.path_join("saves").path_join("tower.json"),target.path_join("saves").path_join("tower.json")) and legacy_same_file(source.path_join("saves").path_join("tower.json.bak"),target.path_join("saves").path_join("tower.json.bak")),"LEGACY legacy_crash_after_temp_write_converges: the two saves land byte identical to their legacy originals")
  t.check(Store.new(target.path_join("saves")).read_slot("tower").ok,"LEGACY legacy_crash_after_temp_write_converges: the recovered slot reads through the formal entry")
  t.check(legacy_triples(parent)==legacy_before,"LEGACY legacy_crash_after_temp_write_converges: the legacy directories keep their (path,size,sha256) triples")
 
-# 任务 2 崩溃点 2：复制到一半退出（目标已有前 N 个文件、标记未写）。再次启动按 target_not_empty 收敛：
-# 已落地的档不重复覆盖（字节与 mtime 都不变），仍能经 read_slot 读出，标记登记 target_not_empty。
+# 任务 2 崩溃点 2：复制到一半被杀（标记未写）——第 1 份档落地后、第 2 份档落地后、以及标记自己的提交在
+# `.tmp` 写完时。再次启动按 target_not_empty 收敛：已落地的档不重复覆盖（字节与 mtime 都不变），仍能经
+# read_slot 读出，标记登记 target_not_empty，残留的标记 .tmp 被这次提交替换。
 static func legacy_crash_midway_before_marker_converges(t) -> void:
  var ready=legacy_ready(t,"legacy_crash_midway_before_marker_converges","legacy-crash-midway")
  if ready.is_empty(): return
@@ -1460,22 +1473,26 @@ static func legacy_crash_midway_before_marker_converges(t) -> void:
  legacy_saves(source.path_join("saves"),"tower",2)
  legacy_settings(source)
  var legacy_before=legacy_triples(parent)
- var halfway=[["saves/tower.json"],["saves/tower.json","saves/tower.json.bak"],["saves/tower.json","saves/tower.json.bak","display-settings.cfg"]]
- for index in range(halfway.size()):
-  var copied=halfway[index]
-  var name="[after=%d file(s)]" % copied.size()
+ var crashes=[
+  {"name":"[killed after the first save lands]","crash":{"commit":1,"at":"renamed"},"landed":["tower.json"],"marker_temp":false},
+  {"name":"[killed after both saves land]","crash":{"commit":2,"at":"renamed"},"landed":["tower.json","tower.json.bak"],"marker_temp":false},
+  {"name":"[killed inside the marker commit]","crash":{"commit":3,"at":"temp"},"landed":["tower.json","tower.json.bak"],"marker_temp":true},
+ ]
+ for index in range(crashes.size()):
+  var name=String(crashes[index].name)
   var target=root.path_join("target-%d" % index)
   legacy_dir(target)
-  for file in copied:
-   legacy_dir(target.path_join(String(file)).get_base_dir())
-   legacy_write(target.path_join(String(file)),legacy_bytes(source.path_join(String(file))))
   var marker=target.path_join(LEGACY_MARKER_NAME)
-  t.check(not FileAccess.file_exists(marker),"LEGACY legacy_crash_midway_before_marker_converges "+name+": the interrupted fixture has no marker yet")
-  var target_before=legacy_tree(target)
+  var crashed=Store.new(target.path_join("saves"))
+  crashed.debug_crash=crashes[index].crash
+  module.run(parent,target,marker,crashed)
+  var landed=legacy_saves_listing(target.path_join("saves"))
+  t.check(OS.is_debug_build() and landed==crashes[index].landed and not FileAccess.file_exists(marker) and FileAccess.file_exists(marker+".tmp")==bool(crashes[index].marker_temp),"LEGACY legacy_crash_midway_before_marker_converges "+name+": the injected crash leaves exactly the saves the real commits landed, no marker, and a marker temp only when the marker commit was the one killed: "+str(landed))
+  var target_before=legacy_tree(target.path_join("saves"))
   var result=module.run(parent,target,marker,Store.new(target.path_join("saves")))
   var listed=legacy_marker(marker)
-  t.check(String(result.get("code",""))=="target_not_empty" and legacy_has_skip(listed,"*","target_not_empty") and listed.get("copied",[]).is_empty(),"LEGACY legacy_crash_midway_before_marker_converges "+name+": the next start converges on target_not_empty instead of copying again: "+str(listed))
-  t.check(legacy_tree_without(target,LEGACY_MARKER_NAME)==target_before,"LEGACY legacy_crash_midway_before_marker_converges "+name+": the files copied before the interruption keep their bytes and mtimes")
+  t.check(String(result.get("code",""))=="target_not_empty" and legacy_has_skip(listed,"*","target_not_empty") and listed.get("copied",[]).is_empty() and not FileAccess.file_exists(marker+".tmp"),"LEGACY legacy_crash_midway_before_marker_converges "+name+": the next start converges on target_not_empty instead of copying again: "+str(listed))
+  t.check(legacy_tree(target.path_join("saves"))==target_before,"LEGACY legacy_crash_midway_before_marker_converges "+name+": the files copied before the interruption keep their bytes and mtimes")
   t.check(Store.new(target.path_join("saves")).read_slot("tower").ok,"LEGACY legacy_crash_midway_before_marker_converges "+name+": the file copied before the interruption still reads through the formal slot entry")
   t.check(legacy_triples(parent)==legacy_before,"LEGACY legacy_crash_midway_before_marker_converges "+name+": the legacy directories keep their (path,size,sha256) triples")
 
