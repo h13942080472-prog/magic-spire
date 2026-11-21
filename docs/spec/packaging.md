@@ -96,3 +96,7 @@
   启动包内游戏并验证主页、内容、动态资源、新游戏、练习和隔离存档；
   触屏行为通过真实 `ScreenTouch`／`ScreenDrag` 输入进入正式 UI，专项入口
   `tools/check.ps1 -UIOnly -UISuite touch`。
+- 生成并签名更新清单（两平台成品验收之后）：`tools/update-manifest.ps1` 由 Android 成品旁的 `manifest.json`
+  与人工打成的 Windows 发行 ZIP 生成清单，维护者本人用 `tools/sign-update-manifest.ps1` 签名；接口、
+  哈希单一来源与签名防错见 [update-check.md「发布侧脚本」](update-check.md)。上传需用户明确指示：
+  先传包并核对公网 URL 的大小与 sha256，最后传清单与 `.sig`。

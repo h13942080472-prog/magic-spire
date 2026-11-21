@@ -1,6 +1,7 @@
-# 游戏内检查更新与提示（U1）
+# 游戏内检查更新与提示（U1、U1b）
 
-契约文件：一次签名清单读取、唯一判定、主页提示与两个跳转按钮、设置页开关的语义。
+契约文件：一次签名清单读取、唯一判定、主页提示与两个跳转按钮、设置页开关的语义；
+发布侧清单生成与签名两份脚本的接口（U1b）。
 内部实现以代码为准，接口语义以本文件为准；函数名与稳定 ID 是锚点，本文件不写行号。
 本文件不写执行结果：通过／失败／未执行与红集登记 `docs/record/verification.md`。
 
@@ -12,13 +13,17 @@
 - 收束对象：**把一个已签名的更新清单变成玩家可见的一次提示**。链路只有一条：
   `spire-godot/update/update_check.gd::check` 读配置、发最多两个 HTTPS GET，把字节交给
   `spire-godot/update/update_manifest.gd::evaluate` 判定，主页与设置页只显示判定结果。
+- 发布侧（U1b）同样只有一条链路：`spire-godot/tools/update-manifest.ps1` 生成清单，
+  `spire-godot/tools/sign-update-manifest.ps1` 签名，两者见「发布侧脚本」。
 - 不含：下载、校验包体、挂载补丁、写入 `user://` 或 EXE 目录、改 `run/main_scene`（U2）、
-  发布侧生成清单与签名脚本（U1b）、反馈上传（D20）。
+  上传与部署清单（人工动作）、反馈上传（D20）。
 - 模块边界：`spire-godot/update/` 是叶子模块，不引用 `ui`、`core`、`data`、`tests`；
   `core` 与 `data` 也不引用 `update`。发 HTTP 的只有 `spire-godot/update/update_check.gd`。
 - 明文口径：**U1 只读一个公开文件**。请求不带存档、种子、设备标识、账号或自定义标识头。
-- 生产公钥表在 U1 为空（`spire-godot/update/update_keys.gd::KEYS`）。空表的正确答案是
-  `none`／`key`，不是崩溃，也不是跳过验签；发布公钥与部署清单属于 U1b，在此之前
+- 生产公钥表（`spire-godot/update/update_keys.gd::KEYS`）恰好一条 `k1`：维护者离线生成的
+  RSA-3072 公钥，SPKI PEM，DER sha256 为
+  `a4311195c39051d64a0fc5bec6352316eebc9a836d93f0982d52006bcbb8727c`。条目写成三引号 PEM 字面量，
+  签名脚本按文本读取它（不运行引擎）。公网清单部署之前，检查按「失败语义」静默，
   任何构建都**不会**弹出更新提示。
 - 验签方只持有公开材料：`spire-godot/update/update_manifest.gd::_verified` 用
   `CryptoKey.load_from_string(pem, true)` 加载键表条目的公钥 PEM（SPKI，`-----BEGIN PUBLIC KEY-----`）。
@@ -93,7 +98,7 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
 - 清单：`v1/manifest.json`，UTF-8 JSON，**≤ 65536 字节**，schema 1；签名是
   `manifest.json.sig`，内容为「对清单原始字节做 RSA PKCS#1 v1.5 + SHA-256」后的 base64。
   签名文件是**单行** base64：首尾空白与换行由 `strip_edges()` 容忍，内部出现任何空白都不是
-  base64，按 `signature` 拒绝。U1b 的签名脚本必须用 `openssl base64 -A` 输出单行——默认的
+  base64，按 `signature` 拒绝。签名脚本因此用 `openssl base64 -A` 输出单行——默认的
   `base64` 每 64 字符换行，会被这条规则拒绝。
   清单字段：`schema`、`serial`、`issued`、`key_id`、`latest.version`、`latest.notes_zh`、
   `revoked`、`platforms.<platform>.full.{url,mirror,bytes,sha256}`、`platforms.<platform>.patches`。
@@ -143,11 +148,46 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
 - 落地失败不影响玩家：`project.godot` 缺 `[update]` 时 `manifest_url` 为空 → 门槛不成立，
   一次请求都不发；手动 `check()` 同样不发请求，按 `url` 拒绝且不显示提示。
 
+## 发布侧脚本
+
+在 `spire-godot/` 下用 PowerShell 7 执行；路径参数一律是绝对路径；已存在的输出文件一律不覆盖。
+
+```powershell
+# 唯一清单生成入口
+& tools/update-manifest.ps1 -Version <版本> -NotesFile <UTF-8 文本> -Serial <正整数> [-KeyId k1] [-Revoked <版本,…>] -Out <manifest.json>
+    [-WindowsZip <发行 ZIP> -WindowsUrl <https://…> -WindowsMirror <https://…>]
+    [-AndroidManifest <package-android 写出的 manifest.json> -AndroidUrl <https://…> -AndroidMirror <https://…>]
+# 唯一签名入口：输出 <manifest>.sig
+& tools/sign-update-manifest.ps1 -Manifest <manifest.json> -PrivateKey <私钥 PEM> [-PassphraseEnv <环境变量名>]
+```
+
+- 生成：字段与「输入域」逐项一致；`issued` 取生成时刻的 UTC（`yyyy-MM-ddTHH:mm:ssZ`），`patches` 为 `[]`；
+  平台按需给一组或两组，一组的三个参数缺一即拒绝，至少要有一个平台。
+- 哈希单一来源：Android 的 `bytes`／`sha256` 直接取自 `tools/package-android.ps1` 写在 APK 旁的
+  `manifest.json`，不重算，且其 `version` 必须等于 `-Version`；Windows 发行 ZIP 在 `tools/package.ps1`
+  之后人工打成，流水线里没有它的哈希，`update-manifest.ps1` 是计算它的唯一位置（`Get-FileHash`，一次）。
+- 生成自检：先写临时文件再回读，核对 UTF-8 无 BOM、LF、严格 JSON、不超过 65536 字节、每个平台的
+  `url`／`mirror` 都以 `https://` 开头；任一不满足即抛错，不留输出文件。
+- 签名：对清单原始字节做 `openssl dgst -sha256 -sign`（RSA PKCS#1 v1.5 + SHA-256），再用
+  `openssl base64 -A` 写成单行 `<manifest>.sig`。
+- 签名防错：签名前用 `openssl pkey -pubout` 导出私钥的公钥半，与 `update/update_keys.gd` 里清单
+  `key_id` 对应条目比较 DER sha256；`key_id` 没有条目或两者不一致即拒签，不产生 `.sig`。
+  签名后把 `.sig` 解码，用该条目公钥 `openssl dgst -verify` 复核。
+- 口令只经 `-PassphraseEnv` 点名的环境变量交给 `openssl -passin env:<名>`，不接受口令明文参数；
+  脚本不打印私钥、口令或二者的哈希；临时目录只放公开材料与签名，任何出口都会删除。
+- `-KeyTable <同形状的 .gd 绝对路径>` 只用于一次性测试密钥产出夹具时替换比较对象；
+  发布签名一律用默认的 `update/update_keys.gd`。
+- 生产私钥只在维护者本机的仓外目录保存，生产签名只由维护者本人运行；agent 不运行生产签名。
+- 轮换：新公钥以 `k2` 与 `k1` 并列写入 `KEYS` 并随一个版本发布，之后清单才切换 `key_id`；
+  旧构建只认它携带的键。`k1` 在用它签名的清单全部被替换后再删。
+
 ## 证据入口
 
 取证方式：规则侧用真实 `Crypto.generate_rsa` 现场生成密钥对、把**公钥**交给 `evaluate`，并复放提交在
-`tests/fixtures/update/` 的 OpenSSL 夹具（公钥 PEM、清单与签名）；UI 侧走真实 `main.tscn` 与真实点击，
-transport 替身回答两次 GET。
+`tests/fixtures/update/` 的 OpenSSL 夹具（公钥 PEM、清单与签名）与两份发布侧脚本产出的两平台夹具
+（`tests/fixtures/update/release-scripts/`：一次性公钥、三份输入、清单与签名；私钥用后即删）；
+生产键表按 DER sha256 钉住。UI 侧走真实 `main.tscn` 与真实点击，transport 替身回答两次 GET。
+发布侧脚本的拒签与拒绝路径没有常驻门禁，证据是脚本实跑日志。
 
 判据全集与执行符号见 [update-check-dependencies.md「判据 → 检查」](update-check-dependencies.md)。
 

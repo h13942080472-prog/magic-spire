@@ -1,4 +1,4 @@
-# 更新检查 U1：依赖约束
+# 更新检查 U1、U1b：依赖约束
 
 `docs/spec/update-check.md` 的依赖约束索引：判据的真源是下表点名的检查，散文不复述内容
 （格式参照 `docs/spec/seed-feedback-dependencies.md`）。
@@ -12,27 +12,30 @@
 | 文件 | 允许的改动 | 必须保持 |
 | --- | --- | --- |
 | `spire-godot/update/update_manifest.gd`（新） | 纯函数：`evaluate(manifest_bytes, signature, keys, current, platform)`、`compare(a, b)`；schema 1 的解析；`Crypto.verify`（SHA-256，RSA PKCS#1 v1.5） | 无 IO：不访问文件、网络与单例状态；不读 `ProjectSettings`（当前版本与平台都由参数传入）；拒绝原因只有固定枚举 `signature/key/schema/platform/size/json/url`；「已验签但不是更新」用空 `reason`；验签只经 `_verified`，公钥以 `CryptoKey.load_from_string(pem, true)` 加载；键表条目含 `PRIVATE KEY` 时在 `key` 步拒绝 |
-| `spire-godot/update/update_keys.gd`（新） | 常量 `KEYS = {key_id: 公钥 PEM}`；U1 为空表 | **只放公钥**；不放私钥、口令或任何令牌；空表必须让 `evaluate` 返回 `none`／`key` |
+| `spire-godot/update/update_keys.gd`（新；U1b 写入 `k1`） | 常量 `KEYS = {key_id: 公钥 PEM}`；U1b 起只有 `k1`，条目是三引号 PEM 字面量 | **只放公钥**；不放私钥、口令或任何令牌；恰好一条 `k1`，DER sha256 钉住；轮换先并列加 `k2` 再切换清单 `key_id`；显式传入的空表仍让 `evaluate` 返回 `none`／`key` |
 | `spire-godot/update/update_check.gd`（新） | `check()`、`deliver()`、`manifest_url()`、`current_version()`、`platform_key()`、`scripted_run()`、`auto_allowed()`、`keys`、`transport: Callable` 接缝、`HTTPRequest`（10 秒超时、`max_redirects=0`、`body_size_limit=65536`）、`checked(offer)` | 一次检查最多 2 个 GET；只用 HTTPS；不写盘；不重试；请求不带存档、种子、设备标识、账号或自定义标识头；失败一律静默；`[update]` 只在此文件读取 |
 | `spire-godot/project.godot` | 新增 `[update]` 段：`manifest_url`、`check_on_start` | 不改 `application/config/version`、`run/main_scene`、`[feedback]`；不新增 `[autoload]` |
 | `spire-godot/ui/display_settings.gd`（CC-D22-1） | `update_check_enabled`、`set_update_check(enabled)`；既有 `user://display-settings.cfg` 的 `update/check_on_start` 一键 | 不新增 `user://` 文件、不新增设置存储；`initialize` 的复位与加载顺序不变；既有 setter 行为不变 |
 | `spire-godot/ui/home_screen.gd`、`spire-godot/ui/main.gd` | 主页 `HomeUpdateNotice`、`HomeUpdateDownload`、`HomeUpdateMirror`（放在主页布局层，不在 `GameHome` 内）；设置页 `UpdateCheckEnabled`、`UpdateCheckNow`、`UpdateCheckStatus`；持有并启动 `update_check`；`open_url` 可替换的跳转接缝 | 主页左侧标题区仍是原来四个子节点；不改开局、继续、设置的入口与布局语义；检查不阻塞主页输入、不改 `Game` 状态与存档；不调用 `command_router` 或 `Game` 的任何写接口；版本比较、验签、解析不在 UI 里出现第二份 |
 | `spire-godot/assets/localization/zh_CN.json`、`en_US.json`、`ja_JP.json` | 新增 `ui.update.*` 与 `ui.settings.update_check*`、`ui.settings.update_now` 十条 ID 的文案与译文 | 既有 ID 与文案不变；`en_US`／`ja_JP` 的 `source` 与中文原文逐字相同；不删条目 |
-| `spire-godot/tests/update_cases.gd`（新）、`spire-godot/tests/update_ui_cases.gd`（新）、`spire-godot/tests/test_game.gd` 的 `SUITES`、`spire-godot/tests/ui_smoke.gd` 的 `UI_MODULES` | 本契约的具名 check；登记 `update` suite | 现场 `Crypto.generate_rsa` 生成密钥对并把公钥交给 `evaluate`；`spire-godot/tests/fixtures/update/` 只提交公钥 PEM、清单与签名（OpenSSL 互通夹具），**不提交任何私钥**；不联网（只用 `transport` 替身）；不删除、不放宽既有的 HOME 断言 |
+| `spire-godot/tests/update_cases.gd`（新）、`spire-godot/tests/update_ui_cases.gd`（新）、`spire-godot/tests/test_game.gd` 的 `SUITES`、`spire-godot/tests/ui_smoke.gd` 的 `UI_MODULES` | 本契约的具名 check；登记 `update` suite | 现场 `Crypto.generate_rsa` 生成密钥对并把公钥交给 `evaluate`；`spire-godot/tests/fixtures/update/` 只提交公钥 PEM、清单与签名（OpenSSL 互通夹具；U1b 的 `release-scripts/` 另含三份脚本输入），**不提交任何私钥**；不联网（只用 `transport` 替身）；不删除、不放宽既有的 HOME 断言 |
 | `spire-godot/tests/architecture_cases.gd::update_module_is_a_leaf` | 新增 `update/` 的禁止边（不引用 `ui`／`core`／`data`／`tests`；`core`／`data` 不引用 `update`；只有 `update_check.gd` 发 HTTP）；新增五条单点判据 `update_compare_single_entry`、`update_document_single_entry`、`update_verify_single_entry`、`update_http_single_entry`、`update_jump_single_entry` | 既有判定函数与既有边不变 |
 | `spire-godot/tests/fixtures/update/` 的 `.gitattributes`（新） | 把三份夹具标为 `-text`，让检出字节等于签名字节 | 不改夹具内容；不引入第二份夹具 |
+| `spire-godot/tools/update-manifest.ps1`、`spire-godot/tools/sign-update-manifest.ps1`（U1b，新） | 唯一清单生成入口与唯一签名入口，接口见 `docs/spec/update-check.md`「发布侧脚本」 | 与游戏代码零依赖（签名脚本只按文本读 `update/update_keys.gd`）；Android 哈希只取自包清单、Windows ZIP 哈希只在生成器算一次；拒签与拒绝路径不留输出；不接受口令明文参数，不打印私钥、口令或其哈希 |
+| `spire-godot/tests/fixtures/update/release-scripts/`（U1b，新） | 两份脚本用一次性密钥产出的清单与签名，及一次性公钥、`notes.txt`、`android-package-manifest.json`、`windows.zip` 三份输入；同目录 `.gitattributes` 标 `-text` | 只经脚本生成；**不提交任何私钥**；既有 OpenSSL 夹具不变 |
 | `spire-godot/tests/state_readers.json`（生成物） | 由 `tools/build_state_readers.gd --write` 重写，登记 `update/` 的读取点 | 只经工具写入；不手工编辑；他行不变 |
 | `spire-godot/tests/check_index.json`（生成物） | 由 `tools/check-index.ps1 -Write` 重冻，登记 `update/` 与新增测试文件 | 只经工具写入；不手工编辑；他行不变 |
 | `spire-godot/tests/update_cases.gd.uid`、`spire-godot/tests/update_ui_cases.gd.uid`（新） | 引擎生成的脚本 UID 旁文件 | 只经引擎导入写入；不手工编辑 |
 | `spire-godot/tests/mutations.json` | 为本片具名 check 追加条目 | 既有条目、`known_gaps` 与冻结清单不变；`find` 仍唯一 |
-| `docs/spec/update-check.md`、`docs/spec/update-check-dependencies.md`、根 `AGENTS.md` 文档入口表、`docs/spec/project-map.md` 目录表 | 本契约落盘 | `docs/spec/` 被取代即删；不改 `docs/spec/packaging.md`（它的增补留到 U2） |
+| `docs/spec/update-check.md`、`docs/spec/update-check-dependencies.md`、根 `AGENTS.md` 文档入口表、`docs/spec/project-map.md` 目录表 | 本契约落盘 | `docs/spec/` 被取代即删 |
+| `docs/spec/packaging.md`（U1b） | 流水线加「生成并签名更新清单」一步，链接本契约 | 既有打包契约不变；补丁 PCK 的增补留到 U2 |
 
 ## 判据 → 检查
 
 判据名＝测试里的具名 check（断言标签 `UPDATE <name>:`／`DEP <name>:` 的 `<name>`，也是该 check 的函数名）。
 表与 `tests/update_cases.gd`、`tests/update_ui_cases.gd`、`tests/architecture_cases.gd` 的 update 具名 check
 **双向相等**：一条判据一行，一行只点名一个检查；漏行、多行、改名或幽灵条目都要同批改表。
-本版共 40 条（规则 26、窗口 8、架构 6），按 `tests/<file>.gd::<name>` 逐名核对。
+本版共 42 条（规则 28、窗口 8、架构 6），按 `tests/<file>.gd::<name>` 逐名核对。
 
 | 判据 | 执行它的检查 |
 | --- | --- |
@@ -43,10 +46,12 @@
 | 另一把密钥签的清单按 `signature` 拒绝 | `tests/update_cases.gd::foreign_key_signature_is_rejected`（规则分类 `update`） |
 | 未知或缺失 `key_id` 都是 `key` | `tests/update_cases.gd::missing_key_entry_is_rejected`（规则分类 `update`） |
 | 空签名与非 base64 文本都是 `signature` | `tests/update_cases.gd::unusable_signature_is_rejected`（规则分类 `update`） |
-| 空公钥表只给 `key`；这也是生产键表为空时任何构建都不提示的判定面 | `tests/update_cases.gd::empty_key_table_yields_no_offer`（规则分类 `update`） |
+| 显式传入的空公钥表只给 `key` | `tests/update_cases.gd::empty_key_table_yields_no_offer`（规则分类 `update`） |
+| 生产键表恰好一条 `k1`：以 `public_only=true` 加载、不含私钥、DER sha256 钉住 | `tests/update_cases.gd::production_key_table_pins_k1`（规则分类 `update`） |
 | SPKI 公钥 PEM 以 `public_only=true` 加载后验签通过 | `tests/update_cases.gd::public_key_pem_verifies_signed_manifest`（规则分类 `update`） |
 | 键表条目是私钥 PEM 时一律 `key`，签名有效也不放行 | `tests/update_cases.gd::private_key_table_entry_is_rejected`（规则分类 `update`） |
 | OpenSSL 签名夹具验签通过；签后改一字节→`signature` | `tests/update_cases.gd::openssl_signed_manifest_interops`（规则分类 `update`） |
+| 两份发布侧脚本的产出在两个平台都验签为 `notice`，字段等于脚本输入（Android 哈希等于包清单、Windows 哈希等于 ZIP 独立重算）；签后改一字节→`signature` | `tests/update_cases.gd::release_scripts_manifest_interops`（规则分类 `update`） |
 | `schema` 不是 1→`schema` | `tests/update_cases.gd::unknown_schema_is_rejected`（规则分类 `update`） |
 | 清单缺当前平台→`platform` | `tests/update_cases.gd::missing_platform_yields_none`（规则分类 `update`） |
 | 当前版本被撤回→`notice` 且 `revoked=true` | `tests/update_cases.gd::revoked_current_yields_notice`（规则分类 `update`） |
@@ -91,14 +96,20 @@
 | 主页提示 | `spire-godot/ui/main.gd::_home_update_notice` | 只读 `spire-godot/update/update_check.gd::offer`；由 `spire-godot/ui/home_screen.gd` 调用 | `spire-godot/tests/update_ui_cases.gd::startup_offer_renders_notice`、`::check_in_flight_keeps_home_interactive`（检查进行中主页可交互） |
 | 设置页状态 | `spire-godot/ui/main.gd::_update_status_text` | 只读 `offer` 与 `busy` | `spire-godot/tests/update_ui_cases.gd::toggle_off_skips_startup` |
 | 跳转 | `spire-godot/ui/main.gd::_open_update_url` | `open_url`，默认 `OS.shell_open` | `spire-godot/tests/update_ui_cases.gd::startup_offer_renders_notice`；`spire-godot/tests/architecture_cases.gd::update_jump_single_entry`（唯一 `OS.shell_open`） |
+| 生产键表 | `spire-godot/update/update_keys.gd::KEYS` | `spire-godot/update/update_check.gd::keys` 的默认值；签名脚本的比较对象 | `spire-godot/tests/update_cases.gd::production_key_table_pins_k1` |
+| 清单生成（发布侧） | `spire-godot/tools/update-manifest.ps1` | `::Assert-UpdateManifest` 回读自检；Android 哈希读 `tools/package-android.ps1` 写出的 `manifest.json` | `spire-godot/tests/update_cases.gd::release_scripts_manifest_interops` |
+| 签名（发布侧） | `spire-godot/tools/sign-update-manifest.ps1` | `::Read-KeyTable` 读 `spire-godot/update/update_keys.gd::KEYS`，`::Invoke-OpenSsl` 签名与复核 | `spire-godot/tests/update_cases.gd::release_scripts_manifest_interops` |
 
 ## 仍靠人审（无机械判据，本批保留）
 
 - 公网清单的**部署与签名**：`update.magicspire.xyz/v1/manifest.json` 与其 `.sig` 尚未发布。
   这一步没做时，只能记「桌面接缝验收通过、公网未验收」，不得宣称已上线。
-- 生产公钥的生成与保管（`spire-godot/update/update_keys.gd::KEYS` 的填写，U1b）：私钥必须在
-  维护者离线环境生成，仓库、测试、日志与文档都不得出现私钥、口令或 Cloudflare 令牌。
+- 生产私钥的保管与生产签名：私钥只在维护者本机仓外目录，签名只由维护者本人运行，agent 不运行生产签名；
+  仓库、测试、日志与文档都不得出现私钥、口令或 Cloudflare 令牌。机械判据只钉住公钥一侧
+  （`tests/update_cases.gd::production_key_table_pins_k1`）。
 - Android 真机与真实网络（断网、代理、蜂窝）的行为：桌面接缝不能代表安卓验收。
-- 发布侧脚本（由成品 `manifest.json` 派生更新清单、签名上传，U1b）不在本片授权面。
+- 发布侧脚本的拒签路径（私钥与表内公钥不配、`key_id` 无条目、已有 `.sig`、口令错误）与生成器的
+  拒绝路径（非 `https://`、超过 65536 字节、Android 包版本不符）没有常驻门禁，证据是脚本实跑日志；
+  「唯一生成入口／唯一签名入口」也没有机械扫描。
 - 不属于本片授权面：`spire-godot/ui/feedback_report.gd`、`spire-godot/tools/package*.ps1`、
   `spire-godot/core/**`、`spire-godot/data/**`，以及 U2 的 `update/boot.gd`、`update/update_store.gd`。
