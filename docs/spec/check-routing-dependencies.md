@@ -32,13 +32,13 @@
 | 文件 | 行数 | 行数线 | 说明 |
 | --- | --- | --- | --- |
 | `tests/check_index.gd` | 540 | 400 | **超出**：派生（scan／compare）与路由（suites_for／ROUTE 渲染）同文件。职责边界是整个索引流水线，不按行数拆分；被扫描文本的读取已收口到叶 `tests/source_text.gd`（EOL-1a），本文件不再自带读文本原语。按根 `AGENTS.md`「大文件按职责拆，不按行数硬拆」，此处以职责说明代替拆分。 |
-| `tests/check_index_edges.gd` | 148 | 500 | 手写层八张表（`DOMAINS` 60／`WIDEN` 1／`EXCLUDE` 15／`BLIND_BY_DESIGN` 3／`INDEX_DEFECTS` 0／`CLOSURE` 9／`ORACLE_NOTES` 2／`SUITE_EXEMPT` 3），逐条 `reason`；随语料增长，是人类审查面。 |
+| `tests/check_index_edges.gd` | 153 | 500 | 手写层八张表（`DOMAINS` 60／`WIDEN` 1／`EXCLUDE` 15／`BLIND_BY_DESIGN` 3／`INDEX_DEFECTS` 0／`CLOSURE` 9／`ORACLE_NOTES` 2／`SUITE_EXEMPT` 3），逐条 `reason`；随语料增长，是人类审查面。 |
 | `tests/route_plan.gd` | 56 | 120 | 计划宿主 CLI：读冻结物、打印 `ROUTE *`、写计划 JSON。 |
 | `tools/build_check_index.gd` | 47 | 60 | `--verify`／`--write`；与读取方共用同一 `derive()`。 |
 | `tests/runner_cases.gd` | 379 | — | 既有归属自检＋九条索引判据（一次 `derive()` 共用）＋ C1／C1′／C2／C2′ 四条扫描面判据（EOL-1a）。 |
 | `tests/source_text.gd` | 23 | 120 | 被扫描文本的归一读取叶（`normalized_text`／`normalized_text_sha256`）；无 preload、无 `run()`、无扫描语义。 |
 | `tools/check.ps1` | 572 | — | 原 417 行；路由面新增 flag 校验、计划宿主调用、内容门阶段、八条探针与 `summary.route`。 |
-| `tests/check_index.json` | 3732 | — | 生成物（schema 1），永不手改。 |
+| `tests/check_index.json` | 3998 | — | 生成物（schema 1），永不手改。 |
 
 ## 文档守卫
 
