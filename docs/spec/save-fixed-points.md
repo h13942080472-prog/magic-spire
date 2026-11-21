@@ -85,6 +85,8 @@ state.initial_seed: int    # = _init 的 run_seed；state.seed 仍由 _restart_t
 D23a 之后用户目录是固定名；旧版本各自带版本号的目录**仍在同一父目录下**。`ui/legacy_import.gd` 在首次
 启动把它们复制一次进新目录，旧目录只读：**不删除、不改名、不覆盖任何字节**。
 
+- 判定顺序（`ui/legacy_import.gd::_import`）：标记 → 目标非空 → 选源 → 复制。标记存在即短路；目标非空时
+  不扫描父目录，只写标记；两者都不成立才扫描兄弟目录选源。
 - 选源（`ui/legacy_import.gd::find_source`）：父目录（运行时 `user://` 的上一级）下名字以
   `紧缚尖塔demo v` 开头、且至少有一个存档能通过 `core/save_store.gd::unpack` 的兄弟目录，取**最新存档
   mtime** 的一个（`tower.json`／`practice.json` 及 `.bak` 都算）。与目录名里的版本号无关；
@@ -95,8 +97,10 @@ D23a 之后用户目录是固定名；旧版本各自带版本号的目录**仍�
   `ui/display_settings.gd::import_from` 与 `ui/key_bindings.gd::import_from` 读出校验后写各自路径。
   坏档、新修订号档与落盘失败的档不落地，记入标记的 `skipped`（键 `code`，值 `invalid`／`version`／
   `write`）。不复制 `feedback-draft.json` 等其他文件。
-- 目标非空即不复制：`saves` 下已有任一位主档或 `.bak` 时不动任何文件，标记记 `target_not_empty`。
-  中断的复制因此在下一次启动收敛到同一结果，不产生第二条写入口。
+- 目标非空即不复制：`saves` 下已有任一位主档或 `.bak` 时不动任何文件，标记记 `target_not_empty`
+  （父目录里有没有候选都一样）。中断的复制因此在下一次启动收敛到同一结果：`.tmp` 写完、改名之前退出时
+  目标仍视为空，下一次启动重试并完成复制，`.tmp` 被提交的档替换；复制到一半退出时按 `target_not_empty`
+  收敛，已落地的档不再重写。不产生第二条写入口。
 - 标记：目标根下 `legacy-import.json`，`schema=1`，含 `source`／`copied`／`skipped`／`at`；
   **标记存在即不再扫描、不再写**。该文件是 `ui/legacy_import.gd` 唯一的写。
 - 关闸与接线：`persistence_enabled=false` 或非桌面构建（`OS.has_feature("pc")` 为假）都不解析任何
@@ -119,9 +123,16 @@ D23a 之后用户目录是固定名；旧版本各自带版本号的目录**仍�
 | 旧路径只读、`legacy-import.json` 只被本模块命名 | `legacy_import_opens_legacy_read_only` |
 | `user://saves` 单一写者（豁免处只碰自己的常量） | `saves_single_writer` |
 | 接线恰一行且在 `_restore_startup()` 之前、闸先于路径解析 | `legacy_import_is_wired_once` |
+| LEGACY-9 目录组合穷举（旧目录 {0,1,3} × 有无 `saves/` × 档状态 × 目标 {空,非空} × 标记 {有,无}）逐格合 §2.1，旧目录（相对路径, 大小, sha256）不变 | `legacy_directory_matrix_matches_the_plan` |
+| LEGACY-10 `.tmp` 写完、改名之前退出后的下一次启动收敛为完整复制 | `legacy_crash_after_temp_write_converges` |
+| LEGACY-11 复制到一半（标记未写）后的下一次启动收敛为 `target_not_empty`，不重写已落地档 | `legacy_crash_midway_before_marker_converges` |
+| LEGACY-12 两个候选存档 mtime 相同仍取确定来源 | `legacy_source_tie_is_deterministic` |
+| LEGACY-13 名字像 demo 但没有可读档的目录不是候选 | `legacy_source_ignores_directories_without_saves` |
+| LEGACY-14 `紧缚尖塔-dev` 与新目录自身不参与选源 | `legacy_source_never_picks_dev_or_target_name` |
+| LEGACY-15 非 ASCII 或多余空格的名字仍按前缀匹配（前缀内部多空格不匹配） | `legacy_source_accepts_non_ascii_and_spaced_names` |
 
-前八条在 `tests/persistence_cases.gd`，后三条在 `tests/architecture_cases.gd`；三条架构判据各配一条
-登记突变（`tests/mutations.json`）。
+前十五条在 `tests/persistence_cases.gd`，后三条在 `tests/architecture_cases.gd`；三条架构判据各配一条
+登记突变（`tests/mutations.json`），加固新增的七条 LEGACY 判据也各配一条。
 
 ## 输入域
 

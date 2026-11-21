@@ -571,6 +571,48 @@
       "find": "preload(\"res://ui/legacy_import.gd\").run_once(self,OS.has_feature(\"pc\"))",
       "replace": "preload(\"res://ui/legacy_import.gd\").run_once(self,true)",
       "suite": "architecture"
+    },
+    "legacy_directory_matrix_matches_the_plan": {
+      "file": "ui/legacy_import.gd",
+      "find": " if _target_has_saves(store): return _finish_import(marker,\"target_not_empty\",\"\",[],[{\"file\":\"*\",\"code\":\"target_not_empty\"}])\n var found=find_source(parent,store)\n if found.is_empty(): return _finish_import(marker,\"none\",\"\",[],[])",
+      "replace": " var found=find_source(parent,store)\n if found.is_empty(): return _finish_import(marker,\"none\",\"\",[],[])\n if _target_has_saves(store): return _finish_import(marker,\"target_not_empty\",String(found.name),[],[])",
+      "suite": "persistence"
+    },
+    "legacy_crash_after_temp_write_converges": {
+      "file": "ui/legacy_import.gd",
+      "find": "  if store.has_files(String(slot)): return true",
+      "replace": "  if store.has_files(String(slot)) or FileAccess.file_exists(store.path(String(slot))+\".tmp\"): return true",
+      "suite": "persistence"
+    },
+    "legacy_crash_midway_before_marker_converges": {
+      "file": "ui/legacy_import.gd",
+      "find": " if _target_has_saves(store): return _finish_import(marker,\"target_not_empty\",\"\",[],[{\"file\":\"*\",\"code\":\"target_not_empty\"}])",
+      "replace": " if false: return _finish_import(marker,\"target_not_empty\",\"\",[],[{\"file\":\"*\",\"code\":\"target_not_empty\"}])",
+      "suite": "persistence"
+    },
+    "legacy_source_tie_is_deterministic": {
+      "file": "ui/legacy_import.gd",
+      "find": " return _finish_import(marker,\"copied\",source_name,copied,skipped)",
+      "replace": " return _finish_import(marker,\"copied\",\"\",copied,skipped)",
+      "suite": "persistence"
+    },
+    "legacy_source_ignores_directories_without_saves": {
+      "file": "ui/legacy_import.gd",
+      "find": "  if key<0: continue",
+      "replace": "  if key<0: key=0",
+      "suite": "persistence"
+    },
+    "legacy_source_never_picks_dev_or_target_name": {
+      "file": "ui/legacy_import.gd",
+      "find": "  if not directory.begins_with(SOURCE_PREFIX): continue",
+      "replace": "  if directory==\"\": continue",
+      "suite": "persistence"
+    },
+    "legacy_source_accepts_non_ascii_and_spaced_names": {
+      "file": "ui/legacy_import.gd",
+      "find": "  if not directory.begins_with(SOURCE_PREFIX): continue",
+      "replace": "  if not directory.begins_with(SOURCE_PREFIX) or directory.contains(\" \"): continue",
+      "suite": "persistence"
     }
   }
 }

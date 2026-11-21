@@ -79,11 +79,14 @@ static func run_once(host, desktop: bool) -> Dictionary:
 static func _import(parent: String, target: String, marker: String, display_settings, key_bindings, store) -> Dictionary:
  if FileAccess.file_exists(marker):
   return _answer(true,false,"marker","",[],[])
+ # The target guard runs before any scan (docs/spec/save-fixed-points.md legacy import section: the
+ # decision order is marker -> target -> source). A session that already owns a save must not
+ # enumerate the sibling directories, and its marker still reports target_not_empty with no source.
+ if _target_has_saves(store): return _finish_import(marker,"target_not_empty","",[],[{"file":"*","code":"target_not_empty"}])
  var found=find_source(parent,store)
  if found.is_empty(): return _finish_import(marker,"none","",[],[])
  var source_name=String(found.name)
  var source_root=String(found.path)
- if _target_has_saves(store): return _finish_import(marker,"target_not_empty",source_name,[],[{"file":"*","code":"target_not_empty"}])
  var copied=[]
  var skipped=[]
  var adopted=store.adopt_legacy(source_root.path_join("saves"))
