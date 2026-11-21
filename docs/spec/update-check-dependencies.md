@@ -20,6 +20,7 @@
 | `spire-godot/assets/localization/zh_CN.json`、`en_US.json`、`ja_JP.json` | 新增 `ui.update.*` 与 `ui.settings.update_check*`、`ui.settings.update_now` 十条 ID 的文案与译文 | 既有 ID 与文案不变；`en_US`／`ja_JP` 的 `source` 与中文原文逐字相同；不删条目 |
 | `spire-godot/tests/update_cases.gd`（新）、`spire-godot/tests/update_ui_cases.gd`（新）、`spire-godot/tests/test_game.gd` 的 `SUITES`、`spire-godot/tests/ui_smoke.gd` 的 `UI_MODULES` | 本契约的具名 check；登记 `update` suite | 现场 `Crypto.generate_rsa` 生成密钥对并把公钥交给 `evaluate`；`spire-godot/tests/fixtures/update/` 只提交公钥 PEM、清单与签名（OpenSSL 互通夹具；U1b 的 `release-scripts/` 另含三份脚本输入），**不提交任何私钥**；不联网（只用 `transport` 替身）；不删除、不放宽既有的 HOME 断言 |
 | `spire-godot/tests/architecture_cases.gd::update_module_is_a_leaf` | 新增 `update/` 的禁止边（不引用 `ui`／`core`／`data`／`tests`；`core`／`data` 不引用 `update`；只有 `update_check.gd` 发 HTTP）；新增五条单点判据 `update_compare_single_entry`、`update_document_single_entry`、`update_verify_single_entry`、`update_http_single_entry`、`update_jump_single_entry` | 既有判定函数与既有边不变 |
+| `spire-godot/tests/architecture_cases.gd`（U1b 加固） | 新增三条发布侧单点判据 `update_sign_single_entry`、`update_signature_write_single_entry`、`update_manifest_write_single_entry` 及扫描助手 `update_release_files`、`update_release_scopes`、`update_release_matches` | 只读源码文本，不调用脚本；扫描 `tools/**/*.ps1` 与 `**/*.gd`，只跳过 `.gitignore` 忽略的目录；既有判定函数与既有边不变 |
 | `spire-godot/tests/fixtures/update/` 的 `.gitattributes`（新） | 把三份夹具标为 `-text`，让检出字节等于签名字节 | 不改夹具内容；不引入第二份夹具 |
 | `spire-godot/tools/update-manifest.ps1`、`spire-godot/tools/sign-update-manifest.ps1`（U1b，新） | 唯一清单生成入口与唯一签名入口，接口见 `docs/spec/update-check.md`「发布侧脚本」 | 与游戏代码零依赖（签名脚本只按文本读 `update/update_keys.gd`）；Android 哈希只取自包清单、Windows ZIP 哈希只在生成器算一次；拒签与拒绝路径不留输出；不接受口令明文参数，不打印私钥、口令或其哈希；`-KeyTable` 只作测试接缝 |
 | `spire-godot/tests/fixtures/update/release-scripts/`（U1b，新） | 两份脚本用一次性密钥产出的清单与签名，及一次性公钥、`notes.txt`、`android-package-manifest.json`、`windows.zip` 三份输入；同目录 `.gitattributes` 标 `-text` | 只经脚本生成；**不提交任何私钥**；既有 OpenSSL 夹具不变 |
@@ -35,7 +36,7 @@
 判据名＝测试里的具名 check（断言标签 `UPDATE <name>:`／`DEP <name>:` 的 `<name>`，也是该 check 的函数名）。
 表与 `tests/update_cases.gd`、`tests/update_ui_cases.gd`、`tests/architecture_cases.gd` 的 update 具名 check
 **双向相等**：一条判据一行，一行只点名一个检查；漏行、多行、改名或幽灵条目都要同批改表。
-本版共 42 条（规则 28、窗口 8、架构 6），按 `tests/<file>.gd::<name>` 逐名核对。
+本版共 45 条（规则 28、窗口 8、架构 9），按 `tests/<file>.gd::<name>` 逐名核对。
 
 | 判据 | 执行它的检查 |
 | --- | --- |
@@ -81,6 +82,9 @@
 | 键加载与验签只有 `spire-godot/update/update_manifest.gd::_verified` | `tests/architecture_cases.gd::update_verify_single_entry`（规则分类 `architecture`） |
 | 更新特性面只有 `spire-godot/update/update_check.gd` 一处 HTTP | `tests/architecture_cases.gd::update_http_single_entry`（规则分类 `architecture`） |
 | 跳转只有 `spire-godot/ui/main.gd::_open_update_url` 一处 `OS.shell_open` | `tests/architecture_cases.gd::update_jump_single_entry`（规则分类 `architecture`） |
+| 调用 `openssl dgst` 并带 `-sign` 的只有 `spire-godot/tools/sign-update-manifest.ps1`（扫描 `tools/**/*.ps1` 与 `**/*.gd` 的源码文本） | `tests/architecture_cases.gd::update_sign_single_entry`（规则分类 `architecture`） |
+| 写出 `manifest.json.sig` 的只有 `spire-godot/tools/sign-update-manifest.ps1`：别处点名 `.sig` 文件且写文件的作用域即红 | `tests/architecture_cases.gd::update_signature_write_single_entry`（规则分类 `architecture`） |
+| 写出带 `key_id` 与 `platforms` 的更新清单的只有 `spire-godot/tools/update-manifest.ps1` | `tests/architecture_cases.gd::update_manifest_write_single_entry`（规则分类 `architecture`） |
 
 ## 单一路径（邻接表）
 
@@ -97,9 +101,9 @@
 | 设置页状态 | `spire-godot/ui/main.gd::_update_status_text` | 只读 `offer` 与 `busy` | `spire-godot/tests/update_ui_cases.gd::toggle_off_skips_startup` |
 | 跳转 | `spire-godot/ui/main.gd::_open_update_url` | `open_url`，默认 `OS.shell_open` | `spire-godot/tests/update_ui_cases.gd::startup_offer_renders_notice`；`spire-godot/tests/architecture_cases.gd::update_jump_single_entry`（唯一 `OS.shell_open`） |
 | 生产键表 | `spire-godot/update/update_keys.gd::KEYS` | `spire-godot/update/update_check.gd::keys` 的默认值；签名脚本的比较对象 | `spire-godot/tests/update_cases.gd::production_key_table_pins_k1` |
-| 清单生成（发布侧） | `spire-godot/tools/update-manifest.ps1` | `spire-godot/tools/update-manifest.ps1::Add-Platform` 建平台条目，`spire-godot/tools/update-manifest.ps1::Assert-UpdateManifest` 回读自检；Android 哈希读 `tools/package-android.ps1` 写出的 `manifest.json` | `spire-godot/tests/update_cases.gd::release_scripts_manifest_interops` |
+| 清单生成（发布侧） | `spire-godot/tools/update-manifest.ps1` | `spire-godot/tools/update-manifest.ps1::Add-Platform` 建平台条目，`spire-godot/tools/update-manifest.ps1::Assert-UpdateManifest` 回读自检；Android 哈希读 `tools/package-android.ps1` 写出的 `manifest.json` | `spire-godot/tests/update_cases.gd::release_scripts_manifest_interops`；`spire-godot/tests/architecture_cases.gd::update_manifest_write_single_entry`（唯一清单写出点） |
 | 发行 ZIP 的 SHA256 | `spire-godot/tools/update-manifest.ps1`（`Get-FileHash`，一次） | 写入清单 `platforms.windows-x64.full.sha256`；`docs/spec/packaging.md` 的人工步骤只引用该值 | `spire-godot/tests/update_cases.gd::release_scripts_manifest_interops`（清单值等于 ZIP 独立重算） |
-| 签名（发布侧） | `spire-godot/tools/sign-update-manifest.ps1` | `spire-godot/tools/sign-update-manifest.ps1::Read-KeyTable` 读 `spire-godot/update/update_keys.gd::KEYS`，`spire-godot/tools/sign-update-manifest.ps1::Invoke-OpenSsl` 签名与复核 | `spire-godot/tests/update_cases.gd::release_scripts_manifest_interops` |
+| 签名（发布侧） | `spire-godot/tools/sign-update-manifest.ps1` | `spire-godot/tools/sign-update-manifest.ps1::Read-KeyTable` 读 `spire-godot/update/update_keys.gd::KEYS`，`spire-godot/tools/sign-update-manifest.ps1::Invoke-OpenSsl` 签名与复核 | `spire-godot/tests/update_cases.gd::release_scripts_manifest_interops`；`spire-godot/tests/architecture_cases.gd::update_sign_single_entry`（唯一 `openssl dgst -sign`）、`::update_signature_write_single_entry`（唯一 `.sig` 写出点） |
 
 ## 仍靠人审（无机械判据，本批保留）
 
@@ -109,8 +113,12 @@
   仓库、测试、日志与文档都不得出现私钥、口令或 Cloudflare 令牌。机械判据只钉住公钥一侧
   （`tests/update_cases.gd::production_key_table_pins_k1`）。
 - Android 真机与真实网络（断网、代理、蜂窝）的行为：桌面接缝不能代表安卓验收。
-- 发布侧脚本的拒签路径（私钥与表内公钥不配、`key_id` 无条目、已有 `.sig`、口令错误）与生成器的
-  拒绝路径（非 `https://`、超过 65536 字节、Android 包版本不符）没有常驻门禁，证据是脚本实跑日志；
-  「唯一生成入口／唯一签名入口」与「人工步骤不另算发行 ZIP 的 SHA256」也没有机械扫描。
+- 发布侧脚本的拒签路径（私钥与表内公钥不配、`key_id` 无条目、已有 `.sig`、`-PassphraseEnv` 未设置或口令错误、
+  签名后清单被改动）与生成器的拒绝路径（链接非 `https://` 或为空、超过 65536 字节、没有平台、`-Serial` 不是正整数、
+  ZIP 不存在、Android 包清单缺 `bytes`／`sha256` 或 `sha256` 不是 64 位小写十六进制、版本不符、`-Out` 是相对路径）
+  没有常驻门禁，证据是脚本实跑日志；「人工步骤不另算发行 ZIP 的 SHA256」也没有机械扫描。
+  唯一签名入口与唯一清单写出点由 `tests/architecture_cases.gd::update_sign_single_entry`、
+  `::update_signature_write_single_entry`、`::update_manifest_write_single_entry` 按源码文本钉住；
+  拆成多行的令牌、运行时拼出的文件名与清单键，这三条判据识别不了。
 - 不属于本片授权面：`spire-godot/ui/feedback_report.gd`、`spire-godot/tools/package*.ps1`、
   `spire-godot/core/**`、`spire-godot/data/**`，以及 U2 的 `update/boot.gd`、`update/update_store.gd`。

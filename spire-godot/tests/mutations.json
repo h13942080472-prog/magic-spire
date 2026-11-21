@@ -678,6 +678,24 @@
       "replace": "func _home_update_notice() -> void:\n if false: OS.shell_open(\"https://example.test/mutation\")",
       "suite": "architecture"
     },
+    "update_sign_single_entry": {
+      "file": "tools/update-manifest.ps1",
+      "find": "Write-Output 'Next: tools/sign-update-manifest.ps1 -Manifest <this file> -PrivateKey <maintainer key>'",
+      "replace": "Write-Output 'Next: tools/sign-update-manifest.ps1 -Manifest <this file> -PrivateKey <maintainer key>'\n# mutation probe: a second release signer\nif ($false) { & openssl dgst -sha256 -sign $NotesFile $Out }",
+      "suite": "architecture"
+    },
+    "update_signature_write_single_entry": {
+      "file": "tools/update-manifest.ps1",
+      "find": "Write-Output 'Next: tools/sign-update-manifest.ps1 -Manifest <this file> -PrivateKey <maintainer key>'",
+      "replace": "Write-Output 'Next: tools/sign-update-manifest.ps1 -Manifest <this file> -PrivateKey <maintainer key>'\n# mutation probe: a second writer of manifest.json.sig\nif ($false) { Set-Content -LiteralPath ($Out + '.sig') -Value '' }",
+      "suite": "architecture"
+    },
+    "update_manifest_write_single_entry": {
+      "file": "tests/update_cases.gd",
+      "find": " var platform=String(overrides.get(\"platform\",PLATFORM))",
+      "replace": " var platform=String(overrides.get(\"platform\",PLATFORM))\n var _mutation_manifest_writer=FileAccess.open(\"user://mutation-manifest.json\",FileAccess.WRITE)",
+      "suite": "architecture"
+    },
     "manifest_size_and_shape_domain": {
       "file": "update/update_manifest.gd",
       "find": "if manifest_bytes.size()==0 or manifest_bytes.size()>MAX_BYTES: return none(\"size\")",

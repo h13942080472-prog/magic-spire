@@ -191,7 +191,8 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
 `tests/fixtures/update/` 的 OpenSSL 夹具（公钥 PEM、清单与签名）与两份发布侧脚本产出的两平台夹具
 （`tests/fixtures/update/release-scripts/`：一次性公钥、三份输入、清单与签名；私钥用后即删）；
 生产键表按 DER sha256 钉住。UI 侧走真实 `main.tscn` 与真实点击，transport 替身回答两次 GET。
-发布侧脚本的拒签与拒绝路径没有常驻门禁，证据是脚本实跑日志。
+发布侧脚本的拒签与拒绝路径没有常驻门禁，证据是脚本实跑日志；唯一签名入口与唯一清单写出点
+由 architecture 的三条发布侧单点判据按源码文本钉住。
 
 判据全集与执行符号见 [update-check-dependencies.md「判据 → 检查」](update-check-dependencies.md)。
 

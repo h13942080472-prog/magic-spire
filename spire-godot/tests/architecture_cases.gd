@@ -1179,6 +1179,9 @@ static func run(t) -> void:
  update_verify_single_entry(t)
  update_http_single_entry(t)
  update_jump_single_entry(t)
+ update_sign_single_entry(t)
+ update_signature_write_single_entry(t)
+ update_manifest_write_single_entry(t)
  run_identity_single_writer(t)
  feedback_save_single_serializer(t)
  feedback_save_cap_pinned(t)
@@ -6504,6 +6507,125 @@ static func update_http_single_entry(t) -> void:
 static func update_jump_single_entry(t) -> void:
  var sites=update_source_sites(update_scan_files(["res://ui","res://update","res://core"]),"OS\\.shell_open\\s*\\(")
  t.check(sites==["ui/main.gd::_open_update_url"],"DEP update_jump_single_entry: the update buttons launch only through ui/main.gd::_open_update_url (the open_url seam); a second OS.shell_open in ui/update/core is red: "+str(sites))
+
+# docs/spec/update-check-dependencies.md「单一路径」, release side (U1b hardening): one signer and
+# one manifest generator. These three judgments read source text and never run a script.
+# Scanned: every tools/**/*.ps1 and every .gd under res://, minus the git-ignored trees in
+# UPDATE_RELEASE_IGNORED_DIRECTORIES (.gitignore; local probes and logs live there). `#` starts a
+# comment in both languages; a `#` inside a string truncates that line (fewer hits, never more),
+# and PowerShell `<# #>` blocks are not stripped (a token there counts as code: red, not a silent
+# pass). A scope is a GDScript func up to the next column-0 line, a PowerShell function up to its
+# column-0 `}`, or "<file>" for top-level code. A scope "writes a file" when its code uses one of
+# the write primitives listed in update_release_scopes. The scopes named in UPDATE_RELEASE_SELF
+# are skipped: their patterns and messages spell out the very tokens they look for. A file that
+# cannot be opened counts as a hit of every kind, so the scan fails closed.
+const UPDATE_RELEASE_IGNORED_DIRECTORIES=["build",".godot","outputs","__pycache__"]
+const UPDATE_RELEASE_SELF=["update_release_files","update_release_scopes","update_release_matches","update_sign_single_entry","update_signature_write_single_entry","update_manifest_write_single_entry"]
+
+static func update_release_files() -> Array:
+ var files=[]
+ var pending=["res://"]
+ while not pending.is_empty():
+  var directory=String(pending.pop_back())
+  var handle=DirAccess.open(directory)
+  if handle==null:
+   files.append(directory.trim_prefix("res://")+"/<unlisted>")
+   continue
+  for name in handle.get_files():
+   var relative=directory.path_join(name).trim_prefix("res://")
+   if relative.ends_with(".gd") or (relative.begins_with("tools/") and relative.ends_with(".ps1")): files.append(relative)
+  for name in handle.get_directories():
+   if name not in UPDATE_RELEASE_IGNORED_DIRECTORIES: pending.append(directory.path_join(name))
+ files.sort()
+ return files
+
+# "file::scope" -> {kind: [line numbers]} for the scopes with at least one hit. Kinds: signing
+# (one code line holding both `dgst` and `-sign`; `-signature` is not `-sign`), signature_file
+# (a `.sig` file name or SIGNATURE_SUFFIX), key_id, platforms (the two manifest keys) and write.
+static func update_release_scopes() -> Dictionary:
+ var kinds=["signing","signature_file","key_id","platforms","write"]
+ var patterns={
+  "dgst":"(?<![A-Za-z0-9_])dgst(?![A-Za-z0-9_])",
+  "sign":"(?<![A-Za-z0-9_])-sign(?![A-Za-z0-9_-])",
+  "signature_file":"\\.sig(?![A-Za-z0-9_])|SIGNATURE_SUFFIX",
+  "key_id":"(?<![A-Za-z0-9_])key_id(?![A-Za-z0-9_])",
+  "platforms":"(?<![A-Za-z0-9_])platforms(?![A-Za-z0-9_])",
+  # PowerShell cmdlets and .NET writers (case-insensitive), openssl -out, Godot file writers.
+  "write":"(?i:(?<![A-Za-z0-9_-])(?:Set-Content|Add-Content|Out-File|Tee-Object|New-Item|Copy-Item|Move-Item|Rename-Item)(?![A-Za-z0-9_-])|IO\\.File\\]::(?:Write|AppendAll|AppendText|Create|OpenWrite|Copy|Move|Replace)|StreamWriter|FileStream)|(?<![A-Za-z0-9_])-out(?![A-Za-z0-9_-])|FileAccess\\.(?:WRITE|READ_WRITE|WRITE_READ)|store_(?:string|buffer|line|var|csv_line|pascal_string)\\s*\\(|(?:copy|rename)_absolute\\s*\\(|ResourceSaver\\.save|\\.save\\s*\\(",
+ }
+ var every_kind={}
+ for kind in kinds: every_kind[kind]=[0]
+ var compiled={}
+ for key in patterns:
+  var regex=RegEx.new()
+  if regex.compile(patterns[key])!=OK: return {"<bad pattern "+key+">":every_kind}
+  compiled[key]=regex
+ var gd_declaration=RegEx.new()
+ gd_declaration.compile("^\\s*(?:static\\s+)?func\\s+([A-Za-z_][A-Za-z0-9_]*)")
+ var ps_declaration=RegEx.new()
+ ps_declaration.compile("^\\s*(?i:function)\\s+([A-Za-z_][A-Za-z0-9_-]*)")
+ var scopes={}
+ for relative in update_release_files():
+  var handle=FileAccess.open("res://"+relative,FileAccess.READ)
+  if handle==null:
+   scopes[relative+"::<unreadable>"]=every_kind.duplicate(true)
+   continue
+  var text=handle.get_as_text().replace("\r\n","\n")
+  if not (text.contains("dgst") or text.contains(".sig") or text.contains("SIGNATURE_SUFFIX") or text.contains("key_id")): continue
+  var powershell=relative.ends_with(".ps1")
+  var current="<file>"
+  var lines=text.split("\n")
+  for index in range(lines.size()):
+   var line=String(lines[index])
+   var code=line.split("#")[0]
+   var declared=(ps_declaration if powershell else gd_declaration).search(code)
+   if declared!=null: current=declared.get_string(1)
+   elif not powershell and code.strip_edges()!="" and not line.begins_with(" ") and not line.begins_with("\t"): current="<file>"
+   if not (relative=="tests/architecture_cases.gd" and current in UPDATE_RELEASE_SELF):
+    var hits=[]
+    if compiled.dgst.search(code)!=null and compiled.sign.search(code)!=null: hits.append("signing")
+    for kind in ["signature_file","key_id","platforms","write"]:
+     if compiled[kind].search(code)!=null: hits.append(kind)
+    if not hits.is_empty():
+     var name=relative+"::"+current
+     if not scopes.has(name):
+      scopes[name]={}
+      for kind in kinds: scopes[name][kind]=[]
+     for kind in hits: scopes[name][kind].append(index+1)
+   if powershell and code.begins_with("}") and code.strip_edges()=="}": current="<file>"
+ return scopes
+
+# Sorted files, and "file::scope kind@[lines] …" sites, of the scopes that hit every kind given.
+static func update_release_matches(required: Array) -> Dictionary:
+ var scopes=update_release_scopes()
+ var files=[]
+ var sites=[]
+ for name in scopes:
+  var parts=[]
+  for kind in required:
+   if (scopes[name][kind] as Array).is_empty():
+    parts.clear()
+    break
+   parts.append(String(kind)+"@"+str(scopes[name][kind]))
+  if parts.is_empty(): continue
+  sites.append(String(name)+" "+" ".join(parts))
+  var file=String(name).split("::")[0]
+  if file not in files: files.append(file)
+ files.sort()
+ sites.sort()
+ return {"files":files,"sites":sites}
+
+static func update_sign_single_entry(t) -> void:
+ var found=update_release_matches(["signing"])
+ t.check(found.files==["tools/sign-update-manifest.ps1"],"DEP update_sign_single_entry: only tools/sign-update-manifest.ps1 calls openssl dgst with -sign; a code line holding both dgst and -sign anywhere else in tools/**/*.ps1 or **/*.gd is a second signer and is red: "+str(found.sites))
+
+static func update_signature_write_single_entry(t) -> void:
+ var found=update_release_matches(["signature_file","write"])
+ t.check(found.files==["tools/sign-update-manifest.ps1"],"DEP update_signature_write_single_entry: only tools/sign-update-manifest.ps1 writes manifest.json.sig; any other scope in tools/**/*.ps1 or **/*.gd that names a .sig file (or SIGNATURE_SUFFIX) and writes a file is red: "+str(found.sites))
+
+static func update_manifest_write_single_entry(t) -> void:
+ var found=update_release_matches(["key_id","platforms","write"])
+ t.check(found.files==["tools/update-manifest.ps1"],"DEP update_manifest_write_single_entry: only tools/update-manifest.ps1 writes an update manifest; any other scope in tools/**/*.ps1 or **/*.gd that names both key_id and platforms and writes a file is red: "+str(found.sites))
 
 static func run_identity_single_writer(t) -> void:
  var clipboard=write_site_names(source_write_sites(["res://core","res://data","res://ui"],"DisplayServer\\.clipboard_set\\s*\\("))
