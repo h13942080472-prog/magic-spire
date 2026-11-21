@@ -254,8 +254,7 @@ static func _require_leaf(t, judgment: String):
 static func source_text_folds_crlf_pairs(t) -> void:
  var leaf=_require_leaf(t,"source_text_folds_crlf_pairs")
  if leaf==null: return
- var folder="res://build/source-text-%d" % OS.get_process_id()
- DirAccess.make_dir_recursive_absolute(folder)
+ var folder=_probe_folder()
  var lf="alpha\nbeta\ngamma\n"
  var empty_digest="".sha256_text()
  var paths={"lf":folder.path_join("lf.txt"),"crlf":folder.path_join("crlf.txt"),"mixed":folder.path_join("mixed.txt"),
@@ -295,8 +294,7 @@ static func source_text_folds_crlf_pairs(t) -> void:
 static func source_text_keeps_lone_cr(t) -> void:
  var leaf=_require_leaf(t,"source_text_keeps_lone_cr")
  if leaf==null: return
- var folder="res://build/source-text-%d" % OS.get_process_id()
- DirAccess.make_dir_recursive_absolute(folder)
+ var folder=_probe_folder()
  var path=folder.path_join("lone-cr.txt")
  _write_probe_text(path,"alpha\rbeta\r\ngamma")
  var text=String(leaf.normalized_text(path))
@@ -368,6 +366,12 @@ static func _raw_digest_sites(relative: String, code: String) -> Array:
   for receiver in DERIVED_DIGEST_RECEIVERS: rest=String(rest).replace(String(receiver)+".sha256_text(", "")
   if rest.contains(".sha256_text("): out.append(relative+":"+str(index+1)+" "+line.strip_edges())
  return out
+
+# One probe folder for both leaf judgments: the path and its creation exist once.
+static func _probe_folder() -> String:
+ var folder="res://build/source-text-%d" % OS.get_process_id()
+ DirAccess.make_dir_recursive_absolute(folder)
+ return folder
 
 static func _write_probe_text(path: String, text: String) -> void:
  var handle=FileAccess.open(path,FileAccess.WRITE)
