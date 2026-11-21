@@ -3401,9 +3401,9 @@ const E_SUBMIT_KEYS=["ok","version","resource_feedback","card_feedback","music_f
 # 战斗相位词表（测试内字面期望）：guarded 过载态＝state.overloaded ∧ phase ∈ 本表（core/game.gd::dispatch 的
 # overloaded 必须与它同值——这条期望不取自实现）。
 const E_COMBAT_PHASES=["battle","prepare","rest","prison"]
-# K4 declaration table: link -> cell -> field -> reason. Link C is this batch (the 2026-11-21 human-approved
-# re-freeze replays link C only); the E-batch link is history and is not replayed here -- its self-proof stays
-# in the docs/record/verification.md E entries.
+# K4 declaration table: link -> cell -> field -> reason. Link C (the 2026-11-21 human-approved re-freeze) is the
+# only replayed link; the E-batch link is history -- its self-proof stays in the docs/record/verification.md
+# E entries.
 # Fields are the PRE-carried faces of tests/frozen-baselines.json::baseline_pre_cells_c: the five R5 faces plus
 # the six moved record paths. One reason constant per attribution group of the 2026-11-21 re-freeze; every
 # group traces to c8882cc.
@@ -3743,8 +3743,8 @@ static func submit_result_scalars_are_pinned(t) -> void:
  print("E SUBMIT SCALARS submits=%d" % submits)
 
 # Link C (gherkin E-7 procedure; the only replayed link): the declared diff of the 2026-11-21 human-approved
-# re-freeze, replayed against the current values. PRE = tests/frozen-baselines.json::baseline_pre_cells_c,
-# anchored to the 69cf2f1 test file;
+# re-freeze, replayed against the current values.
+# PRE = tests/frozen-baselines.json::baseline_pre_cells_c, anchored to the 69cf2f1 test file;
 # POST = r1_record now. Two-way: every moved PRE-carried face is declared and every declaration moved. Self-proof:
 # the declared record paths take their PRE value back and the recomputed <record> digest equals PRE.record cell by
 # cell, so an undeclared move among the 59 paths or a wrong carried PRE value is red. The submit key face is tied
