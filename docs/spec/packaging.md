@@ -101,5 +101,7 @@
   与人工打成的 Windows 发行 ZIP 生成清单，维护者本人用 `tools/sign-update-manifest.ps1` 签名；接口、
   哈希单一来源与签名防错见 [update-check.md「发布侧脚本」](update-check.md)。发行 ZIP 的 SHA256 只由
   `update-manifest.ps1` 计算一次，以它写入清单的 `platforms.windows-x64.full.sha256` 为唯一来源：
-  发布页等人工步骤需要 ZIP 的 SHA256 时都引用清单里的值，不另算。上传需用户明确指示：
+  发布页等人工步骤需要 ZIP 的 SHA256 时都引用清单里的值，不另算。Android 条目的 `bytes`／`sha256` 是 APK 本体
+  的值（取自 APK 旁的 `manifest.json`），所以 `-AndroidUrl`／`-AndroidMirror` 必须指向 APK 本体，不能指向
+  含说明与许可的 Android ZIP。上传需用户明确指示：
   先传包，再按清单里的 `bytes`／`sha256` 核对公网 URL 上的文件，最后传清单与 `.sig`。

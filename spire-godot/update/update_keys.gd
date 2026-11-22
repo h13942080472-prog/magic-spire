@@ -10,9 +10,14 @@ extends RefCounted
 # text and refuses to sign with a private key whose public half differs from the entry the
 # manifest's key_id names.
 #
-# Rotation: add the new public key as k2 beside k1 and ship a build that carries both, then
-# switch the manifest key_id to k2; delete k1 only after every manifest signed with it has been
-# replaced. A build only verifies the keys it carries.
+# Rotation: a build only verifies the keys it carries. Add the new public key as k2 beside k1
+# and ship a build that carries both; the manifest that announces that build is still signed
+# with k1, or no k1-only build ever hears of it. Once the manifest key_id switches to k2, every
+# k1-only build answers none/key to it, silently, so the maintainer times the switch by how far
+# players have upgraded. Before the k1 private key is destroyed, confirm that no k1-only build
+# still needs a notice. A leaked key goes the same way: first announce the version that carries
+# the new key with a manifest signed by the old one, then switch. Steps: skills/repo-ops/SKILL.md
+# 「更新签名私钥保管」.
 const KEYS={
  "k1":"""-----BEGIN PUBLIC KEY-----
 MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAnUmdoFqDxk5i+ukxgNc+

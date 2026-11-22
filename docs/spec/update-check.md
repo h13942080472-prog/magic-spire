@@ -150,11 +150,12 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
 
 ## 发布侧脚本
 
-在 `spire-godot/` 下用 PowerShell 7 执行；路径参数一律是绝对路径；已存在的输出文件一律不覆盖。
+在 `spire-godot/` 下用 PowerShell 7 执行（两份脚本都带 `#Requires -Version 7.0`，Windows PowerShell 5.1 下直接报版本要求，
+不产出文件）；路径参数一律是绝对路径；已存在的输出文件一律不覆盖。
 
 ```powershell
 # 唯一清单生成入口
-& tools/update-manifest.ps1 -Version <版本> -NotesFile <UTF-8 文本> -Serial <正整数> [-KeyId k1] [-Revoked <版本,…>] -Out <manifest.json>
+& tools/update-manifest.ps1 -Version <版本> -NotesFile <UTF-8 文本> -Serial <正整数> [-KeyId k1] [-Revoked '<版本>','<版本>'…] -Out <manifest.json>
     [-WindowsZip <发行 ZIP> -WindowsUrl <https://…> -WindowsMirror <https://…>]
     [-AndroidManifest <package-android 写出的 manifest.json> -AndroidUrl <https://…> -AndroidMirror <https://…>]
 # 唯一签名入口：输出 <manifest>.sig
@@ -164,26 +165,39 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
 - 生成：字段与「输入域」逐项一致；`issued` 取生成时刻的 UTC（`yyyy-MM-ddTHH:mm:ssZ`），`patches` 为 `[]`；
   平台按需给一组或两组，一组的三个参数缺一即拒绝，至少要有一个平台。`-Serial` 只收整数或十进制数字串
   （1–2147483647），`1.5`、`'1.5'` 之类直接拒绝，不取整；Android 包清单的 `sha256` 必须恰好是
-  64 位小写十六进制，末尾多一个换行也拒绝。
+  64 位小写十六进制，末尾多一个换行也拒绝。`-Revoked` 的每个版本都要加引号（`-Revoked '0.20','0.19.5'`
+  或 `-Revoked '0.20,0.19.5'`）：裸写的 `0.20,0.19.5` 在参数绑定时 `0.20` 就变成了数字 0.2，脚本拒绝一切
+  不是字符串的元素并提示加引号，不转换；`pwsh -File` 形式的参数本来就是字符串，裸写可用。`-KeyId` 只收字母、
+  数字、`_`、`-`，末尾多一个换行也拒绝。完成时的摘要行回显 `version`、`revoked`、`key_id`、`serial` 与平台，
+  签名前对照核对。
 - 哈希单一来源：Android 的 `bytes`／`sha256` 直接取自 `tools/package-android.ps1` 写在 APK 旁的
-  `manifest.json`，不重算，且其 `version` 必须等于 `-Version`；Windows 发行 ZIP 在 `tools/package.ps1`
-  之后人工打成，流水线里没有它的哈希，`update-manifest.ps1` 是计算它的唯一位置（`Get-FileHash`，一次）。
+  `manifest.json`，不重算，且其 `version` 必须等于 `-Version`；因此 `-AndroidUrl`／`-AndroidMirror` 必须指向
+  APK 本体，不能指向含说明与许可的 Android ZIP（大小与哈希会对不上所链接的文件）。Windows 发行 ZIP 在
+  `tools/package.ps1` 之后人工打成，流水线里没有它的哈希，`update-manifest.ps1` 是计算它的唯一位置
+  （`Get-FileHash`，一次）。
 - 生成自检：先写临时文件再回读，核对 UTF-8 无 BOM、LF、严格 JSON、不超过 65536 字节、每个平台的
-  `url`／`mirror` 都以 `https://` 开头；任一不满足即抛错，不留输出文件。
+  `url`／`mirror` 都以 `https://` 开头；任一不满足即抛错，不留输出文件。这份回读自检只有一份实现
+  `tools/update-manifest-check.ps1::Assert-UpdateManifest`，两份脚本 dot-source 共用。
 - 签名：对清单原始字节做 `openssl dgst -sha256 -sign`（RSA PKCS#1 v1.5 + SHA-256），再用
   `openssl base64 -A` 写成单行 `<manifest>.sig`。
-- 签名防错：签名前用 `openssl pkey -pubout` 导出私钥的公钥半，与 `update/update_keys.gd` 里清单
-  `key_id` 对应条目比较 DER sha256；`key_id` 没有条目或两者不一致即拒签，不产生 `.sig`。
-  签名后把 `.sig` 解码，用该条目公钥 `openssl dgst -verify` 复核。
+- 签名防错：签名前先对 `-Manifest` 跑同一份回读自检，生成后被手工改过（例如说明加长到超过 65536 字节、
+  链接改成 `http://`）的清单不通过即拒签；再用 `openssl pkey -pubout` 导出私钥的公钥半，与
+  `update/update_keys.gd` 里清单 `key_id` 对应条目比较 DER sha256；`key_id` 没有条目或两者不一致即拒签。
+  拒签都不产生 `.sig`。签名后把 `.sig` 解码，用该条目公钥 `openssl dgst -verify` 复核。
 - 口令只经 `-PassphraseEnv` 点名的环境变量交给 `openssl -passin env:<名>`，不接受口令明文参数；
   脚本不打印私钥、口令或二者的哈希；临时目录只放公开材料与签名，任何出口都会删除。
-  错误信息点名出错的参数与取值；脚本自己的报错不回显 `-PrivateKey` 与格式不对的 `-PassphraseEnv`
-  （误用时它们可能就是私钥或口令），openssl 失败时透传的诊断可能含私钥文件路径。
+  错误信息点名出错的参数与取值；脚本自己的报错不回显 `-PrivateKey` 与 `-PassphraseEnv` 的取值（格式不对、
+  或点名的变量未设置都一样；误用时它们可能就是私钥或口令），openssl 失败时透传的诊断可能含私钥文件路径。
 - `-KeyTable <同形状的 .gd 绝对路径>` 是测试接缝：只用于一次性测试密钥产出夹具时替换比较对象；
   发布签名不传它，一律用默认的 `update/update_keys.gd`。
 - 私钥保管与生产签名（只由维护者本人运行）的操作见 `skills/repo-ops/SKILL.md`「更新签名私钥保管」。
-- 轮换：新公钥以 `k2` 与 `k1` 并列写入 `KEYS` 并随一个版本发布，之后清单才切换 `key_id`；
-  旧构建只认它携带的键。`k1` 在用它签名的清单全部被替换后再删。
+- 轮换：一个构建只验证它自带的键，公网只有一份现行清单。新公钥以 `k2` 与 `k1` 并列写入 `KEYS` 并随一个版本发布；
+  公告这个双键版本的那份清单**仍用 `k1` 签名**，否则只带 `k1` 的存量构建收不到这次升级提示。清单的 `key_id`
+  切到 `k2` 之后，只带 `k1` 的构建对它一律得到 `none`／`key`，按「失败语义」静默失联，所以切换时机由维护者
+  按升级情况决定。`KEYS` 里的 `k1` 在用它签名的清单全部被替换后再删；销毁 `k1` 私钥之前，先确认不再需要向
+  只带 `k1` 的构建发提示。
+- 泄露处置同理：新密钥入表并发版后，先用旧键签发公告这个版本的清单（旧构建只信旧键；旧键已泄露，用它签
+  一份合法清单不增加风险），再切换到新键。操作步骤见 `skills/repo-ops/SKILL.md`「更新签名私钥保管」。
 
 ## 证据入口
 
@@ -205,4 +219,5 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
 ```
 
 - 判据：退出码 0；每分类 `SUITE RESULT: <name> PASS`；`summary.json` 的 `status=passed` 且
-  `before==after` 指纹（`source_changed` 不算通过）。
+  `before==after` 指纹（`source_changed` 不算通过）。`tools/check.ps1::Get-SourceFingerprint` 的目录集合含
+  `update/`，生产键表 `update/update_keys.gd` 在运行中被换键也会改变指纹。

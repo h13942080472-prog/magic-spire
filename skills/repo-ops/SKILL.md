@@ -97,29 +97,39 @@ git worktree list
 
 ## 更新签名私钥保管
 
-- 私钥只放维护者本机的仓外目录（当前 `C:/1/Private/keys/spire-update/`），另做一份离线备份；
-  不进仓库、日志、CI、云端秘密变量或任何 agent 的工作目录。仓库只放公钥
+- 私钥**必须加密存放**（openssl 口令或 DPAPI，依 D22 裁定 Q5），并另做一份离线备份；只放维护者本机的仓外目录，
+  现行位置是 `C:/1/Private/keys/spire-update/`（维护者 2026-11-22 落定，取代 Q5 原写的 `G:/CodexData/keys/spire-update/`）。
+  私钥实际是否已加密、备份是否到位，由维护者本人确认；agent 不核对，也不在任何地方声称私钥已加密。
+  私钥不进仓库、日志、CI、云端秘密变量或任何 agent 的工作目录。仓库只放公钥
   （`spire-godot/update/update_keys.gd::KEYS`）。
 - 生产签名只由维护者本人在本机运行；agent 不运行生产签名，也不读取、列出或复制私钥目录。
-  参数、哈希单一来源、签名防错与轮换顺序见 `docs/spec/update-check.md`「发布侧脚本」，这里只写操作：
+  参数、哈希单一来源、签名防错与轮换的前提见 `docs/spec/update-check.md`「发布侧脚本」，这里只写操作：
 
 ```powershell
-# 在 spire-godot/ 下用 PowerShell 7（pwsh）执行
+# 在 spire-godot/ 下用 PowerShell 7（pwsh）执行（两份脚本都 #Requires -Version 7.0）
 & tools/update-manifest.ps1 -Version <版本> -NotesFile <说明.txt> -Serial <上一份清单 serial + 1> -Out <发布目录>/manifest.json `
     -WindowsZip <发行 ZIP> -WindowsUrl <https://…> -WindowsMirror <https://…> `
-    -AndroidManifest <package-android 输出目录>/manifest.json -AndroidUrl <https://…> -AndroidMirror <https://…>
-& tools/sign-update-manifest.ps1 -Manifest <发布目录>/manifest.json -PrivateKey <私钥目录>/<私钥文件>
-# 私钥加密时：不给 -PassphraseEnv 则 openssl 在控制台提示输入；脚本化时给 -PassphraseEnv <变量名>，
-# 变量只在本次会话内设置，不写进脚本、历史或日志。
+    -AndroidManifest <package-android 输出目录>/manifest.json -AndroidUrl <APK 本体的 https://…> -AndroidMirror <APK 本体的 https://…>
+# 核对摘要行 UPDATE MANIFEST 回显的 version、revoked、key_id、serial 与平台；撤回版本每个都加引号：-Revoked '0.20','0.19.5'
+
+# 签名：口令放会话内环境变量（Read-Host -MaskInput 读入的口令不进命令历史），用完即删；变量名可换，三处一致即可
+$env:SPIRE_UPDATE_PASS = Read-Host -MaskInput
+& tools/sign-update-manifest.ps1 -Manifest <发布目录>/manifest.json -PrivateKey <私钥目录>/<私钥文件> -PassphraseEnv SPIRE_UPDATE_PASS
+Remove-Item Env:SPIRE_UPDATE_PASS
+# 私钥加密而不给 -PassphraseEnv 时，openssl 会在控制台提示输入两次口令（导出公钥半核对一次、签名一次）。
 ```
 
 - 签名脚本拒签时先核对用的是哪把私钥，不要改表去迁就私钥。
+- 换键的前提：一个构建只验证它自带的键，公网只有一份现行清单。清单切到新 `key_id` 之后，只带旧键的构建
+  对它一律得到 `none`／`key`，静默失联，从此收不到任何提示。
 - 轮换：生成新密钥对 → 新公钥以 `k2` 与 `k1` 并列写入 `KEYS`，同批更新钉住判据
-  `tests/update_cases.gd::production_key_table_pins_k1` → 发一个版本 → 之后的清单用 `-KeyId k2` →
-  用 `k1` 签名的清单全部被替换后，从 `KEYS` 删除 `k1` 并销毁其私钥与备份。
-- 泄露处置：立即生成新密钥对，新 `key_id` 入表并发版；之后只用新键签发清单；从 `KEYS` 删除旧键再发版，
-  销毁旧私钥与备份。旧构建在升级前仍信任旧键，可能显示伪造的更新提示（U1 只提示与跳转，不下载安装）；
-  处置期间核对公网清单与 `.sig`，必要时先撤下公网清单。
+  `tests/update_cases.gd::production_key_table_pins_k1` → 发一个带双键的版本 → **公告这个版本的那份清单仍用 `k1` 签名**
+  （`-KeyId k1`），只带 `k1` 的存量构建才收得到这次升级提示 → 何时改用 `-KeyId k2` 由维护者按升级情况决定 →
+  用 `k1` 签名的清单全部被替换后，从 `KEYS` 删除 `k1` → 确认不再需要向只带 `k1` 的构建发提示之后，才销毁 `k1` 私钥与备份。
+- 泄露处置：立即生成新密钥对，新 `key_id` 入表并发版 → 公告这个版本的清单仍用旧键签名（旧构建只信旧键；
+  旧键已泄露，用它签一份合法清单不增加风险）→ 再切换为只用新键签发清单 → 从 `KEYS` 删除旧键再发版；
+  销毁旧私钥与备份之前，同样先确认不再需要向只带旧键的构建发提示。旧构建在升级前仍信任旧键，可能显示伪造的
+  更新提示（U1 只提示与跳转，不下载安装）；处置期间核对公网清单与 `.sig`，必要时先撤下公网清单。
 
 ## 产物与清理
 
