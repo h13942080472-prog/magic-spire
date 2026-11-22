@@ -1,3 +1,4 @@
+#Requires -Version 7.0
 param(
     [Parameter(Mandatory)][string]$Manifest,
     [Parameter(Mandatory)][string]$PrivateKey,
@@ -9,25 +10,30 @@ param(
 # written as one base64 line (`openssl base64 -A`) to <manifest>.sig -- the shape that
 # update/update_manifest.gd verifies.
 #
-# Guard before signing: the public half of -PrivateKey (`openssl pkey -pubout`) must have the
-# same DER sha256 as the update/update_keys.gd entry that the manifest's key_id names; otherwise
-# nothing is signed, so a release can never carry a signature the game rejects. After signing,
-# the written base64 is decoded and verified with that table key (`openssl dgst -verify`).
+# Guards before signing: -Manifest must pass the generator's own read-back check
+# (tools/update-manifest-check.ps1::Assert-UpdateManifest: at most 65536 bytes, no BOM or CR,
+# strict JSON, every url/mirror https://), so a manifest edited by hand after generation is
+# refused instead of signed and then silently rejected by every client; and the public half of
+# -PrivateKey (`openssl pkey -pubout`) must have the same DER sha256 as the update/update_keys.gd
+# entry that the manifest's key_id names, so a release can never carry a signature the game
+# rejects. Otherwise nothing is signed. After signing, the written base64 is decoded and
+# verified with that table key (`openssl dgst -verify`).
 #
 # Secrets: the passphrase only travels as `-passin env:<name>` (-PassphraseEnv takes the variable
 # name, never the value). The script never prints, logs or stores the private key, the
 # passphrase or a hash of either; its scratch directory holds public material and the signature
 # only, and is removed on every exit path. An existing <manifest>.sig is never overwritten.
 # Errors name the parameter and the value that failed, except that the script's own messages
-# never echo the -PrivateKey value or a malformed -PassphraseEnv value: a misused parameter
-# could carry the key or the passphrase itself. openssl diagnostics, passed through when a step
-# fails, may name the key file's path; a value that is not an existing absolute file path never
-# reaches openssl.
+# never echo the -PrivateKey value or the -PassphraseEnv value (malformed, or naming a variable
+# that is not set): a misused parameter could carry the key or the passphrase itself. openssl
+# diagnostics, passed through when a step fails, may name the key file's path; a value that is
+# not an existing absolute file path never reaches openssl.
 #
 # Test seam (测试接缝): -KeyTable points the guard at another file of the same shape. It exists
 # only so that test fixtures can be signed with a one-time key; release signing never passes it
 # and uses the default, update/update_keys.gd.
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'update-manifest-check.ps1')
 $utf8 = [Text.UTF8Encoding]::new($false, $true)
 
 function Find-OpenSsl {
@@ -88,7 +94,7 @@ if (Test-Path -LiteralPath $signaturePath) { throw "-Manifest already has a sign
 $passin = @()
 if ($PassphraseEnv) {
     if ($PassphraseEnv -cnotmatch '^[A-Za-z_][A-Za-z0-9_]*$') { throw '-PassphraseEnv takes the name of an environment variable, not the passphrase (value not echoed).' }
-    if (-not [Environment]::GetEnvironmentVariable($PassphraseEnv)) { throw "-PassphraseEnv names environment variable $PassphraseEnv, which is not set." }
+    if (-not [Environment]::GetEnvironmentVariable($PassphraseEnv)) { throw '-PassphraseEnv names an environment variable that is not set (value not echoed).' }
     $passin = @('-passin', ('env:' + $PassphraseEnv))
 }
 if (-not $KeyTable) { $KeyTable = Join-Path (Split-Path -Parent $PSScriptRoot) 'update/update_keys.gd' }
@@ -96,7 +102,10 @@ Assert-AbsoluteFile $KeyTable 'KeyTable'
 $script:openssl = Find-OpenSsl
 Write-Output ('OPENSSL: ' + $script:openssl + ' (' + ((Invoke-OpenSsl 'version' @('version')) -join ' ') + ')')
 
-# ---- inputs: the manifest's own key_id selects the table entry, exactly as evaluate() does ----
+# ---- inputs: the generator's read-back check first; then the manifest's own key_id selects the
+# table entry, exactly as evaluate() does ----
+try { $null = Assert-UpdateManifest $Manifest }
+catch { throw ('REFUSED: -Manifest fails the update-manifest read-back check: ' + $_.Exception.GetBaseException().Message + " ($Manifest); nothing was signed.") }
 try { $document = [Text.Json.JsonDocument]::Parse([IO.File]::ReadAllText($Manifest, $utf8), [Text.Json.JsonDocumentOptions]::new()) }
 catch { throw "-Manifest is not strict UTF-8 JSON: $Manifest ($($_.Exception.GetBaseException().Message))" }
 try {

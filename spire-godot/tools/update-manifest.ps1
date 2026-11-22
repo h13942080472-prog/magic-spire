@@ -1,3 +1,4 @@
+#Requires -Version 7.0
 param(
     [Parameter(Mandatory)][string]$Version,
     [Parameter(Mandatory)][string]$NotesFile,
@@ -5,7 +6,10 @@ param(
     # check can see the value. The parameter checks below accept whole numbers only.
     [Parameter(Mandatory)][object]$Serial,
     [string]$KeyId = 'k1',
-    [string[]]$Revoked = @(),
+    # Untyped on purpose, like -Serial: a bare list such as 0.20,0.19.5 is built before binding, so
+    # 0.20 arrives as the number 0.2 and a [string[]] parameter would write "0.2". The parameter
+    # checks below refuse every element that is not a string.
+    [object]$Revoked = @(),
     [Parameter(Mandatory)][string]$Out,
     [string]$WindowsZip = '', [string]$WindowsUrl = '', [string]$WindowsMirror = '',
     [string]$AndroidManifest = '', [string]$AndroidUrl = '', [string]$AndroidMirror = ''
@@ -26,10 +30,13 @@ param(
 # the parameter and the value that failed.
 #
 # The manifest is written as UTF-8 without BOM with LF line ends to a temporary file, read back
-# and checked (strict JSON, at most 65536 bytes, every url/mirror starting with https://); any
-# failure throws and leaves no output file behind. An existing -Out is never overwritten.
+# and checked by tools/update-manifest-check.ps1::Assert-UpdateManifest (strict JSON, at most
+# 65536 bytes, every url/mirror starting with https://; the signer runs the same check before it
+# signs); any failure throws and leaves no output file behind. An existing -Out is never
+# overwritten. The closing UPDATE MANIFEST line echoes version, revoked, key_id, serial and the
+# platforms as written, for the maintainer to check before signing.
 $ErrorActionPreference = 'Stop'
-$maximumBytes = 65536
+. (Join-Path $PSScriptRoot 'update-manifest-check.ps1')
 $utf8 = [Text.UTF8Encoding]::new($false, $true)
 # Manifest platform key -> parameter prefix (-<prefix>Url, -<prefix>Mirror).
 $parameterPrefix = @{ 'windows-x64' = 'Windows'; 'android' = 'Android' }
@@ -67,40 +74,22 @@ function Add-Platform {
     Write-Output ('PLATFORM ' + $Key + ': bytes=' + $Bytes + ' sha256=' + $Sha256 + ' (' + $Source + ')')
 }
 
-# The read-back check of the written bytes; the generator's only validation of url/mirror and size.
-function Assert-UpdateManifest {
-    param([string]$Path)
-    $bytes = [IO.File]::ReadAllBytes($Path)
-    if ($bytes.Length -eq 0 -or $bytes.Length -gt $maximumBytes) { throw "manifest is $($bytes.Length) bytes; the limit is $maximumBytes (-NotesFile is the free-length input)." }
-    if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) { throw 'manifest starts with a UTF-8 BOM.' }
-    if ([Array]::IndexOf($bytes, [byte]13) -ge 0) { throw 'manifest contains CR; line ends must be LF.' }
-    $text = $utf8.GetString($bytes)
-    $document = [Text.Json.JsonDocument]::Parse($text, [Text.Json.JsonDocumentOptions]::new())
-    try {
-        $platforms = @($document.RootElement.GetProperty('platforms').EnumerateObject())
-        if ($platforms.Count -eq 0) { throw 'manifest names no platform.' }
-        foreach ($platform in $platforms) {
-            $full = $platform.Value.GetProperty('full')
-            foreach ($field in @('url', 'mirror')) {
-                $link = $full.GetProperty($field).GetString()
-                $parameter = '-' + $parameterPrefix[$platform.Name] + $(if ($field -eq 'url') { 'Url' } else { 'Mirror' })
-                if (-not $link.StartsWith('https://', [StringComparison]::Ordinal)) { throw "$parameter is not https:// ($($platform.Name).full.$field): $link" }
-            }
-        }
-    } finally { $document.Dispose() }
-    return $bytes.Length
-}
-
 # ---- parameters: nothing is read yet ----
 if (-not $Version.Trim() -or $Version -match '\s') { throw "-Version must be one token without whitespace: '$Version'" }
-if ($KeyId -cnotmatch '^[A-Za-z0-9_-]+$') { throw "-KeyId may contain only letters, digits, '_' and '-': '$KeyId'" }
+# \z, not $: in .NET `$` also matches before a final line feed, so 'k1\n' would pass and the
+# signer would refuse the manifest only after it had been written.
+if ($KeyId -cnotmatch '^[A-Za-z0-9_-]+\z') { throw "-KeyId may contain only letters, digits, '_' and '-': '$KeyId'" }
 # -Serial is an integer or a string of decimal digits from 1 to 2147483647; 1.5, '1.5', '1e3',
 # ' 7' and $true are refused, never rounded or coerced.
 $serialNumber = 0
 $serialText = if ($Serial -is [int] -or $Serial -is [long]) { [string]$Serial } elseif ($Serial -is [string]) { $Serial } else { '' }
 if (-not [int]::TryParse($serialText, [Globalization.NumberStyles]::None, [Globalization.CultureInfo]::InvariantCulture, [ref]$serialNumber) -or $serialNumber -lt 1) { throw "-Serial must be a whole number from 1 to 2147483647: '$Serial'" }
+# -Revoked: every element must arrive as a string. A non-string element is refused, never
+# converted: the text of a bare 0.20 is gone by the time this script sees the number 0.2.
+$unquoted = @(foreach ($entry in @($Revoked)) { if ($entry -isnot [string]) { if ($null -eq $entry) { '$null' } else { [string]$entry + ' [' + $entry.GetType().Name + ']' } } })
+if ($unquoted.Count -gt 0) { throw ("-Revoked entries must be strings; quote every version (-Revoked '0.20','0.19.5' or -Revoked '0.20,0.19.5'). PowerShell bound these bare values as non-strings: " + ($unquoted -join ', ')) }
 # Comma-separated like check.ps1 -Suite, so `pwsh -File` callers can pass several versions.
-$revokedList = @($Revoked | ForEach-Object { ([string]$_) -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+$revokedList = @(@($Revoked) | ForEach-Object { ([string]$_) -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 $spaced = @($revokedList | Where-Object { $_ -match '\s' })
 if ($spaced.Count -gt 0) { throw ("-Revoked entries must be versions without whitespace: '" + ($spaced -join "', '") + "'") }
 Assert-AbsoluteFile $NotesFile 'NotesFile'
@@ -152,11 +141,11 @@ $text = ($document | ConvertTo-Json -Depth 8).Replace("`r`n", "`n") + "`n"
 $temporary = $Out + '.tmp-' + [guid]::NewGuid().ToString('N')
 try {
     [IO.File]::WriteAllBytes($temporary, $utf8.GetBytes($text))
-    $size = Assert-UpdateManifest $temporary
+    $size = Assert-UpdateManifest $temporary -ParameterPrefix $parameterPrefix
     Move-Item -LiteralPath $temporary -Destination $Out
 } catch {
     if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force }
     throw
 }
-Write-Output ('UPDATE MANIFEST: ' + $Out + ' (' + $size + ' bytes, key_id=' + $KeyId + ', serial=' + $serialNumber + ', platforms=' + (@($platforms.Keys) -join ',') + ')')
+Write-Output ('UPDATE MANIFEST: ' + $Out + ' (' + $size + ' bytes, version=' + $Version + ', revoked=' + (ConvertTo-Json -Compress -InputObject @($revokedList)) + ', key_id=' + $KeyId + ', serial=' + $serialNumber + ', platforms=' + (@($platforms.Keys) -join ',') + ')')
 Write-Output 'Next: tools/sign-update-manifest.ps1 -Manifest <this file> -PrivateKey <maintainer key>'
