@@ -5194,3 +5194,12 @@ Godot 4.7.2 专项 66 项断言通过。两个部位各承受两段「浑身解�
 ### 2026-11-23 · 魔力走私者生命、咏唱场景与卡面居中
 
 魔力走私者基础生命45→55，既有45生命遭遇可读档。沉稳咏唱／即刻咏唱沿用当前场景的出牌规则。桌面图鉴、手牌与预览共用居中的描述布局。规则与本地化三类共5669项通过，文档引用检查通过；触屏操作分类通过。三种卡牌尺寸的两面布局与长文滚动断言通过，图鉴「连续挣」实窗上、下留白分别为59和60.36像素，截图在 `spire-godot/build/card-centered-repeated-strain.png`。综合界面分类另有3项失败，涉及小刀插图、教程入口及乌龟壳搜索，见 `spire-godot/build/checks/20261122T155640140-34800`。种子7实窗60步完成，见 `spire-godot/build/checks/20261122T160207813-42324`。首轮牢房夹具缺少收押数据、次轮生命断言比较整型与浮点数组，已分别换用真实牢房开局和逐只生命检查。独立只读审查已复核。未打包或做安卓真机验证。
+
+## 2026-11-23｜v0.18.4 双平台发布
+
+- 发布源码 `73f7363`。Windows 文件版本 0.18.4.0，Android 安装版本 18；签名证书 SHA-256 与 v0.18.3.fix 相同。
+- 两个平台的普通 ZIP 逐项读回并校验 SHA-256；每个包只有两份指定 TXT，与仓库根的原件一致。本地双层 PC 包验证了两层加密、解压清单与完整文件哈希。
+- Windows 启动和 PCK 检查、Android 签名及 APK 资源检查、种子 7 的 60 步桌面交互检查均通过。本次未做 Android 真机验收。
+- 规则回归共 59 类，通过 43 类，失败 16 类。桌面 UI 已通过 27 类，失败 22 类。按发布要求停止其余回归。尚未完成的 UI 分类为 persistence。
+- 规则未通过的分类为 rope_master、card_splash、consumables、architecture、event_flow、exploration、slip_motion、runner、wall、special_equipment、services、rewards、core、equipment、composites、pressure。
+- 桌面 UI 未通过的分类为 encyclopedia、display、basic_attacks、exploration、hand_assist、casting、wall、baseline、enemy_feedback、services、body_layout、targeting、interface、normal_play、enemies、equipment_complete、pressure、impact_feedback、guard、events、consumables、rewards。
