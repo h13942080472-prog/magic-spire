@@ -111,7 +111,7 @@ Write-Output ('CHECK LOGS: ' + $checkDirectory)
 # Record source stability, never reuse PASS from a previous source version.
 function Get-SourceFingerprint {
     $entries = [Collections.Generic.List[string]]::new()
-    foreach ($directory in @('core','data','ui','tests','content','assets','tools')) {
+    foreach ($directory in @('core','data','ui','tests','content','assets','tools','update')) {
         Get-ChildItem -LiteralPath (Join-Path $gameDirectory $directory) -File -Recurse | Where-Object {
             $_.Extension -in @('.gd','.json','.tscn','.tres','.svg','.png','.webp','.ps1','.py')
         } | ForEach-Object {
