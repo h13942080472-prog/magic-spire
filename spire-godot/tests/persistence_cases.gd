@@ -11,8 +11,8 @@ const DisplaySettings=preload("res://ui/display_settings.gd")
 const KeyBindings=preload("res://ui/key_bindings.gd")
 const LEGACY_NAME_PREFIX="紧缚尖塔demo v"
 
-# LEGACY-7 的宿主替身：只提供 run_once 解引用的三个字段；属主对象可以缺失，用来证明关闸时
-# 在任何路径解析之前返回。
+# LEGACY-7 的宿主替身：run_once 解引用四个字段，替身只提供其中三个（没有 saves）；属主对象可以缺失，
+# 用来证明关闸时在任何路径解析之前返回。
 class LegacyImportHost extends RefCounted:
  var persistence_enabled=true
  var display_settings=null
@@ -1091,7 +1091,7 @@ static func legacy_has_skip(data: Dictionary, file: String, code: String) -> boo
  if not rows is Array: return false
  return rows.any(func(row):return row is Dictionary and String(row.get("file",""))==file and String(row.get("code",""))==code)
 
-# 八个 LEGACY 判据共用的夹具头：惰性取模块（判据落地时模块还不存在，缺文件要按判据具名变红，
+# 18 个 LEGACY 判据共用的夹具头：惰性取模块（判据落地时模块还不存在，缺文件要按判据具名变红，
 # 不能整个套件加载失败），再给出一个候选父目录和其中那个版本目录；各判据在其上追加自己的存档
 # 与设置。返回空字典表示「模块缺失」这一条已经按判据点红。
 static func legacy_ready(t, name: String, label: String) -> Dictionary:
