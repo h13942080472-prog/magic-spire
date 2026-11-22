@@ -101,13 +101,17 @@ D23a 之后用户目录是固定名；旧版本各自带版本号的目录**仍�
   （`DirAccess.open` 返回 null）时返回 `{"code":"scan"}`。
 - 复制面：`saves/tower.json`、`saves/tower.json.bak`、`saves/practice.json`、`saves/practice.json.bak`
   逐字节复制（`core/save_store.gd::adopt_legacy`）；`display-settings.cfg`、`key-bindings.cfg` 交给
-  `ui/display_settings.gd::import_from` 与 `ui/key_bindings.gd::import_from`：读入属主 `save()` 写出的全部键
-  （含 `display/mode`、`display/resolution`），按各自 `initialize()` 的取值域校验，不合法的值保持属主未读该键
-  时的取值（新实例即默认值），再经各自的 `save()` 写自己的路径。坏档与新修订号档不落地，记入标记的
-  `skipped`（键 `code`，值 `invalid`／`version`）。不复制 `feedback-draft.json` 等其他文件。
+  `ui/display_settings.gd::import_from` 与 `ui/key_bindings.gd::import_from`：各自与 `initialize()` 调用同一个
+  读取函数（`ui/display_settings.gd::_read_settings`、`ui/key_bindings.gd::_read_bindings`，属主的取值规则只写
+  这一份），读入属主 `save()` 写出的全部键（含 `display/mode`、`display/resolution`）；不合法或缺失的键保持
+  属主读前的取值（新实例与 `initialize()` 重置之后即默认值），再经各自的 `save()` 写自己的路径。分辨率收进
+  `ui/display_settings.gd::choices` 的那一句在两个调用方各留一行，两行由 `display_import_matches_initialize`
+  钉住一致。坏档与新修订号档不落地，记入标记的 `skipped`（键 `code`，值 `invalid`／`version`）。不复制
+  `feedback-draft.json` 等其他文件。
 - 唯一原子写：`.tmp` → 回读 → 改名 全仓只有 `core/save_store.gd::commit_file` 一份。`write_game`
   （改名前把可读主档轮换进 `.bak`）、`adopt_legacy`（回读即 `read_file(temp).ok`）与迁移标记（逐字节回读）
-  都经它提交。
+  都经它提交。提交失败时返回失败的那一步，改名之前的失败不动主档，`.bak` 只在改名前的轮换里换成主档；
+  留下的 `.tmp`／`.bak.tmp` 由下一次提交替换。
 - 终结规则：终结标记只用于导入完成与校验类结论（`invalid`／`version`／`target_not_empty`／`none`）。
   扫描失败（选源父目录打不开，`code=scan`）与写入失败（任一存档提交失败，`skipped` 出现 `write`，
   `code=write`）是 IO 异常，**不写终结标记**，结果 `ok=false`，下一次启动重试。`none` 只表示父目录可读
@@ -139,7 +143,8 @@ D23a 之后用户目录是固定名；旧版本各自带版本号的目录**仍�
 | `scan` | 选源父目录打不开（`ui/legacy_import.gd::find_source` 里 `DirAccess.open` 返回 null） | 假 | 不写，下一次启动重试 |
 | `write` | 任一存档提交失败（`skipped` 出现 `write`） | 假 | 不写，下一次启动重试 |
 
-判据（全部走 `persistence` 与 `architecture` 两个规则套件；函数名即判据名）：
+判据（函数名即判据名；末尾两条平价判据走 UI 套件 `display` 与 `keyboard`，其余都走 `persistence` 与
+`architecture` 两个规则套件）：
 
 | 场景 | 判据 |
 | --- | --- |
@@ -167,10 +172,15 @@ D23a 之后用户目录是固定名；旧版本各自带版本号的目录**仍�
 | 接线恰一行且在 `_restore_startup()` 之前、闸先于路径解析 | `legacy_import_is_wired_once` |
 | `.tmp` → 回读 → 改名 全仓唯一，`write_game` 与 `adopt_legacy` 都经 `commit_file` | `atomic_commit_is_single` |
 | 崩溃注入点只在 debug 构建生效、只在 `_debug_crash_point` 里被读 | `commit_crash_injection_is_debug_only` |
+| LEGACY-20 存档或标记的原子提交失败（`.tmp` 打不开、改不了名）时不写终结标记：存档失败结果 `write`，标记失败结果 `marker`（`ok` 为假）；障碍撤掉后下一次启动收敛，残留的 `.tmp` 被那次提交替换 | `legacy_commit_failures_keep_the_import_retryable` |
+| `commit_file` 的四种失败（`.tmp` 打不开、回读不一致、`.bak` 轮换失败、改名失败）经真实 `write_game` 触发：返回该步文案、主档字节与 mtime 不变、残留的临时文件由下一次提交替换 | `save_commit_failures_keep_the_previous_save` |
+| 同一份 `display-settings.cfg` 经 `initialize()` 读入与经 `import_from()` 导入，属主写出的每个键相同（合法值、非法值、缺键） | `display_import_matches_initialize` |
+| 同一份 `key-bindings.cfg` 经 `initialize()` 读入与经 `import_from()` 导入，键位表与长按设置相同（合法表、各类非法表、缺节） | `keyboard_import_matches_initialize` |
 
-LEGACY-1 至 LEGACY-19 在 `tests/persistence_cases.gd`，后五条在 `tests/architecture_cases.gd`。
-LEGACY-1、LEGACY-2、LEGACY-3、LEGACY-4、LEGACY-9 至 LEGACY-19 与五条架构判据各配一条登记突变
-（`tests/mutations.json`）。
+LEGACY-1 至 LEGACY-20 与 `save_commit_failures_keep_the_previous_save` 在 `tests/persistence_cases.gd`，五条
+架构判据在 `tests/architecture_cases.gd`，两条平价判据分别在 `tests/display_ui_cases.gd` 与
+`tests/keyboard_ui_cases.gd`。LEGACY-1、LEGACY-2、LEGACY-3、LEGACY-4、LEGACY-9 至 LEGACY-20、五条架构判据、
+`save_commit_failures_keep_the_previous_save` 与两条平价判据各配一条登记突变（`tests/mutations.json`）。
 
 ## 输入域
 
