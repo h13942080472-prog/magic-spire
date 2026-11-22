@@ -43,11 +43,12 @@ static func apply(g, trigger: String) -> void:
   if target.is_empty() or target.durability<=0: continue
   var selection=chosen[id]
   var preview=g.escape_preview(target,"slip",selection.factor,[],true)
-  var old=target.durability
+  var old=g.EquipmentEnchantments.total_durability(target)
   g._apply_equipment_damage(target,preview.damage,"passive_slip")
+  var after=g.EquipmentEnchantments.total_durability(target)
   var reason=preview.reason
   if reason=="" and preview.immune: reason="三档紧度阻止普通滑脱。"
-  var result={"target":id,"name":target.name,"slot":target.slot,"position":g.Equipment.point_name(selection.point),"point":selection.point,"points":selection.points,"coefficient":selection.factor,"before":old,"after":target.durability,"damage":old-target.durability,"reason":reason,"formula":g._formula(preview),"preview":preview}
+  var result={"target":id,"name":target.name,"slot":target.slot,"position":g.Equipment.point_name(selection.point),"point":selection.point,"points":selection.points,"coefficient":selection.factor,"before":old,"after":after,"damage":old-after,"reason":reason,"formula":g._formula(preview),"preview":preview}
   results.append(result)
   if result.damage>0: changed.append(target.name+"耐久－"+g.ActionCopy.number(result.damage))
   # Clean removed roots/references, but do not select newly exposed inner pieces.

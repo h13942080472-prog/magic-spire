@@ -11,10 +11,10 @@ static func original_cost(type: String, free: bool, x: int=0) -> int:
 static func face_eligible(g, type: String, id: String, free: bool, x: int=0) -> bool:
  var tags=Rules.type_tags(type,free)
  match id:
-  "fickle": return original_cost(type,free,x)>0
+  "fickle","nimble_common": return original_cost(type,free,x)>0
   "sow_skill": return "skill" in tags and original_cost(type,free,x)>=2
-  "adept": return "magic" in tags
-  "sow_power","blessing": return Rules.SPECS[type].card_type=="power"
+  "adept": return "magic" in tags and Rules.face_casts(type,free)
+  "sow_power","blessing": return "power" in tags
   "replay": return not Rules.unique_face(type,free)
  return true
 
@@ -74,6 +74,7 @@ static func execute(g, p: Dictionary) -> void:
    if card.uid!=p.uid: continue
    card.enchantment=p.enchantment
    card.erase("enchant_used");card.erase("enchant_pending")
+   clear_nexus_turn(card)
  service.used=true
  g.state.rest_left-=Data.TURNS[Data.TYPES[p.enchantment].rarity]
  g._emit("event","附魔完成："+Data.TYPES[p.enchantment].name+"。")
@@ -105,11 +106,22 @@ static func has_trait(g, card: Dictionary, trait_id: String) -> bool:
 static func multiplier(g, uid: String="") -> float:
  return 1.5 if card_for(g,uid).get("enchantment","")=="powerful" else 1.0
 
-static func guaranteed(g, uid: String) -> bool:
- return uid!="" and card_for(g,uid).get("enchantment","")=="adept"
+static func retry_mana(g, type: String, free: bool, uid: String) -> float:
+ if uid=="" or not Rules.SPECS.has(type) or not face_eligible(g,type,"adept",free) or card_for(g,uid).get("enchantment","")!="adept": return -1.0
+ if Rules.SPECS[type].has("all_mana_minimum"): return g.Cards.face_mana(g,type,free)
+ return Rules.face_mana_base(type,free,g.B.SPELL_COST)
+
+static func can_retry(g, cost: float, initial: Dictionary={}) -> bool:
+ return cost>=0.0 and g.state.mana+g.state.temporary_mana>=cost+initial.get("mana",0.0)+initial.get("temporary_mana",0.0)
+
+static func extra_mana(card: Dictionary) -> float:
+ return Data.ASSIST_MANA if card.get("enchantment","")=="assist" else 0.0
+
+static func assisted_movement(g) -> bool:
+ return "enchantment_assist" in g.state.card_buffs
 
 static func replay_count(g, card: Dictionary, free: bool) -> int:
- return int(card.get("enchantment","")=="replay" and not Rules.unique_face(card.type,free))
+ return int(card.get("enchantment","")=="replay" and card.get("enchant_used",0)==0 and face_eligible(g,card.type,"replay",free))
 
 static func begin_play(card: Dictionary, p: Dictionary) -> void:
  if card.has("enchantment"): card.enchant_pending={"free":p.free,"x":p.get("x",0)}
@@ -120,10 +132,17 @@ static func after_play(g, card: Dictionary) -> void:
  card.erase("enchant_pending")
  var id=card.enchantment
  var used=int(card.get("enchant_used",0))
- card.enchant_used=used+1
- if not face_eligible(g,card.type,id,pending.free,pending.x): return
+ var applies=face_eligible(g,card.type,id,pending.free,pending.x)
+ if id!="replay" or applies: card.enchant_used=used+1
+ if g._recovery_target!="": return
+ if not applies: return
  match id:
-  "nimble": g._draw(1)
+  "nimble","nimble_common": g._draw(1)
+  "nexus": card.enchant_nexus_played_tick=g.state.tick
+  "assault":
+   if Rules.free_effect(card.type,pending.free): g.Cards.grant_buff(g,"enchantment_assault")
+   else: g.Cards.apply_effects(g,[{"op":"vulnerable","targets":"equipment","amount":Data.ASSAULT_LAYERS}],{},Data.TYPES[id].name)
+  "assist": g.Cards.grant_buff(g,"enchantment_assist")
   "fickle":
    if pending.free: g.Cards.apply_effects(g,[{"op":"mana","amount":5}],{},Data.TYPES[id].name)
    else: g._gain_charge(1)
@@ -136,23 +155,40 @@ static func after_play(g, card: Dictionary) -> void:
    if used==0: g._draw(3)
 
 static func drawn(g, card: Dictionary) -> void:
- if card.get("enchantment","")=="nexus": g._gain_energy(1)
+ if card.get("enchantment","")!="nexus": return
+ var tick=int(g.state.tick)
+ if card.get("enchant_nexus_tick",-1)==tick and card.get("enchant_nexus_played_tick",-1)!=tick: return
+ card.enchant_nexus_tick=tick
+ g._gain_energy(1)
+
+static func clear_nexus_turn(card: Dictionary) -> void:
+ card.erase("enchant_nexus_tick")
+ card.erase("enchant_nexus_played_tick")
 
 # Resolve extra draws while the physical card is still outside both draw piles.
-static func destination(g, card: Dictionary, exhaust: bool) -> String:
+static func exhaust_remaining(g, card: Dictionary) -> int:
+ if Rules.SPECS[card.type].has("exhaust_uses"): return Rules.native_exhaust_remaining(card.type,card)
+ if card.get("enchantment","")=="exhaust" and card.get("enchant_used",0)==0:
+  var traits=g.B.CARD_TRAITS.get(card.type,{})
+  if [false,true].any(func(free):return Rules.exhausts(card.type,free,traits)): return 2
+ return 1
+
+static func destination(g, card: Dictionary, exhaust: bool, remaining: int) -> String:
  var id=card.get("enchantment","")
  var used=int(card.get("enchant_used",0))
+ if exhaust or id=="exhaust":
+  if remaining==1: return "exhaust"
+  if Rules.SPECS[card.type].has("exhaust_uses"): card.exhaust_spent=card.get("exhaust_spent",0)+1
  if id in ["recycle","recycle2"] and used<=(2 if id=="recycle2" else 1):
   return "hand" if g.state.hand.size()<g.B.HAND_LIMIT else "discard"
- if id=="exhaust":
-  var native=[false,true].any(func(free):return Rules.exhausts(card.type,free,g.B.CARD_TRAITS.get(card.type,{})))
-  exhaust=used>=(2 if native else 1)
- return "exhaust" if exhaust else "discard"
+ return "discard"
 
 static func reset(g) -> void:
  for zone in ["deck"]+g.Cards.ZONES:
   for card in g.state[zone]:
    card.erase("enchant_used");card.erase("enchant_pending")
+   clear_nexus_turn(card)
+   card.erase("exhaust_spent")
 
 static func text(g, card: Dictionary) -> Dictionary:
  var id=card.get("enchantment","")
@@ -165,8 +201,7 @@ static func text(g, card: Dictionary) -> Dictionary:
   if left==0: return {}
   name="回收"+(str(left) if left>1 else "")
  elif id=="exhaust":
-  var native=[false,true].any(func(free):return Rules.exhausts(card.type,free,g.B.CARD_TRAITS.get(card.type,{})))
-  if native and used==0: name="消耗2"
+  name=Rules.exhaust_label(exhaust_remaining(g,card))
  return {"id":"enchantment_"+id,"name":name,"detail":spec.detail,"rarity":spec.rarity}
 
 static func decorate_text(g, type: String, uid: String, free: bool, body: String) -> String:
@@ -175,12 +210,18 @@ static func decorate_text(g, type: String, uid: String, free: bool, body: String
  if term.is_empty() or not face_eligible(g,type,card.enchantment,free,2): return body
  return body+term.name+"。"
 
-static func show_native_exhaust(g, uid: String) -> bool:
- return uid=="" or card_for(g,uid).get("enchantment","")!="exhaust"
+static func native_exhaust_display(g, type: String, uid: String) -> int:
+ var card=card_for(g,uid) if uid!="" else {}
+ return 0 if card.get("enchantment","")=="exhaust" else Rules.native_exhaust_remaining(type,card)
 
-static func card_issue(g, card: Dictionary, zone: String) -> String:
+static func card_issue(g, card: Dictionary, zone: String, tick: int) -> String:
+ if card.has("exhaust_spent") and (zone=="deck" or not card.exhaust_spent is int or card.exhaust_spent<1 or card.exhaust_spent>=Rules.SPECS[card.type].get("exhaust_uses",1)): return "卡牌消耗次数有误。"
  if card.has("enchantment") and (not card.enchantment is String or not Data.TYPES.has(card.enchantment) or not ordinary(g,card)): return "卡牌附魔记录有误。"
  if card.has("enchant_used") and (not card.has("enchantment") or not card.enchant_used is int or card.enchant_used<0): return "附魔次数记录有误。"
+ for field in ["enchant_nexus_tick","enchant_nexus_played_tick"]:
+  if not card.has(field): continue
+  var value=card[field]
+  if zone=="deck" or card.get("enchantment","")!="nexus" or not value is int or value<0 or value>tick: return "枢纽触发回合有误。"
  if card.has("enchant_pending"):
   if zone!="play" or not card.has("enchantment") or not card.enchant_pending is Dictionary or not card.enchant_pending.get("free") is bool or not card.enchant_pending.get("x") is int or card.enchant_pending.x<0: return "附魔结算记录有误。"
  return ""

@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="320" height="128" viewBox="0 0 320 128">
+<svg xmlns="http://www.w3.org/2000/svg" width="244" height="128" viewBox="38 0 244 128">
  <defs><radialGradient id="glow"><stop stop-color="#ee9439" stop-opacity=".6"/><stop offset="1" stop-color="#ee9439" stop-opacity="0"/></radialGradient></defs>
  <ellipse cx="160" cy="75" rx="112" ry="52" fill="url(#glow)"/>
  <path d="m89 105 30-17 26 12 19-14 36 7 29 12-38 12-65-2Z" fill="#68666a" stroke="#999191" stroke-width="2"/>

@@ -45,6 +45,13 @@ static func run(t) -> void:
  t.check(is_equal_approx(g.Pressure.source_multiplier(g),0.36),"DITTO duplicate pressure multipliers compose")
  g=fixture("membership_card");g.state.phase="shop"
  t.check(g.Services.discounted_price(g,100)==25,"DITTO duplicate membership discounts compose")
+ g=fixture("mana_earring",false);var single_energy=g.state.energy
+ g.RelicEffects.mana_lost(g,60);g.RelicEffects.mana_lost(g,30)
+ t.check(g.state.energy==single_energy+1 and g.state.combat.mana_spent==0,"DITTO earring without the original pays once per turn")
+ g._begin_player_turn();single_energy=g.state.energy
+ g.RelicEffects.mana_lost(g,15);g._begin_player_turn();single_energy=g.state.energy
+ g.RelicEffects.mana_lost(g,15)
+ t.check(g.state.energy==single_energy and g.state.relic_counters.ditto==15,"DITTO copied earring resets partial progress each turn")
  g=fixture("mana_earring");var energy=g.state.energy
  g.RelicEffects.mana_lost(g,35)
  t.check(g.state.energy==energy+2 and g.state.combat.mana_spent==5 and g.state.relic_counters.ditto==5,"DITTO independent mana meters each pay at thirty")

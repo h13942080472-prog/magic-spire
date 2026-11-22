@@ -25,7 +25,7 @@ static func run(t) -> void:
  var fill=g._enemy(id).intent.duplicate(true);fill.count=1000
  g.Application.execute(g,fill,id)
  before=g.export_snapshot()
- t.check(not g.Application.can_apply(g,fill,id) and not g.state.links.is_empty() and g.EnemyPlans.can_affect_equipment(g,g._enemy(id)),"RITUAL legal links are filled too; remaining reinforcement keeps encounter active")
+ t.check(not g.Application.can_apply(g,fill,id) and g.state.links.is_empty() and g.EnemyPlans.can_affect_equipment(g,g._enemy(id)),"RITUAL ordinary slots are full; remaining reinforcement keeps encounter active")
  t.check(t.action(g,"end").ok and g.state.phase=="battle" and g.state.reward_count==before.reward_count and g._enemy(id).application_bonus==12,"RITUAL full installation switches remaining quota to reinforcement, without premature reward")
  t.check(g.state.equipment.map(func(x):return x.id)==before.equipment.map(func(x):return x.id) and g.state.equipment.any(func(x):return x.durability>before.equipment.filter(func(old):return old.id==x.id)[0].durability) and g.state.logs.any(func(log):return log.text.contains("改为加固")),"RITUAL fallback tightens actual existing equipment without replacement and reports the result")
  # Saturate reinforcement using its real operation, then reopen exactly one link
@@ -35,14 +35,13 @@ static func run(t) -> void:
   if targets.is_empty(): break
   g._enemy_operation(g._enemy(id),{"kind":"tighten","target":targets[0].id,"tier":3,"text":"加固拘束具","delayed":false})
  g.Application.execute(g,fill,id)
- var removed_link=g.state.links.pop_back()
  var foot=g.state.equipment.filter(func(x):return x.slot=="foot")[0]
  foot.durability=foot.maximum*0.8
  g._enemy(id).application_bonus=1
  before=g.export_snapshot()
- twin=Save.roundtrip(t,g,"ritual one link space then one reinforcement")
+ twin=Save.roundtrip(t,g,"ritual full slots and one reinforcement")
  Save.step_both(t,g,twin,"end")
- t.check(g.state.links.size()==before.links.size()+1 and not g.state.links.any(func(link):return link.id==removed_link.id) and g._equipment(foot.id).durability==foot.maximum,"RITUAL fills remaining real link space before spending one missing application on normal reinforcement")
+ t.check(g.state.links.is_empty() and g._equipment(foot.id).durability==foot.maximum,"RITUAL uses remaining quota on normal reinforcement without a link")
  t.check(g.state.equipment.map(func(x):return x.id)==before.equipment.map(func(x):return x.id) and g.state.phase=="reward" and g.state.reward_count==before.reward_count+1,"RITUAL only complete installation and reinforcement exhaustion ends battle once")
 
  g=Game.new(42,true,"ominous_circle_solo");id=g.state.enemies[0].id

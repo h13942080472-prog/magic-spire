@@ -116,6 +116,28 @@ static func hogtie_pose(t) -> void:
  ui.game=witch;ui.render();await t.frames()
  hero=ui.find_child("HeroArt",true,false);sprite=hero.get_node("HeroPose")
  t.check(ui.view.body_coverage.get("special_pose","")=="hogtie" and hero.character_id=="witch" and hero.special_pose=="" and hero.pose==ui.view.posture and sprite.texture==Art.WITCH_POSES[ui.view.posture],"ART witch keeps her own current pose while a live hogtie remains equipped")
+ ui.game._start_preparation();ui.game.state.prepare_left=1
+ # Put the witch's own struggle cards at the bottom, so passing the first hand is required.
+ for zone in ui.game.Cards.ZONES: ui.game.state[zone].clear()
+ var deck=ui.game.state.deck.duplicate(true)
+ var first_hand=deck.filter(func(card):return ui.game.Cards.Rules.SPECS[card.type].mode!="strain").slice(0,ui.game.B.DRAW)
+ ui.game.state.draw=deck.filter(func(card):return card not in first_hand)+first_hand
+ ui.render();await t.frames()
+ t.check(await t.click("end"),"ROPE UI final normal preparation turn can end")
+ var id=ui.game.worn_hogtie().id
+ t.check(ui.view.hogtie_recovery and not ui.card_buttons.is_empty() and ui.find_child("ManaFlask",true,false)==null and ui.find_child("EndTurnButton",true,false)!=null,"ROPE UI uses the camp hand and new-round control without a usable flask")
+ t.check(ui.view.display_facts.all(func(f):return f.payload.kind!="card" or not f.valid) and ui.game.state.deck==deck,"ROPE UI shows the drawn hand with no added struggle card")
+ t.check(await t.click("end"),"ROPE UI player can pass a hand without a playable struggle")
+ for i in range(18):
+  if not ui.view.hogtie_recovery: break
+  var cards=ui.view.display_facts.filter(func(f):return f.valid and f.payload.kind=="card" and f.payload.target==id)
+  if cards.is_empty():
+   t.check(await t.click("end"),"ROPE UI new hand")
+   continue
+  var c=cards[0]
+  await t.start_drag(c.payload.uid,c.payload.slot)
+  await t.release_target(await t.reveal_drop_target(id));await t.frames()
+ t.check(ui.view.phase=="map" and not ui.view.hogtie_recovery,"ROPE UI last dragged card returns directly to the ordinary route")
 
 static func witch_portraits(t) -> void:
  var ui=t.ui

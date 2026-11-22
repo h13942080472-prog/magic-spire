@@ -23,7 +23,7 @@ static func run(t) -> void:
  var seen={};var failed_game
  for seed_value in range(8):
   var g=Game.new(seed_value)
-  var e=g.add_fixture("wrist",8)
+  var e=g.add_fixture("wrist",9)
   var card=t.hand_card(g,"ease")
   g.state.pressure=75
   var chosen=t.find_action(g,"card",{"uid":card.uid,"target":e.id})
@@ -35,14 +35,21 @@ static func run(t) -> void:
   seen[result.success]=true
   t.check(g.state.rng.magic==1 and restored.state.rng.magic==1 and restored.state.logs.back().text==g.state.logs.back().text and restored._equipment(e.id).durability==g._equipment(e.id).durability,"CAST saved RNG reproduces result")
   t.check(g.state.energy==before.energy-chosen.cost and is_equal_approx(g.state.mana,before.mana-chosen.mana+(0.0 if result.success else floorf(chosen.mana*0.5))) and (g.state.discard if result.success else g.state.hand).any(func(c):return c.uid==card.uid),"CAST failure refunds half mana and only success discards the card")
-  t.check(g._equipment(e.id).durability==chosen.payload.after if result.success else g._equipment(e.id).durability==8,"CAST only successful spell changes durability")
+  t.check(g._equipment(e.id).durability==chosen.payload.after if result.success else g._equipment(e.id).durability==9,"CAST only successful spell changes durability")
   if not result.success: failed_game=g
  t.check(seen.has(true) and seen.has(false),"CAST deterministic sample covers both outcomes")
  var g=Game.new(42);g.state.pressure=99
  var card=t.hand_card(g,"ease");var before=g.export_snapshot()
  t.check(t.action(g,"card",{"uid":card.uid,"free":true}).ok and g.state.temporary_mana==before.temporary_mana+10 and g.state.rng.magic==0 and g.state.mana==before.mana,"CAST free preparation remains guaranteed and never rolls")
  g=Game.new(42);var e=g.add_fixture("wrist",8);card=t.hand_card(g,"ease")
- t.check(t.action(g,"card",{"uid":card.uid,"target":e.id}).ok and g._equipment(e.id).durability<8 and g.state.rng.magic==0,"CAST low-pressure guaranteed success does not consume random sequence")
+ t.check(t.action(g,"card",{"uid":card.uid,"target":e.id}).ok and g._equipment(e.id).is_empty() and g.state.rng.magic==0,"CAST low-pressure guaranteed success does not consume random sequence")
+ for durability in [4,8,10]:
+  g=Game.new(42);e=g.add_fixture("thigh",durability);card=t.hand_card(g,"ease")
+  var preview=t.find_action(g,"card",{"uid":card.uid,"target":e.id})
+  var expected=4.0 if durability==10 else 0.0
+  t.check(is_equal_approx(preview.payload.after,expected) and t.action(g,"card",{"uid":card.uid,"target":e.id}).ok and is_equal_approx(g._equipment(e.id).get("durability",0.0),expected),"CAST ease lowers two tiers on one target, stopping at removal")
+ var invalid=g.Cards.Rules.SPECS.ease.duplicate(true);invalid.lower_steps=0
+ t.check(g.Cards.Rules.definition_reason(invalid)!="","CAST invalid tier count is rejected")
  # A failed double unlock must not queue a second target or consume two spells.
  g=Game.new(failed_game.state.seed);g._gain_card("double_unlock")
  var a=g.add_fixture("ankle",8,10,true);var b=g.add_fixture("thigh",8,10,true)
@@ -118,7 +125,7 @@ static func run(t) -> void:
   g=Game.new(42);e=g.add_fixture("thigh",8);card=t.hand_card(g,"ease");g.state.pressure=pressure
   var rate=g.cast_view()
   var choice=t.find_action(g,"card",{"uid":card.uid,"target":e.id})
-  t.check(is_equal_approx(float(rate.percent.trim_suffix("%"))/100.0,rate.chance) and rate.chance==float(rate.winning_rolls)/g.B.CAST_ROLL_STEPS,"CAST display and lottery share exact precision "+str(pressure))
+  t.check(rate.percent==("<0.1%" if rate.chance>0 and rate.chance*100<0.05 else g.number(rate.chance*100)+"%") and rate.chance==float(rate.winning_rolls)/g.B.CAST_ROLL_STEPS,"CAST rounded percent preserves nonzero chances and exact lottery threshold "+str(pressure))
   t.check(choice.valid==(rate.winning_rolls>0),"CAST eligibility agrees with winning outcomes "+str(pressure))
   before=g.export_snapshot()
   if rate.winning_rolls==0:
@@ -291,7 +298,7 @@ static func cost_descriptions(t) -> void:
   var spec=g.Cards.Rules.SPECS[type]
   if spec.has("worn_damage"):
    var shown=g.Cards.face_text(g,type,false)
-   t.check(info[1].contains("拘束具数量×"+str(spec.worn_damage.per_item)) and shown.contains("当前"+g.number(g.Cards.base_damage(g,type))),"CARD dynamic damage text includes its formula and current mechanical value: "+type)
+   t.check(info[1].contains("每佩戴1件拘束具，这张牌的基础挣扎伤害增加%d点" % spec.worn_damage.per_item) and shown.contains("当前"+g.number(g.Cards.base_damage(g,type))),"CARD dynamic damage text includes its formula and current mechanical value: "+type)
   elif spec.has("base"):
    var base_text=g.number(spec.base)
    var multi_text="%s×%d" % [base_text,spec.get("hits",1)]
@@ -307,7 +314,10 @@ static func prepared_chant(t) -> void:
   t.check(c.valid and c.cost==1 and c.mana==10 and g.Cards.cast_profile(g,"prepared_chant").parts==["mouth"],"CHANT both faces use one energy, ten mana and mouth casting")
   t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"CHANT stale play cannot grant certainty or spend resources")
   t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and not g._magic_failed and g.state.energy==before.energy-1 and g.state.mana==before.mana-10 and g.state.exhaust.any(func(x):return x.uid==card.uid),"CHANT successful play pays and exhausts")
+  var active_id="prepared_chant" if free else "prepared_chant_casts"
   g.state.pressure=99
+  if not free:
+   t.check(g.state.card_buff_uses.get(active_id)==3,"CHANT the granting card does not spend a charge")
   if free:
    t.check(g.cast_view().chance<1 and "prepared_chant_next" in g.state.card_buffs and "prepared_chant" not in g.state.card_buffs,"CHANT free face waits without improving current-turn casting")
    t.check(g.get_view().statuses.any(func(row):return row.id=="power_prepared_chant_next" and row.value=="下回合生效"),"CHANT queued status clearly reports next-turn activation")
@@ -321,12 +331,32 @@ static func prepared_chant(t) -> void:
    t.check(g.cast_view({"parts":[part],"multiplier":0.1}).chance==1,"CHANT current turn fixes every legal spell route to 100 percent after reductions")
   var target=g.add_fixture("thigh",30,30)
   var spell=cards.give(g,"ease")
-  t.check(t.action(g,"card",{"uid":spell.uid,"target":target.id}).ok and not g._magic_failed and g.state.rng.magic==rng and "prepared_chant" in g.state.card_buffs,"CHANT real subsequent spell succeeds without consuming certainty or RNG")
+  t.check(t.action(g,"card",{"uid":spell.uid,"target":target.id}).ok and not g._magic_failed and g.state.rng.magic==rng and active_id in g.state.card_buffs,"CHANT subsequent spell succeeds without rolling RNG")
   g.add_fixture("fingers",8)
   t.check(g.cast_view({"parts":["hand"],"multiplier":1.0}).reason!="" and g.cast_view({"parts":["hand"],"multiplier":1.0}).chance==0,"CHANT certainty does not bypass hand casting eligibility")
-  t.check(g.get_view().statuses.any(func(s):return s.name=="预备咏唱") and g.cast_view().formula.contains("预备咏唱") and not g.cast_view().formula.contains("熟练而已"),"CHANT status and casting explanation identify the actual source")
+  t.check(g.get_view().statuses.any(func(s):return s.id=="power_"+active_id and (free or (s.badge=="2" and s.value=="剩余2次"))) and g.cast_view().formula.contains("预备咏唱") and not g.cast_view().formula.contains("熟练而已"),"CHANT status and casting explanation identify the actual source")
   for enemy in g.state.enemies: enemy.intent.delayed=true
-  t.check(t.action(g,"end").ok and "prepared_chant" not in g.state.card_buffs and g.cast_view().chance<1,"CHANT expires at the real turn boundary")
+  t.check(t.action(g,"end").ok,"CHANT actual turn advances")
+  if free:
+   t.check("prepared_chant" not in g.state.card_buffs and g.cast_view().chance<1,"CHANT free-face certainty expires at the end of its active turn")
+  else:
+   t.check(g.state.card_buff_uses.get(active_id)==2 and g.cast_view().chance==1,"CHANT two bound casts survive the turn boundary")
+   var copy=preload("res://tests/persistence_cases.gd").roundtrip(t,g,"partially used chant")
+   if copy==null: continue
+   var snapshot=copy.export_snapshot()
+   for n in [0,4]:
+    var invalid=snapshot.duplicate(true);invalid.card_buff_uses[active_id]=n
+    t.check(not copy.restore_snapshot(invalid).ok and copy.export_snapshot()==snapshot,"CHANT invalid remaining count rejects atomically: "+str(n))
+   t.check(not copy.dispatch(copy.command({"kind":"attack","type":"fireball","enemy":"absent"},copy.state.version),copy.state.version).ok and copy.state.card_buff_uses.get(active_id)==2,"CHANT an illegal target preserves both charges")
+   var natural=copy.state.rng.magic
+   for remaining in [1,0]:
+    t.check(t.action(copy,"attack",{"type":"fireball"}).ok and not copy._magic_failed and copy.state.card_buff_uses.get(active_id,0)==remaining and copy.state.rng.magic==natural,"CHANT each cast of Fireball spends one of the remaining charges")
+   t.check(active_id not in copy.state.card_buffs and copy.cast_view().chance<1,"CHANT fourth cast returns to its ordinary chance")
+   copy.state.mana=copy.state.mana_max;copy.state.energy=3;copy.state.pressure=75
+   var fourth=cards.give(copy,"mana_conversion")
+   var fourth_result=t.action(copy,"card",{"uid":fourth.uid,"free":false})
+   t.check(fourth_result.ok and copy.state.rng.magic!=natural,"CHANT fourth legal spell actually rolls its normal chance")
+
  var g=Game.new(42);g._discard_end()
  var card=cards.give(g,"prepared_chant")
  for enemy in g.state.enemies: enemy.intent.delayed=true
@@ -338,7 +368,7 @@ static func prepared_chant(t) -> void:
  while g._random_index("magic",g.B.CAST_ROLL_STEPS)<g.cast_view(g.Cards.cast_profile(g,"prepared_chant")).winning_rolls: rng=g.state.rng.magic
  g.state.rng.magic=rng
  var before=g.export_snapshot()
- t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g._magic_failed and g.state.hand.any(func(x):return x.uid==card.uid) and g.state.exhaust.is_empty() and "prepared_chant" not in g.state.card_buffs and g.state.mana==before.mana-c.mana+floorf(c.mana*0.5),"CHANT itself can fail, refunds normally and remains unexhausted without granting the buff")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g._magic_failed and g.state.hand.any(func(x):return x.uid==card.uid) and g.state.exhaust.is_empty() and "prepared_chant_casts" not in g.state.card_buffs and g.state.mana==before.mana-c.mana+floorf(c.mana*0.5),"CHANT itself can fail, refunds normally and remains unexhausted without granting the buff")
  g.state.pressure=0;g.state.mana=9;g.state.temporary_mana=0
  before=g.export_snapshot()
  t.check(not t.action(g,"card",{"uid":card.uid,"free":true}).ok and g.state==before,"CHANT insufficient mana rejects atomically")
@@ -351,9 +381,15 @@ static func prepared_chant(t) -> void:
  t.check(not t.action(g,"card",{"uid":card.uid,"free":true}).ok and g.export_snapshot()==before,"CHANT duplicate queued effect cannot spend or stack")
  for enemy in g.state.enemies: enemy.intent.delayed=true
  t.check(t.action(g,"end").ok and "prepared_chant" in g.state.card_buffs and "prepared_chant_next" not in g.state.card_buffs,"CHANT expiring current effect does not remove the newly activated next-turn effect")
- g=Game.new(42);g._discard_end();card=cards.give(g,"prepared_chant")
+ g=Game.new(42);g._discard_end();g.state.energy=10
+ t.check(cards.play(t,g,"prepared_chant",false).ok and cards.play(t,g,"echo_cast",false).ok and g.state.card_buff_uses.get("prepared_chant_casts")==3,"CHANT a noncasting skill keeps all three charges")
+ g.Cards.grant_buff(g,"echo_cast_free")
+ t.check(t.action(g,"attack",{"type":"fireball"}).ok and g.state.card_buff_uses.get("prepared_chant_casts")==1,"CHANT Fireball and its legal replay each spend a charge")
+ card=cards.give(g,"prepared_chant")
+ before=g.export_snapshot()
+ t.check(not t.action(g,"card",{"uid":card.uid,"free":false}).ok and g.export_snapshot()==before,"CHANT duplicate bound effect leaves the remaining use and costs intact")
  t.action(g,"card",{"uid":card.uid,"free":true});g.Cards.end_powers(g)
- t.check("prepared_chant_next" not in g.state.card_buffs,"CHANT session cleanup discards pending next-turn certainty")
+ t.check("prepared_chant_next" not in g.state.card_buffs and "prepared_chant_casts" not in g.state.card_buff_uses,"CHANT session cleanup discards pending next-turn certainty")
 
 static func magic_slip_free(t) -> void:
  var seen={}

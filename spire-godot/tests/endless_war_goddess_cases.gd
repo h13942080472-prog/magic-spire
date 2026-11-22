@@ -14,20 +14,22 @@ static func activate(t,g,free: bool=true) -> Dictionary:
  var card=Cards.give(g,TYPE)
  g.state.energy=3;g.state.mana=35;g.state.temporary_mana=15;g.state.pressure=0
  var before=g.export_snapshot();var c=t.find_action(g,"card",{"uid":card.uid,"free":free})
- t.check(c.valid and c.cost==3 and c.mana==50 and c.mana_payment.mana==35 and c.mana_payment.temporary_mana==15,"WAR GODDESS pays all personal and temporary mana at exactly fifty")
+ t.check(c.valid and c.cost==2 and c.mana==50 and c.mana_payment.mana==35 and c.mana_payment.temporary_mana==15,"WAR GODDESS pays all personal and temporary mana at exactly fifty")
  t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"WAR GODDESS stale payment rolls back both mana pools")
- t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.mana==0 and g.state.temporary_mana==0 and g.state.energy==0 and g.state.powers.any(func(v):return v.uid==card.uid),"WAR GODDESS successful cast consumes all mana and enters power zone")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.mana==0 and g.state.temporary_mana==0 and g.state.energy==1 and g.state.card_buff_uses.get(TYPE)==5 and g.state.discard.any(func(v):return v.uid==card.uid),"WAR GODDESS successful cast consumes all mana and grants five turns")
  t.check(g.get_view().speech.text=="无尽战神,出来!","WAR GODDESS successful play uses dedicated spoken cue")
  return card
 
 static func run(t) -> void:
+ duration(t)
  for witch in [false,true]:
   for free in [false,true]:
    var g=fresh(witch);var card=Cards.give(g,TYPE)
-   t.check(TYPE in g.Character.pool(g,g.Cards.Rules.RARE),"WAR GODDESS rare card is available to both characters")
+   t.check(TYPE in g.Character.pool(g,g.Cards.Rules.RARE) and g.can_offer_card(TYPE),"WAR GODDESS rare card is available to both characters")
    g.state.mana=34.99;g.state.temporary_mana=15;g.state.flask_mana=999
    var before=g.export_snapshot()
-   t.check(not t.action(g,"card",{"uid":card.uid,"free":free}).ok and g.state==before,"WAR GODDESS less than fifty rejects without using bottle mana")
+   t.check(t.action(g,"card",{"uid":card.uid,"free":free}).ok and g.state.card_buff_uses.get(TYPE)==4 and g.state.flask_mana==999,"WAR GODDESS floors mixed mana below fifty and excludes flask")
+   g=fresh(witch);card=Cards.give(g,TYPE)
    g.state.mana=50;g.state.temporary_mana=30
    var mouth=g.add_fixture("mouth",1);g.state.sure_cast=true
    before=g.export_snapshot()
@@ -48,9 +50,25 @@ static func run(t) -> void:
  var spec=g.Cards.Rules.SPECS[TYPE].duplicate(true);spec.all_mana_minimum=-1
  t.check(g.Cards.Rules.definition_reason(spec)!="","WAR GODDESS invalid all-mana threshold is rejected")
  var book=preload("res://data/encyclopedia.gd").card(TYPE)
- t.check(book.rarity=="rare" and book.cost=="3" and book.face_mana.free[0].text=="-X" and book.face_keywords.free.any(func(term):return term.name=="嘴部无拘束") and not book.face_keywords.free.any(func(term):return term.name=="各部位紧度＝0"),"WAR GODDESS catalog shows rare power, all-mana badge and exact mouth restriction")
+ t.check(book.rarity=="rare" and book.cost=="2" and book.card_type=="magic" and book.face_mana.free[0].text=="-X" and book.face_keywords.free.any(func(term):return term.name=="嘴部无拘束") and not book.face_keywords.free.any(func(term):return term.name=="各部位紧度＝0"),"WAR GODDESS catalog shows rare power, all-mana badge and exact mouth restriction")
  var locale=preload("res://ui/localization.gd").new();locale.set_locale("en_US")
- t.check(locale.display("无尽战神,出来!")=="Endless War Goddess, come forth!" and locale.display("自身与临时魔力合计至少需要50点。")=="Requires at least 50 combined personal and temporary mana.","WAR GODDESS localized cue and full dynamic payment requirement preserve meaning")
+ t.check(locale.display("无尽战神,出来!")=="Endless War Goddess, come forth!" and locale.display("耗尽当前自身魔力与魔力预备。")=="Spend all personal Mana and Mana Reserve.","WAR GODDESS localized cue and full dynamic payment requirement preserve meaning")
+
+static func duration(t) -> void:
+ for mana in [0.0,9.9,10.0,29.0]:
+  var g=fresh();var card=Cards.give(g,TYPE)
+  g.state.mana=mana;g.state.temporary_mana=0
+  t.check(t.action(g,"card",{"uid":card.uid}).ok and g.state.mana==0,"WAR GODDESS can spend even a partial ten")
+  for remaining in range(floori(mana/10),0,-1):
+   t.check(g.Cards.basic_attack_freedom(g) and g.state.card_buff_uses.get(TYPE)==remaining,"WAR GODDESS each ten pays for exactly one player turn")
+   t.check(t.action(g,"end").ok,"WAR GODDESS advance through real end turn")
+  t.check(not g.Cards.basic_attack_freedom(g),"WAR GODDESS expired or zero-duration effect grants no freedom")
+ var g=fresh();var card=Cards.give(g,TYPE)
+ var saved=g.export_snapshot()
+ saved.save_revision=g.Snapshot.WAR_POWER_REVISION
+ var old=saved.hand.filter(func(c):return c.uid==card.uid)[0]
+ saved.hand.erase(old);old.power_face="bound";saved.powers.append(old)
+ t.check(g.restore_snapshot(saved).ok and g.state.discard.any(func(c):return c.uid==card.uid) and g.state.card_buff_uses.get(TYPE)==1,"WAR GODDESS old active power migrates for the current turn")
 
 static func restrain(g) -> void:
  g.state.energy=100;g.state.mana=100;g.state.temporary_mana=0;g.state.pressure=g.Pressure.maximum(g)-5;g.state.posture="lie"

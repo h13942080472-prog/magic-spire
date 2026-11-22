@@ -1,4 +1,5 @@
 extends RefCounted
+const DisplayNumbers=preload("res://data/display_numbers.gd")
 const E=preload("res://data/equipment.gd")
 const C=preload("res://data/composites.gd")
 const B=preload("res://data/balance.gd")
@@ -6,6 +7,7 @@ const Relics=preload("res://data/relics.gd")
 const Cards=preload("res://data/card_rules.gd")
 const S=preload("res://data/special_equipment.gd")
 const N=preload("res://data/enemies.gd")
+const Tower=preload("res://data/tower.gd")
 const Images=preload("res://data/equipment_images.gd")
 const Tools=preload("res://data/field_tools.gd")
 const Consumables=preload("res://core/consumables.gd")
@@ -32,7 +34,7 @@ const BEHAVIORS={"lock":"行动：预告上锁→上锁，循环。开启平板�
 const TIGHTEN_TIMING="加固：选招时没有目标则改为施加；行动前目标失效则跳过。"
 const CAPTURE_RULES="解除捕缚：挣扎／滑脱牌可削减进度，排除环境加成；仅有眼罩、口球或没有拘束具时伤害×2。归零后解除，敌人会准备1回合再施加。\n捕缚规则：被捕缚时无法移动，先解除捕缚。同种仅生效一次；异种共用进度，新种只增加其初始值的一半。达到100后，施加捕缚的敌人在下次行动收押。击败来源解除对应效果，全部来源离场则清空进度。\n降紧每层固定削减8点捕缚，使用固定数值，蓄力保留。"
 const GUARD_DESCRIPTION="开场：手腕、口部、脚踝各施加1件拘束具，每件随机为初级3档、中级2档或高级1档；准备1回合后施加捕缚50/100。无法新增或合法替换时，改为加固该处1次；紧度3且可上锁时，上锁并恢复满耐久。\n行动：普通拘束具×2（初级3档／中级2档／高级1档）→捕缚＋10→中级2档复合拘束具×1，循环。复合无法施加时，改为加固至多2件至3档。\n捕缚效果：上身束缚等级至少1；姿态只能躺姿→坐姿→站姿，每次切换捕缚＋10。每次花费能量，使一个随机特殊部位增加10点基础快感（受敏感度影响）；每次高潮捕缚＋10。"
-const TRADER_DESCRIPTION="行动：①拘束具×2，每件随机为初级2档或中级1档；②无力化1回合；③拘束具×1，随机为初级3档、中级2档或高级1档，准备就绪＋1；④优先施加中级马具口球或眼罩，无位置时改为其他普通拘束具。\n后续：重复①③④两轮，第11次行动收押。\n无力化：禁用体术，火球与卡牌魔法照常使用。\n准备就绪：每成功施加或替换1件消耗1层，使该件直接达到3档；失败保留。③先用旧层数，再获得新层数。\n范围：普通拘束具与链接绳，仅含此两类；①排除口球。出手时选择装备和位置，满位时可替换。"
+const TRADER_DESCRIPTION="行动：①拘束具×2，每件随机为初级2档或中级1档；②无力化1回合；③拘束具×1，随机为初级3档、中级2档或高级1档，准备就绪＋1；④优先施加中级马具口球或眼罩，无位置时改为其他普通拘束具。\n后续：重复①③④两轮，第11次行动收押。\n无力化：禁用体术，火球与卡牌魔法照常使用。\n准备就绪：每成功施加或替换1件消耗1层，使该件直接达到3档；失败保留。③先用旧层数，再获得新层数。\n范围：普通拘束具；①排除口球。出手时选择装备和位置，满位时可替换。"
 
 static func card(type: String) -> Dictionary:
  var info=B.card_info(type)
@@ -56,8 +58,8 @@ static func equipment_notes(sample: Dictionary) -> String:
  if E.allows(sample,"lock"): lines.append("上锁后：挣扎伤害通常×0.5，徒手解除需先开锁；滑脱仍按装备条件判断。")
  if "mouth" in spec.slots:
   var factor=B.MOUTH_CAST_GRADE[sample.grade]
-  lines.append("嘴部施法：品质倍率×%s；紧度1／2／3档分别×%s／%s／%s。" % [str(factor),str(B.MOUTH_CAST_TIGHTNESS[1]),str(B.MOUTH_CAST_TIGHTNESS[2]),str(B.MOUTH_CAST_TIGHTNESS[3])])
-  lines.append("本件合计倍率（1／2／3档）：×%s／%s／%s；额外成功率与最低成功率另算。" % [str(factor*B.MOUTH_CAST_TIGHTNESS[1]),str(factor*B.MOUTH_CAST_TIGHTNESS[2]),str(factor*B.MOUTH_CAST_TIGHTNESS[3])])
+  lines.append("嘴部施法：品质倍率×%s；紧度1／2／3档分别×%s／%s／%s。" % [DisplayNumbers.factor(factor),DisplayNumbers.factor(B.MOUTH_CAST_TIGHTNESS[1]),DisplayNumbers.factor(B.MOUTH_CAST_TIGHTNESS[2]),DisplayNumbers.factor(B.MOUTH_CAST_TIGHTNESS[3])])
+  lines.append("本件合计倍率（1／2／3档）：×%s／%s／%s；额外成功率与最低成功率另算。" % [DisplayNumbers.factor(factor*B.MOUTH_CAST_TIGHTNESS[1]),DisplayNumbers.factor(factor*B.MOUTH_CAST_TIGHTNESS[2]),DisplayNumbers.factor(factor*B.MOUTH_CAST_TIGHTNESS[3])])
   if E.has_mouth_harness(sample): lines.append("马具结构禁止普通／魔法滑脱；马具比眼罩更紧时，也会阻止该眼罩滑脱。")
  if "eyes" in spec.slots: lines.append("视觉受阻：敌人意图隐藏，全部眼罩解除后恢复。更紧的口球马具会阻止眼罩滑脱。")
  if spec.slots.any(func(slot):return slot in ["upper_arm","forearm","wrist"]): lines.append("大臂／小臂／手腕达到3档时附带躯干固缚；大臂还会附带一对独立肩带。")
@@ -67,7 +69,7 @@ static func composite_notes(spec: Dictionary, grade: int) -> String:
  var parts=[]
  for p in spec.parts.values():
   var sample={"template":p.template,"grade":grade,"variant":0}
-  parts.append("%s：耐久%s；%s" % [p.label,str(E.maximum(grade)).trim_suffix(".0"),E.method_text(sample)])
+  parts.append("%s：耐久%s；%s" % [p.label,DisplayNumbers.amount(E.maximum(grade)),E.method_text(sample)])
  var rules={
   "glove":"肩带剩2条：套体需先解除肩带再滑脱；剩1条：滑脱效果×0.5；全解除：恢复原效果。任意肩带解除后，套体非3档且无外层阻挡，再次挣扎可直接脱下。\n肩带左右独立；达到3档后交叉禁滑脱，降至1档才解除此封锁。套体破坏后肩带一并解除。",
   "leg":"套体整体滑脱须先解除全部外带，并满足外露、连接与紧度条件。套体破坏后，仍有耐久的外带保留。长至脚趾款封闭脚掌和脚趾。",
@@ -81,12 +83,12 @@ static func entries(g=null, character: String="") -> Array:
  for type in Tools.TYPES:
   var spec=Tools.TYPES[type]
   var group={"potion":"药剂","scroll":"卷轴","tool":"工具"}[spec.get("category","tool")]
-  var text="使用次数：%d\n" % spec.uses
-  text+=Consumables.effect_description(type,spec.amount) if Tools.operation(type)=="buff" else Tools.effect_description(type,spec.damage)
-  if not spec.get("trigger_damage_types",[]).is_empty():
-   text+="\n安装后："+InstalledTools.effect_description(type,spec.damage)+"需靠近工具，目标须在接触范围内、材料适用且外露。"
-  text+="\n随时可免费丢弃，回合保持当前进度。"
-  var item=row(type,"items",group,spec.name,text);item.item=type;out.append(item)
+  var text="加入手牌。"+str(B.CARD_INFO.get(type,["","","",""])[1])
+  if Tools.operation(type)=="cut": text+="手持0费，借墙1费。"
+  text+="打出%d次后移出本局卡组。" % spec.uses
+  var item=row(type,"items",group,spec.name,text)
+  item.card=type
+  out.append(item)
  for id in E.TEMPLATES:
   var spec=E.TEMPLATES[id]
   if spec.slots.is_empty(): continue
@@ -94,7 +96,7 @@ static func entries(g=null, character: String="") -> Array:
    if grade<spec.get("min_grade",1) or grade>spec.get("max_grade",3): continue
    for variant in range(E.MATERIALS[spec.material][grade].size()):
     var sample={"template":id,"grade":grade,"variant":variant}
-    var text="部位："+"、".join(spec.slots.map(func(slot):return B.SLOT_NAMES[slot]))+"\n品质："+E.GRADES[grade]+"\n材质："+E.material_name(sample)+"\n最大耐久："+str(E.SHACKLE_MAXIMUM if E.is_shackle(sample) else E.maximum(grade)).trim_suffix(".0")+"\n方法："+E.method_text(sample)
+    var text="部位："+"、".join(spec.slots.map(func(slot):return B.SLOT_NAMES[slot]))+"\n品质："+E.GRADES[grade]+"\n材质："+E.material_name(sample)+"\n最大耐久："+DisplayNumbers.amount(E.SHACKLE_MAXIMUM if E.is_shackle(sample) else E.maximum(grade))+"\n方法："+E.method_text(sample)
     if E.lock_only(sample): text="3级及以上入狱时固定佩戴，件数统计豁免。\n普通 henshin 需要先解除项圈。\n"+E.LOCK_ONLY_REASON
     if not E.lock_only(sample): text+="\n\n"+equipment_notes(sample)
     out.append(row("equipment_"+id+"_%d_%d" % [grade,variant],"equipment",E.MATERIAL_NAMES[spec.material],(E.name_for(id,spec.slots[0],grade,variant) if id=="mouth_band" else spec.name)+" · "+E.material_name(sample),text,grade))
@@ -107,12 +109,9 @@ static func entries(g=null, character: String="") -> Array:
    var title=("胶带包裹" if spec.kind=="wrap" else spec.name)+(" · "+("交叉肩带" if layout[2]=="cross" else "直肩带") if layout[0]=="glove" else "")
    out.append(row("composite_"+"_".join(layout)+str(grade),"equipment","复合装备",title,"覆盖："+"、".join(spec.coverage.map(func(slot):return B.SLOT_NAMES[slot]))+"\n\n"+composite_notes(spec,grade),grade))
    out[-1].image=Images.path({"template":spec.parts.body.template,"grade":grade,"variant":0})
- out.append(row("link_rope","equipment","链接","链接绳","连接两件装备，两端共享耐久。解除方式：挣扎、徒手或适用工具。锁孔：无。同区域内可连接两个子部位，跨区域只接相邻边界；每对装备最多一条，每方向按区域剩余子部位数限额、最低1。股绳可连接手腕或大腿根装备。"))
- out[-1].image=Images.path({"template":"link_rope","grade":1,"variant":0})
- out[-1].text+="\n普通单件仅有向下链接时，普通／魔法滑脱伤害×1.25，加成限一次。链接绳按原伤害计算，任一必要端解除时一并移除。"
  var card_types=Cards.SPECS.keys().filter(func(type):return not Cards.SPECS[type].get("encyclopedia_hidden",false))
  if g!=null: card_types=g.Character.pool(g,card_types,role)
- else: card_types=card_types.filter(func(type):return Cards.SPECS[type].get("character_id","original")==role)
+ else: card_types=card_types.filter(func(type):return Cards.SPECS[type].card_type=="item" or Cards.SPECS[type].get("character_id","original")==role)
  if g!=null and role=="witch":
   card_types.append_array(["witch_key","witch_preparation","witch_accumulation"])
  for type in card_types:
@@ -134,10 +133,10 @@ static func entries(g=null, character: String="") -> Array:
  for type in S.TYPES:
   var spec=S.DESIGNS[type];var definition=S.TYPES[type]
   var regions=S.REGIONS.filter(func(r):return spec.slots.any(func(slot):return slot in r.slots))
-  var text="位置："+"、".join(spec.slots.map(S.slot_name))+"\n最大耐久：%s" % spec.maximum
+  var text="位置："+"、".join(spec.slots.map(S.slot_name))+"\n最大耐久：%s" % DisplayNumbers.amount(spec.maximum)
   text+="\n可用方法："+" / ".join(spec.methods.map(func(m):return METHODS[m]))
   text+="\n借力环境："+("无" if spec.environments.is_empty() else "、".join(spec.environments.map(func(e):return S.ENVIRONMENT_NAMES[e])))
-  text+="\n牵扯（每次消耗能量）触发的基础值：%s；每回合开始触发的基础值：%s。" % [definition.energy_gain,definition.turn_gain]
+  text+="\n牵扯（每次消耗能量）触发的基础值：%s；每回合开始触发的基础值：%s。" % [DisplayNumbers.amount(definition.energy_gain),DisplayNumbers.amount(definition.turn_gain)]
   var climax_rule=S.climax_slip_rule(type)
   if climax_rule!="": text+="\n"+climax_rule
   if definition.duration>0: text+="\n持续%d回合。" % definition.duration+"电量耗尽后停止刺激，装备继续佩戴。"
@@ -146,15 +145,17 @@ static func entries(g=null, character: String="") -> Array:
   out[-1].image=Images.path({"template":"special","type":type})
  for type in N.TYPES:
   var spec=N.TYPES[type];var group="其他"
-  if spec.behavior in ["puppet","iron_drone"]: group="随行单位" if spec.behavior=="iron_drone" else "召唤物"
+  if spec.behavior in ["puppet","iron_drone","operator_drone"]: group="随行单位" if spec.behavior=="iron_drone" else "召唤物"
   for rank in N.Library.CLASSIFICATIONS:
    if type in N.Library.CLASSIFICATIONS[rank]: group={"weak":"弱怪","strong":"强怪","elite":"精英","boss":"首领"}[rank]
   var sources=[]
   for rank in ["weak","strong"]:
-   for encounter in N.FirstFloor.choices(rank):
-    if encounter_contains(encounter,type):
-     var label="第一幕弱怪战斗" if rank=="weak" else "第一幕强怪战斗"
-     if label not in sources: sources.append(label)
+   var first=N.FirstFloor.choices(rank).any(func(id):return encounter_contains(id,type))
+   var second_pool=Tower.SECOND_WEAK_POOL if rank=="weak" else Tower.strong_groups(1)
+   var second=second_pool.any(func(id):return encounter_contains(id,type))
+   if first: sources.append("第一幕弱怪战斗" if rank=="weak" else "第一幕强怪战斗")
+   if second: sources.append("第二幕弱怪战斗" if rank=="weak" else "第二幕强怪战斗")
+   if first or second: sources.append("第三幕弱怪战斗" if rank=="weak" else "第三幕强怪战斗")
   if N.FirstFloor.ELITE_ENCOUNTERS.any(func(id):return N.ENCOUNTERS[id].get("variants",[id]).any(func(v):return N.ENCOUNTERS[v].members.any(func(m):return m.type==type))): sources.append("精英房")
   if N.FirstFloor.SUMMIT_ENCOUNTERS.any(func(id):return encounter_contains(id,type)): sources.append("塔顶")
   var text="生命：%s\n" % spec.hp+BEHAVIORS.get(spec.behavior,"")
@@ -162,9 +163,8 @@ static func entries(g=null, character: String="") -> Array:
   if type=="puppet": text="生命：%s\n行动：由玩偶师操纵。生命最低为1，溢出伤害转给玩偶师。\n引敌缚咒：单体攻击必须选择玩偶，群攻可覆盖全体；每段正数伤害消耗1次普通反击，尝试施加1件普通拘束具，随机为初级2档或中级1档，遗物伤害也会触发。\n普通反击容量初始%d，上限受护身屏障削减，最低1；容量耗尽后停止反击。缝补使上限＋1并补满。\n备装：下一次攻击命中时，额外施加已准备的复合／特殊装备，各1件；多段只触发1次，普通反击容量保留。备装仅由主动攻击触发，位置欠缺时可合法替换。" % [spec.hp,spec.reaction_capacity]
   if spec.has("cycle") and not spec.has("split_threshold"):
    text="生命：%s\n行动：准备→施加1件初级3档／中级2档／高级1档%s类拘束具→加固同类拘束具，循环。" % [spec.hp,spec.restraint_name]
-   text+="可施加同类链接绳。"
   if spec.has("split_threshold"):
-   text=("生命：%s\n" % spec.hp)+"行动：①{material}增生；②准备；③施加2件{material}类拘束具（初级3档／中级2档／高级1档）；④加固至多2件至3档；⑤蓄力；⑥全身施加中级3档或高级2档拘束具（含链接绳），再以最大生命的50%分裂。\n增生：每个玩家回合开始，施加1件初级2档或中级1档同类拘束具，敌人离场后停止。\n分裂：受击后存活且生命≤50%时提前分裂，分裂要求存活。分裂为1只{large}和2只{small}：大怪继承当前生命，小怪各取其一半、向上取整；下回合开始行动。".format({"material":spec.restraint_name,"large":N.TYPES[spec.split_spawns[0].type].name,"small":N.TYPES[spec.split_spawns[1].type].name})
+   text=("生命：%s\n" % spec.hp)+"行动：①{material}增生；②准备；③施加2件{material}类拘束具（初级3档／中级2档／高级1档）；④加固至多2件至3档；⑤蓄力；⑥全身施加中级3档或高级2档拘束具，再以最大生命的50%分裂。\n增生：每个玩家回合开始，施加1件初级2档或中级1档同类拘束具，敌人离场后停止。\n分裂：受击后存活且生命≤50%时提前分裂，分裂要求存活。分裂为1只{large}和2只{small}：大怪继承当前生命，小怪各取其一半、向上取整；下回合开始行动。".format({"material":spec.restraint_name,"large":N.TYPES[spec.split_spawns[0].type].name,"small":N.TYPES[spec.split_spawns[1].type].name})
   if spec.behavior in ["restraint","guard"]: text+="\n"+TIGHTEN_TIMING
   if type=="trader": text="生命：%s\n" % spec.hp+TRADER_DESCRIPTION
   if type=="guard": text="生命：%s\n" % spec.hp+GUARD_DESCRIPTION
@@ -175,13 +175,23 @@ static func entries(g=null, character: String="") -> Array:
   if type=="drone": text="生命：%s\n特性：非魔法伤害减半。\n开场：捕缚30/100，固定站姿，上身束缚等级至少1。\n行动：随机施加2件初级1档胶带或加固胶带共2档→捕缚＋10→停顿，循环。没有加固目标时只选施加。\n捕缚效果：每累计消耗2能量，施加1件初级2档胶带，捕缚＋10。余数跨回合保留，无位置仍增加进度。胶带包括眼罩和嘴部胶带。" % spec.hp
   if type=="rope_master": text="生命140。绳索开场48/24，成功施加扣除装备品质与紧度之和。开场召唤助理、捕缚、空部位中级一档绳索、两次收紧、补绳；随后编织绳网、附魔、收紧、欣赏作品循环。第三轮末全部绳索无法解除。捕缚按每件绳索的品质与当前紧度之和累计；50／75及重跨90增加醉绳2层；50／重跨80施加驷马缚。助理死亡时悲伤，首次死亡后复活一次。击败大师直接结束战斗。"
   if type=="rope_assistant": text="生命36。召唤后三回合不可单体选中，群攻有效。依次准备、加入强人锁女并施加高级二档口球、空部位初级一档绳索、建立卡牌触发效果，此后每回合结算一次部位基础快感。高潮后下一回合休息，大师补绳时暂停。死亡移除状态牌与不可反抗，并按人形替换规则施加两件品质与紧度之和为4的特殊装备。杯类和平板锁均使对应部位不可用。"
-  if type=="six_bind": text="生命：%s\n开场：展开六缚阵→眼部、口部、双臂、手腕与手部、大腿、小腿与足部六区各施加1件初级2档或中级1档拘束具，并施加1件初级性玩具。\n行动：戏弄封缚→双重束缚→调教升温→戏弄封缚→复合束装→调教升温→六缚齐收→空闲，循环。\n戏弄封缚：拘束具×1（初级3档／中级2档／高级1档），加入「玩弄」×1。双重束缚：拘束具×2，每件随机为初级3档、中级2档或高级1档，无法新增的次数改为加固。\n复合束装：中级2档复合拘束具×1，无法施加时改为加固共3档。六缚齐收：再次束缚六区（初级3档／中级2档／高级1档），加入「玩弄+」×3。空闲：本回合休息。\n调教升温：施加、加固性玩具各1＋收束层数次，然后收束＋1。首轮初级，此后中级；满位可替换，范围排除飞机杯。\n状态牌：「玩弄」／「玩弄+」仅作被动生效，回合结束留在手中时快感分别＋5／＋8。\n高潮逮捕：本场战斗累计第%d次高潮时准备逮捕，此后每次高潮都会再次准备。被打断时取消本次逮捕，下一回合恢复原行动。\n收押：普通、复合拘束具均无新增位置且无法加固时，预告收押；收押条件仅看普通与复合装备的新增与加固空间。" % [spec.hp,spec.climax_capture_threshold]
+  if type=="six_bind": text="生命：%s\n开场：展开六缚阵→眼部、口部、双臂、手腕与手部、大腿、小腿与足部六区各施加1件初级2档或中级1档拘束具，并施加1件初级性玩具。\n行动：戏弄封缚→双重束缚→调教升温→戏弄封缚→复合束装→调教升温→六缚齐收→空闲，循环。\n戏弄封缚：拘束具×1（初级3档／中级2档／高级1档），加入「玩弄」×1。双重束缚：拘束具×2，每件随机为初级3档、中级2档或高级1档，无法新增的次数改为加固。\n复合束装：中级2档复合拘束具×1，无法施加时改为加固共3档。六缚齐收：再次束缚六区（初级3档／中级2档／高级1档），加入「玩弄+」×3。空闲：本回合休息。\n调教升温：施加、加固性玩具各1＋收束层数次，然后收束＋1。首轮初级，此后中级；满位可替换，范围排除飞机杯。\n「玩弄」／「玩弄+」：回合结束时仍在手中，快感分别＋5／＋8。\n高潮逮捕：本场战斗累计第%d次高潮时准备逮捕，此后每次高潮都会再次准备。被打断时取消本次逮捕，下一回合恢复原行动。\n收押：普通、复合拘束具均无新增位置且无法加固时，预告收押；收押条件仅看普通与复合装备的新增与加固空间。" % [spec.hp,spec.climax_capture_threshold]
   if type=="iron_man": text="生命：%s；小魔女遭遇时为%s。\n特性：机械减伤。捕缚被挣开后，强化降低1层（最低0），机械减伤失效2回合并发呆1回合；铁男被击败时随行无人机与拘束盒同时停机。\n开场：施加30/100捕缚，限制为坐姿或躺姿；替换普通平板锁并佩戴中级2档龟头榨精杯。诅咒平板锁或小魔女改为3件中级2档其他特殊装备。\n捕缚：每累计消耗5能量，全部主动刺激型特殊装备触发1次。与凑数型无人机分别计数。\n循环：捕缚＋10或重新捕缚→施加普通皮革拘束具并加固→施加复合皮革拘束具及强化附加项→按当前强化层数佩戴／替换杯具或替代特殊装备并补满电量→强化。\n普通皮革：每件随机为初级3档、中级2档或高级1档；紧度或等级首次强化后改为中级3档或高级2档，两项均强化后固定高级3档。\n强化：每次使以后施加捕缚的数值＋5，并按紧度与普通数量／等级与普通数量／高级特殊装备与2把锁／普通与特殊数量及1把锁四组循环累计；第1、2、4组同时使加固量＋2档。无法施加的普通／复合拘束具改为加固。\n杯具升级：1层全包，2层紧度3，3层马眼全包，4层高级；5层起杯具无额外升级。\n无法佩戴杯具时：改为1层紧度3，2层数量＋1，3层升为高级，4层起每层数量＋1；开场和补电均按此规格施加／替换。" % [spec.hp,spec.hp*1.3]
   if type=="iron_drone": text="生命：%s；小魔女遭遇时为%s。\n铁男战名称：凑数型无人机。\n开场：独立施加20/100捕缚；解除后准备1回合再重新施加。捕缚生效时待机。\n捕缚效果：每累计消耗3能量，施加1件初级2档或中级1档胶带并使捕缚＋5；随机遥控1件主动刺激型特殊装备额外结算并消耗1电量；随机为1件拘束具上锁。\n铁男被击败时立即停机。" % [spec.hp,spec.hp*1.3]
-  if type=="mixed_bundle": text="生命：%s\n开场：散缚，施加2件初级2档拘束具。\n行动：之后随机选招。散缚同开场；翻卷收紧先施加1件初级2档拘束具，再加固1件至3档；躁动膨胀获得1层狂躁。\n狂躁：每层使后续施加数量＋1，加固次数保留。\n限制：散缚、躁动膨胀之间需穿插其他招式，翻卷收紧最多连用2次。可施加原白名单内的普通拘束具（含口球、链接绳），仅填入空位。" % spec.hp
-  if type=="rope_serpent": text="生命：%s\n行动：缠身→随机收紧或甩缚，循环；两种招式各50%%。\n缠身：紧缠＋1层。每个玩家回合结束，每层施加1件初级2档或中级1档绳索类拘束具。\n收紧：加固1件绳索类拘束具至3档。甩缚：施加2件初级2档或中级1档绳索类拘束具，含链接绳。\n特殊：预告收紧时没有目标则改为甩缚；预告后失去目标则跳过。紧缠持续至来源离场，击败该绳蛇才停止。" % spec.hp
-  if type=="ominous_circle": text="生命：%s\n开场：获得%d点仪式，此后每个自身回合结束，施加数量＋%d。\n行动：从第2次行动起持续施加拘束具，数量通常为%d、%d、%d……；每件随机为初级2档或中级1档，含链接绳。\n无位置时：剩余每次施加改为加固1次；也无法加固则结束，剩余次数随本次行动结束清空。\n特殊：仪式启动后，数量增长在打断后仍持续；击败后停止。" % [spec.hp,spec.ritual_gain,spec.ritual_gain,1+spec.ritual_gain,1+2*spec.ritual_gain,1+3*spec.ritual_gain]
-  if type=="small_circle": text="生命：%s\n开场：获得%d点仪式，此后每个自身回合结束，施加数量＋%d。\n行动：从第2次行动起持续施加拘束具，数量通常为%d、%d、%d……；每件均为初级2档，含链接绳。\n无位置时：剩余每次施加改为加固1次；也无法加固则结束，剩余次数随本次行动结束清空。\n特殊：仪式启动后，数量增长在打断后仍持续；击败后停止。" % [spec.hp,spec.ritual_gain,spec.ritual_gain,1+spec.ritual_gain,1+2*spec.ritual_gain,1+3*spec.ritual_gain]
+  if type=="mixed_bundle": text="生命：%s\n开场：散缚，施加2件初级2档拘束具。\n行动：之后随机选招。散缚同开场；翻卷收紧先施加1件初级2档拘束具，再加固1件至3档；躁动膨胀获得1层狂躁。\n狂躁：每层使后续施加数量＋1，加固次数保留。\n限制：散缚、躁动膨胀之间需穿插其他招式，翻卷收紧最多连用2次。可施加原白名单内的普通拘束具（含口球），仅填入空位。" % spec.hp
+  if type=="reinforced_rope": text="生命：23—28\n坚韧：每段最多受到8点伤害。\n弱怪战斗三条，强怪战斗四条。各自随机行动，同一招不连用。凝绳缚施加1件较紧的绳索，分绳缚施加3件较松的绳索。前两次强化提升两招的施加规格，第三次改为准备离场。\n离场时施加1件高级3档附魔绳索。不能新增时，为已有的一件普通拘束具附加「收紧」。收紧在玩家战斗回合结束时恢复2点耐久。"
+  if type=="drone_operator": text="生命：%d。首回合召唤魔导无人机。随后每组三次强化随机排序，道具、拘束和防护各一次。道具强化使无人机每次行动额外施加一件玩具，拘束强化提高施加规格，防护强化使双方获得8护甲。无人机被击毁后，下次行动改为维修，继承强化且每批胶带永久多一件。击败操作员直接获胜。" % spec.hp
+  if type=="operator_drone": text="生命：%d。首动施加30捕缚，解除后先准备一回合再重挂。齐射施加2件胶带，捕缚＋10。每次维修后，每批胶带多1件。击毁后只保留进度，修好后恢复站姿限制和耗能触发。" % spec.hp
+  if type=="succubus_detective": text="生命：%d。逮捕施加40捕缚，手铐锁住最左手牌，脚铐锁住最右手牌，每解开一件捕缚－20。\n打包施加警戒等级＋2件扎带。双铐都解除后改为铐紧，每戴回一件捕缚＋10。\n反抗禁止增加20捕缚，施加警戒等级＋1件玩具及1件口球。手腕脚踝均有装备时追加驷马缚扎带。\n禁止反抗使全身拘束具收紧一档，向抽牌堆加入警戒等级＋1张挑弄。后三招循环。" % spec.hp
+  if type=="tape_mass": text="生命：%d。柔韧：每段体术命中后获得格挡，依次为3、4、5……自身回合开始时清空格挡，下次回到3点。\n蓄胶施加2层虚弱，强化下两次三连贴。三连贴每次施加3件胶带。开场随机使用一招，之后每次蓄胶接两次三连贴。" % spec.hp
+  if type=="anti_mage_drone": text="生命：%d。开场施加40捕缚，将口部装备替换为中级、紧度3、上锁的假阳具口球。\n每打出一张魔法牌，捕缚＋2；每两张追加皮革拘束具。新佩戴的拘束具提高捕缚，挣脱本场加上的装备可扣回进度。\n魔力监听：自身魔力每升降两次，下次行动多处理一件。交替施加紧度2的皮革拘束具，以及施加2层虚弱、随机收紧并上锁。虚弱使体术和挣扎伤害降低25%%。" % spec.hp
+  if type=="binding_box_plus": text="生命：86\n喘息咒印：施加法术诅咒，每打出一张魔法牌，就在抽牌堆混入一张扰乱。\n贴身双缚：施加两件拘束具。兴致升温：强化接下来三个回合施加的普通拘束具。\n嘴腿都照顾：依次施加一件拘束具（嘴部优先）、一件性玩具和一件腿部拘束具。性玩具没有位置时追加一件普通拘束具。\n绑紧别乱动：施加一件带坚韧附魔的拘束具。坚韧提供8点独立额外耐久，优先承受伤害。\n吹哨告状：存活离场时，警戒度＋1。"
+  if type=="rope_serpent": text="生命：%s\n行动：缠身→随机收紧或甩缚，循环；两种招式各50%%。\n缠身：紧缠＋1层。每个玩家回合结束，每层施加1件初级2档或中级1档绳索类拘束具。\n收紧：加固1件绳索类拘束具至3档。甩缚：施加2件初级2档或中级1档绳索类拘束具。\n特殊：预告收紧时没有目标则改为甩缚；预告后失去目标则跳过。紧缠持续至来源离场，击败该绳蛇才停止。" % spec.hp
+  if type=="ominous_circle": text="生命：%s\n开场：获得%d点仪式，此后每个自身回合结束，施加数量＋%d。\n行动：从第2次行动起持续施加拘束具，数量通常为%d、%d、%d……；每件随机为初级2档或中级1档。\n无位置时：剩余每次施加改为加固1次；也无法加固则结束，剩余次数随本次行动结束清空。\n特殊：仪式启动后，数量增长在打断后仍持续；击败后停止。" % [spec.hp,spec.ritual_gain,spec.ritual_gain,1+spec.ritual_gain,1+2*spec.ritual_gain,1+3*spec.ritual_gain]
+  if type=="small_circle": text="生命：%s\n开场：获得%d点仪式，此后每个自身回合结束，施加数量＋%d。\n行动：从第2次行动起持续施加拘束具，数量通常为%d、%d、%d……；每件均为初级2档。\n无位置时：剩余每次施加改为加固1次；也无法加固则结束，剩余次数随本次行动结束清空。\n特殊：仪式启动后，数量增长在打断后仍持续；击败后停止。" % [spec.hp,spec.ritual_gain,spec.ritual_gain,1+spec.ritual_gain,1+2*spec.ritual_gain,1+3*spec.ritual_gain]
+  if type=="mana_smuggler": text="生命：45\n顺手摸瓶：偷取最多10点魔瓶魔力，施加一件拘束具。偷不到时施加两件。\n两只走私者各自执行三次和四次摸瓶，之后找好退路、带货溜走。击败一只时，其携带的魔力会回到魔瓶。"
+  if type=="mini_restraint_mech": text="生命：32\n奇数回合获得10点护甲与魔法免疫，准备施加两件带坚韧的皮革拘束具。出手前打碎护甲可使它眩晕。\n偶数回合准备。辅助机甲的捕缚生效时，第2回合起每回合强化施加规格，超过普通装备上限后改施镣铐。"
+  if type=="support_restraint_mech": text="生命：30\n进场施加40捕缚。微型机甲成功施加拘束时，捕缚＋20。\n待机→获得10点护甲，下批普通拘束额外施加1件→获得6点护甲，施加1件中级性玩具。捕缚解除后先重挂，再接回原循环。"
   if not spec.get("humanoid",false) or not spec.has("capture_kind"):
    var limit="\n长战斗：首领战之外，从第%d回合起，佩戴拘束具≥%d件或总紧度≥%d时，自动离场；全部敌人离场按胜利结算。首领战及其随行单位维持原规则。"
    if spec.get("humanoid",false): limit="\n长战斗：首领战之外，从第%d回合起，佩戴拘束具≥%d件或总紧度≥%d时，反复准备逮捕；仍可打断。首领战及其随行单位维持原规则。"
@@ -193,6 +203,7 @@ static func entries(g=null, character: String="") -> Array:
    var names=[]
    for spawn_type in spawn_counts: names.append("%d只%s" % [spawn_counts[spawn_type],N.TYPES[spawn_type].name])
    text+="\n击败后：分裂为"+"、".join(names)+"，下回合开始行动。"
+  if type=="operator_drone": sources=["无人机操作员召唤"]
   text+="\n出现："+("玩偶师召唤" if type=="puppet" else ("暂无塔内遭遇" if sources.is_empty() else "、".join(sources)))
   var entry=row(type,"enemies",group,spec.get("full_name",spec.name),text);entry.visual=spec.visual;out.append(entry)
  return out
@@ -205,15 +216,14 @@ static func special_notes(type: String) -> String:
   var slots=spec.get("turn_stimulates",spec.stimulates) if timing=="turn_start" else spec.stimulates
   var sensitivity=slots.reduce(func(total,slot):return total+float(S.SENSITIVITY.get(slot,0.0)),0.0)
   var gain=spec.turn_gain if timing=="turn_start" else spec.energy_gain
-  if gain>0: lines.append("%s：基础值×部位倍率%s×来源倍率。" % ["回合开始" if timing=="turn_start" else "牵扯",str(sensitivity*float(spec.get("turn_stimulus_factor",1.0) if timing=="turn_start" else 1.0))])
+  if gain>0: lines.append("%s：基础值×部位倍率%s×来源倍率。" % ["回合开始" if timing=="turn_start" else "牵扯",DisplayNumbers.factor(sensitivity*float(spec.get("turn_stimulus_factor",1.0) if timing=="turn_start" else 1.0))])
  if "manual" in design.methods: lines.append("双臂、双腕和双手完全自由时，花费1能量直接取出。")
  if "strain" in design.methods or "slip" in design.methods: lines.append("普通挣扎／滑脱需要可用手部辅助，或接触本件支持的借力环境。")
  if S.is_chastity_type(type):
   lines.append(spec.detail)
-  lines.append("快感上限＋5×（品质＋紧度）；锁外来源快感×［1＋0.05×（品质＋紧度）］。每次高潮后按（品质＋紧度）×保留系数保留快感，系数初始3、每次永久＋1，普通模式最高10。")
+  lines.append("快感上限＋5×（品质＋紧度）；锁外来源快感×［1＋5%×（品质＋紧度）］。每次高潮后按（品质＋紧度）×保留系数保留快感，系数初始3、每次永久＋1，普通模式最高10。")
  if spec.family in S.CUP_REINFORCEMENT_FAMILIES: lines.append("紧度达到3档时自动附加同品质固定带；滑脱杯体需先切断固定带，也可通过挣扎破坏杯体。")
  if spec.get("component_only",false): lines.append(spec.detail)
- if spec.family=="crotch_rope": lines.append("可连接手腕或大腿根装备；对手腕算下端，对大腿根算上端。")
  return "\n".join(lines)
 
 # Pool provenance only; never draws or evaluates live admission from the catalogue.

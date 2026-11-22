@@ -21,8 +21,80 @@ static func hold(t, position: Vector2) -> void:
  await t.create_timer(0.56).timeout
  await t.frames()
 
+static func full_hand_flip(t) -> void:
+ var ui=t.ui
+ ui.restart(42);await t.frames();ui.game._discard_end()
+ for i in range(ui.game.B.HAND_LIMIT):
+  var card=preload("res://tests/curse_cases.gd").give(ui.game,"strain")
+  card.draw_free=false
+ ui.render();await t.frames()
+ var uid=ui.view.hand[0].uid
+ var first=ui.card_buttons[uid]
+ var point=first.get_global_transform_with_canvas()*Vector2(28,80)
+ var before=ui.game.export_snapshot()
+ var expected=ui.card_faces.duplicate();expected[uid]=true
+ await finger(t,point,true)
+ await t.create_timer(0.15).timeout
+ await move(t,point+Vector2(0,65));await finger(t,point+Vector2(0,65),false)
+ t.check(ui.card_faces==expected and ui.game.state==before,"TOUCH full hand downward swipe from exposed left edge flips only the first card and never plays it")
+
+static func description_reading(t) -> void:
+ var ui=t.ui
+ ui.restart(42);await t.frames()
+ ui._open_drawer("show_encyclopedia");await t.frames()
+ var book=ui.find_child("Encyclopedia",true,false)
+ book.show_entry(book.rows.filter(func(row):return row.category=="cards" and row.id=="henshin")[0]);await t.frames()
+ var face=book.find_child("DisplayCard_encyclopedia_henshin",true,false)
+ var area=face.get_node("CardText")
+ var picture=face.get_node("CardIllustration")
+ var snapshot=ui.game.export_snapshot()
+ await t.move_mouse(picture.get_global_rect().get_center())
+ var compact=area.get_rect()
+ var illustration=picture.get_rect()
+ var point=area.get_global_rect().get_center()
+ await t.move_mouse(point);await t.frames()
+ t.check(face.description_expanded and area.position.y<compact.position.y and is_equal_approx(area.get_rect().end.y,compact.end.y) and picture.get_rect()==illustration,"CARD READ hovering the description borrows height from the artwork with a fixed bottom and an unchanged picture")
+ t.check(not is_instance_valid(ui.term_popup),"CARD READ inline mouse reading does not repeat the description in a floating panel")
+ t.check(area.get_node("Content").get_rect().end.y<=area.size.y+1 and face.art_bottom>=illustration.position.y,"CARD READ ordinary long copy fits without reaching the title")
+ await t.capture("ui-card-description-expanded.png")
+ await t.move_mouse(picture.get_global_rect().position+Vector2(8,8));await t.frames()
+ t.check(not face.description_expanded and area.get_rect().is_equal_approx(compact),"CARD READ leaving the expanded description restores its original size")
+ await finger(t,point,true);await finger(t,point,false,0,true)
+ t.check(not face.description_expanded,"CARD READ canceled touch does not expand the card")
+ await finger(t,point,true);await finger(t,point,false)
+ t.check(face.description_expanded and ui.find_child("ArtInspectionImage",true,false)==null,"CARD READ tapping text expands without opening artwork")
+ face.set_effect("可滚动的说明。\n".repeat(32));await t.frames()
+ var pinned=area.get_rect()
+ var start=area.get_global_rect().get_center()
+ await finger(t,start,true);await move(t,start-Vector2(0,72));await finger(t,start-Vector2(0,72),false)
+ t.check(area.scroll_vertical>0 and area.get_rect()==pinned and area.position.y>=illustration.position.y and picture.get_rect()==illustration,"CARD READ a long expanded description scrolls inside the card")
+ await finger(t,start,true);await move(t,start+Vector2(0,65));await finger(t,start+Vector2(0,65),false)
+ t.check(not face.free_face and area.scroll_vertical<72 and face.description_expanded,"CARD READ downward scrolling inside expanded copy does not flip the card")
+ await finger(t,point,true);await finger(t,point,false)
+ t.check(not face.description_expanded and area.scroll_vertical==0 and ui.game.export_snapshot()==snapshot,"CARD READ tapping again closes and resets the read position without gameplay")
+ await finger(t,point,true);await finger(t,point,false)
+ var outside=book.find_child("EncyclopediaSearch",true,false).get_global_rect().get_center()
+ await finger(t,outside,true);await finger(t,outside,false)
+ t.check(not face.description_expanded,"CARD READ tapping another control dismisses expanded text")
+ book.show_entry(book.rows.filter(func(row):return row.category=="cards" and row.id=="shared_fate")[0]);await t.frames()
+ face=book.find_child("DisplayCard_encyclopedia_shared_fate",true,false)
+ area=face.get_node("CardText");compact=area.get_rect()
+ await t.move_mouse(area.get_global_rect().get_center())
+ t.check(not face.description_expanded and compact==area.get_rect(),"CARD READ short copy keeps its original height")
+ await t.close_information()
+ ui.restart(42);ui.game._discard_end()
+ var card=preload("res://tests/curse_cases.gd").give(ui.game,"henshin")
+ ui.render();await t.frames()
+ face=ui.card_buttons[card.uid];area=face.get_node("CardText")
+ snapshot=ui.game.export_snapshot()
+ point=area.get_global_rect().get_center()
+ await finger(t,point,true);await finger(t,point,false);await t.frames(4)
+ t.check(face.description_expanded and (not is_instance_valid(ui.card_interaction) or not is_instance_valid(ui.card_interaction.preview)) and ui.game.export_snapshot()==snapshot,"CARD READ hand text tap opens inline without playing or duplicating the card")
+
 static func run(t) -> void:
  var ui=t.ui
+ await description_reading(t)
+ await full_hand_flip(t)
  ui.restart(42);await t.frames();ui.game._discard_end()
  ui.game.state.wall="normal";ui.game.state.wall_distance=0
  var target=ui.game.add_fixture("ankle",400.0,1000.0)
@@ -66,7 +138,7 @@ static func run(t) -> void:
  point=attack.get_global_rect().get_center();before=ui.game.export_snapshot()
  await hold(t,point);await finger(t,point,false)
  t.check(ui.attack_forms.strike==1 and ui.game.state==before,"TOUCH basic attack switches form without attacking")
- ui.game._gain_charge(3);ui.render();await t.frames()
+ ui.game._gain_charge(3);preload("res://tests/charge_cases.gd").unlock_single(ui.game);ui.render();await t.frames()
  var charge=ui.find_child("StatusIcon_charge",true,false)
  if charge==null: charge=ui.find_child("Status_charge",true,false)
  t.check(charge!=null,"TOUCH charge has a real status control")

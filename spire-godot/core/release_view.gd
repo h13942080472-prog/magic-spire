@@ -1,11 +1,7 @@
 extends RefCounted
 
 # Read-only presentation of existing physical layers and action previews.
-const REGIONS=[
- {"id":"region_head","name":"头颈","members":["eyes","mouth","neck"]},
- {"id":"region_upper","name":"手胸","members":["upper_arm","forearm","wrist","hands"]},
- {"id":"region_lower","name":"臀腿","members":["thigh","calf","ankle","feet"]},
- {"id":"region_intimate","name":"性器","members":["special_1","special_2","special_3"]}]
+const REGIONS=preload("res://data/equipment.gd").PANEL_REGIONS
 
 static func regions(g, bodies: Array) -> Array:
  var result=[]
@@ -60,9 +56,9 @@ static func preview(g, c: Dictionary) -> Dictionary:
   if source.get("immune",false): result.modifiers.append("三档紧度 · 普通滑脱无效")
   for factor in [{"key":"lock_multiplier","label":"锁具"},{"key":"penalty","label":"目标限制"},{"key":"multiplier","label":"紧度"}]:
    var value=source.get(factor.key,1.0)
-   if value<1.0: result.modifiers.append(factor.label+" ×"+g.number(value))
-  if source.get("divisor",1.0)>1.0: result.modifiers.append("堆叠 ×"+g.number(1.0/source.divisor))
-  if source.get("position",{}).get("factor",1.0)<1.0: result.modifiers.append("部位 ×"+g.number(source.position.factor))
+   if value<1.0: result.modifiers.append(factor.label+" ×"+g.DisplayNumbers.factor(value))
+  if source.get("divisor",1.0)>1.0: result.modifiers.append("堆叠 ×"+g.DisplayNumbers.factor(1.0/source.divisor))
+  if source.get("position",{}).get("factor",1.0)<1.0: result.modifiers.append("部位 ×"+g.DisplayNumbers.factor(source.position.factor))
   if source.get("release",false):
    var root=g._strain_release_root(target)
    if not root.is_empty():

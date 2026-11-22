@@ -2,7 +2,16 @@ extends RefCounted
 
 # Shape checks precede existing rule validators, so damaged nested data never reaches UI.
 const Phases=preload("res://data/phases.gd")
-const REVISION=55
+const REVISION=63
+const SINGLE_LAP_REVISION=62
+const WAR_POWER_REVISION=61
+const RESONANCE_POWER_REVISION=60
+const RESONANCE_STACK_REVISION=59
+const TOUGH_LEGACY_REVISION=58
+const ADAPTABILITY_REVISION=57
+const OPENER_REVISION=56
+const RETIRED_OPENER="letter_opener"
+const INVENTORY_REVISION=55
 const IRON_DRONE_REVISION=54
 const REINFORCEMENT_STATE_REVISION=52
 const CUP_STACK_REVISION=53
@@ -12,6 +21,82 @@ const PIECE="id:s name:s template:s material:s variant:i grade:i locked:b slot:s
 
 static func is_current(s: Dictionary) -> bool:
  return s.get("save_revision") is int and s.save_revision==REVISION
+
+# Keep frozen choices in their original slots without consuming run RNG.
+static func replace_opener_offer(offers, replacements: Array) -> void:
+ if not offers is Array: return
+ var index=offers.find(RETIRED_OPENER)
+ if index<0: return
+ for type in replacements:
+  if type not in offers:
+   offers[index]=type
+   return
+
+static func remove_letter_opener(s: Dictionary, g) -> Dictionary:
+ var removed={}
+ for zone in ["deck"]+g.Cards.ZONES:
+  if not s.get(zone) is Array: continue
+  for card in s[zone].duplicate():
+   if not fields(card,"uid:s type:s retain_until:i") or card.type!=RETIRED_OPENER: continue
+   s[zone].erase(card);removed[zone]=true;removed[card.uid]=true
+ var role=s.get("character_id","original")
+ if not role is String: return removed
+ var replacements=g.Character.pool(g,g.Cards.Rules.UNCOMMON,role).filter(func(id):
+  var spec=g.Cards.Rules.SPECS[id]
+  return spec.rarity=="uncommon" and not spec.has("reward_pool") and spec.card_type!="power")
+ for key in ["reward_options","rest_cards"]: replace_opener_offer(s.get(key),replacements)
+ if s.get("reward_claimed") is Dictionary and s.reward_claimed.get("card")==RETIRED_OPENER: s.reward_claimed.card="skip"
+ if s.get("room_event") is Dictionary: replace_opener_offer(s.room_event.get("reward"),replacements)
+ if s.get("departure") is Dictionary and s.departure.get("options") is Array:
+  for option in s.departure.options:
+   if not option is Dictionary: continue
+   replace_opener_offer(option.get("cards"),replacements)
+   if option.get("changes") is Dictionary:
+    for uid in option.changes:
+     if option.changes[uid]==RETIRED_OPENER: option.changes[uid]=replacements[0]
+ if s.get("rooms") is Array:
+  for room in s.rooms:
+   if not room is Dictionary or not room.get("stock") is Array: continue
+   room.stock=room.stock.filter(func(offer):return not offer is Dictionary or offer.get("kind")!="card" or offer.get("type")!=RETIRED_OPENER)
+ return removed
+
+# Previously played copies have already paid their cost; return them to discard.
+static func retire_power_to_discard(s: Dictionary, type: String) -> bool:
+ if not s.get("powers") is Array or not s.get("discard") is Array: return false
+ var moved=false
+ for card in s.powers.duplicate():
+  if not fields(card,"uid:s type:s retain_until:i") or card.type!=type or card.get("power_face") not in ["bound","free"]: continue
+  if card.has("power_stacks") and (not card.power_stacks is int or card.power_stacks<2): continue
+  s.powers.erase(card)
+  card.erase("power_face");card.erase("power_stacks")
+  s.discard.append(card)
+  moved=true
+ return moved
+
+static func retire_resonance_power(s: Dictionary) -> void:
+ if not s.get("powers") is Array or not s.get("exhaust") is Array: return
+ for card in s.powers.duplicate():
+  if not fields(card,"uid:s type:s retain_until:i") or card.type!="resonance" or card.get("power_face")!="free": continue
+  if card.has("power_stacks") and (not card.power_stacks is int or card.power_stacks<2): continue
+  s.powers.erase(card)
+  card.erase("power_face");card.erase("power_stacks")
+  s.exhaust.append(card)
+
+static func migrate_inventory(s: Dictionary) -> String:
+ if not s.get("items") is Array or not s.get("relics") is Array or not s.get("relic_counters") is Dictionary: return "背包或遗物记录缺损。"
+ var charges=0
+ for item in s.items.duplicate():
+  if not fields(item,"id:s type:s uses:i mount:s"): return "道具记录缺损。"
+  if item.type=="return_seal":
+   charges=clampi(item.uses,0,1)
+   s.items.erase(item)
+  elif item.mount in ["foot_wall","hand_wall","high_wall"]:
+   item.mount="carry"
+   item.erase("prison_position")
+ if (s.get("save_slot","")=="tower" or charges>0) and "return_seal" not in s.relics:
+  s.relics.append("return_seal")
+  s.relic_counters.return_seal=charges
+ return ""
 
 static func migrate_iron_drone(s: Dictionary, g) -> void:
  if not s.get("enemies") is Array: return
@@ -49,6 +134,91 @@ static func migrate_cup_stacks(s: Dictionary, g) -> String:
   s.pressure_sources=s.pressure_sources.filter(func(source):return not source is Dictionary or source.get("equipment","") not in removed)
  return ""
 
+# Standalone ropes have their own ID namespace. Built-in straps, bands and
+# torso bindings are owned by their hosts and never enter this migration.
+static func retired_link_id(id) -> bool:
+ return id is String and id.begins_with("link_") and id.trim_prefix("link_").is_valid_int()
+
+static func retire_intent(p: Dictionary) -> void:
+ if p.is_empty(): return
+ if p.kind=="guard_sequence":
+  for op in p.operations: retire_intent(op)
+ if p.get("kind")=="link" or retired_link_id(p.get("target","")) or (p.get("kind")=="apply" and p.get("templates",[])==["link_rope"]):
+  var final=p.get("final",false)
+  var delayed=p.delayed
+  p.clear()
+  p.merge({"kind":"leave" if final else "idle","text":"离场" if final else "等待","delayed":delayed})
+ else:
+  for key in ["templates","fallback_templates"]:
+   if p.has(key) and p[key] is Array: p[key].erase("link_rope")
+
+static func retire_event_effects(effects: Array, refs: Array) -> Array:
+ var remaining=[]
+ var dropped_refs=refs.duplicate()
+ for effect in effects:
+  if effect.op=="link" or retired_link_id(effect.get("target","")) or effect.get("ref_target","") in dropped_refs:
+   if effect.has("ref"): dropped_refs.append(effect.ref)
+   continue
+  if effect.op=="remove_restraints":
+   effect.targets=effect.targets.filter(func(id):return not retired_link_id(id))
+   if effect.targets.is_empty(): continue
+  remaining.append(effect)
+ return remaining
+
+static func retire_links(g) -> String:
+ var s=g.state
+ if not s.links.is_empty():
+  var anchors=g.link_anchors()
+  for link in s.links:
+   var issue=g.Links.validate(link,anchors,s.links)
+   if issue!="": return issue
+  s.links.clear()
+ var repair_report=s.prison.get("stage","")=="result" and s.prison.missing.any(retired_link_id)
+ for record in [s.capture,s.prison]:
+  for key in ["baseline","added","retained","missing","links"]:
+   if record.has(key): record[key]=record[key].filter(func(id):return not retired_link_id(id))
+ if repair_report: s.prison.report=g.Prison.inspection_findings(g)
+ if s.capture.has("intake_scene"): s.capture.intake_scene.links.clear()
+ s.pressure_sources=s.pressure_sources.filter(func(source):return not retired_link_id(source.get("equipment","")))
+ for enemy in s.enemies:
+  retire_intent(enemy.intent)
+  if enemy.type!=g.RopeArt.MASTER: continue
+  var r=enemy.get("rope_art",{})
+  if not fields(r,"total:i values:d previous:i"): continue
+  var old_total=r.total
+  for id in r.values.keys():
+   if not retired_link_id(id): continue
+   if not r.values[id] is int: return "绳艺大师的绳索计数损坏。"
+   r.total-=r.values[id]
+   r.values.erase(id)
+   if r.get("domain",false): r.previous=mini(100,r.total)
+   if s.guard_bind.get("sources",{}).get(g.RopeArt.MASTER,{}).get("enemy","")==enemy.id: s.guard_bind.progress=float(r.previous)
+  if old_total>=100 and r.total<100 and enemy.intent.get("kind","")=="capture" and not enemy.gone and s.phase=="battle":
+   var issue=g.RopeArt.validate(g,enemy)
+   if issue!="": return issue
+   var delayed=enemy.intent.delayed
+   enemy.intent=g.RopeArt.plan(g,enemy)
+   enemy.intent.delayed=delayed
+ var event=s.room_event
+ if not event.is_empty():
+  var refs=event.refs.keys().filter(func(key):return retired_link_id(event.refs[key]))
+  for key in refs: event.refs.erase(key)
+  if event.has("cleanup_effects"): event.cleanup_effects=retire_event_effects(event.cleanup_effects,refs)
+  var had_options=not event.options.is_empty()
+  for option in event.options.duplicate():
+   if g.Events.selection_rows(option.get("selected",{})).any(func(row):return retired_link_id(row.id)):
+    event.options.erase(option)
+    continue
+   var effects=retire_event_effects(option.effects,refs)
+   if effects.size()!=option.effects.size():
+    option.effects=effects
+    option.detail=(g.Events.describe(g,effects)+"\n"+g.Events.reward_text(option.reward,g)).strip_edges()
+  if had_options and event.options.is_empty(): event.stage="result"
+ var chain=s.card_chain
+ if chain.get("replay_targets",[]).any(func(target):return retired_link_id(target.target)):
+  chain.erase("replay_count");chain.erase("replay_targets")
+ return ""
+
 static func typed(value, kind: String) -> bool:
  match kind:
   "s": return value is String or value is StringName
@@ -69,6 +239,7 @@ static func fields(value, specification: String) -> bool:
 
 static func intent(p, g, depth: int=0) -> bool:
  if depth>1 or not fields(p,"kind:s text:s delayed:b"): return false
+ if p.has("enchantment"): return false
  if p.has("point") and (not p.point is String or (p.point!="" and (not p.has("slot") or p.point not in g.Equipment.points(p.slot)))): return false
  if p.has("pressure") and not typed(p.pressure,"n"): return false
  if p.has("random_target") and (p.kind not in ["tighten","lock"] or not p.random_target is bool): return false
@@ -81,6 +252,13 @@ static func intent(p, g, depth: int=0) -> bool:
  if p.has("cancel_on_interrupt") and (p.kind!="capture" or not p.cancel_on_interrupt is bool or not p.cancel_on_interrupt): return false
  if p.has("climax_threshold") and (not p.get("cancel_on_interrupt",false) or not p.climax_threshold is int or p.climax_threshold<1): return false
  if p.kind in g.RopeArt.ACTIONS: return p.size()==3
+ if p.kind in g.BindingBoxPlus.Actions: return g.BindingBoxPlus.valid_intent(p)
+ if p.kind in g.ManaSmuggler.Actions: return p.size()==3
+ if p.kind in g.TapeMass.Actions: return p.size()==3
+ if p.kind in g.DroneOperator.Actions: return p.size()==3
+ if p.kind in g.Detective.Actions: return p.size()==3
+ if p.kind in g.AntiDrone.Actions: return p.size()==3
+ if p.kind in g.Mechs.Actions: return p.size()==3
  match p.kind:
   "apply":
    if p.has("profiles"):
@@ -181,19 +359,33 @@ static func check(s: Dictionary, g) -> String:
  var demo_issue=g.DemoExit.validate(s)
  if demo_issue!="": return demo_issue
  for key in g.state:
-  if key in ["character_id","witch_charges","witch_focus"]: continue
+  if key in ["character_id","witch_charges","witch_focus","bonus_relic_drop"]: continue
   if not s.has(key): return "缺少必要的进度记录。"
   var reference=g.state[key]
   if reference is int or reference is float:
    if not typed(s[key],"n") or (reference is int and not s[key] is int): return "基础数值类型有误。"
   elif typeof(s[key])!=typeof(reference): return "进度记录类型有误。"
+ var marked=s.combat.get("vulnerable",{}) if s.combat is Dictionary else {}
+ if not marked is Dictionary: return "脆弱状态记录损坏。"
+ for id in marked:
+  if not id is String or id=="" or not marked[id] is int or marked[id]<1: return "脆弱状态记录损坏。"
+ if s.combat is Dictionary:
+  if s.combat.has("drone_weakness") and (not s.combat.drone_weakness is int or s.combat.drone_weakness<1 or s.phase!="battle"): return "虚弱回合记录有误。"
+  if s.combat.has("mana_listeners"):
+   if not s.combat.mana_listeners is Dictionary or s.phase!="battle": return "魔力监听记录有误。"
+   for id in s.combat.mana_listeners:
+    if not s.combat.mana_listeners[id] is int or s.combat.mana_listeners[id]<0 or not s.enemies.any(func(e):return e is Dictionary and e.get("id","")==id and e.get("type","")==g.AntiDrone.TYPE): return "魔力监听来源或次数有误。"
  if not fields(s.combat,"serial:i active:b first_turn:b energy:i mana_spent:n mana_used:b successful_spells:z") or s.combat.serial<0 or s.combat.energy<0 or s.combat.mana_spent<0: return "战斗触发进度损坏。"
  if not fields(s,"relic_seen:z battle_relic_drop:s") or s.relic_seen.any(func(id):return not g.Relics.is_reward(id,"shop") or s.relic_seen.count(id)!=1): return "遗物抽取记录损坏。"
- if s.battle_relic_drop!="":
-  var claimed_relic=s.reward_claimed.get("relic","")
-  if not g.Relics.is_reward(s.battle_relic_drop) or s.battle_relic_drop not in s.relic_seen: return "战斗遗物领取记录损坏。"
-  if claimed_relic==s.battle_relic_drop and s.battle_relic_drop not in s.relics: return "战斗遗物领取记录损坏。"
-  if claimed_relic not in [s.battle_relic_drop,"skip"] and (claimed_relic!="" or not g.Relics.can_gain(s.relics,s.battle_relic_drop)): return "战斗遗物领取记录损坏。"
+ if not s.get("bonus_relic_drop","") is String: return "额外遗物记录损坏。"
+ if s.get("bonus_relic_drop","")!="" and s.battle_relic_drop=="": return "额外遗物缺少对应的精英奖励。"
+ for slot in g.RelicRewards.DROP_FIELDS:
+  var drop=s.get(g.RelicRewards.DROP_FIELDS[slot],"")
+  if drop=="": continue
+  var claimed_relic=s.reward_claimed.get(slot,"")
+  if not g.Relics.is_reward(drop) or drop not in s.relic_seen: return "战斗遗物领取记录损坏。"
+  if claimed_relic==drop and drop not in s.relics: return "战斗遗物领取记录损坏。"
+  if claimed_relic not in [drop,"skip"] and (claimed_relic!="" or not g.Relics.can_gain(s.relics,drop)): return "战斗遗物领取记录损坏。"
  if not typed(s.boss_relic_options,"z") or s.boss_relic_options.size()>3: return "Boss遗物选项损坏。"
  var prison_exit=s.map_region=="prison" and s.room=="prison_gate"
  if s.tower_start_pending and (s.phase!="map" or s.map_region!="tower" or s.room!="tower_bottom" or not s.prison.is_empty() or not s.journey.is_empty()): return "出狱起点选择阶段有误。"
@@ -242,7 +434,7 @@ static func check(s: Dictionary, g) -> String:
  for id in s.relic_pending:
   var pending=s.relic_pending[id]
   if id not in s.relics or not g.Relics.TYPES.has(id) or not fields(pending,"op:s amount:n"): return "遗物待发放记录有误。"
-  if pending.op not in ["charge","draw","mana","pressure"] or pending.op!=g.Relics.trigger(id,s.get("ditto_form","")).get("op","") or pending.amount<0: return "遗物待发放效果有误。"
+  if pending.op not in ["charge","draw","mana","pressure","reserve_mana"] or pending.op!=g.Relics.trigger(id,s.get("ditto_form","")).get("op","") or pending.amount<0: return "遗物待发放效果有误。"
   if pending.op!="mana" and not pending.amount is int: return "遗物待发放数量必须是整数。"
   if pending.op=="pressure" and pending.amount%g.Relics.trigger(id,s.get("ditto_form","")).amount!=0: return "遗物快感触发数量有误。"
  if s.relic_used.values().any(func(v):return not v is int): return "临时增益记录有误。"
@@ -262,17 +454,24 @@ static func check(s: Dictionary, g) -> String:
     if count not in reward_counts: reward_counts.append(count)
  for pool in [s.reward_options,s.rest_cards]:
   if pool.size() not in [0]+reward_counts or pool.any(func(id):return not g.Character.reward_member(g,id,s.get("character_id","original")) or pool.count(id)!=1): return "奖励牌结果重复或缺失。"
- if s.phase=="rest_choice" and (s.rest_left<0 or s.rest_left>g.B.REST_TURNS or s.rest_cards.size() not in reward_counts): return "休息前的回合数或卡牌选项缺损。"
+ if s.phase=="rest_choice" and (s.rest_left<0 or s.rest_left>g.rest_turns(s) or s.rest_cards.size() not in reward_counts): return "休息前的回合数或卡牌选项缺损。"
  if not s.rest_cards.is_empty():
   if s.rest_cards.any(func(id):return g.Cards.Rules.SPECS[id].rarity!="uncommon"): return "休息选牌必须为罕见卡。"
  var event_item_reward=s.phase=="reward" and s.room_event.get("stage","")=="loot"
  if s.phase=="reward" and not event_item_reward and s.reward_options.size() not in reward_counts: return "缺少已确定的卡牌奖励。"
  if event_item_reward and (not s.reward_options.is_empty() or not s.boss_relic_options.is_empty() or s.battle_item_drop!="" or s.battle_relic_drop!="" or not s.reward_claimed.is_empty()): return "事件道具奖励混入了战斗奖励记录。"
+ var remaining_by_uid={}
  for zone in ["deck"]+g.Cards.ZONES:
   for c in s[zone]:
    if c.has("exhaust_after_play") and (zone!="play" or c.exhaust_after_play!=true): return "卡牌消耗记录有误。"
    if not fields(c,"uid:s type:s retain_until:i") or not g.Cards.Rules.SPECS.has(c.type): return "卡牌记录损坏或类型缺失。"
-   var enchant_issue=g.Enchantments.card_issue(g,c,zone)
+   var limit=int(g.Cards.Rules.SPECS[c.type].get("remove_uses",0))
+   if limit>0:
+    if not c.get("remove_left") is int or c.remove_left<1 or c.remove_left>limit: return "道具卡剩余次数有误。"
+    if zone=="deck": remaining_by_uid[c.uid]=c.remove_left
+    elif remaining_by_uid.get(c.uid,-1)!=c.remove_left: return "道具卡剩余次数与卡组记录相异。"
+   elif c.has("remove_left"): return "卡牌移除次数有误。"
+   var enchant_issue=g.Enchantments.card_issue(g,c,zone,s.tick)
    if enchant_issue!="": return enchant_issue
    var practice_issue=g.Character.Expansion.validate_card(g,c)
    if practice_issue!="": return practice_issue
@@ -353,7 +552,9 @@ static func check(s: Dictionary, g) -> String:
   if binding_issue!="": return binding_issue
   var shoulder_issue=g.Shoulders.validate_host(g,e)
   if shoulder_issue!="": return shoulder_issue
-  for shoulder in e.get("shoulders",{}).get("pieces",[]): physical_ids.append(shoulder.id)
+  for shoulder in e.get("shoulders",{}).get("pieces",[]):
+   if shoulder.has("enchantment") or shoulder.has("tough_durability"): return "该装备不支持附魔。"
+   physical_ids.append(shoulder.id)
   physical_ids.append(e.id)
  for root in s.composites:
   if not fields(root,"id:s name:s kind:s variant:s straps:s layer:i components:a"): return "复合装备记录缺损。"
@@ -375,11 +576,22 @@ static func check(s: Dictionary, g) -> String:
   for definition in ["coverage:z","contact_slots:z","points:z","side:s","independent:b","slip_allowed:b"]:
    var key=definition.split(":")[0]
    if e.has(key) and not fields(e,definition): return "装备附属记录类型有误。"
+ for item in s.equipment:
+  var enchant_issue=g.EquipmentEnchantments.issue(g,item,s.relics)
+  if enchant_issue!="": return enchant_issue
+ for item in s.links+s.special_equipment+s.composites+s.composites.reduce(func(all,root):return all+root.components,[]):
+  if item.has("enchantment") or item.has("tough_durability"): return "该装备不支持附魔。"
  for item in s.items:
-  if not fields(item,"id:s type:s uses:i mount:s") or item.mount not in g.Tools.MOUNTS: return "道具记录缺损。"
+  if not fields(item,"id:s type:s uses:i mount:s") or item.mount!="carry" or not g.Tools.TYPES.has(item.type): return "道具记录缺损。"
  for e in s.enemies:
   if not fields(e,"id:s type:s name:s hp:n max_hp:n grade:i stage:i ready_layers:i gone:b defeated:b intent:d pressure_gain:n") or e.type not in g.Enemies.TYPES: return "敌人记录缺损。"
-  var visual_pool=g.Enemies.TYPES[e.type].get("visual_pool",[])
+  var enemy_spec=g.Enemies.TYPES[e.type]
+  if enemy_spec.has("hp_rolls"):
+   if not fields(e,"spawn_health_bonus:n") or not is_finite(e.spawn_health_bonus) or e.spawn_health_bonus<0 or e.spawn_health_bonus>maxi(0,s.security-1)*30 or fmod(e.spawn_health_bonus,10.0)!=0.0: return "敌人初始生命记录有误。"
+   var base=(e.max_hp-e.spawn_health_bonus)/g.DemoExit.health_multiplier(s,enemy_spec.get("debut_act",1))
+   var rolled_base=base>=enemy_spec.hp and base<enemy_spec.hp+enemy_spec.hp_rolls
+   if not is_finite(base) or base!=floorf(base) or (not rolled_base and base not in enemy_spec.get("previous_base_hp",[])): return "敌人初始生命记录有误。"
+  var visual_pool=enemy_spec.get("visual_pool",[])
   if visual_pool.is_empty() and e.has("visual_variant"): return "该敌人的立绘变体应为空。"
   if not visual_pool.is_empty() and (not fields(e,"visual_variant:s") or e.visual_variant not in visual_pool): return "敌人立绘变体缺失。"
   if e.ready_layers<0 or (e.ready_layers>0 and not g.Enemies.TYPES[e.type].get("humanoid",false)): return "敌人准备就绪层数损坏。"
@@ -397,6 +609,26 @@ static func check(s: Dictionary, g) -> String:
    if e.intent.get("kind","")=="six_tune" and (e.intent.count!=1+e.constriction or e.intent.grade!=(1 if e.stage<3+g.EnemyPlans.SIX_CYCLE_LENGTH else 2)): return "六缚的调教升温数量或品质有误。"
    if e.intent.get("cancel_on_interrupt",false) and (s.overload_total<e.next_climax_capture or e.intent.get("climax_threshold",0)!=e.next_climax_capture): return "六缚的高潮逮捕意图与当前记录存在差异。"
   elif e.has("constriction") or e.has("next_climax_capture") or e.intent.get("cancel_on_interrupt",false): return "该敌人的六缚专属记录应为空。"
+  var rope_issue=g.ReinforcedRope.issue(g,e)
+  if rope_issue!="": return rope_issue
+  var detective_issue=g.Detective.issue(g,s,e)
+  if detective_issue!="": return detective_issue
+  var tape_issue=g.TapeMass.issue(g,e)
+  if tape_issue!="": return tape_issue
+  var box_issue=g.BindingBoxPlus.issue(e,s.round)
+  if box_issue!="": return box_issue
+  var smuggler_issue=g.ManaSmuggler.issue(g,e)
+  if smuggler_issue!="": return smuggler_issue
+  if e.intent.get("kind","") in g.AntiDrone.Actions and e.type!=g.AntiDrone.TYPE: return "无人机行动来源有误。"
+  if e.type==g.AntiDrone.TYPE:
+   var listening=s.combat.get("mana_listeners",{}).has(e.id)
+   var expected_listener=s.phase=="battle" and not e.gone and e.stage>1
+   if listening!=expected_listener: return "无人机监听状态与行动进度有误。"
+   if not e.intent.is_empty():
+    var expected_move="bind_apply" if e.stage==1 else (g.AntiDrone.FIT if e.stage%2==0 else g.AntiDrone.WEAKEN)
+    if e.intent.kind!=expected_move and not (e.intent.kind=="capture" and g.CaptureBind.capture_ready(s)): return "无人机行动有误。"
+  var mech_issue=g.Mechs.issue(g,e,s.round)
+  if mech_issue!="": return mech_issue
   var art_issue=g.RopeArt.validate(g,e)
   if art_issue!="": return art_issue
   var iron_issue=g.IronMan.validate(g,e,s.enemies,s)
@@ -422,6 +654,11 @@ static func check(s: Dictionary, g) -> String:
   if e.has("spawned_from") or e.has("spawned_round"):
    if not fields(e,"spawned_from:s spawned_round:i acted_round:i") or e.spawned_round<1 or e.spawned_round>s.round or e.acted_round<e.spawned_round: return "分裂敌人的出场回合损坏。"
   if g.Enemies.TYPES[e.type].has("capture_kind") and (not fields(e.get("guard"),"bind_ready:b cycle_step:i") or e.guard.cycle_step not in [0,1,2]): return "魅魔警卫进度缺损。"
+ if s.phase=="battle" and s.room_encounters.get(s.room,"")==g.ManaSmuggler.ENCOUNTER:
+  var limits=s.enemies.filter(func(e):return e.type==g.ManaSmuggler.TYPE).map(func(e):return e.theft_limit)
+  if limits!=g.Enemies.ENCOUNTERS[g.ManaSmuggler.ENCOUNTER].members.map(func(member):return member.thefts): return "走私者双人组合的摸瓶次数有误。"
+ var operator_issue=g.DroneOperator.issue(g,s)
+ if operator_issue!="": return operator_issue
  var puppet_issue=g.Puppets.validate(g,s.enemies,g.DemoExit.health_multiplier(s))
  if puppet_issue!="": return puppet_issue
  var special_issue=g.SpecialEquipment.validate(s.get("special_equipment"))

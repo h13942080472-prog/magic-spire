@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="320" height="128" viewBox="0 0 320 128">
+<svg xmlns="http://www.w3.org/2000/svg" width="288" height="128" viewBox="16 0 288 128">
  <defs><radialGradient id="heat"><stop stop-color="#ffda80" stop-opacity=".6"/><stop offset="1" stop-color="#e85525" stop-opacity="0"/></radialGradient><linearGradient id="flame" x2="0" y2="1"><stop stop-color="#ffe7a2"/><stop offset="1" stop-color="#dd4e24"/></linearGradient></defs>
  <ellipse cx="160" cy="70" rx="134" ry="55" fill="url(#heat)"/>
  <g fill="none" stroke="#d5b86d" stroke-width="2"><ellipse cx="160" cy="92" rx="111" ry="20"/><ellipse cx="160" cy="92" rx="82" ry="12"/><path d="M81 84 54 59M239 84l27-25M160 104v13"/></g>

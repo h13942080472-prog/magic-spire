@@ -42,7 +42,7 @@ static func run(t) -> void:
  var snapshot=g.export_snapshot();var restored=Game.new(42);var restoration=restored.restore_snapshot(snapshot)
  t.check(restoration.ok and restored.Enemies.damage_multiplier(restored,"drone","physical")==0.75,"SCRAP current snapshot retains armor override without new state: "+str(restoration))
  var status=g.get_view().statuses.filter(func(s):return s.id=="hard_"+g.state.enemies[0].id)[0]
- t.check(status.value.contains("25%") and status.detail.contains("0.75"),"SCRAP enemy hard status displays effective armor")
+ t.check(status.value.contains("25%") and status.detail.contains("×75%"),"SCRAP enemy hard status displays effective armor")
  g.state.relics=["ditto"];g.state.ditto_form="scrap_robot"
  t.check(g.Enemies.damage_multiplier(g,"drone","physical")==0.75,"SCRAP transformed relic uses the existing definition resolver")
  g.state.relics.append("scrap_robot")

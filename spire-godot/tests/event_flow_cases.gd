@@ -42,24 +42,19 @@ static func link_installation(t) -> void:
  g._install_template("rope","forearm",8,10,false,"fixture",1,-1,0,"mid_forearm")
  g._install_template("belt","wrist",8,10,false,"fixture")
  Events.arrive(g,"binding_cleric")
- t.check(g.Events.ordinary(g,4,true,["link_rope"]).op=="link" and g.Events.ordinary(g,4,false,["belt"],true).op=="install","EVENT rope/belt recipes include links while explicitly locked recipes preserve lockability")
- var before=g.export_snapshot()
+ t.check(g.Events.ordinary(g,4,true,["link_rope"]).is_empty() and g.Events.ordinary(g,4,false,["belt"],true).op=="install","EVENT ordinary recipes omit retired links and retain lockable equipment")
  var frozen=g.Events.freeze_effects(g,[{"op":"install_random","templates":["link_rope"],"count":1,"grade":2,"tier":2,"locked":false}])
- t.check(frozen.issue=="" and frozen.effects.size()==1 and frozen.effects[0].op=="link" and g.state.links.is_empty() and g.state.equipment==before.equipment,"EVENT generated link freezes without installing or rejecting its structure")
- if frozen.issue!="": return
- var effect=frozen.effects[0]
- var detail=g.Events.describe(g,frozen.effects)
- t.check(detail.contains("链接绳") and effect.contact_points.all(func(point):return detail.contains(g.Equipment.point_name(point))),"EVENT link preview names both real body locations")
- # The injected option belongs to a real node: the legal stage set follows the definition.
+ t.check(frozen.issue!="" and frozen.effects.is_empty(),"EVENT link-only random cost cannot be offered")
+ var effect=g.EquipmentOffers.links(g,2)[0].duplicate(true)
+ effect.op="link";effect.grade=2;effect.tier=2;effect.erase("kind")
  g.state.room_event.flow=false;g.state.room_event.stage="service"
- g.state.room_event.options=[{"id":"link_test","label":"接受连接","detail":detail,"reward":"none","effects":[{"op":"mana_loss","amount":3},effect]}]
+ g.state.room_event.options=[{"id":"link_test","label":"接受","detail":"旧选项","reward":"none","effects":[{"op":"mana_loss","amount":3},effect]}]
  var pending=g.export_snapshot()
- var twin=preload("res://tests/persistence_cases.gd").roundtrip(t,g,"event frozen link offer")
- var rng=g.state.rng.duplicate(true)
- t.check(Events.choose(t,g,"link_test").ok and g.state.links.size()==1 and g.state.links[0].ends==effect.ends and g.state.mana==pending.mana-3 and g.state.rng==rng,"EVENT frozen link commits exact endpoints and cost without reroll")
- twin._equipment(effect.ends[0]).durability=0;twin._cleanup()
- before=twin.export_snapshot()
- t.check(not Events.choose(t,twin,"link_test").ok and twin.export_snapshot()==before,"EVENT missing frozen endpoint rejects the entire choice including payment")
+ var twin=Game.new(43)
+ var restored=twin.restore_snapshot(pending)
+ t.check(restored.ok and pending.room_event.options[0].effects.size()==2,"EVENT migration keeps the source checkpoint immutable")
+ if not restored.ok: return
+ t.check(twin.state.room_event.options[0].effects.size()==1 and twin.state.rng==pending.rng and Events.choose(t,twin,"link_test").ok and twin.state.links.is_empty() and twin.state.mana==pending.mana-3,"EVENT restored frozen choice keeps its unrelated cost and resolves without a rope")
 
 static func plate_lock_copy(t) -> void:
  var cleric=Game.new(201)

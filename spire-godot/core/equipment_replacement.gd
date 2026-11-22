@@ -39,27 +39,46 @@ static func execute(g, prepared: Dictionary) -> Dictionary:
   if fresh.get(key)!=prepared.get(key): return _fail("替换方案的预演结果已改变，需要重新检查。")
  _commit_changes(g,fresh._after)
  g.RopeArt.replaced(g,fresh)
+ g.CaptureBind.replaced(g,fresh)
  return {"ok":true,"reason":"","removed":fresh.removed.duplicate(),"installed":fresh.installed.duplicate(true),"lost_links":fresh.lost_links.duplicate(),"comparisons":fresh.comparisons.duplicate(true)}
 
 # Some captures explicitly replace every removable special item covered by one
 # prescribed device. This remains a replacement transaction: cursed items are
 # an absolute boundary, cleanup owns dependent pieces and links, and the normal
 # special factory owns the incoming item.
-static func force_special(g, type: String, tier: int, source: String) -> Dictionary:
+static func force_special(g, type: String, tier: int, source: String, evadable: bool=false) -> Dictionary:
  if not g.SpecialEquipment.DESIGNS.has(type) or tier not in [1,2,3]: return _fail("指定的特殊装备有误。")
+ return _force(g,source,evadable,_force_special_live.bind(g,type,tier,source))
+
+static func force_mouth_gag(g, source: String) -> Dictionary:
+ return _force(g,source,false,_force_mouth_live.bind(g,source))
+
+static func _force_mouth_live(g, source: String) -> Dictionary:
+ var units=[]
+ for item in g.state.equipment:
+  if "mouth" in g.Equipment.coverage(item): units.append({"id":item.id,"pieces":[item]})
+ for root in g.state.composites:
+  if "mouth" in g.Composites.definition(root).closed or root.components.any(func(piece):return "mouth" in g.Equipment.coverage(piece)):
+   for piece in root.components: units.append({"id":piece.id,"pieces":[piece]})
+ var gag={"kind":"install","template":"mouth_band","slot":"mouth","point":"mouth","grade":2,"tier":3,"locked":true,"variant":1}
+ return _trial(g,g.state,[gag],source,units,{},true)
+
+static func _force(g, source: String, evadable: bool, operation: Callable) -> Dictionary:
  var original=g.state
  var art_trial=g._rope_trial;g._rope_trial=true
  var feedback=g._resource_feedback
  g._resource_feedback=null
  g.state=original.duplicate(true)
- var result=_force_special_live(g,type,tier,source)
+ var result=operation.call()
  var after=g.state.duplicate(true) if result.ok else {}
  g.state=original
  g._rope_trial=art_trial
  g._resource_feedback=feedback
  if not result.ok: return result
+ if evadable and g.Application.evade(g,source): return _fail("本次施加被闪避抵消。")
  _commit_changes(g,after)
  g.RopeArt.replaced(g,result)
+ g.CaptureBind.replaced(g,result)
  return result
 
 # Both replacement policies commit only changed fields. Keep unchanged enclosing
@@ -409,7 +428,7 @@ static func _sets(units: Array, remaining: Dictionary, chosen: Array, search: Di
   for p in next: next[p]-=units[i].counts.get(p,0)
   _sets(units,next,chosen+[i],search)
 
-static func _trial(g, before: Dictionary, specs: Array, source: String, units: Array, deficit: Dictionary={}) -> Dictionary:
+static func _trial(g, before: Dictionary, specs: Array, source: String, units: Array, deficit: Dictionary={}, forced: bool=false) -> Dictionary:
  g.state=_trial_copy(before)
  # Only ids, templates and the shoulder flag are read back, and all three
  # survive the removal, so the trial keeps references instead of a deep copy.
@@ -430,6 +449,9 @@ static func _trial(g, before: Dictionary, specs: Array, source: String, units: A
  for r in specs:
   var item=_install(g,r,source)
   if item.is_empty(): return _fail("请检查安装位置、容量与装备结构。")
+  if forced:
+   item.durability=item.maximum
+   g._refresh_equipment(item)
   installed.append(item)
  var new_anchors=[]
  for item in installed: new_anchors.append_array(_pieces(item))
@@ -443,7 +465,7 @@ static func _trial(g, before: Dictionary, specs: Array, source: String, units: A
   if e.id in removed and g.Equipment.is_shoulder(e): shoulder_losses.append(e.id)
  var transfer={};var comparison={}
  for option in transfers:
-  var checked=_compare(g,units,installed,deficit,before,option.lost+shoulder_losses)
+  var checked={"ok":true,"score":option.lost.size(),"rows":[]} if forced else _compare(g,units,installed,deficit,before,option.lost+shoulder_losses)
   if checked.ok and (comparison.is_empty() or checked.score<comparison.score):
    transfer=option;comparison=checked
  if comparison.is_empty(): return _fail("新装备需满足替换强度与完整覆盖条件。")
@@ -464,7 +486,7 @@ static func _trial(g, before: Dictionary, specs: Array, source: String, units: A
  var anchors=g.link_anchors() if not g.state.links.is_empty() else []
  for link in g.state.links:
   if g.Links.validate(link,anchors,g.state.links)!="": return _fail("替换后的链接结构校验失败。")
- if not units.is_empty() and _same_loadout(before,g.state): return _fail("替换后装备没有变化。")
+ if not forced and not units.is_empty() and _same_loadout(before,g.state): return _fail("替换后装备没有变化。")
  return {"ok":true,"reason":"","requests":specs,"removed":removed,"installed":installed.duplicate(true),"lost_links":lost,"comparisons":comparison.rows,"score":comparison.score,"_after":_trial_copy(g.state)}
 
 static func _transfer(g, links: Array, anchors: Array) -> Array:

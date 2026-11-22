@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="480" viewBox="0 0 256 240">
+<title>尖锐的小石片 · 手持</title>
+<defs>
+<linearGradient id="ground" x1="0%" y1="0%" x2="95%" y2="100%">
+<stop offset="0%" stop-color="#405a63"/>
+<stop offset="48%" stop-color="#222f39"/>
+<stop offset="100%" stop-color="#101923"/>
+</linearGradient>
+<linearGradient id="gold" x1="0%" y1="0%" x2="95%" y2="100%">
+<stop offset="0%" stop-color="#fff0bf"/>
+<stop offset="18%" stop-color="#e6bb79"/>
+<stop offset="36%" stop-color="#926344"/>
+<stop offset="55%" stop-color="#d6a368"/>
+<stop offset="68%" stop-color="#ffe7a3"/>
+<stop offset="82%" stop-color="#996b51"/>
+<stop offset="100%" stop-color="#62494b"/>
+</linearGradient>
+<linearGradient id="steel" x1="0%" y1="0%" x2="95%" y2="100%">
+<stop offset="0%" stop-color="#f5edcf"/>
+<stop offset="17%" stop-color="#acbabc"/>
+<stop offset="35%" stop-color="#5b7181"/>
+<stop offset="52%" stop-color="#405365"/>
+<stop offset="67%" stop-color="#dce8dd"/>
+<stop offset="83%" stop-color="#9eb2af"/>
+<stop offset="100%" stop-color="#57667b"/>
+</linearGradient>
+<linearGradient id="glass" x1="0%" y1="0%" x2="95%" y2="100%">
+<stop offset="0%" stop-color="#d9e9df"/>
+<stop offset="13%" stop-color="#9fc6bb"/>
+<stop offset="28%" stop-color="#405a63"/>
+<stop offset="51%" stop-color="#222f39"/>
+<stop offset="77%" stop-color="#405a63"/>
+<stop offset="92%" stop-color="#9fc6bb"/>
+<stop offset="100%" stop-color="#e7e8cf"/>
+</linearGradient>
+<linearGradient id="brew" x1="0%" y1="0%" x2="95%" y2="100%">
+<stop offset="0%" stop-color="#e3eee0"/>
+<stop offset="24%" stop-color="#9fc6bb"/>
+<stop offset="55%" stop-color="#778f8e"/>
+<stop offset="100%" stop-color="#222f39"/>
+</linearGradient>
+<linearGradient id="vellum" x1="0%" y1="0%" x2="95%" y2="100%">
+<stop offset="0%" stop-color="#fff0bf"/>
+<stop offset="27%" stop-color="#ead4a5"/>
+<stop offset="58%" stop-color="#dfc295"/>
+<stop offset="81%" stop-color="#b29478"/>
+<stop offset="100%" stop-color="#725d60"/>
+</linearGradient>
+<linearGradient id="masonry" x1="0%" y1="0%" x2="95%" y2="100%">
+<stop offset="0%" stop-color="#596370"/>
+<stop offset="44%" stop-color="#3a4754"/>
+<stop offset="100%" stop-color="#273341"/>
+</linearGradient>
+<radialGradient id="halo">
+<stop stop-color="#9fc6bb" stop-opacity=".42"/>
+<stop offset=".56" stop-color="#405a63" stop-opacity=".27"/>
+<stop offset="1" stop-color="#222f39" stop-opacity="0"/>
+</radialGradient>
+</defs>
+<g stroke-linecap="round" stroke-linejoin="round">
+<path d="M0 0H256V240H0Z" fill="url(#ground)"/>
+<ellipse cx="117" cy="102" rx="136" ry="122" fill="url(#halo)"/>
+<g fill="none" stroke="#9fc6bb" opacity=".18">
+<path d="M-34 140A146 146 0 0 1 178-6M-25 149A139 139 0 0 1 178 0" fill="none" stroke="#9fc6bb" stroke-width="1.1"/>
+<path d="M203 3Q242 22 258 60M219 0q21 13 37 34" fill="none" stroke="#9fc6bb" stroke-width="0.7"/>
+</g>
+<path d="M0 157C68 200 123 127 199 153Q235 163 256 158V240H0Z" fill="#354557"/>
+<path d="M0 166Q40 187 85 170T181 153L214 166Q154 152 106 183T0 192Z" fill="#263342"/>
+<path d="M0 215Q55 227 104 198T208 169Q234 167 256 183V240H0Z" fill="#1c2938"/>
+<path d="M0 159Q38 187 92 165T173 148M9 213Q56 219 94 197m101-29q26-5 51 2" fill="none" stroke="#7c8d92" stroke-width="1" opacity=".53"/>
+<g transform="translate(30 84) scale(0.3)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#9fc6bb"/>
+</g>
+<g transform="translate(202 48) scale(0.4)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#9fc6bb"/>
+</g>
+<g transform="translate(215 94) scale(0.22000000000000003)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#9fc6bb"/>
+</g>
+<g transform="translate(49 140) scale(0.2)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#9fc6bb"/>
+</g>
+<g transform="translate(66 40) scale(0.16999999999999998)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#9fc6bb"/>
+</g>
+<g transform="translate(188 26) scale(0.18)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#9fc6bb"/>
+</g>
+<ellipse cx="123" cy="188" rx="77" ry="12" fill="#152530"/>
+<g transform="translate(127 129) rotate(-30) scale(1.06)">
+<path d="M-89 4-73-14-65-26-36-30-20-37 2-33 19-39 33-32 58-29 93-22 75-6 66 6 43 10 34 21 12 18-3 28-20 22-37 27-62 19-82 19Z" fill="#536675" stroke="#17242b" stroke-width="3.4"/>
+<path d="m-88 4 23-28 28-6-15 15-22 22Z" fill="#81979d"/>
+<path d="m-69 10 17-25 31-22 23 4-27 21-12 22Z" fill="#adbab2"/>
+<path d="m-41 20 15-30 29-23 16-6-3 23-20 25Z" fill="#788d98"/>
+<path d="m-19 20 16-14 20-23 3-21 15 7 9 10-24 16-14 20Z" fill="#bfd1c7"/>
+<path d="m11 14 16-23 20-11 12-9 31 7-34 10-17 14Z" fill="#82989e"/>
+<path d="m44 7 12-18 33-10-16 15-10 10Z" fill="#ccd7bd"/>
+<path d="m-71-11 17-3 13-12m-1 41 14-26 11-8m16 24 17-20 5-14m10 38 17-9 10-12 17-7" fill="none" stroke="#e1e3ca" stroke-width="1.35"/>
+<path d="m-65-23 13-4 8 51-17-4Z" fill="#9e7958" stroke="#17242b" stroke-width="1.6"/>
+<path d="m-53-27 10-2 9 55-13-3Z" fill="#c29c72" stroke="#17242b" stroke-width="1.6"/>
+<path d="m-41-28 8-3 8 52-11 6Z" fill="#947657" stroke="#17242b" stroke-width="1.6"/>
+<path d="m-63-19 5 32m7-33 6 41m8-47 6 39" fill="none" stroke="#e8c998" stroke-width="1.8"/>
+<path d="m-59-20 5 3m-3 5 5 3m14 6 6 3" fill="none" stroke="#705743" stroke-width="1.1"/>
+</g>
+<path d="m187 161 11-1 6 6-14-1Zm-12 12 9-1-7 4Z" fill="#8a999d" stroke="#17242b" stroke-width="1"/>
+<path d="M41 180q19 6 35 1m105-5 9-2" fill="none" stroke="#a1aaa0" stroke-width="1.2"/>
+<g transform="translate(178 83) scale(0.48)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#fff2ce"/>
+</g>
+</g>
+</svg>

@@ -29,7 +29,7 @@ static func excluded_links(t) -> void:
  var spec={"pool":"ordinary","templates":["rope"],"grade":1,"tier":2,"count":1}
  var before=g.export_snapshot()
  var all_choices=A._raw(g,spec,"fixture")
- t.check(all_choices.any(func(p):return p.kind=="link"),"APPLY link exclusion fixture has real legal link choices")
+ t.check(not all_choices.any(func(p):return p.kind=="link"),"APPLY ordinary pool excludes links even with compatible anchors")
  var expected=all_choices.filter(func(p):return p.kind!="link")
  g.anchor_queries=0;spec.allow_links=false
  var actual=A._raw(g,spec,"fixture")
@@ -230,7 +230,7 @@ static func run(t) -> void:
  g._install_template("rope","forearm",8,10,false,"fixture",1,-1,0,"mid_forearm")
  g.add_fixture("wrist",8)
  result=A.execute(g,{"pool":"ordinary","templates":["link_rope"],"count":1,"grade":2,"tier":2},"fixture")
- t.check(result.ok and result.count==1 and result.installed[0].template=="link_rope" and g.state.links.size()==1,"APPLY explicit link source uses real endpoints and factory")
+ t.check(not result.ok and result.count==0 and g.state.links.is_empty(),"APPLY retired link source produces no equipment")
  _replacement_cases(t)
  _batch_cases(t)
  _mixed_pool_cases(t)

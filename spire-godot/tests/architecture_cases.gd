@@ -1205,7 +1205,7 @@ static func run(t) -> void:
  card_identity(t)
  current_effect_boundaries(t)
  instance_effect_boundaries(t)
- for kind in ["equipment","component_links","prison_test","succubus_three_games","trader_solo","drone_solo","binding_box_solo","doubao"]:
+ for kind in ["equipment","leg_pair","prison_test","succubus_three_games","trader_solo","drone_solo","binding_box_solo","doubao"]:
   var g=Game.new(42,true,kind)
   if kind in ["drone_solo","binding_box_solo"]:
    t.check(t.action(g,"end").ok and g.CaptureBind.has_bind(g),"ARCH formal enemy turn establishes source-bound capture "+kind)
@@ -1348,7 +1348,7 @@ static func index_materializes_once_per_scope(t) -> void:
 # docs/spec/equipment-query-seam.md「证据入口」: an inconsistent graph voids the whole scope, records one named issue
 # and answers every later query in that scope from the live path.
 static func index_self_check_falls_back(t) -> void:
- var root=Game.new(42,true,"component_links")
+ var root=Game.new(42,true,"leg_pair")
  root.state.composites[0].components[0].root_id=root.state.composites[1].id
  var host=Game.new(42,true,"shoulder_links")
  var special=host._install_special("nipple_clamp_medium","special_1_a")
@@ -1382,7 +1382,7 @@ static func index_self_check_falls_back(t) -> void:
 # docs/spec/equipment-query-seam.md「证据入口」: the materialized id edge answers like the live lookup over every target
 # family and keeps the authoritative instance reference.
 static func index_id_edge_parity(t) -> void:
- for kind in ["plain","component_links","shoulder_links","torso_binding","special_equipment"]:
+ for kind in ["plain","leg_pair","shoulder_links","torso_binding","special_equipment"]:
   var g=Game.new(42,true,kind) if kind!="plain" else Game.new(42)
   if kind=="plain":
    for slot in ["wrist","ankle","thigh"]: g.add_fixture(slot,7,10)
@@ -1424,7 +1424,7 @@ static func index_predicate_parity(t) -> void:
  sideless.state.equipment.clear()
  sideless.add_fixture("fingers",4,10)
  cases.append({"label":"side-less hand piece","game":sideless,"slot":"fingers","occupied":true,"left":true,"right":true})
- for kind in ["component_links","special_equipment","shoulder_links"]:
+ for kind in ["leg_pair","special_equipment","shoulder_links"]:
   cases.append({"label":kind,"game":Game.new(42,true,kind)})
  for entry in cases:
   var g=entry.game
@@ -1758,7 +1758,7 @@ static func preview_read_batches(t) -> void:
  t.check(g.export_snapshot()==before and g._equipment_read.is_empty(),"ARCH preview batch leaves no state/RNG writes or retained results")
  g.state.pressure=80;target.durability=1;reference.state=g.state.duplicate(true)
  t.check(g.cast_view()==reference.cast_view() and g.escape_preview(target,"slip",7)==reference.escape_preview(reference._equipment(target.id),"slip",7),"ARCH subsequent live read observes resource and durability changes without version increment")
- for kind in ["component_links","shoulder_links","torso_binding","special_equipment"]:
+ for kind in ["leg_pair","shoulder_links","torso_binding","special_equipment"]:
   g=PreviewCountingGame.new(42,true,kind)
   reference.state=g.state.duplicate(true)
   t.check(g.get_view()==reference.get_view(),"ARCH preview reuse preserves composite/link/special projection "+kind)
@@ -1773,10 +1773,11 @@ static func preview_read_batches(t) -> void:
 static func current_effect_boundaries(t) -> void:
  var g=Game.new(42)
  g._discard_end();g.state.energy=30;g.state.relics=[];g.state.flask_mana=20
- for entry in [["echo_cast",false],["adaptability",false],["fire_control",false],["echo_cast",true]]:
+ g.Cards.grant_buff(g,"echo_cast_bound")
+ for entry in [["restraint_embrace",false],["fire_control",false],["echo_cast",true]]:
   var card=preload("res://tests/curse_cases.gd").give(g,entry[0])
   t.check(t.action(g,"card",{"uid":card.uid,"free":entry[1]}).ok,"ARCH current effect uses formal card transaction "+entry[0])
- t.check(g.state.powers.size()==1 and g.state.powers[0].power_stacks==2 and g.state.temporary_mana==10 and "echo_cast_free" in g.state.card_buffs and g.validate()=="","ARCH fixture combines doubled power, temporary mana and pending replay")
+ t.check(g.state.powers.size()==1 and g.state.powers[0].power_stacks==2 and g.state.temporary_mana==10 and "echo_recharge" in g.state.card_buffs and g.validate()=="","ARCH fixture combines doubled power, temporary mana and pending replay")
  projection_contract(t,g,"active powers and split payment")
  g.RelicEffects.end_combat(g)
  g._start_rest()
@@ -3045,12 +3046,13 @@ static func fact_source_map_is_pinned(t) -> void:
 #  FACT_UNIT_EXPECTATION＝单元表 owner → 有序 [id, producer, input]（order 由序位给出，1 起）；
 #  R5_*_PRE_DIGEST＝A 批动工前六个基线常量的副本摘要（值面；G-1 零移动）。
 # 变体（被测侧的对照）：core/game.gd 的源码文本（_phase_branch 的 return 点、_phase_facts 的 return 点）。
-const PHASE_BRANCH_VOCABULARY=["relic_bundle","departure","domain_blocked","rest_choice","shop_treasure","event","captured_inspection","prison_end","overload_climax","card_chain","pending_retain","reward","map","travel","cleared","pack","action_tail"]
+const PHASE_BRANCH_VOCABULARY=["relic_bundle","departure","domain_blocked","hogtie_release","rest_choice","shop_treasure","event","captured_inspection","prison_end","overload_climax","card_chain","pending_retain","reward","map","travel","cleared","pack","action_tail"]
 const PHASE_EMPTY_BRANCHES=["map","prison_end"]
 # _fact_source 的三个前缀 owner（登记表 FACT_PREFIX_OWNERS 的期望侧）；_phase_facts 的臂数（四个前缀／尾段标签共用一条臂）。
-const FACT_SOURCE_PREFIX_BRANCHES=["relic_bundle","departure","domain_blocked"]
-const PHASE_FACTS_ARMS=14
+const FACT_SOURCE_PREFIX_BRANCHES=["relic_bundle","departure","domain_blocked","hogtie_release"]
+const PHASE_FACTS_ARMS=15
 const FACT_UNIT_EXPECTATION={
+ "hogtie_release":[["hogtie_cards","_unit_hand_cards",""],["hogtie_turn","_unit_flow",""]],
  "relic_bundle":[["relic_bundle_prefix","_unit_relic_bundle",""],["relic_bundle_consumables","_unit_noncombat_consumables","relic_bundle_prefix"],["relic_bundle_flask","_unit_flask_full",""]],
  "departure":[["departure_prefix","_unit_departure",""],["departure_consumables","_unit_noncombat_consumables","departure_prefix"],["departure_flask","_unit_flask_full",""]],
  "main":[["phase","_unit_phase",""],["noncombat_consumables","_unit_noncombat_consumables","phase"],["route","_unit_route","phase"],["surrender","_unit_surrender",""],["item_discard","_unit_item_discard",""],["flask","_unit_flask",""],["relic_effects","_unit_relic_effects",""],["status_toggle","_unit_status_toggle",""]],
@@ -3143,8 +3145,15 @@ static func fact_unit_enrich(g) -> void:
  g.state.flask_mana=40.0
  g.state.charge=2
 
+static func hogtie_release_fixture():
+ var tied=r1_build("battle",0)
+ tied._install_template(tied.RopeArt.HOGTIE,"wrist",4,8,false,"fixture")
+ tied.state.phase="map"
+ tied.RopeArt.recovery_hand(tied)
+ return tied
+
 static func fact_unit_states() -> Array:
- var out=[]
+ var out=[{"label":"hogtie_release","game":hogtie_release_fixture(),"phase_join":true}]
  for cell in r1_cells():
   out.append({"label":"cell:%s:%d" % [cell[0],cell[1]],"game":r1_build(cell[0],cell[1]),"phase_join":true})
  out.append_array(branch_sweep_states())
@@ -3798,7 +3807,7 @@ const SECTION_READ_SETS={
  "pickers":[],
  "speech":[],
  "notice":[],
- "drawers":["hook","item","status_toggle"],
+ "drawers":["card","hook","item","status_toggle"],
  "page":["chain","demo_exit","flow","item","prison","route"],
  "scene_instances":["attack","status_toggle"],
 }
@@ -3813,7 +3822,7 @@ const F_DEMAND_EXCLUSIONS={
  "resources":{"flow":"VIEW"},
  "body_bar":{"card":"VIEW"},
  "body_details":{"card":"VIEW","manual":"VIEW"},
- "drawers":{"item":"VIEW"},
+ "drawers":{"card":"VIEW","item":"VIEW"},
  "page":{"chain":"page","demo_exit":"page","flow":"page","item":"page","prison":"page","route":"page"},
 }
 # 修复批 G2：裁剪可达的冻结差集。有效 scope＝raw 声明并集 ∪ VIEW_FACT_GROUPS 必须是 fact_groups()
@@ -3835,7 +3844,7 @@ const SECTION_BODIES={
  "pickers":{"adj":[],"extra":["_hand_target_picker"]},
  "speech":{"adj":[],"extra":[]},
  "notice":{"adj":[],"extra":[]},
- "drawers":{"adj":["_refresh_drawer_section","_drawer_presentation_key","_menu_drawer","_items_drawer"],"extra":["_item_details","_hook_drawer","_pressure_drawer","_status_control"]},
+ "drawers":{"adj":["_refresh_drawer_section","_drawer_presentation_key","_menu_drawer","_items_drawer","_inventory_potion_actions"],"extra":["_item_details","_hook_drawer","_pressure_drawer","_status_control"]},
  "page":{"adj":[],"extra":["_capture_screen","_inspection_screen","_route_screen","_practice_screen","_chain_screen","_demo_exit_screen","_prison_controls","_prison_location_details","_door_candidate","_queue_map_step","_select_route_room"]},
  "scene_instances":{"adj":["_refresh_scene_instances_section","_status_strip","_sync_enemy_stage","_sync_enemy_select","_configure_enemy_drop","_attack_drop_candidate"],"extra":["_status_control"]},
  "target_drag":{"adj":[],"extra":["_begin_target_drag",{"file":"ui/drag_targets.gd","function":"focus_bodies"}]},
@@ -4680,7 +4689,7 @@ const DOMAIN_ARM_ROW_BRANCHES_UNOBSERVED=["_depart_kind_facts@shop_treasure","_d
 # 运行期矩阵：26 cell 的 0／12 两档（含 shop／treasure／event／prison 相位）＋ branch_sweep_states() 的
 # 全部相位/前缀/标志态（与 B 批冻结矩阵同一份声明）。
 static func arm_branch_fixtures() -> Array:
- var out=[]
+ var out=[["hogtie_release",hogtie_release_fixture()]]
  for cell in r1_cells():
   if cell[0]=="takeover" or cell[1] not in FACT_LOOKUP_ALL_KIND_COUNTS: continue
   out.append(["%s:%d" % [cell[0],cell[1]],r1_build(cell[0],cell[1])])

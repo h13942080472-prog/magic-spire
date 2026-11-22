@@ -67,7 +67,7 @@ static func resolve(g, p: Dictionary) -> void:
   for id in g.state.card_buffs.duplicate():
    if g.Cards.Rules.BUFFS[id].has("hannya_level"): g.state.card_buffs.erase(id)
   g.Cards.grant_buff(g,"hannya_level_%d" % next)
-  g.state.mana=minf(g.state.mana_max,g.state.mana+g.Cards.Rules.HANNYA_MANA_GAIN)
+  g.set_own_mana(minf(g.state.mana_max,g.state.mana+g.Cards.Rules.HANNYA_MANA_GAIN))
   messages.append("般若汤升至%d级，力量＋1、灵巧＋1，恢复%s魔力" % [next,g.number(g.state.mana-mana_before)])
   var reward=g.Cards.Rules.HANNYA_REWARDS[next]
   if next==1:

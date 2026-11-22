@@ -37,8 +37,8 @@ static func run(t) -> void:
  var raw=[{"round":1,"text":"购买完成。","data":{"player_action":{"mana":10.03625,"temporary_mana":2.500001,"mana_source":"flask","cost":1}}}]
  var raw_before=raw.duplicate(true)
  text=Copy.view(raw).actions[0].text
- t.check(text=="购买完成。\n消耗1能量、2.5临时魔力、10.04魔瓶魔力。" and raw==raw_before,"LOG all payment pools use compact numbers without rounding the source")
- t.check(Copy.number(0)=="0" and Copy.number(12.5)=="12.5" and Copy.number(0.004)=="小于0.01","LOG zero, trailing decimals and tiny nonzero costs remain truthful")
+ t.check(text=="购买完成。\n消耗1能量、2.5临时魔力、10魔瓶魔力。" and raw==raw_before,"LOG all payment pools use compact numbers without rounding the source")
+ t.check(Copy.number(0)=="0" and Copy.number(12.5)=="12.5" and Copy.number(0.004)=="<0.1" and Copy.number(1.25)=="1.3" and Copy.number(-1.25)=="-1.3" and Copy.number(1.96)=="2","LOG zero, trailing decimals and tiny nonzero costs remain truthful")
 
  g=Game.new(42);g.state.wall="rough";g.state.wall_distance=0
  target=g.add_fixture("ankle",40.0,100.0)

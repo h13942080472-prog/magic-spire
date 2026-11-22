@@ -121,7 +121,7 @@ func save_status_text() -> String:
    SAVE_INVALID: return host._text("ui.feedback.save.invalid","存档校验失败，附件已跳过。")
    SAVE_OVERSIZED: return host._text("ui.feedback.save.oversized","存档超过2 MB，附件已跳过。")
    _: return host._text("ui.feedback.save.uncaptured","存档：请重新创建草稿以获取当前进度。")
- return host._text("ui.feedback.save.attached","将附带当前进度存档：{name}（{size} KB）",{"name":save_attachment.name,"size":"%.1f" % (float(save_attachment.bytes)/1024.0)})
+ return host._text("ui.feedback.save.attached","将附带当前进度存档：{name}（{size} KB）",{"name":save_attachment.name,"size":host.game.number(float(save_attachment.bytes)/1024.0)})
 
 func _save_included() -> bool:
  return draft.include_save and not save_declined and not save_attachment.is_empty()

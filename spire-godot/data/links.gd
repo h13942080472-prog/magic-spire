@@ -12,7 +12,7 @@ static func is_crotch_anchor(target: Dictionary) -> bool:
  return Special.is_special(target) and Special.TYPES.get(target.get("type",""),{}).get("family","")=="crotch_rope"
 
 static func anchor_slots(target: Dictionary) -> Array:
- if target.get("template","")=="art_hogtie": return []
+ if E.is_hogtie(target.get("template","")): return []
  if is_crotch_anchor(target): return [CROTCH_CONTACT]
  return [] if Special.is_special(target) else E.contact_slots(target)
 

@@ -6,13 +6,19 @@ static func run(t) -> void:
  var entries=Book.entries();var seen=[]
  var items=entries.filter(func(entry):return entry.category=="items")
  t.check(items.size()==Book.Tools.TYPES.size() and Book.Tools.TYPES.keys().all(func(type):return items.any(func(entry):return entry.id==type)),"BOOK every registered tool, potion and scroll is included once")
- var neutral=Game.new(42);neutral.state.equipment.clear();neutral.state.relics=[]
  for entry in items:
   var spec=Book.Tools.TYPES[entry.id]
-  t.check(entry.text.contains(neutral.Tools.description(neutral,entry.id)) and entry.text.contains("使用次数：%d" % spec.uses),"BOOK item effect and charges share inventory formatter "+entry.id)
-  if not spec.get("trigger_damage_types",[]).is_empty():
-   t.check(entry.text.contains(Book.InstalledTools.effect_description(entry.id,spec.damage)),"BOOK installed passive uses shared actual trigger contract "+entry.id)
+  t.check(entry.get("card","")==entry.id,"BOOK inventory entry opens its registered card: "+entry.id)
+  t.check(entry.text.contains(g.Cards.ItemCards.Presentation.base_summary(g,entry.id)) and entry.text.contains("打出%d次" % spec.uses),"BOOK item effect and charges match card: "+entry.id)
+  if g.Tools.operation(entry.id)=="cut": t.check(entry.text.contains("借墙1费"),"BOOK cutter lists wall face cost")
  t.check(items.filter(func(entry):return entry.group=="药剂").size()==Book.Tools.TYPES.values().filter(func(spec):return spec.get("category","")=="potion").size(),"BOOK potion branch follows registered categories")
+ for role in ["original","witch"]:
+  for source in [g,null]:
+   var catalog=Book.entries(source,role)
+   var ids=catalog.filter(func(entry):return entry.category=="cards" and entry.group=="道具牌").map(func(entry):return entry.card)
+   var expected=Book.Tools.TYPES.keys()+["pocket_knife"]
+   t.check(ids.size()==expected.size() and expected.all(func(id):return ids.count(id)==1),"BOOK both character catalogs list every item card exactly once: "+role)
+   t.check(catalog.any(func(entry):return entry.id=="return_seal" and entry.category=="relics") and not catalog.any(func(entry):return entry.id=="return_seal" and entry.category in ["items","cards"]),"BOOK return seal stays in relics: "+role)
 
  var illustrated=entries.filter(func(e):return e.category=="equipment")
  var wraps=illustrated.filter(func(e):return e.id.begins_with("composite_wrap_"))
@@ -23,15 +29,15 @@ static func run(t) -> void:
  for config in [[1,0],[2,0],[2,1],[3,0]]:
   var entry=entries.filter(func(e):return e.id=="equipment_mouth_band_%d_%d" % config)[0]
   var grade_factor=Book.B.MOUTH_CAST_GRADE[config[0]]
-  t.check(entry.text.contains("品质倍率×"+str(grade_factor)) and not entry.text.contains("组合效果以该品质"),"BOOK gag states actual grade multiplier rather than a placeholder")
+  t.check(entry.text.contains("品质倍率×"+Book.DisplayNumbers.factor(grade_factor)) and not entry.text.contains("组合效果以该品质"),"BOOK gag states actual grade multiplier rather than a placeholder")
   for tightness in [1,2,3]:
-   t.check(entry.text.contains(str(grade_factor*Book.B.MOUTH_CAST_TIGHTNESS[tightness])),"BOOK gag lists every actual combined tightness multiplier")
+   t.check(entry.text.contains(Book.DisplayNumbers.factor(grade_factor*Book.B.MOUTH_CAST_TIGHTNESS[tightness])),"BOOK gag lists every actual combined tightness multiplier")
   t.check(entry.text.contains("马具结构禁止")==Book.E.mouth_combination(config[0],config[1]).harness,"BOOK only harness combinations claim structural slip prohibition")
  for entry in illustrated:
   if entry.id.begins_with("equipment_eye_"): t.check(entry.text.contains("敌人意图隐藏"),"BOOK every eye cover explains visual limitation")
   if entry.id.begins_with("composite_"): t.check(entry.text.contains("耐久"),"BOOK composite components include actual durability and methods")
  t.check(illustrated.filter(func(e):return e.id=="composite_glove_long_cross2")[0].text.contains("滑脱效果×0.5") and illustrated.filter(func(e):return e.id=="composite_leg_toes_straight2")[0].text.contains("外带保留"),"BOOK composite structure exceptions are explicit")
- t.check(illustrated.filter(func(e):return e.id=="link_rope")[0].text.contains("×1.25"),"BOOK link explains the ordinary downward-link modifier")
+ t.check(not illustrated.any(func(e):return e.id=="link_rope"),"BOOK retired link has no playable equipment entry")
  for entry in entries.filter(func(e):return e.category=="special"):
   var spec=Book.S.TYPES[entry.id]
   if spec.duration>0: t.check(entry.text.contains("装备继续佩戴"),"BOOK battery expiry does not imply removal")
@@ -92,7 +98,7 @@ static func run(t) -> void:
  t.check(projected.rarity=="common" and projected.rarity_name=="普通" and projected.detail==g.Relics.TYPES[projected.id].detail,"RELIC owned view keeps effect and explicit rarity together")
  t.check(entries.any(func(e):return e.category=="cards" and e.group=="诅咒牌" and e.id=="panic"),"BOOK curse branch includes actual curse")
  t.check(entries.any(func(e):return e.category=="cards" and e.group=="诅咒牌" and e.id=="sensitive" and e.text.contains("1.2")),"BOOK sensitive registered in curse branch with actual multiplier")
- for type in ["tease","tease_plus"]:
+ for type in ["tease","tease_plus","disrupt"]:
   var status_card=Book.card(type)
   t.check(entries.any(func(e):return e.category=="cards" and e.group=="状态牌" and e.id==type) and status_card.rarity=="status" and not Book.B.CARD_TRAITS[type].get("curse",false) and type not in Book.Cards.REWARDS,"BOOK status cards have a separate branch and remain outside reward pools")
  var guard=entries.filter(func(e):return e.category=="enemies" and e.id=="guard")[0]

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bronze" x2=".8" y2="1">
+      <stop stop-color="#efcf8b"/><stop offset=".48" stop-color="#aa744a"/><stop offset="1" stop-color="#65504b"/>
+    </linearGradient>
+    <linearGradient id="glaze" x2=".18" y2="1">
+      <stop stop-color="#a6d4c7"/><stop offset=".42" stop-color="#578e88"/><stop offset="1" stop-color="#335961"/>
+    </linearGradient>
+  </defs>
+  <g fill="none" stroke-linecap="round">
+    <path d="M32 23c7-5-4-6-1-12 2-4 7-4 6-9" stroke="#e6ddd8" stroke-width="2.4"/>
+    <path d="M38 23c4-3 0-5 2-8" stroke="#b4c7c7" stroke-width="1.7"/>
+    <path d="m27 34-5-15m12 15 5-9" stroke="#774437" stroke-width="2.5"/>
+    <path d="m22 19-.6-2m17.6 8 .8-1.5" stroke="#ffbf79" stroke-width="2.8"/>
+  </g>
+  <g stroke="#423c42" stroke-width="1.8" stroke-linejoin="round">
+    <path d="M13 36c-9-5-11 2-7 6 2 2 6 3 11 2m34-8c9-5 11 2 7 6-2 2-6 3-11 2" fill="none" stroke="#c69b66" stroke-width="3"/>
+    <path d="m20 51-3 8h5l5-7m10 0 5 7h5l-3-8" fill="url(#bronze)"/>
+    <path d="M12 35c0 12 6 19 20 19s20-7 20-19Z" fill="url(#glaze)"/>
+    <ellipse cx="32" cy="35" rx="21" ry="5" fill="url(#bronze)"/>
+    <ellipse cx="32" cy="34" rx="16.4" ry="2.6" fill="#57474b" stroke="none"/>
+  </g>
+  <path d="M21 45c4 4 8 5 11 5s7-1 11-5" fill="none" stroke="#e1bc7e" stroke-width="1.4"/>
+  <path d="m32 42 2.4 2.7-2.4 2.7-2.4-2.7Z" fill="#f5d998"/>
+</svg>

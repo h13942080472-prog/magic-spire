@@ -12,9 +12,8 @@ static func run(t) -> void:
  g.state.shop_removals=3
  g.state.security=2
  exit_fixture(g)
- var a=preload("res://tests/link_cases.gd").at(g,"thigh_root")
- var b=preload("res://tests/link_cases.gd").at(g,"mid_thigh")
- g._install_link(a.id,b.id,4.8,"fixture")
+ g._install_template("rope","thigh",8,10,false,"fixture",1,-1,0,"thigh_root")
+ g._install_template("belt","calf",8,10,true,"fixture")
  g._install_assembly("arm","long","fixture",2,2)
  g._install_special("crotch_rope_low","special_3_a")
  g.state.mana_max=150.0;g.state.mana=13.0
@@ -58,14 +57,45 @@ static func run(t) -> void:
   g.Puppets.execute(g,master,{"kind":"puppet_mend"})
   t.check(doll.max_hp==15*scale+security_bonus+5 and g.Puppets.validate(g,g.state.enemies,scale)=="","DEMO summon base scales, security applies once and fixed healing remains five")
  exit_fixture(g)
- t.check(g.command_facts().filter(func(c):return c.payload.kind!="item_discard").size()==1 and g.command_facts()[0].payload.kind=="demo_end","DEMO third exit offers only end")
- t.check(not t.action(g,"demo_continue").ok and t.action(g,"demo_end").ok and g.state.demo_finished and g.command_facts().is_empty(),"DEMO final end closes run without a fourth cycle")
+ var generation=g.state.tower_generation
+ t.check(t.find_action(g,"demo_continue").detail.contains("新一轮从第一幕开始"),"DEMO third exit describes the first act of the next loop")
+ var looped=preload("res://core/game.gd").new(7)
+ var legacy=g.export_snapshot();legacy.save_revision=looped.Snapshot.SINGLE_LAP_REVISION;legacy.erase("demo_lap")
+ t.check(looped.restore_snapshot(legacy).ok and looped.state.demo_lap==1 and not legacy.has("demo_lap"),"DEMO pre-loop third exit migrates to lap one without changing saved input")
+ var lap=1
+ for stage in [0,1,2,0,1,2]:
+  if stage==0: lap+=1
+  exit_fixture(looped)
+  var retained_deck=looped.state.deck.duplicate(true)
+  var retained_relics=looped.state.relics.duplicate()
+  generation+=1
+  t.check(t.action(looped,"demo_continue").ok and looped.state.demo_cycle==stage and looped.state.tower_generation==generation,"DEMO repeated exits cycle 3-1-2-3-1 on fresh maps")
+  t.check(looped.state.deck==retained_deck and looped.state.relics==retained_relics and looped.state.security==2 and looped.state.room=="tower_bottom" and looped.state.completed_rooms.is_empty(),"DEMO wrapping preserves run progress and starts fresh encounter history")
+  t.check(looped.state.demo_lap==lap,"DEMO lap advances only when the third act wraps")
+  if stage==0:
+   var opening=looped.room_data(looped.room_data("tower_bottom").next[0])
+   looped.state.room=opening.id;looped._start_battle()
+   t.check(opening.encounter_selected=="weak" and looped.state.room_encounters[opening.id]=="weak_group" and looped.state.enemies.all(func(e):return e.max_hp==looped.Enemies.TYPES[e.type].hp*(2 if lap==2 else 4)+10),"DEMO new loop draws first-act enemies with doubled life before retained security")
+   var loaded=Game.new(7)
+   t.check(loaded.restore_snapshot(looped.export_snapshot()).ok and loaded.state.demo_lap==lap,"DEMO first battle after a loop restores its lap")
+  else:
+   var drone=looped._append_enemies([{"type":"anti_mage_drone","grade":1}])[0]
+   var boss=looped._append_enemies([{"type":"six_bind","grade":2}])[0]
+   var factor=1 if lap==2 else 2
+   t.check(drone.max_hp==(140 if stage==1 else 210)*factor+10 and boss.max_hp==200*(3 if stage==1 else 4)*factor+10,"DEMO later laps scale native enemies by debut act and bosses by current act before adding security")
+   looped._restart_tower()
+   generation+=1
+   t.check(looped.state.demo_lap==lap and looped.state.demo_cycle==stage and looped.state.rooms.any(func(r):return r.get("pool","")=="strong"),"DEMO post-prison restart retains act, lap and strong pool")
+ t.check(t.action(g,"demo_end").ok and g.state.demo_finished and g.command_facts().is_empty(),"DEMO choosing end at the third exit still closes the run")
  var result=twin.restore_snapshot(g.export_snapshot())
  t.check(result.ok,"DEMO finished run persists: "+str(result))
  before=twin.export_snapshot()
  for cycle in [-1,3,1.5]:
   var bad=before.duplicate(true);bad.demo_cycle=cycle
   t.check(not twin.restore_snapshot(bad).ok and twin.state==before,"DEMO corrupt cycle rejected atomically")
+ for invalid_lap in [null,0,1.5,before.tower_generation+2]:
+  var bad=before.duplicate(true);bad.demo_lap=invalid_lap
+  t.check(not twin.restore_snapshot(bad).ok and twin.state==before,"DEMO corrupt lap rejected atomically")
 
  g=Game.new(42)
  t.check(g.state.security==0,"DEMO genuinely new game resets cumulative prison security")

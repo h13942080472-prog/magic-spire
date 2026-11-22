@@ -18,7 +18,7 @@ static func run(t) -> void:
  await Click.press(t,"OpenMap")
  t.check(not ui.show_route and ui.find_child("DepartureOption_0",true,false)!=null and ui.game.export_snapshot()==before,"OPENING UI map returns to same five options")
  await Click.press(t,"DepartureOption_4")
- t.check(ui.game.state.relics==["desire_cube_pro_max"] and ui.view.reward_panel.stage=="done" and ui.game.state.pressure==50,"OPENING UI fifth button really exchanges relic and grants pressure")
+ t.check(ui.game.state.relics==["return_seal","desire_cube_pro_max"] and ui.view.reward_panel.stage=="done" and ui.game.state.pressure==50,"OPENING UI fifth button exchanges the starter, keeps the return seal and grants pressure")
  t.check(await t.click("departure",{"op":"finish"}) and ui.view.phase=="map","OPENING UI confirmation enters actual route")
  ui.game=Cases.fixture("transform");ui._reset_interface(ui.game.get_view());ui.render();await t.frames()
  t.check(await t.click("departure",{"op":"choose","option":"transform"}) and ui.find_child("DepartureCards",true,false)!=null and ui.find_child("DepartureContinue",true,false)==null,"OPENING UI transform opens card picker with no skip")
