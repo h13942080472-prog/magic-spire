@@ -38,6 +38,14 @@ class WatchStore extends "res://core/save_store.gd":
   writes+=1
   return super.write_game(game,replace_incompatible,map_drawings)
 
+# Readback fault for save_commit_failures_keep_the_previous_save (A341 H2): only reads of a .tmp are refused.
+# write_game hands commit_file the readback read_file(temp).ok, so the commit sequence stays the real one and
+# only its readback step disagrees with what was written.
+class ReadbackFailStore extends "res://core/save_store.gd":
+ func read_file(filename: String) -> Dictionary:
+  if filename.ends_with(".tmp"): return failure("readback refused by the test store")
+  return super.read_file(filename)
+
 static func store_for(label: String) -> WatchStore:
  return WatchStore.new("res://build/save-fixed-point-"+label+"-"+str(Time.get_ticks_usec()))
 
@@ -803,6 +811,8 @@ static func run(t) -> void:
  legacy_display_import_follows_initialize_domains(t)
  legacy_write_failure_keeps_the_import_retryable(t)
  legacy_scan_failure_keeps_the_import_retryable(t)
+ legacy_commit_failures_keep_the_import_retryable(t)
+ save_commit_failures_keep_the_previous_save(t)
  g3_reject_never_writes(t)
  save_and_random_untouched(t)
  initial_seed_is_fixed_at_run_start(t)
@@ -1786,3 +1796,87 @@ static func legacy_scan_failure_keeps_the_import_retryable(t) -> void:
    t.check(String(second.get("code",""))=="copied" and listed.get("copied",[])==["saves/tower.json","saves/tower.json.bak"] and legacy_same_file(source.path_join("saves").path_join("tower.json"),target.path_join("saves").path_join("tower.json")),"LEGACY legacy_scan_failure_keeps_the_import_retryable"+label+": once the parent opens, the next start imports the legacy save and writes the marker: "+str(second))
   else:
    t.check(String(second.get("code",""))=="none" and int(listed.get("schema",0))==1 and listed.get("copied",[]).is_empty(),"LEGACY legacy_scan_failure_keeps_the_import_retryable"+label+": once the parent opens without a candidate, the next start closes the import as none: "+str(second))
+
+# LEGACY-20 (A341 H2): every atomic commit the import asks for can fail without closing it. A save whose .tmp
+# cannot be opened (a directory holds the .tmp name) or that cannot be renamed into place (a directory holds the
+# save name) ends the run as write; the marker's own .tmp or rename failing ends it as marker with ok=false. No
+# terminal marker exists after the failed run. Once the obstacle is gone the next start converges by the
+# standing rules: a save that never landed is copied and recorded, landed saves close as target_not_empty, and
+# every leftover temp is replaced by that commit. The legacy directory keeps its (path,size,sha256) triples.
+static func legacy_commit_failures_keep_the_import_retryable(t) -> void:
+ var ready=legacy_ready(t,"legacy_commit_failures_keep_the_import_retryable","legacy-commit-failure")
+ if ready.is_empty(): return
+ var module=ready.module
+ var root=String(ready.root)
+ var parent=String(ready.parent)
+ var source=String(ready.source)
+ legacy_saves(source.path_join("saves"),"tower",1)
+ var legacy_before=legacy_triples(parent)
+ var cases=[
+  {"name":"[a save .tmp cannot be opened]","block":"saves/tower.json.tmp","first":"write","second":"copied"},
+  {"name":"[a save cannot be renamed into place]","block":"saves/tower.json","first":"write","second":"copied"},
+  {"name":"[the marker .tmp cannot be opened]","block":LEGACY_MARKER_NAME+".tmp","first":"marker","second":"target_not_empty"},
+  {"name":"[the marker cannot be renamed into place]","block":LEGACY_MARKER_NAME,"first":"marker","second":"target_not_empty"},
+ ]
+ for index in range(cases.size()):
+  var row=cases[index]
+  var label=" "+String(row.name)
+  var target=root.path_join("target-%d" % index)
+  var marker=target.path_join(LEGACY_MARKER_NAME)
+  var saved=target.path_join("saves").path_join("tower.json")
+  var blocker=target.path_join(String(row.block))
+  legacy_dir(blocker)
+  var first=module.run(parent,target,marker,Store.new(target.path_join("saves")))
+  t.check(first.get("ok",true)==false and bool(first.get("ran",false)) and String(first.get("code",""))==String(row.first) and not FileAccess.file_exists(marker),"LEGACY legacy_commit_failures_keep_the_import_retryable"+label+": the failed commit ends the run unfinished and writes no terminal marker: "+str(first))
+  if String(row.first)=="write": t.check(legacy_has_skip(first,"saves/tower.json","write") and not FileAccess.file_exists(saved),"LEGACY legacy_commit_failures_keep_the_import_retryable"+label+": the save that failed to commit is recorded as write and never lands: "+str(first))
+  else: t.check(first.get("copied",[])==["saves/tower.json"] and legacy_same_file(source.path_join("saves").path_join("tower.json"),saved),"LEGACY legacy_commit_failures_keep_the_import_retryable"+label+": the save lands before the marker commit fails: "+str(first))
+  DirAccess.remove_absolute(ProjectSettings.globalize_path(blocker))
+  var second=module.run(parent,target,marker,Store.new(target.path_join("saves")))
+  var listed=legacy_marker(marker)
+  t.check(String(second.get("code",""))==String(row.second) and int(listed.get("schema",0))==1 and legacy_same_file(source.path_join("saves").path_join("tower.json"),saved),"LEGACY legacy_commit_failures_keep_the_import_retryable"+label+": once the obstacle is gone the next start converges and writes the marker: "+str(second))
+  t.check(legacy_saves_listing(target.path_join("saves"))==["tower.json"] and not FileAccess.file_exists(marker+".tmp"),"LEGACY legacy_commit_failures_keep_the_import_retryable"+label+": the retry replaces every leftover temp: "+str(legacy_saves_listing(target.path_join("saves"))))
+  t.check(legacy_triples(parent)==legacy_before,"LEGACY legacy_commit_failures_keep_the_import_retryable"+label+": the legacy directories keep their (path,size,sha256) triples")
+
+# A341 H2 (docs/spec/save-fixed-points.md legacy import section, single atomic write): each failing step of
+# core/save_store.gd::commit_file, reached through the real write_game: the .tmp cannot be opened (a directory
+# holds its name), the .tmp does not read back (ReadbackFailStore), the .bak cannot be replaced (read-only .bak)
+# and the primary cannot be replaced (read-only primary). Each row: write_game returns that step's text; the
+# primary keeps its bytes and mtime and still reads through read_slot; the .bak changes only through the
+# rotation that runs before the final rename; the leftover temps are exactly the expected ones, and once the
+# obstacle is gone the next write commits and replaces every leftover temp.
+static func save_commit_failures_keep_the_previous_save(t) -> void:
+ var cases=[
+  {"name":"[the .tmp cannot be opened]","code":"open","left":["tower.json","tower.json.bak"]},
+  {"name":"[the .tmp does not read back]","code":"readback","left":["tower.json","tower.json.bak","tower.json.tmp"]},
+  {"name":"[the .bak cannot be replaced]","code":"backup","left":["tower.json","tower.json.bak","tower.json.bak.tmp","tower.json.tmp"]},
+  {"name":"[the primary cannot be replaced]","code":"rename","left":["tower.json","tower.json.bak","tower.json.tmp"]},
+ ]
+ for index in range(cases.size()):
+  var row=cases[index]
+  var code=String(row.code)
+  var label=" "+String(row.name)
+  var directory=legacy_root("save-commit-failure-%d" % index)
+  var store=Store.new(directory)
+  store.write_game(Game.new(41,false))
+  store.write_game(Game.new(42,false))
+  var primary=store.path("tower")
+  var failing=store
+  if code=="open": legacy_dir(primary+".tmp")
+  elif code=="readback": failing=ReadbackFailStore.new(directory)
+  elif code=="backup": FileAccess.set_read_only_attribute(primary+".bak",true)
+  elif code=="rename": FileAccess.set_read_only_attribute(primary,true)
+  var before=stamp(store,"tower")
+  var result=failing.write_game(Game.new(43,false))
+  var after=stamp(store,"tower")
+  var listing=legacy_saves_listing(directory)
+  t.check(not result.ok and String(result.get("error",""))==String(Store.WRITE_FAILURES[code]),"SAVE save_commit_failures_keep_the_previous_save"+label+": write_game returns the failing step's text: "+str(result))
+  t.check(not before.main.is_empty() and after.main==before.main and after.main_time==before.main_time and store.read_slot("tower").ok and not store.read_slot("tower").backup,"SAVE save_commit_failures_keep_the_previous_save"+label+": the primary keeps its bytes and mtime and still reads through read_slot")
+  var backup_kept=after.backup==before.backup and after.backup_time==before.backup_time
+  t.check(after.backup==before.main if code=="rename" else backup_kept,"SAVE save_commit_failures_keep_the_previous_save"+label+": the .bak changes only through the rotation that runs before the final rename")
+  t.check(listing==row.left,"SAVE save_commit_failures_keep_the_previous_save"+label+": the failed commit leaves exactly the expected temps: "+str(listing))
+  if code=="open": DirAccess.remove_absolute(ProjectSettings.globalize_path(primary+".tmp"))
+  for file in [primary,primary+".bak",primary+".bak.tmp"]:
+   if FileAccess.file_exists(file): FileAccess.set_read_only_attribute(file,false)
+  var retried=Store.new(directory).write_game(Game.new(43,false))
+  var recovered=stamp(store,"tower")
+  t.check(retried.ok and legacy_saves_listing(directory)==["tower.json","tower.json.bak"] and recovered.backup==before.main and recovered.main!=before.main and store.read_slot("tower").ok,"SAVE save_commit_failures_keep_the_previous_save"+label+": once the obstacle is gone the next write commits, rotates the kept primary into .bak and replaces every leftover temp: "+str(legacy_saves_listing(directory)))

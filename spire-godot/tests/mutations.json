@@ -655,6 +655,32 @@
       "find": " if not OS.is_debug_build() or debug_crash.is_empty(): return false",
       "replace": " if debug_crash.is_empty(): return false",
       "suite": "architecture"
+    },
+    "display_import_matches_initialize": {
+      "file": "ui/display_settings.gd",
+      "find": " save()\n return save_error==\"\"",
+      "replace": " if frame_limit==240: frame_limit=60\n save()\n return save_error==\"\"",
+      "suite": "display",
+      "execution": "ui"
+    },
+    "keyboard_import_matches_initialize": {
+      "file": "ui/key_bindings.gd",
+      "find": " save()\n return error==\"\"",
+      "replace": " hold_end=false\n save()\n return error==\"\"",
+      "suite": "keyboard",
+      "execution": "ui"
+    },
+    "save_commit_failures_keep_the_previous_save": {
+      "file": "core/save_store.gd",
+      "find": " if not readback.call(temp): return \"readback\"",
+      "replace": " readback.call(temp)",
+      "suite": "persistence"
+    },
+    "legacy_commit_failures_keep_the_import_retryable": {
+      "file": "ui/legacy_import.gd",
+      "find": " return _answer(written,true,code if written else \"marker\",source,copied,skipped)",
+      "replace": " return _answer(true,true,code,source,copied,skipped)",
+      "suite": "persistence"
     }
   }
 }

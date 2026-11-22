@@ -47,7 +47,55 @@ static func quick_region_keys(t) -> void:
  input.settings.defaults();input.held_keys.clear();input.clear()
  ui.restart(42);await t.frames()
 
+# A341 H1 (docs/spec/save-fixed-points.md legacy import section): one key-bindings.cfg read by initialize() and
+# imported by import_from() leaves both owners with the same table and hold setting. A legal table is taken
+# whole; a reused, Escape, missing-slot, non-integer or non-positive key, a missing action, a table of the
+# wrong type or a missing section leaves both on the defaults they held before the read. The old heavy/kick
+# pair is migrated by initialize() alone (import_from keeps it as read and the next launch migrates it), so
+# no row uses that pair; hold_end is only ever written as a bool, so the rows keep it a bool or leave it out.
+static func keyboard_import_matches_initialize(t) -> void:
+ var root="res://build/keyboard-parity-%d-%d" % [OS.get_process_id(),Time.get_ticks_usec()]
+ DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(root))
+ var legal=Settings.new().bindings.duplicate(true)
+ legal.card_1=[KEY_F1];legal.end=[KEY_Q];legal.confirm=[KEY_KP_ENTER,KEY_ENTER]
+ var reused=legal.duplicate(true);reused.card_2=[KEY_F1]
+ var escape=legal.duplicate(true);escape.card_3=[KEY_ESCAPE]
+ var short=legal.duplicate(true);short.confirm=[KEY_KP_ENTER]
+ var typed=legal.duplicate(true);typed.card_4=["4"]
+ var zero=legal.duplicate(true);zero.card_5=[0]
+ var missing=legal.duplicate(true);missing.erase("log")
+ var rows=[
+  {"name":"legal table with hold-to-end","bindings":legal,"hold_end":true},
+  {"name":"legal table without the hold key","bindings":legal},
+  {"name":"a key used twice","bindings":reused,"hold_end":true},
+  {"name":"Escape bound","bindings":escape,"hold_end":true},
+  {"name":"wrong slot count","bindings":short,"hold_end":true},
+  {"name":"non-integer key","bindings":typed,"hold_end":true},
+  {"name":"non-positive key","bindings":zero,"hold_end":true},
+  {"name":"an action missing","bindings":missing,"hold_end":true},
+  {"name":"bindings that are not a table","bindings":"F1","hold_end":true},
+  {"name":"no keyboard section"},
+ ]
+ for index in range(rows.size()):
+  var row=rows[index]
+  var source=root.path_join("source-%d.cfg" % index)
+  var config=ConfigFile.new()
+  config.set_value("unrelated","key",1)
+  if row.has("bindings"): config.set_value("keyboard","bindings",row.bindings)
+  if row.has("hold_end"): config.set_value("keyboard","hold_end",row.hold_end)
+  config.save(source)
+  var importer=Settings.new()
+  importer.path=root.path_join("absent-%d.cfg" % index)
+  importer.initialize(true)
+  importer.path=root.path_join("imported-%d.cfg" % index)
+  importer.import_from(source)
+  var reader=Settings.new()
+  reader.path=source
+  reader.initialize(true)
+  t.check(reader.bindings==importer.bindings and reader.hold_end==importer.hold_end,"KEYS keyboard_import_matches_initialize ["+String(row.name)+"]: import_from() keeps exactly the bindings and hold setting initialize() reads from the same file: same_table="+str(reader.bindings==importer.bindings)+" initialize_hold="+str(reader.hold_end)+" import_hold="+str(importer.hold_end))
+
 static func run(t) -> void:
+ keyboard_import_matches_initialize(t)
  await quick_region_keys(t)
  await reward_navigation(t)
  var ui=t.ui;var input=ui.keyboard_input
