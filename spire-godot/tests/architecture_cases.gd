@@ -2266,7 +2266,8 @@ const R5_FIRST_TURN={"takeover:0":"8bf0e226191edacd337b525691d9e36a","takeover:1
 # submit_keys（成功结果键面摘要）与由其派生的 <record> 摘要随之变化；本批只重算这两个面，mask 不变
 # （R5_VIEW_MASK／R5_RECORD_MASK／R5_RECORD_ADDED 原值），其余记录字段与 G6 其余断言逐字不变。
 # 差异只来自该键的自证在 docs/record/verification.md：旧键面复算摘要与旧冻结值逐 cell 相等。
-# 2026-11-21 human-approved re-freeze, link C (the human ruling on groups A-G came once the prepare rng cause
+# 2026-11-21 human-approved re-freeze, link C (the human ruling on the E_DECLARED_DIFF attribution groups A-F and
+# on the two prefix states flag:equipment_spell and flag:relic_rows came once the prepare rng cause
 # was proved, and that cause became the group E reason in E_DECLARED_DIFF): only the moved faces were
 # recomputed, on the committed tree 69cf2f1 (HEAD=69cf2f1, dirty=0) -- R5_BASELINE facts_text x26, facts_verdicts
 # x18, view x26, record x26; R1_BASELINE snapshot x18 and rng x4; PREFIX_BRANCH_TABLE_BASELINE two states. Every
