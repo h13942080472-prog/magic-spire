@@ -22,8 +22,8 @@
 | `spire-godot/tests/architecture_cases.gd::update_module_is_a_leaf` | 新增 `update/` 的禁止边（不引用 `ui`／`core`／`data`／`tests`；`core`／`data` 不引用 `update`；只有 `update_check.gd` 发 HTTP）；新增五条单点判据 `update_compare_single_entry`、`update_document_single_entry`、`update_verify_single_entry`、`update_http_single_entry`、`update_jump_single_entry` | 既有判定函数与既有边不变 |
 | `spire-godot/tests/architecture_cases.gd`（U1b 加固） | 新增三条发布侧单点判据 `update_sign_single_entry`、`update_signature_write_single_entry`、`update_manifest_write_single_entry` 及扫描助手 `update_release_files`、`update_release_scopes`、`update_release_matches` | 只读源码文本，不调用脚本；扫描 `tools/**/*.ps1` 与 `**/*.gd`，只跳过 `.gitignore` 忽略的目录；既有判定函数与既有边不变 |
 | `spire-godot/tests/fixtures/update/` 的 `.gitattributes`（新） | 把三份夹具标为 `-text`，让检出字节等于签名字节 | 不改夹具内容；不引入第二份夹具 |
-| `spire-godot/tools/update-manifest.ps1`、`spire-godot/tools/sign-update-manifest.ps1`（U1b，新）、`spire-godot/tools/update-manifest-check.ps1`（U1b 返工，新） | 唯一清单生成入口与唯一签名入口，接口见 `docs/spec/update-check.md`「发布侧脚本」；两者 dot-source 的回读自检 `spire-godot/tools/update-manifest-check.ps1::Assert-UpdateManifest` | 与游戏代码零依赖（签名脚本只按文本读 `update/update_keys.gd`）；回读自检只有这一份实现，生成器回读临时文件、签名器签名前回读 `-Manifest` 都调用它；Android 哈希只取自包清单、Windows ZIP 哈希只在生成器算一次；`-Revoked` 只收字符串元素；拒签与拒绝路径不留输出；不接受口令明文参数，不打印私钥、口令或其哈希，报错不回显 `-PrivateKey` 与 `-PassphraseEnv` 的取值；两份脚本 `#Requires -Version 7.0`；`-KeyTable` 只作测试接缝 |
-| `spire-godot/tools/check.ps1::Get-SourceFingerprint`（U1b 返工） | 目录集合加入 `update` | 只改目录集合；指纹仍只作同一次运行内的守卫（`before==after`），不当身份，没有冻结值依赖它 |
+| `spire-godot/tools/update-manifest.ps1`、`spire-godot/tools/sign-update-manifest.ps1`、`spire-godot/tools/update-manifest-check.ps1`（新） | 唯一清单生成入口与唯一签名入口，接口见 `docs/spec/update-check.md`「发布侧脚本」；两者 dot-source 的回读自检 `spire-godot/tools/update-manifest-check.ps1::Assert-UpdateManifest` | 与游戏代码零依赖（签名脚本只按文本读 `update/update_keys.gd`）；回读自检只有这一份实现，生成器回读临时文件、签名器签名前回读 `-Manifest` 都调用它；Android 哈希只取自包清单、Windows ZIP 哈希只在生成器算一次；`-Revoked` 只收字符串元素；拒签与拒绝路径不留输出；不接受口令明文参数，不打印私钥、口令或其哈希，报错不回显 `-PrivateKey` 与 `-PassphraseEnv` 的取值；两份脚本 `#Requires -Version 7.0`；`-KeyTable` 只作测试接缝 |
+| `spire-godot/tools/check.ps1::Get-SourceFingerprint` | 目录集合加入 `update` | 只改目录集合；指纹仍只作同一次运行内的守卫（`before==after`），不当身份，没有冻结值依赖它 |
 | `spire-godot/tests/fixtures/update/release-scripts/`（U1b，新） | 两份脚本用一次性密钥产出的清单与签名，及一次性公钥、`notes.txt`、`android-package-manifest.json`、`windows.zip` 三份输入；同目录 `.gitattributes` 标 `-text` | 只经脚本生成；**不提交任何私钥**；既有 OpenSSL 夹具不变 |
 | `spire-godot/tests/state_readers.json`（生成物） | 由 `tools/build_state_readers.gd --write` 重写，登记 `update/` 的读取点 | 只经工具写入；不手工编辑；他行不变 |
 | `spire-godot/tests/check_index.json`（生成物） | 由 `tools/check-index.ps1 -Write` 重冻，登记 `update/` 与新增测试文件 | 只经工具写入；不手工编辑；他行不变 |
@@ -127,7 +127,7 @@
   `openssl dgst -sign` 以外的签名原语——`openssl pkeyutl -sign`、.NET `SignData`／`SignHash`、引擎 `Crypto.sign`
   （现只在测试助手 `tests/update_cases.gd::signature_of`，签内存里的测试密钥）。PowerShell `<# #>` 块注释里的令牌
   按代码算，只会误红、不会漏报。
-- U2 若要把下载的清单或 `.sig` 落到 `user://`，`tests/architecture_cases.gd::update_signature_write_single_entry` 或
+- 后续的下载安装阶段若要把下载的清单或 `.sig` 落到 `user://`，`tests/architecture_cases.gd::update_signature_write_single_entry` 或
   `tests/architecture_cases.gd::update_manifest_write_single_entry` 会具名变红：须同批更新这两条判据的期望集合与本文件，
   不得靠把「点名 `.sig`／清单键」与「写文件」拆到不同作用域让判据转绿。
 - 不属于本片授权面：`spire-godot/ui/feedback_report.gd`、`spire-godot/tools/package*.ps1`、
