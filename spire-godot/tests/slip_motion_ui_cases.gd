@@ -18,17 +18,21 @@ static func run(t) -> void:
  t.check(preload("res://ui/combat_feedback.gd").movement_changes(ui.view,ui.view).is_empty(),"MOTION UI redraw cannot replay historical movement damage")
  await t.capture("ui-112-slip-motion.png")
 
- ui.restart(42,true,"links");await t.frames()
+ await t.start_practice("Practice_leg_pair")
+ t.check(ui.view.practice_kind=="leg_pair" and ui.game.state.composites.size()==2 and ui.game.state.links.is_empty(),"PRACTICE sleeve pair opens from the menu with two independent assemblies")
+ t.check(ui.view.practice_options.all(func(entry):return entry.id not in ["links","component_links"]) and ui.view.practice_options.any(func(entry):return entry.id=="shoulder_links"),"PRACTICE menu retains shoulder straps and omits retired rope entries")
+ ui.restart(42,true,"equipment");await t.frames()
  var target=ui.game.equipment_at("calf")[0]
+ target.durability=target.maximum*0.4
  var uid=ui.view.hand.filter(func(c):return c.type=="slip")[0].uid
  if ui.card_faces.get(uid,false): await t.flip(uid)
  card=Queries.find(ui.view,"card",{"uid":uid,"target":target.id})
  var durability=target.durability;var damage=card.payload.preview.damage
- t.check(card.valid and card.payload.preview.link_factor==1.25,"LOWER LINK UI reads shared preview")
+ t.check(card.valid and card.payload.preview.link_factor==1.0,"SLIP UI reads shared preview")
  await t.start_drag(uid,"calf")
  await t.reveal_drop_target(card.key)
  var shown=t.visible_text(ui.term_popup)
- t.check(shown.contains(ui.game.number(damage)+"点滑脱伤害") and not shown.contains("×1.25") and not shown.contains("能量"),"LOWER LINK UI shows final slip damage with the link bonus already included")
- await t.capture("ui-lower-link-slip.png")
+ t.check(shown.contains(ui.game.number(damage)+"点滑脱伤害") and not shown.contains("×1.25") and not shown.contains("能量"),"SLIP UI shows final slip damage at the ordinary multiplier")
+ await t.capture("ui-ordinary-slip.png")
  await t.release_target(await t.reveal_drop_target(card.key))
- t.check((ui.game._equipment(target.id).is_empty() if damage>=durability else is_equal_approx(ui.game._equipment(target.id).durability,durability-damage)),"LOWER LINK UI native drag matches preview")
+ t.check((ui.game._equipment(target.id).is_empty() if damage>=durability else is_equal_approx(ui.game._equipment(target.id).durability,durability-damage)),"SLIP UI native drag matches preview")

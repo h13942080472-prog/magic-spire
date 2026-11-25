@@ -80,7 +80,7 @@ static func stacked_energy(t) -> void:
  g._apply_manual_release(target,0);g._cleanup()
  t.check(g.state.energy==energy+4 and g.state.draw_serial==serial+4,"EMBRACE four stacks across two cards grant four cards and four energy")
  var status=g.get_view().statuses.filter(func(row):return row.id=="power_restraint_embrace_free")[0]
- t.check(status.value=="每件抽4张 · 能量＋4" and status.detail.contains("抽牌与回能均可叠加"),"EMBRACE status shows stacked draws and energy")
+ t.check(status.value=="每件抽4张 · 能量＋4" and status.detail.contains("每挣脱1件拘束具，抽1张牌，恢复1能量。"),"EMBRACE status shows stacked draws and energy")
  while g.state.hand.size()<g.B.HAND_LIMIT: Cards.give(g,"strain")
  target=g.add_fixture("ankle",1);energy=g.state.energy;serial=g.state.draw_serial
  g._apply_manual_release(target,0);g._cleanup();g._cleanup()

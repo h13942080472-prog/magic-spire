@@ -5,7 +5,7 @@ static func run(t) -> void:
  var ui=t.ui
  ui.game_factory=preload("res://core/game.gd")
  ui.restart(7);await t.frames()
- t.check(not ui.view.practice and ui.view.deck_count==10 and ui.view.mana==100,"NORMAL UI starts ordinary tower without fixture or modified values")
+ t.check(not ui.view.practice and ui.view.deck_count==11 and ui.view.mana==100,"NORMAL UI starts ordinary tower without fixture or modified values")
  await t.capture("ui-68-normal-start.png")
  var captured=false
  var navigation={}

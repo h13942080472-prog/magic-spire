@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="480" viewBox="0 0 256 240">
+<title>魔力药剂</title>
+<defs>
+<linearGradient id="ground" x1="0%" y1="0%" x2="95%" y2="100%">
+<stop offset="0%" stop-color="#304f72"/>
+<stop offset="48%" stop-color="#172b44"/>
+<stop offset="100%" stop-color="#101923"/>
+</linearGradient>
+<linearGradient id="gold" x1="0%" y1="0%" x2="95%" y2="100%">
+<stop offset="0%" stop-color="#fff0bf"/>
+<stop offset="18%" stop-color="#e6bb79"/>
+<stop offset="36%" stop-color="#926344"/>
+<stop offset="55%" stop-color="#d6a368"/>
+<stop offset="68%" stop-color="#ffe7a3"/>
+<stop offset="82%" stop-color="#996b51"/>
+<stop offset="100%" stop-color="#62494b"/>
+</linearGradient>
+<linearGradient id="steel" x1="0%" y1="0%" x2="95%" y2="100%">
+<stop offset="0%" stop-color="#f5edcf"/>
+<stop offset="17%" stop-color="#acbabc"/>
+<stop offset="35%" stop-color="#5b7181"/>
+<stop offset="52%" stop-color="#405365"/>
+<stop offset="67%" stop-color="#dce8dd"/>
+<stop offset="83%" stop-color="#9eb2af"/>
+<stop offset="100%" stop-color="#57667b"/>
+</linearGradient>
+<linearGradient id="glass" x1="0%" y1="0%" x2="95%" y2="100%">
+<stop offset="0%" stop-color="#d9e9df"/>
+<stop offset="13%" stop-color="#8bddda"/>
+<stop offset="28%" stop-color="#304f72"/>
+<stop offset="51%" stop-color="#172b44"/>
+<stop offset="77%" stop-color="#304f72"/>
+<stop offset="92%" stop-color="#8bddda"/>
+<stop offset="100%" stop-color="#e7e8cf"/>
+</linearGradient>
+<linearGradient id="brew" x1="0%" y1="0%" x2="95%" y2="100%">
+<stop offset="0%" stop-color="#e4fff0"/>
+<stop offset="24%" stop-color="#8bddda"/>
+<stop offset="55%" stop-color="#286aa2"/>
+<stop offset="100%" stop-color="#172b44"/>
+</linearGradient>
+<linearGradient id="vellum" x1="0%" y1="0%" x2="95%" y2="100%">
+<stop offset="0%" stop-color="#fff0bf"/>
+<stop offset="27%" stop-color="#ead4a5"/>
+<stop offset="58%" stop-color="#dfc295"/>
+<stop offset="81%" stop-color="#b29478"/>
+<stop offset="100%" stop-color="#725d60"/>
+</linearGradient>
+<linearGradient id="masonry" x1="0%" y1="0%" x2="95%" y2="100%">
+<stop offset="0%" stop-color="#596370"/>
+<stop offset="44%" stop-color="#3a4754"/>
+<stop offset="100%" stop-color="#273341"/>
+</linearGradient>
+<radialGradient id="halo">
+<stop stop-color="#8bddda" stop-opacity=".42"/>
+<stop offset=".56" stop-color="#304f72" stop-opacity=".27"/>
+<stop offset="1" stop-color="#172b44" stop-opacity="0"/>
+</radialGradient>
+</defs>
+<g stroke-linecap="round" stroke-linejoin="round">
+<path d="M0 0H256V240H0Z" fill="url(#ground)"/>
+<ellipse cx="117" cy="102" rx="136" ry="122" fill="url(#halo)"/>
+<g fill="none" stroke="#8bddda" opacity=".18">
+<path d="M-34 140A146 146 0 0 1 178-6M-25 149A139 139 0 0 1 178 0" fill="none" stroke="#8bddda" stroke-width="1.1"/>
+<path d="M203 3Q242 22 258 60M219 0q21 13 37 34" fill="none" stroke="#8bddda" stroke-width="0.7"/>
+</g>
+<path d="M0 180 256 151V240H0Z" fill="#12202d"/>
+<path d="M0 187 256 157V240H0Z" fill="#24333c"/>
+<path d="M0 188 256 157M0 207 256 174M8 232 252 194" fill="none" stroke="#8bddda" stroke-width="1" opacity=".24"/>
+<path d="M0 199 56 192m-41 8 62-8m105-20 51-6m-33 36 52-8m-237 37 54-8m-16-9 14-2" fill="none" stroke="#8bddda" stroke-width="0.8" opacity=".29"/>
+<g transform="translate(30 84) scale(0.3)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#8bddda"/>
+</g>
+<g transform="translate(202 48) scale(0.4)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#8bddda"/>
+</g>
+<g transform="translate(215 94) scale(0.22000000000000003)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#8bddda"/>
+</g>
+<g transform="translate(49 140) scale(0.2)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#8bddda"/>
+</g>
+<g transform="translate(66 40) scale(0.16999999999999998)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#8bddda"/>
+</g>
+<g transform="translate(188 26) scale(0.18)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#8bddda"/>
+</g>
+<ellipse cx="130" cy="207" rx="62" ry="9" fill="#14202b"/>
+<ellipse cx="128" cy="207" rx="42" ry="5" fill="#0c1926"/>
+<g transform="rotate(10 132 122)">
+<path d="M111 55Q124 48 146 54L144 80Q145 85 159 96C174 105 192 120 194 142Q198 179 171 195C153 208 113 208 91 197C63 182 58 147 74 121Q83 105 102 93Q112 86 113 77Z" fill="url(#glass)" stroke="#17242b" stroke-width="3"/>
+<path d="M75 137C101 121 130 134 150 129Q171 124 187 133C200 168 174 194 147 198Q92 207 76 174Q68 157 75 137Z" fill="url(#brew)" stroke="#a9e5df" stroke-width="1.6"/>
+<path d="M76 138Q98 125 123 131T185 133Q166 142 133 138T76 141Z" fill="#b4f4e7"/>
+<path d="M151 142C171 141 179 148 168 155C159 161 137 161 121 168Q103 177 119 182C94 184 85 175 99 165C114 156 143 157 153 151Q161 146 151 142Z" fill="#6fd6d8"/>
+<path d="M148 144q24 1 12 10m-43 16q-18 5-11 10m19 6q18 4 35-5" fill="none" stroke="#d9fff0" stroke-width="1.8"/>
+<path d="M81 128Q88 112 105 102L110 103Q93 116 87 132Z" fill="#eef6de"/>
+<path d="M76 150q-2 16 5 26m101-29q3 18-8 32m-42 17q13 1 21-2" fill="none" stroke="#f0f5dd" stroke-width="2.3"/>
+<ellipse cx="168" cy="164" rx="2.4" ry="2.4" fill="#caf5df"/>
+<ellipse cx="92" cy="147" rx="1.8" ry="1.8" fill="#f0f7de"/>
+<path d="M114 57 115 47Q126 42 142 48L142 57Z" fill="url(#steel)" stroke="#17242b" stroke-width="2"/>
+<path d="M140 19C126 17 113 26 113 36Q113 49 128 51Q142 52 148 39Q136 46 128 37Q122 27 140 19Z" fill="url(#steel)" stroke="#17242b" stroke-width="2.1"/>
+<path d="M133 23q-13 4-13 13" fill="none" stroke="#fff1c8" stroke-width="1.5"/>
+<path d="M108 56q20.5 5 41 0v6q-20.5 6 -41 0Z" fill="url(#gold)" stroke="#17242b" stroke-width="1.7"/>
+<path d="M110 58q18.5 4 37 0" fill="none" stroke="#ffe7b6" stroke-width="1.2"/>
+<path d="M110 68q18.5 5 37 0v4q-18.5 6 -37 0Z" fill="url(#gold)" stroke="#17242b" stroke-width="1.7"/>
+<path d="M112 70q16.5 4 33 0" fill="none" stroke="#ffe7b6" stroke-width="1.2"/>
+<path d="M144 73q21 12 13 30" fill="none" stroke="#c5a16e" stroke-width="1.4"/>
+<path d="m157 98 5 8-5 10-5-8Z" fill="url(#gold)" stroke="#17242b" stroke-width="1.2"/>
+<g transform="translate(79 126) scale(0.6)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#fff2ce"/>
+</g>
+<g transform="translate(145 40) scale(0.38)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#fff2ce"/>
+</g>
+</g>
+</g>
+</svg>

@@ -1,4 +1,5 @@
 extends RefCounted
+const DisplayNumbers=preload("res://data/display_numbers.gd")
 const Enchantments=preload("res://core/card_enchantments.gd")
 const RestraintValue=preload("res://data/restraint_value.gd")
 const FirstTurnControl=preload("res://core/first_turn_control.gd")
@@ -55,8 +56,6 @@ const COMMAND_KEYS={
  "calm":{},
  "surrender":{},
  "item_use":{"item":"","target":""},
- "item_install":{"item":"","mount":"","operator":""},
- "item_retrieve":{"item":"","mount":"","operator":""},
  "item_discard":{"item":""},
  "finish_prepare":{},
  "finish_rest":{},
@@ -169,10 +168,6 @@ func _hook_kind_facts(_kind: String, _params: Dictionary) -> Array:
  return hook_facts()
 
 # 道具操作块：action_tail 与 pack 两个分支共用同一单元生产者。
-func _item_action_kind_facts(_kind: String, _params: Dictionary) -> Array:
- if _phase_branch() not in ["action_tail","pack"]: return []
- return item_action_facts()
-
 # 保留选择（retain／retain_skip 同一单元产物）。
 func _retain_kind_facts(_kind: String, _params: Dictionary) -> Array:
  if _phase_branch()!="pending_retain": return []
@@ -271,6 +266,7 @@ func _flask_kind_facts(_kind: String, _params: Dictionary) -> Array:
 
 func _flow_kind_facts(kind: String, _params: Dictionary) -> Array:
  if not _fact_source_domain(): return []
+ if RopeArt.struggle_only(self): return flow_facts() if kind=="end" else []
  if state.overloaded and state.phase in RelicEffects.COMBAT_PHASES: return _phase_facts() if kind=="end" else []
  if state.phase=="pack" or _phase_action_tail(): return flow_facts()
  return []
@@ -278,16 +274,7 @@ func _flow_kind_facts(kind: String, _params: Dictionary) -> Array:
 func _item_use_kind_facts(_kind: String, params: Dictionary) -> Array:
  var item=_item(String(params.get("item","")))
  if item.is_empty(): return []
- var op=Tools.operation(item.type)
- if not state.relic_bundle.is_empty() or state.phase=="departure":
-  return Consumables.use_facts(self,item) if op=="buff" and Consumables.outside_battle(self,item.type) else []
- if not command_domain_ready(): return []
- if op in ["buff","escape"]:
-  if item_action_block(): return item_action_facts(item.id)
-  return Consumables.use_facts(self,item) if op=="buff" and Consumables.outside_battle(self,item.type) else []
- # 非 buff／escape 的操作（开锁／切割）：行只由道具操作块产出；操作块不成立即无行（K2 清除整表回落，
- # 与改动前的 _fact_source() 在 kind+params 过滤后同集——整表里这些行也只来自 item_action_facts）。
- return item_action_facts(item.id) if item_action_block() else []
+ return [Cards.ItemCards.conversion(self,item)] if command_domain_ready() else []
 
 # A read batch owns its indexes; commands and subsequent views never reuse them.
 # Speculative installation replaces state, so it must use live queries instead.
@@ -333,6 +320,7 @@ func _build_equipment_read_index() -> void:
   return
  _equipment_read.pieces=pieces
  _equipment_read.slots=_materialize_slot_edge(pieces)
+ _equipment_read.hogtie=_find_worn_hogtie(_equipment_read.slots.get("wrist",[]))
  _equipment_read.roots=_materialize_root_edge()
  _equipment_read.links=_materialize_link_edge()
  _equipment_read.anchors=_materialize_anchor_list()
@@ -487,10 +475,20 @@ const Links = preload("res://data/links.gd")
 const Composites = preload("res://data/composites.gd")
 const Enemies = preload("res://data/enemies.gd")
 const EnemyPlans = preload("res://core/enemy_plans.gd")
+const ReinforcedRope=preload("res://core/reinforced_rope.gd")
+const DroneOperator=preload("res://core/drone_operator.gd")
+const Detective=preload("res://core/succubus_detective.gd")
+const TapeMass=preload("res://core/tape_mass.gd")
+const AntiDrone=preload("res://core/anti_mage_drone.gd")
+const BindingBoxPlus=preload("res://core/binding_box_plus.gd")
+const ManaSmuggler=preload("res://core/mana_smuggler.gd")
+const Mechs=preload("res://core/restraint_mechs.gd")
+const EquipmentEnchantments=preload("res://core/equipment_enchantments.gd")
 const Puppets=preload("res://core/puppet_enemy.gd")
 const RopeArt=preload("res://core/rope_master.gd")
 var _rope_observing=false
 var _rope_trial=false
+var _capture_onset_equipment=false
 const IronMan=preload("res://core/iron_man.gd")
 const DemoExit=preload("res://core/demo_exit.gd")
 const SlipMotion=preload("res://core/slip_motion.gd")
@@ -517,6 +515,8 @@ const Prison = preload("res://core/prison.gd")
 const Snapshot=preload("res://core/snapshot.gd")
 const ActionCopy=preload("res://core/action_copy.gd")
 var _copy_context: Dictionary={}
+# Pins the rope until multi-hit resolution finishes, including the breaking hit.
+var _recovery_target: String=""
 # docs/transition-pipeline.md「接口」：迁移日志（进程内、只读诊断）。元素＝已声明的 Transition kind。
 # 不进 state、不进存档、不进 View；只为后续（固定点存档）留出挂点，本片不消费。
 var _transition_log: Array[String]=[]
@@ -528,7 +528,8 @@ var _magic_failed=false
 var state: Dictionary = {}
 var _scene_start: Dictionary = {}
 
-func _init(run_seed: int = 20260906, practice: bool=false, practice_kind: String="equipment", initialize: bool=true, chastity_locks_enabled: bool=false, chastity_lock_chance: int=25, cursed_plate_start: bool=false, cursed_plate_masochist_mode: bool=false, character_id: String="original") -> void:
+func _init(run_seed: int = 20260906, practice: bool=false, practice_kind: String="equipment", initialize: bool=true, chastity_locks_enabled: bool=false, chastity_lock_chance: int=25, cursed_plate_start: bool=false, cursed_plate_masochist_mode: bool=false, character_id: String="original", elite_magical_girl_start: bool=false) -> void:
+ Cards.ItemCards.register(self)
  Character.register(self)
  SpecialEquipment.ensure_catalog()
  Content.ensure(self)
@@ -538,7 +539,7 @@ func _init(run_seed: int = 20260906, practice: bool=false, practice_kind: String
   "round":0, "tick":0, "weakness_turns":0, "order":"first", "posture":"stand", "energy":B.ENERGY, "mana":B.MANA_MAX,
   "calm_uses":0,"shop_removals":0,"shop_refreshes":0,
   "mana_max":B.MANA_MAX,"flask_mana":0.0,"flask_deposits":0,"combat":{"serial":0,"active":false,"first_turn":false,"turn":0,"energy":0,"mana_spent":0.0,"mana_used":false,"attack_uses":{},"attack_started":{},"successful_spells":[]},"relic_seen":[],"battle_relic_drop":"","boss_relic_options":[],
-  "strength":0.0,"dexterity":0.0,"wall":"rough","wall_distance":0, "equipment":[], "next_equipment":1,"links":[],"next_link":1,"composites":[],"next_composite":1,"practice_kind":practice_kind,
+  "strength":0.0,"dexterity":0.0,"wall":"rough","wall_distance":0, "equipment":[], "next_equipment":1,"links":[],"next_link":1,"composites":[],"next_composite":1,"practice_kind":Tower.current_practice(practice_kind),
   "special_equipment":[],"chastity_locks_enabled":chastity_locks_enabled,"chastity_lock_chance":clampi(chastity_lock_chance,0,100),"cursed_plate_masochist_mode":cursed_plate_masochist_mode and chastity_locks_enabled,"chastity_climax_factor":3,"slip_ejaculation_turns":0,"slip_ejaculation_force_last":false,"pressure":0.0,"pressure_sources":[],"overloaded":false,"overload_energy":0,"overload_count":0,"overload_total":0,
   "ditto_form":"","cursed_plate_released":false,"relic_bundle":{},"relics":["ember"],"relic_used":{},"relic_pending":{},"relic_counters":{},"ribbon_tick":-1,"card_chain":{},"retain_left":0,"retain_draw_after":0,"reward_options":[],"rest_cards":[],"room_event":{},"security":0,"capture":{},"guard_bind":{},"prison":{},"tower_generation":0,"tower_start_pending":false,
   "enemies":[], "deck":[], "draw":[], "hand":[], "play":[], "discard":[], "exhaust":[], "powers":[], "card_buffs":[], "card_buff_uses":{}, "evasion":0, "rare_offset":Cards.Rules.RARE_OFFSET_INITIAL, "next_card":1,"draw_serial":0,
@@ -548,7 +549,7 @@ func _init(run_seed: int = 20260906, practice: bool=false, practice_kind: String
   "room":"entrance","map_region":"tower","last_strong_group":"","completed_rooms":[],"journey":{},"travel_turns":0,"traversed_edges":[],
   "rest_left":0,"hook_uses":0,"items":[],"next_item":1,"practice":practice,"room_encounters":{},"next_enemy":1,"route_history":[]}
  state.departure={}
- state.demo_cycle=0;state.demo_finished=false
+ state.demo_cycle=0;state.demo_lap=1;state.demo_finished=false
  state.event_seen=[]
  state.rooms=[]
  for domain in B.RNG_SALTS: state.rng[domain]=0
@@ -567,9 +568,11 @@ func _init(run_seed: int = 20260906, practice: bool=false, practice_kind: String
    state.deck.append(_make_card("slip"))
   state.deck.append(_make_card("ease"))
   state.deck.append(_make_card("magic_slip"))
+  state.deck.append(_make_card("dual_chant"))
+  if elite_magical_girl_start and not practice: state.deck.append(_make_card("henshin"))
+ RelicEffects.gain(self,"return_seal")
  if practice: _start_practice()
  elif room_data(state.room).kind=="entry":
-  _gain_tool("return_seal")
   _apply_transition("setup_init",{"phase":"map"})
   state.energy=0;state.wall="normal";state.wall_distance=1;state.draw=state.deck.duplicate(true)
   Departure.start(self,cursed_plate_start and state.chastity_locks_enabled)
@@ -610,7 +613,7 @@ func _restart_tower(from_exit: bool=false) -> void:
  state.travel_turns=0;state.room_event={};state.prison={};state.capture={}
  state.prepare_left=0;state.rest_left=0;state.rest_cards=[];state.hook_uses=0
  state.reward_options=[];state.battle_item_drop=""
- state.battle_relic_drop="";state.boss_relic_options=[];state.battle_flask_drop=0;state.reward_claimed={}
+ state.battle_relic_drop="";state.bonus_relic_drop="";state.boss_relic_options=[];state.battle_flask_drop=0;state.reward_claimed={}
  state.enemies=[]; _apply_transition("tower_restart",{"phase":"map"}); state.energy=0
  if not from_exit:
   _emit("event","已离开监狱。请选择新塔路第10—11层的任一非休息、非宝箱区域作为起点；保留当前装备、卡组、遗物与资源。新地图的普通战斗全部使用强怪池。",{"new_tower":{"previous_seed":previous_seed,"seed":next_seed}})
@@ -634,6 +637,7 @@ func room_data(id: String) -> Dictionary:
 
 func _make_card(type: String) -> Dictionary:
  var card = {"uid": "card_%d" % state.next_card, "type":type, "retain_until":-1}
+ if Cards.Rules.SPECS[type].has("remove_uses"): card.remove_left=Cards.Rules.SPECS[type].remove_uses
  state.next_card += 1
  return card
 
@@ -652,25 +656,29 @@ func _gain_card(type: String, original: Dictionary={}, to_hand: bool=false) -> v
  if not Character.allowed_card(self,type): return
  var card=original.duplicate(true)
  card.merge(_make_card(type),true)
+ card.erase("exhaust_spent")
+ Enchantments.clear_nexus_turn(card)
+ if card.has("remove_left") and original.has("remove_left"): card.remove_left=original.remove_left
  state.deck.append(card.duplicate(true))
  if to_hand and state.phase=="reward": card.retain_until=state.tick+1
  if to_hand and _put_card_in_hand(card): return
  state.discard.append(card)
  if to_hand: _emit("event","手牌已满，「%s」加入弃牌堆。" % B.CARD_NAMES[type])
 
-func _put_card_in_hand(card: Dictionary) -> bool:
+func _put_card_in_hand(card: Dictionary, trigger_draw: bool=true) -> bool:
  if state.hand.size()>=B.HAND_LIMIT: return false
  state.draw_serial+=1;card.draw_serial=state.draw_serial
  card.draw_free=not Cards.has_escape_target(self,card.type)
- RopeArt.drawn(self,card)
+ if trigger_draw: RopeArt.drawn(self,card)
  state.hand.append(card);_card_motion("draw",card)
  return true
 
-func _gain_temporary_card(type: String) -> Dictionary:
+func _gain_temporary_card(type: String, into_draw: bool=false) -> Dictionary:
  if not B.CARD_TRAITS.get(type,{}).get("temporary",false): return {}
  var card=_make_card(type)
  state.deck.append(card.duplicate(true))
- state.discard.append(card)
+ if into_draw: state.draw.insert(_random_index("deck",state.draw.size()+1),card)
+ else: state.discard.append(card)
  return card
 
 func _gain_tool(type: String) -> void:
@@ -687,14 +695,8 @@ func _start_practice() -> void:
   _install_template(entry.template,entry.slot,entry.durability,Equipment.maximum(entry.get("grade",1)),entry.locked,"practice",entry.get("grade",1),-1,entry.get("material_variant",0),entry.get("point",""))
  for entry in spec.get("shoulders",[]):
   Shoulders.install(self,state.equipment[entry.host],entry.template,entry.grade,"practice")
- for entry in spec.get("links",[]):
-  _install_link(state.equipment[entry.a].id,state.equipment[entry.b].id,entry.durability,"practice",1,[state.equipment[entry.blocked_end].id])
  for entry in spec.get("composites",[]):
   _install_assembly(entry.get("kind","glove"),entry.variant,"practice",entry.get("grade",2),entry.tier,entry.get("parts",{}),entry.get("straps","straight"),state.equipment[entry.attach].id if entry.has("attach") else "")
- for entry in spec.get("component_links",[]):
-  var a=state.composites[entry.a_root].components.filter(func(e):return e.part==entry.a_part)[0]
-  var b=state.composites[entry.b_root].components.filter(func(e):return e.part==entry.b_part)[0]
-  _install_link(a.id,b.id,entry.durability,"practice",1,[a.id] if entry.get("blocks_a",false) else [],entry.slots)
  for type in spec.items: _gain_tool(type)
  for item in spec.get("special_equipment",[]): _install_special(item.type,item.slot,item.get("tier",0))
  state.pressure=spec.get("pressure",0.0)
@@ -743,7 +745,7 @@ func _shuffle(cards: Array, draw_cycle: bool=false) -> void:
   var tmp = cards[i]
   cards[i] = cards[j]
   cards[j] = tmp
- if draw_cycle: RelicEffects.shuffled(self)
+ if draw_cycle and not RopeArt.struggle_only(self): RelicEffects.shuffled(self)
 
 func display_round() -> int:
  if state.phase in ["prison","inspection"]: return int(state.prison.get("turn",0))
@@ -777,12 +779,17 @@ func _draw(amount: int, filter: Dictionary={}) -> void:
    _shuffle(state.draw,true)
    if state.draw.is_empty(): break
    _card_motion("shuffle")
-  var index=state.draw.size()-1
-  while index>=0 and not Cards.Rules.matches_draw_filter(state.draw[index].type,filter): index-=1
-  if index<0: break
-  var card=state.draw[index]
-  state.draw.remove_at(index)
-  if _put_card_in_hand(card): Enchantments.drawn(self,card)
+  var card={}
+  for pile in ([state.draw] if filter.is_empty() else [state.draw,state.discard]):
+   for index in range(pile.size()-1,-1,-1):
+    if Cards.Rules.matches_draw_filter(pile[index].type,filter):
+     card=pile.pop_at(index)
+     break
+   if not card.is_empty(): break
+  if card.is_empty(): break
+  if _put_card_in_hand(card):
+   Cards.drawn_status(self,card.type)
+   if not RopeArt.struggle_only(self): Enchantments.drawn(self,card)
 
 func _discard_end(end_session: bool=false) -> void:
  state.ribbon_tick=-1
@@ -808,6 +815,7 @@ func _start_battle() -> void:
  state.sure_cast=false
  state.battle_item_drop=""
  state.battle_relic_drop=""
+ state.bonus_relic_drop=""
  state.boss_relic_options=[]
  RelicEffects.clear_temporary(self)
  Pressure.clear_penalties(self)
@@ -824,17 +832,20 @@ func _start_battle() -> void:
  state.heavy_used = false
  state.pending_retain = false
  if room.has("encounter_choices") and not room.has("encounter_selected"):
-  var fought=state.completed_rooms.filter(func(id):
-   var previous=room_data(id)
-   return previous.kind=="battle" and not previous.get("boss",false) and Enemies.ENCOUNTERS.get(state.room_encounters.get(id,""),{}).get("rank","")!="elite").size()
-  var early_battle=room.get("pool","")!="strong" and fought<Tower.WEAK_ENCOUNTERS
-  room.encounter_selected="weak" if early_battle or Enemies.FirstFloor.choices("strong").is_empty() else "strong"
+  var previous_fights=state.completed_rooms.map(room_data).filter(func(previous):
+   return previous.kind=="battle" and not previous.get("boss",false) and Enemies.ENCOUNTERS.get(state.room_encounters.get(previous.id,""),{}).get("rank","")!="elite")
+  var fought=previous_fights.size()
+  var early_battle=room.get("pool","")!="strong" and fought<Tower.weak_limit(state.demo_cycle)
+  var pool=Tower.strong_choices(state.demo_cycle,previous_fights,state.last_strong_group)
+  room.encounter_selected="weak" if early_battle or pool.is_empty() else "strong"
   if room.encounter_selected=="strong":
-   var pool=Enemies.FirstFloor.choices("strong")
-   var choices=pool.filter(func(id):return id!=state.last_strong_group)
-   if choices.is_empty(): choices=pool
-   room.encounter_choices.strong=choices[_random_index("encounter",choices.size())]
+   room.encounter_choices.strong=pool[_random_index("encounter",pool.size())]
    state.last_strong_group=room.encounter_choices.strong
+  elif state.demo_cycle>0:
+   var choices=Tower.weak_choices(self,previous_fights)
+   var pick=choices[_random_index("encounter",choices.size())]
+   room.encounter_choices.weak=pick.id
+   if pick.has("members"): room.enemy_members=pick.members.duplicate(true)
   state.room_encounters[room.id]=room.encounter_choices[room.encounter_selected]
  var encounter=Enemies.ENCOUNTERS[state.room_encounters[room.id]]
  if encounter.has("weak_strength") and not room.has("enemy_members"):
@@ -852,6 +863,7 @@ func _start_battle() -> void:
  var names: Array[String]=[]
  for e in state.enemies: names.append(e.name)
  _emit("event","进入"+room.name+"。"+"、".join(names)+"出现在前方。")
+ Mechs.enter(self)
  if room.get("boss",false): RelicEffects._mana_hook(self,"boss_entry_mana","进入Boss房")
  elif Enemies.ENCOUNTERS[state.room_encounters[room.id]].get("rank","")=="elite": RelicEffects._mana_hook(self,"elite_entry_mana","进入精英房")
  _start_round()
@@ -886,10 +898,15 @@ func _append_enemies(members: Array, inherited_health: bool=false) -> Array:
   counts[type]=counts.get(type,0)+1
   var spec=Enemies.TYPES[type]
   var character_factor=1.3 if not inherited_health and state.room_encounters.get(state.room,"")=="iron_man_solo" and Character.active(self) else 1.0
-  var hp=float(member.get("hp",spec.hp))*(1.0 if inherited_health else DemoExit.health_multiplier(state)*character_factor)
-  if not inherited_health: hp+=Prison.health_bonus(self,state)
+  var hp=float(member.get("hp",spec.hp))
+  var security_hp=0.0
+  if not inherited_health:
+   if spec.has("hp_rolls") and not member.has("hp"): hp=spec.hp+_random_index("enemy",spec.hp_rolls)
+   security_hp=Prison.health_bonus(self,state)
+   hp=hp*DemoExit.health_multiplier(state,spec.get("debut_act",1))*character_factor+security_hp
   var name=member.get("name",spec.name)+("（%d）" % counts[type] if counts[type]>1 or members.filter(func(m):return m.type==type).size()>1 else "")
   state.enemies.append({"id":"enemy_%d" % state.next_enemy,"type":type,"name":name,"grade":member.grade,"hp":hp,"max_hp":hp,"stage":1,"ready_layers":0,"intent":{},"gone":false,"defeated":false,"pressure_gain":member.get("pressure",0.0)})
+  if spec.has("hp_rolls"): state.enemies[-1].spawn_health_bonus=security_hp
   if spec.has("visual_pool"):
    state.enemies[-1].visual_variant=spec.visual_pool[_random_index("enemy_visual",spec.visual_pool.size())]
   state.next_enemy+=1
@@ -904,6 +921,13 @@ func _append_enemies(members: Array, inherited_health: bool=false) -> Array:
    state.enemies[-1].constriction=0
    state.enemies[-1].next_climax_capture=state.overload_total+spec.climax_capture_threshold
   if spec.behavior=="iron_man": IronMan.initialize(state.enemies[-1])
+  if type==ReinforcedRope.TYPE: ReinforcedRope.initialize(state.enemies[-1])
+  if type in [DroneOperator.TYPE,DroneOperator.DRONE]: DroneOperator.initialize(state.enemies[-1])
+  if type==Detective.TYPE: state.enemies[-1].detective_cuffs={}
+  if type==TapeMass.TYPE: TapeMass.initialize(self,state.enemies[-1])
+  if type==BindingBoxPlus.TYPE: BindingBoxPlus.initialize(state.enemies[-1])
+  if type==ManaSmuggler.TYPE: ManaSmuggler.initialize(state.enemies[-1],member.get("thefts",Enemies.ENCOUNTERS[ManaSmuggler.ENCOUNTER].members[0].thefts))
+  if Mechs.handles(state.enemies[-1]): Mechs.initialize(state.enemies[-1])
   if type in [RopeArt.MASTER,RopeArt.ASSISTANT]: RopeArt.initialize(self,state.enemies[-1])
   added.append(state.enemies[-1])
  IronMan.link_supports(added)
@@ -911,10 +935,32 @@ func _append_enemies(members: Array, inherited_health: bool=false) -> Array:
   if Enemies.TYPES[enemy.type].behavior=="puppeteer": Puppets.summon(self,enemy)
  return added
 
+func _enemy_hit_multiplier(enemy: Dictionary, damage_type: String) -> float:
+ var multiplier=Enemies.damage_multiplier(self,enemy.type,damage_type)
+ if damage_type=="physical" and Cards.vulnerable(self,enemy.id)>0: multiplier*=Cards.Rules.VULNERABLE_FACTOR
+ return multiplier
+
+func _absorb_enemy_hit(enemy: Dictionary, damage: float, damage_type: String) -> float:
+ if not enemy.has("mech_armor") or damage<=0.0: return damage
+ if damage_type=="magic" and Mechs.immune(self,enemy):
+  _emit("mechanical",enemy.name+"免疫了这次魔法伤害。",{"enemy":enemy.id,"magic_immune":true})
+  return 0.0
+ var armor_before=float(enemy.mech_armor)
+ if armor_before<=0.0: return damage
+ var absorbed=minf(damage,armor_before)
+ enemy.mech_armor=armor_before-absorbed
+ var message="%s的格挡吸收%s点伤害，剩余%s。" if enemy.type==TapeMass.TYPE else "%s的护甲吸收%s点伤害，剩余%s。"
+ _emit("mechanical",message % [enemy.name,number(absorbed),number(enemy.mech_armor)],{"enemy":enemy.id,"armor":{"absorbed":absorbed,"remaining":enemy.mech_armor}})
+ if enemy.mech_armor<=0.0 and enemy.intent.get("kind","")=="mech_fit" and enemy.get("acted_round",-1)!=state.round:
+  enemy.intent=Mechs.plan(self,enemy)
+ return damage-absorbed
+
 func _damage_enemy(e: Dictionary, amount: float, damage_type: String, label: String, details: Dictionary={}, damage_group: Variant=null) -> void:
  if e.is_empty() or e.gone: return
  if damage_group==null: damage_group={}
- var dealt=amount*Enemies.damage_multiplier(self,e.type,damage_type)*(1.0 if details.has("puppet_transfer") else Character.damage_multiplier(self))
+ var dealt=amount*_enemy_hit_multiplier(e,damage_type)*(1.0 if details.has("puppet_transfer") else Character.damage_multiplier(self))
+ dealt=Enemies.cap_hit(e,dealt)
+ dealt=_absorb_enemy_hit(e,dealt,damage_type)
  var health_scale=DemoExit.health_multiplier(state)
  var cap=Enemies.barrier_limit(e,health_scale)
  if is_finite(cap):
@@ -929,13 +975,17 @@ func _damage_enemy(e: Dictionary, amount: float, damage_type: String, label: Str
  var record={"damage":dealt,"damage_type":damage_type,"enemy":e.id}
  record.merge(details)
  _emit("mechanical","%s对%s造成%s点%s伤害，剩余生命%s。" % [label,e.name,number(dealt),"魔法" if damage_type=="magic" else "",number(e.hp)],record)
+ if e.hp>0: TapeMass.after_hit(self,e,damage_type,details)
  if e.hp<=0: _defeat_enemy(e)
  elif Enemies.TYPES[e.type].has("split_threshold") and e.hp<=e.max_hp*Enemies.TYPES[e.type].split_threshold: _split_enemy(e,e.hp)
 
 func _defeat_enemy(e: Dictionary) -> void:
  if e.gone: return
+ state.combat.get("mana_listeners",{}).erase(e.id)
  e.gone=true;e.defeated=true;e.intent={};e.erase("turn_install_layers")
  _emit("event",e.name+"被击倒。")
+ if e.type in [DroneOperator.TYPE,DroneOperator.DRONE]: DroneOperator.defeat(self,e)
+ if e.type==ManaSmuggler.TYPE: ManaSmuggler.recover(self,e)
  Puppets.dismiss(self,e)
  IronMan.defeat_supports(self,e)
  RopeArt.death(self,e)
@@ -963,26 +1013,31 @@ func _spawn_children(e: Dictionary, members: Array) -> void:
  _emit("event",e.name+"散开，分裂成"+"、".join(children.map(func(child):return child.name))+"。它们从下一回合开始行动。",{"spawned":children.map(func(child):return child.id)})
  _copy_context=previous
 
-func _start_round() -> void:
+func _start_round(interrupted_count: int=0) -> void:
  if _finish_if_saturated(): return
  state.round += 1
  for enemy in state.enemies:
   if Enemies.TYPES[enemy.type].has("damage_cap"): enemy.barrier_damage=0.0
+  Mechs.begin_round(self,enemy)
  state.order = "last" if state.posture == "lie" or relic_value("battle_force_last")>0 else "first"
  if RopeArt.hogtied(self): state.order="last"
  if state.slip_ejaculation_force_last:
   state.order="last"
   state.slip_ejaculation_force_last=false
  state.heavy_used = false
- _begin_player_turn()
+ _begin_player_turn(interrupted_count)
  if _finish_if_saturated(): return
  CaptureBind.observe(self)
  for e in state.enemies:
   if not e.gone and e.intent.is_empty():
    e.intent = _plan(e)
- _emit("event",("第%d回合：%s。" if can_observe_intents() else "第%d回合：%s，视线受阻，无法观察敌人意图。") % [state.round,"你先行动" if state.order == "first" else "敌人先行动"])
+ var order_text="你先行动" if state.order=="first" else "敌人先行动"
+ _emit("event",("第%d回合：%s。" if can_observe_intents() else "第%d回合：%s，视线受阻，无法观察敌人意图。") % [state.round,order_text],{"round_start":{"round":state.round,"order_text":order_text,"visible_intents":can_observe_intents()}})
  if state.order == "last":
   _enemy_phase()
+
+static func rest_turns(s: Dictionary) -> int:
+ return B.REST_TURNS+int(Relics.value(s.relics,"rest_turns",s.relic_counters,s.get("ditto_form","")))
 
 func preparation_turns() -> int:
  return B.PREPARATION_TURNS+int(relic_value("preparation_turns"))
@@ -996,7 +1051,7 @@ func _start_preparation() -> void:
  state.prepare_left = preparation_turns()
  _prepare_round()
 
-func _begin_player_turn() -> void:
+func _begin_player_turn(interrupted_count: int=0) -> void:
  state.ribbon_tick=-1
  state.calm_uses=0
  # Shared resource/draw boundary; each phase owns its timer and side effects.
@@ -1004,14 +1059,15 @@ func _begin_player_turn() -> void:
  # Capture pending draws before this turn can queue another climax reward.
  var relic_draw=RelicEffects.turn_draw(self)
  ManaFlask.reset_turn(self)
- state.overloaded=false
- state.overload_count=0
+ state.overloaded=interrupted_count>0
+ state.overload_count=interrupted_count
  var slip_penalty=1 if state.slip_ejaculation_turns>0 else 0
  state.energy = state.combat.energy+maxi(0,max_energy() + state.next_energy-state.overload_energy-slip_penalty)
+ if state.overloaded: state.energy=0
  if state.slip_ejaculation_turns>0:
   var mana_before=state.mana
   var lost=minf(mana_before,B.SLIP_EJACULATION_MANA)
-  state.mana-=lost
+  set_own_mana(state.mana-lost)
   state.slip_ejaculation_turns-=1
   _emit("event","滑精：损失%s魔力，剩余%d回合。" % [number(lost),state.slip_ejaculation_turns],{"slip_ejaculation_tick":true,"mana_before":mana_before,"mana_lost":lost,"mana_after":state.mana,"remaining":state.slip_ejaculation_turns})
  state.combat.energy=0
@@ -1028,6 +1084,7 @@ func _begin_player_turn() -> void:
  Pressure.tick(self,"turn_start")
  _tick_special("turn_start")
  RelicEffects.flush(self)
+ if interrupted_count>0: _discard_end()
  FirstTurnControl.begin_turn(self)
 
 func _prepare_round() -> void:
@@ -1040,7 +1097,7 @@ func _start_rest() -> void:
  state.wall=room_data(state.room).wall
  state.wall_distance=0
  state.enemies=[]
- state.rest_left=B.REST_TURNS
+ state.rest_left=rest_turns(state)
  Enchantments.prepare(self)
  state.hook_uses=B.REST_HOOK_USES
  state.rest_cards=reward_offer(Cards.Rules.REWARDS.filter(func(id):return Cards.Rules.SPECS[id].rarity=="uncommon"))
@@ -1048,6 +1105,7 @@ func _start_rest() -> void:
 
 func _begin_rest() -> void:
  if state.rest_left<=0:
+  if RopeArt.hogtied(self): _apply_transition("rest_start",{"phase":"rest"})
   _finish_preparation()
   return
  _apply_transition("rest_start",{"phase":"rest"})
@@ -1147,6 +1205,7 @@ func _finish_battle(end_kind: String="victory") -> void:
  var event_battle=Events.active_battle(self)
  CaptureBind.clear_bind(self,true)
  Pressure.cleanup(self)
+ Cards.finish_battle_effects(self)
  if event_battle:
   _apply_transition(end_transition,{"phase":"event"})
   state.reward_count+=1
@@ -1174,7 +1233,7 @@ func _finish_battle(end_kind: String="victory") -> void:
 # reinforce equipment any more.
 func _battle_end_reason() -> String:
  if state.phase!="battle": return ""
- if _all_gone(): return "victory"
+ if _all_gone() or state.enemies.any(func(enemy):return enemy.type==DroneOperator.TYPE and enemy.defeated): return "victory"
  if room_data(state.room).get("requires_defeat",false) or Events.battle_requires_defeat(self): return ""
  # Human/mechanical enemies announce arrest through the next normal intent;
  # exhausting equipment options is never a victory against these sources.
@@ -1191,8 +1250,10 @@ func _finish_if_saturated() -> bool:
  if EnemyPlans.long_battle_limit(self):
   for enemy in state.enemies:
    if enemy.gone: continue
+   if enemy.type in [AntiDrone.TYPE,DroneOperator.DRONE] and CaptureBind.capture_ready(state): continue
    if not Enemies.TYPES[enemy.type].get("humanoid",false):
-    enemy.gone=true;enemy.intent={};enemy.erase("turn_install_layers")
+    _depart_enemy(enemy)
+    enemy.intent={}
     _emit("event",enemy.name+"离开战场。",{"long_battle_departure":enemy.id})
    elif CaptureBind.kind(self,enemy)=="" and enemy.intent.get("kind","")!="capture":
     # Switching to arrest must not undo an interruption already paid for this turn.
@@ -1207,17 +1268,29 @@ func _finish_if_saturated() -> bool:
  if end_kind!="saturated": return false
  for enemy in state.enemies:
   if enemy.gone: continue
-  enemy.gone=true
+  _depart_enemy(enemy)
   enemy.intent={}
-  enemy.erase("turn_install_layers")
  _finish_battle("saturated")
  return true
+
+func _depart_enemy(e: Dictionary, remove_install: bool=true) -> void:
+ if e.gone: return
+ if e.type==ReinforcedRope.TYPE: ReinforcedRope.depart(self,e)
+ if e.type==BindingBoxPlus.TYPE: BindingBoxPlus.depart(self,e)
+ if e.type==ManaSmuggler.TYPE: ManaSmuggler.depart(self,e)
+ state.combat.get("mana_listeners",{}).erase(e.id)
+ e.gone=true
+ if remove_install: e.erase("turn_install_layers")
 
 func _all_gone() -> bool:
  for e in state.enemies:
   if not e.gone:
    return false
  return true
+
+func enemy_target_reason(enemy: Dictionary, all_targets: bool) -> String:
+ var reason=Puppets.taunt_reason(self,enemy,all_targets)
+ return reason if reason!="" else RopeArt.target_reason(self,enemy,all_targets)
 
 func _enemy(id: String) -> Dictionary:
  for e in state.enemies:
@@ -1246,6 +1319,15 @@ func _equipment_name(target: Dictionary) -> String:
  if target.template=="link_rope" or target.has("root_id"): return target.name
  var items=equipment_at(target.slot)
  return "第%d条%s" % [items.find(target)+1,target.name] if items.size()>1 else target.name
+
+func worn_hogtie() -> Dictionary:
+ if _equipment_read_active() and _equipment_read.has("hogtie"): return _equipment_read.hogtie
+ return _find_worn_hogtie(state.equipment)
+
+func _find_worn_hogtie(pieces: Array) -> Dictionary:
+ for piece in pieces:
+  if Equipment.is_hogtie(piece.template) and piece.durability>0: return piece
+ return {}
 
 func equipment_at(slot: String) -> Array:
  if _equipment_read_active():
@@ -1439,12 +1521,14 @@ func _install_special(type: String, slot: String, tightness: int=0) -> Dictionar
   # Resolve ownership before removing roots, so component removal is order-independent.
   var displaced=state.special_equipment.filter(func(old):return _chastity_displaces(type,old))
   for old in displaced:
+   CaptureBind.removed(self,old.id,false)
    state.special_equipment.erase(old)
    _emit("event",old.name+"被新的平板锁替换并取下。")
  var item={"id":"special_%d" % state.next_equipment,"template":"special","type":type,"slot":design.slots[0],"coverage":design.slots.duplicate(),"contact_slots":design.slots.duplicate(),"remaining":SpecialEquipment.TYPES[type].duration,"name":SpecialEquipment.TYPES[type].name,"grade":design.grade,"maximum":design.maximum,"durability":design.maximum*design.ratio,"locked":SpecialEquipment.is_chastity_type(type),"layer":0,"material":design.material,"variant":0,"owner_id":""}
  if tightness>0: item.durability=design.maximum*[0.0,0.4,0.8,1.0][tightness]
  if SpecialEquipment.supports_reinforcement(item): item.reinforcement_state="none"
  state.next_equipment+=1
+ _prepare_worn_piece(item)
  state.special_equipment.append(item)
  _equipment_feedback(item,item.durability,true)
  if SpecialEquipment.supports_reinforcement(item) and tier(item.durability,item.maximum)==3: _attach_special_reinforcement(item)
@@ -1469,6 +1553,7 @@ func _attach_special_reinforcement(owner: Dictionary) -> Dictionary:
  owner.reinforcement_state="active"
  var strap={"id":"special_%d" % state.next_equipment,"template":"special","type":type,"slot":design.slots[0],"coverage":design.slots.duplicate(),"contact_slots":design.slots.duplicate(),"remaining":0,"name":SpecialEquipment.TYPES[type].name,"grade":design.grade,"maximum":design.maximum,"durability":design.maximum,"locked":false,"layer":0,"material":design.material,"variant":0,"owner_id":owner.id}
  state.next_equipment+=1;state.special_equipment.append(strap)
+ _prepare_worn_piece(strap)
  _equipment_feedback(strap,strap.durability,true)
  _emit("event",owner.name+"达到紧度3档，自动扣上了"+strap.name+"。")
  return strap
@@ -1505,11 +1590,14 @@ func _climax_special_slip(count: int) -> bool:
   for item in state.special_equipment.duplicate():
    if item.durability<=0.000001 or SpecialEquipment.TYPES[item.type].get("climax_slip_base",0.0)<=0: continue
    var tightness=tier(item.durability,item.maximum)
-   var damage=SpecialEquipment.climax_slip_damage(item,tightness)
+   var multiplier=_slip_power_multiplier()
+   var damage=SpecialEquipment.climax_slip_damage(item,tightness)*multiplier
    var before=item.durability
    _apply_equipment_damage(item,damage,"slip",true,false)
    var actual=before-item.durability
-   _emit("mechanical","高潮牵动%s：%s－%d－%d＝%s点固定滑脱伤害；耐久%s→%s。" % [item.name,number(SpecialEquipment.TYPES[item.type].climax_slip_base),tightness,item.grade,number(damage),number(before),number(item.durability)],{"climax_slip":{"target":item.id,"climax":climax+1,"base":SpecialEquipment.TYPES[item.type].climax_slip_base,"tightness":tightness,"grade":item.grade,"damage":actual,"before":before,"after":item.durability}})
+   var formula="（%s－%d－%d）" % [number(SpecialEquipment.TYPES[item.type].climax_slip_base),tightness,item.grade]
+   if multiplier!=1.0: formula+="×"+DisplayNumbers.factor(multiplier)
+   _emit("mechanical","高潮牵动%s：%s＝%s点固定滑脱伤害；耐久%s→%s。" % [item.name,formula,number(damage),number(before),number(item.durability)],{"climax_slip":{"target":item.id,"climax":climax+1,"base":SpecialEquipment.TYPES[item.type].climax_slip_base,"tightness":tightness,"grade":item.grade,"damage":actual,"before":before,"after":item.durability}})
    released=released or (before>0 and item.durability<=0.000001)
  return released
 
@@ -1518,6 +1606,8 @@ func _install_assembly(kind: String, variant: String, source: String, grade: int
  if root.is_empty(): return {}
  Binding.cancel_for_assembly(self,root.components)
  state.composites.append(root)
+ for piece in root.components: _prepare_worn_piece(piece)
+ RelicEffects.restraint_worn(self,root.components,source)
  for piece in root.components: _equipment_feedback(piece,piece.durability,true)
  state.next_composite+=1
  RelicEffects._mana_hook(self,"restraint_mana","佩戴"+root.name)
@@ -1589,6 +1679,7 @@ func _prepare_link(a: String, b: String, durability: float, source: String, grad
 func _install_link(a: String, b: String, durability: float, source: String, grade: int=1, blocked_slip: Array=[], connection_slots: Array=[], connection_points: Array=[]) -> Dictionary:
  var link=_prepare_link(a,b,durability,source,grade,blocked_slip,connection_slots,connection_points)
  if link.is_empty(): return {}
+ _prepare_worn_piece(link)
  state.links.append(link)
  _equipment_feedback(link,link.durability,true)
  state.next_link+=1
@@ -1687,6 +1778,9 @@ func _enemy_phase() -> void:
    if required.kind!=intent.get("kind",""): intent=required;e.intent=required
   e.acted_round=state.round
   IronMan.begin_enemy_turn(e)
+  TapeMass.begin_enemy_turn(e)
+  if e.type==DroneOperator.TYPE: DroneOperator.begin_turn(self,e)
+  Mechs.begin_enemy_turn(e)
   _copy_context={"cue":"enemy."+intent.kind,"actor":e.name,"enemy_id":e.id,"sequence":state.logs.size()}
   if intent.get("delayed",false):
    _copy_context.cue="enemy.delayed"
@@ -1704,13 +1798,14 @@ func _enemy_phase() -> void:
   if Enemies.behavior(e.type)=="guard": Guard.execute(self,e,intent)
   else:
    _enemy_operation(e,intent)
+   if e.type==DroneOperator.DRONE and state.phase=="battle": DroneOperator.after_drone_action(self,e,intent.kind)
    if CaptureBind.kind(self,e)!="" and intent.kind in ["apply","tighten_budget","bind_gain","idle","charge","carried_apply"]: e.guard.cycle_step=(e.guard.cycle_step+1)%3
   if state.phase!="battle":
    _copy_context={}
    break
   if intent.get("pressure",0)>0: Pressure.gain(self,intent.pressure,e.name+"的贴身摩擦")
   if intent.has("pressure_effect"): Pressure.attach(self,intent.pressure_effect,"",e.id)
-  if e.gone and intent.kind!="leave": _emit("event",e.name+"离开战场。")
+  if e.gone and intent.kind not in ["leave","smuggler_leave"]: _emit("event",e.name+"离开战场。")
   EnemyPlans.end_turn(self,e)
   RelicEffects.flush(self)
   if intent.has("move"):
@@ -1724,7 +1819,7 @@ func _enemy_phase() -> void:
   if _finish_if_saturated(): break
  if _battle_end_reason()=="victory": _finish_battle("victory")
 
-func _enemy_operation(e: Dictionary, intent: Dictionary) -> void:
+func _enemy_operation(e: Dictionary, intent: Dictionary, capture_onset: bool=false) -> void:
  var previous=_copy_context
  var resolved=EnemyPlans.resolve(self,e,intent)
  if e.type in [RopeArt.MASTER,RopeArt.ASSISTANT] and intent.kind in RopeArt.ACTIONS:
@@ -1737,13 +1832,37 @@ func _enemy_operation(e: Dictionary, intent: Dictionary) -> void:
   var target=_equipment(resolved.target)
   if not target.is_empty(): slots=["shoulder"] if resolved.kind=="shoulder" or Equipment.is_shoulder(target) else Equipment.coverage(target)
  _copy_context={"cue":"enemy."+("install" if resolved.kind in ["shoulder","link"] else resolved.kind),"actor":e.name,"enemy_id":e.id,"sequence":state.logs.size(),"slots":slots}
- _execute_enemy_operation(e,resolved)
+ _execute_enemy_operation(e,resolved,capture_onset)
  _copy_context=previous
 
-func _execute_enemy_operation(e: Dictionary, intent: Dictionary) -> void:
+func _execute_enemy_operation(e: Dictionary, intent: Dictionary, capture_onset: bool) -> void:
+ if intent.kind in DroneOperator.Actions:
+  DroneOperator.execute(self,e,intent.kind)
+  return
+ if e.type==Detective.TYPE and intent.kind in Detective.Actions:
+  Detective.execute(self,e,intent.kind)
+  return
+ if e.type==TapeMass.TYPE and intent.kind in TapeMass.Actions:
+  TapeMass.execute(self,e,intent.kind)
+  return
+ if e.type==AntiDrone.TYPE and intent.kind in AntiDrone.Actions:
+  AntiDrone.execute(self,e,intent.kind)
+  return
+ if Mechs.handles(e) and intent.kind in Mechs.Actions:
+  Mechs.execute(self,e,intent.kind)
+  return
+ if e.type==ManaSmuggler.TYPE and intent.kind in ManaSmuggler.Actions:
+  ManaSmuggler.execute(self,e,intent.kind)
+  return
+ if e.type==BindingBoxPlus.TYPE and intent.kind in BindingBoxPlus.Actions:
+  BindingBoxPlus.execute(self,e,intent.kind)
+  return
+ if e.type==ReinforcedRope.TYPE and intent.has("rope_move"):
+  ReinforcedRope.resolve(self,e,intent)
+  if intent.kind=="charge": return
  var applied={}
  if intent.kind in ["install","assembly","special_install","link","shoulder"]:
-  applied=Application.execute_concrete(self,intent,intent.get("source",e.id))
+  applied=Application.execute_concrete(self,intent,intent.get("source",e.id),false,[],false,capture_onset)
   if applied.get("evaded",0)>0:
    if intent.get("final",false): e.gone=true
    return
@@ -1753,7 +1872,7 @@ func _execute_enemy_operation(e: Dictionary, intent: Dictionary) -> void:
    Puppets.execute(self,e,intent)
   "apply":
    var spec=EnemyPlans.application_spec(self,e,intent)
-   var result=Application.execute(self,spec,e.id)
+   var result=Application.execute(self,spec,e.id,"enemy",capture_onset)
    if result.count+result.evaded>0 and intent.has("carried_index"):
     e.carried_indices.erase(intent.carried_index)
     _emit("event",e.name+"取出了一件备用装备，盒内还剩%d件。" % e.carried_indices.size(),{"carried_equipment":{"enemy":e.id,"used":intent.carried_index,"remaining":e.carried_indices.duplicate()}})
@@ -1765,7 +1884,7 @@ func _execute_enemy_operation(e: Dictionary, intent: Dictionary) -> void:
      for slot in affected:
       if slot not in slots: slots.append(slot)
     _copy_context.slots=slots
-    _emit("event",e.name+"施加了"+item.name+"。",{"equipment":item.id})
+    _emit("event",e.name+"施加了"+item.name+"。",{"equipment":item.id,"installed_name":item.name})
    if not result.get("removed",[]).is_empty():
     _emit("event",e.name+"替换了%d处原有装备。" % result.removed.size(),{"replaced":result.removed,"lost_links":result.get("lost_links",[])})
    var missing=spec.count-int(result.get("count",0))-int(result.get("evaded",0))
@@ -1782,6 +1901,7 @@ func _execute_enemy_operation(e: Dictionary, intent: Dictionary) -> void:
    if intent.get("ready_gain",0)>0: _emit("event",e.name+"获得「准备就绪」，现有%d层。" % e.ready_layers)
    if intent.get("tighten_after",false):
     _enemy_operation(e,{"kind":"tighten","tier":3,"random_target":true,"text":"翻卷收紧","delayed":false})
+   Mechs.on_application(self,e,result)
    if intent.get("final",false): e.gone=true
   "debuff":
    if intent.effect=="weakness":
@@ -1873,7 +1993,10 @@ func _execute_enemy_operation(e: Dictionary, intent: Dictionary) -> void:
   "pause":
    _emit("event","停顿。")
   "leave":
-   e.gone = true
+   _depart_enemy(e,false)
+   if e.type==ReinforcedRope.TYPE:
+    _emit("event",e.name+"离开战场。")
+    return
    _emit("event",e.name+("的原定装备施加失败（"+B.SLOT_NAMES[Enemies.TYPES[e.type].attachment_slot]+"），随后离场。" if Enemies.behavior(e.type)=="attachment" else "附着位置已满，散去并离场。"))
   "idle": _emit("event",intent.text)
 
@@ -1915,8 +2038,8 @@ func _installation_reason(template: String, slot: String, grade: int, locked: bo
 
 # Resolve exact points and structural layer once for both queries and creation.
 func _prepare_installation(template: String, slot: String, grade: int, locked: bool=false, point: String="", layer: int=-1) -> Dictionary:
- if template==RopeArt.HOGTIE:
-  return {"reason":"已经佩戴驷马缚。"} if state.equipment.any(func(item):return item.template==RopeArt.HOGTIE) else {"reason":"","points":["wrist","ankle"],"layer":0}
+ if Equipment.is_hogtie(template):
+  return {"reason":"已经佩戴驷马缚。"} if state.equipment.any(func(item):return Equipment.is_hogtie(item.template)) else {"reason":"","points":["wrist","ankle"],"layer":0}
  if Equipment.TEMPLATES.get(template,{}).get("lock_only",false) and state.equipment.any(func(e):return Equipment.lock_only(e)):
   return {"reason":"已经佩戴限制项圈。"}
  if cursed_eyes({"slot":slot}): return {"reason":"诅咒眼罩封闭了眼部装备操作。"}
@@ -1952,6 +2075,11 @@ func _install_template(template: String, slot: String, durability: float, maximu
  if Equipment.validate(e)!="": return {}
  state.next_equipment += 1
  state.equipment.append(e)
+ _prepare_worn_piece(e)
+ if not Equipment.lock_only(e): RelicEffects.restraint_worn(self,[e],source)
+ if Equipment.is_hogtie(template):
+  state.posture="lie"
+  if state.phase=="battle": state.order="last"
  _equipment_feedback(e,e.durability,true)
  _refresh_equipment(e)
  RelicEffects._mana_hook(self,"restraint_mana","佩戴"+e.name)
@@ -2048,6 +2176,9 @@ func _query_stack_items(target: Dictionary) -> Array:
  if Equipment.coverage(target).is_empty() or target.template=="link_rope": return [target]
  return physical_pieces().filter(func(e):return Equipment.overlaps(target,e) and (not target.get("independent",false) or e.id==target.id or e.get("root_id","")!=target.get("root_id","")))
 
+func _slip_power_multiplier() -> float:
+ return Cards.Rules.BUFFS.yield_force_bound.slip_multiplier if "yield_force_bound" in Cards.active_buffs(self) else 1.0
+
 func _slip_reason(target: Dictionary, method: String="slip") -> String:
  if RopeArt.locked(self,target): return "本场战斗中，绳索拘束具不能解除。"
  if Equipment.lock_only(target): return Equipment.LOCK_ONLY_REASON
@@ -2109,6 +2240,9 @@ func _apply_manual_release(target: Dictionary, after: float, release_lock_only: 
  target.durability=after
  RopeArt.track(self,target)
 
+func reserve_mana_value() -> int:
+ return Cards.Rules.RESERVE_MANA_VALUE+int(relic_value("reserve_value"))
+
 func relic_value(hook: String) -> float:
  return Relics.value(state.relics,hook,state.relic_counters,state.get("ditto_form",""))
 
@@ -2132,9 +2266,19 @@ func cursed_plate(target: Dictionary) -> bool:
 func _gain_charge(amount: int) -> void:
  state.charge+=amount
 
-func charge_bonus(hit_index: int=0) -> float:
- var count=(state.charge if hit_index==0 else 0) if state.charge_all else mini(1,maxi(0,state.charge-hit_index))
- return B.CHARGE_BONUS*count
+func can_switch_charge() -> bool:
+ return "finesse_bound" in Cards.active_buffs(self)
+
+func charge_uses_all() -> bool:
+ return state.charge_all or not can_switch_charge()
+
+func charge_bonus(hit_index: int=0, gained: int=0) -> float:
+ var layers=state.charge+gained
+ var count=(layers if hit_index==0 else 0) if charge_uses_all() else mini(1,maxi(0,layers-hit_index))
+ if count==0: return 0.0
+ var bonus=B.CHARGE_BONUS+relic_value("charge_value")
+ if "finesse_free" in Cards.active_buffs(self): bonus+=Cards.Rules.BUFFS.finesse_free.charge_bonus*Cards.buff_stacks(self,"finesse_free")
+ return bonus*count
 
 # Shared pre-target values for live card faces and actual escape damage.
 # Future-hit queries project charge consumption without changing state.
@@ -2143,12 +2287,12 @@ func escape_values(mode: String, base: float, target: Dictionary={}, passive: bo
  var charge=0.0 if passive else charge_bonus(hit_index)
  return {"base":base,"bonus":bonus,"charge":charge,"raw":base+bonus+charge}
 
-func _consume_charge() -> void:
+func _consume_charge(all_layers: bool=false) -> void:
  if state.charge<=0: return
- var consumed=state.charge if state.charge_all else 1
+ var consumed=state.charge if all_layers or charge_uses_all() else 1
  state.charge-=consumed
  RelicEffects.trigger(self,"charge_spent",{"count":consumed})
- if state.charge_all or state.charge==0: state.charge_all=false
+ if not can_switch_charge(): state.charge_all=false
 
 func retained_charge() -> int:
  return mini(state.charge,B.CHARGE_RETENTION+combat_retention_bonus())
@@ -2158,19 +2302,30 @@ func retained_energy() -> int:
  return mini(state.next_energy+unused,B.ENERGY_RETENTION+combat_retention_bonus())
 
 func retained_temporary_mana() -> float:
- return minf(state.temporary_mana,B.TEMPORARY_MANA_RETENTION+combat_retention_bonus()*5.0)
+ return minf(state.temporary_mana,temporary_mana_retention_limit())
+
+func temporary_mana_retention_limit() -> float:
+ return (float(B.TEMPORARY_MANA_RETENTION)/Cards.Rules.RESERVE_MANA_VALUE+combat_retention_bonus())*reserve_mana_value()
 
 func combat_retention_bonus() -> int:
  return int(relic_value("combat_retention_layers"))
 
 func _clear_charge(keep_retained: bool=false) -> void:
  state.charge=retained_charge() if keep_retained else 0
- if state.charge==0: state.charge_all=false
+ if not can_switch_charge(): state.charge_all=false
+
+# Adjust the new piece before wear reactions and tier-dependent attachments.
+func _prepare_worn_piece(piece: Dictionary) -> void:
+ state.combat.get("vulnerable",{}).erase(piece.id)
+ if "slippery" in state.card_buffs and not piece.has("parent_id") and not Equipment.lock_only(piece) and equipment_tier(piece)>1:
+  piece.durability=lower_durability(piece.durability,piece.maximum)
+  if Equipment.is_shoulder(piece): piece.crossed=false
+ CaptureBind.installed(self,piece)
 
 func _equipment_feedback(target: Dictionary, amount: float, installation: bool=false, direct_damage: bool=true) -> void:
  if _resource_feedback!=null: _resource_feedback.equipment(target,amount,installation,direct_damage,_copy_context)
 
-func _apply_equipment_damage(target: Dictionary, damage: float, kind: String, passive: bool=false, consume_charge: bool=true) -> void:
+func _apply_equipment_damage(target: Dictionary, damage: float, kind: String, passive: bool=false, consume_charge: bool=true, damage_only: bool=false) -> void:
  if cursed_plate(target): return
  if cursed_eyes(target): return
  if SpecialEquipment.is_special(target):
@@ -2185,16 +2340,18 @@ func _apply_equipment_damage(target: Dictionary, damage: float, kind: String, pa
  if kind=="cut" and Equipment.is_shackle(target): damage*=Equipment.TEMPLATES[target.template].damage_factor
  # Capture eligibility before this hit; breaking a first strap cannot trigger the same hit twice.
  var before=target.durability
- var release=_strain_release_root(target) if kind=="strain" and not passive else {}
+ var release=_strain_release_root(target) if kind=="strain" and not passive and not damage_only else {}
  if not passive: damage=RopeArt.card_damage(self,target,damage)
- target.durability=RopeArt.floor_value(self,target,maxf(0.0,target.durability-damage))
- _equipment_feedback(target,before-target.durability,false,not passive and kind!="passive_slip")
+ var total_before=EquipmentEnchantments.total_durability(target)
+ var remaining=EquipmentEnchantments.absorb_damage(target,damage)
+ target.durability=RopeArt.floor_value(self,target,maxf(0.0,target.durability-remaining))
+ _equipment_feedback(target,total_before-EquipmentEnchantments.total_durability(target),false,not passive and kind!="passive_slip")
  RopeArt.track(self,target)
  if kind in ["strain","slip"] and not passive and consume_charge: _consume_charge()
  if not release.is_empty():
   _composite_body(release).durability=0.0
   _emit("event","这次挣扎直接脱下了"+release.name+"。")
- if kind=="strain" and before>0 and target.durability<=0: RelicEffects.strain_destroyed(self)
+ if not damage_only and kind=="strain" and before>0 and target.durability<=0: RelicEffects.strain_destroyed(self)
 
 func escape_preview(target: Dictionary, mode: String, base: float, assist_profiles: Array=[], passive: bool=false, area_effect: bool=false, continuation: bool=false, splash: bool=false, ignore_tightness_reduction: bool=false) -> Dictionary:
  if not _equipment_read_active() or not is_same(target,_equipment(target.get("id",""))):
@@ -2232,10 +2389,11 @@ func _build_escape_preview(target: Dictionary, mode: String, base: float, assist
  var lock_multiplier = 1.0
  var is_strain = mode == "strain"
  if is_strain:
+  var ordered=not continuation and not (Equipment.is_hogtie(target.template) and RopeArt.struggle_only(self))
   if not Equipment.allows(target,"strain"):
    reason=SpecialEquipment.method_reason(target,mode) if SpecialEquipment.is_special(target) else ("眼部装备没有力量挣扎路线。" if target.slot=="eyes" else "这件装备没有力量挣扎路线。")
-  elif not continuation and p < highest-0.000001: reason = "必须先挣扎该部位紧度最高的装备。"
-  elif not continuation and layered:
+  elif ordered and p < highest-0.000001: reason = "必须先挣扎该部位紧度最高的装备。"
+  elif ordered and layered:
    for e in items:
     if is_equal_approx(_effective_ratio(e),highest) and e.layer < target.layer:
      reason = "最高紧度并列，必须先处理其中最内侧的一件。"
@@ -2261,6 +2419,7 @@ func _build_escape_preview(target: Dictionary, mode: String, base: float, assist
  var charge=values.charge
  if splash: bonus=0.0;charge=0.0
  var slip_buff=1.0 if is_strain else Consumables.slip_multiplier(self,target)
+ if not is_strain: slip_buff*=_slip_power_multiplier()
  var immune = reason=="" and not is_strain and mode != "magic_slip" and ratio > 0.80000001 and slip_buff==1.0
  if area_effect:
   # The effect supplies its own outer-layer targets, not a manual escape route.
@@ -2279,26 +2438,30 @@ func _build_escape_preview(target: Dictionary, mode: String, base: float, assist
  var scaled_damage = 0.0 if immune or reason != "" else (base+bonus+charge+assist.bonus)*mult*penalty*lock_multiplier*position.factor*link_factor/divisor
  var environment_true=0.0 if passive or area_effect or splash or reason!="" or target_factor<=0 else _wall_bonus()
  var buff_multiplier=Cards.damage_multiplier(self,"equipment")*Character.damage_multiplier(self)
+ if is_strain: buff_multiplier*=Cards.weakness(self)
+ if is_strain and Cards.vulnerable(self,target.id)>0: buff_multiplier*=Cards.Rules.VULNERABLE_FACTOR
  scaled_damage*=buff_multiplier
  environment_true*=buff_multiplier
  if Equipment.is_shackle(target): environment_true*=target_factor
  scaled_damage*=slip_buff
  environment_true*=slip_buff
- var material_factor=1.0
+ var material_factor=Equipment.escape_factor(target,mode)
+ scaled_damage*=material_factor
+ environment_true*=material_factor
  var damage=scaled_damage+environment_true
  return {"material_factor":material_factor,"ignore_tightness_reduction":ignore_tightness_reduction,"slip_buff_multiplier":slip_buff,"damage_buff_multiplier":buff_multiplier,"environment_true":environment_true,"scaled_damage":scaled_damage,"link_factor":link_factor,"passive":passive,"position":position,"assist":assist,"damage":damage,"reason":reason,"immune":immune,"ratio":ratio,"multiplier":mult,"divisor":divisor,"lock_multiplier":lock_multiplier,"penalty":penalty,"base":base,"bonus":bonus,"charge":charge,"release":reason=="" and is_strain and not _strain_release_root(target).is_empty()}
 
 func _formula(p: Dictionary) -> String:
  if p.reason!="": return p.reason
- var buff_text="×%s伤害增益" % number(p.get("damage_buff_multiplier",1.0)) if p.get("damage_buff_multiplier",1.0)!=1.0 else ""
- var link_text="×%s仅向下链接" % number(p.get("link_factor",1.0)) if p.get("link_factor",1.0)!=1.0 else ""
+ var buff_text="×%s伤害增益" % DisplayNumbers.factor(p.get("damage_buff_multiplier",1.0)) if p.get("damage_buff_multiplier",1.0)!=1.0 else ""
+ var link_text="×%s仅向下链接" % DisplayNumbers.factor(p.get("link_factor",1.0)) if p.get("link_factor",1.0)!=1.0 else ""
  var slip_buff=p.get("slip_buff_multiplier",1.0)
- var slip_text="×%s部位滑脱增益" % number(slip_buff) if slip_buff!=1.0 else ""
+ var slip_text="×%s部位滑脱增益" % DisplayNumbers.factor(slip_buff) if slip_buff!=1.0 else ""
  var material_factor=p.get("material_factor",1.0)
- if material_factor!=1.0: slip_text+="×%s皮革滑脱" % number(material_factor)
+ if material_factor!=1.0: slip_text+="×%s材质倍率" % DisplayNumbers.factor(material_factor)
  if p.get("passive",false):
-  return "%s部位基础×%s紧度倍率×%s目标倍率×%s锁倍率%s÷%s堆叠%s = %s" % [number(p.base),number(p.multiplier),number(p.penalty),number(p.lock_multiplier),link_text+buff_text,number(p.divisor),slip_text,number(p.damage)]
- var expression="0（三档免疫普通滑脱）" if p.immune else "（%s基础＋%s属性＋%s蓄力＋%s手部辅助）×%s紧度倍率×%s目标倍率×%s锁倍率×%s部位倍率%s÷%s堆叠" % [number(p.base),number(p.bonus),number(p.charge),number(p.get("assist",{}).get("bonus",0.0)),number(p.multiplier),number(p.penalty),number(p.lock_multiplier),number(p.get("position",{}).get("factor",1.0)),link_text,number(p.divisor)]
+  return "%s部位基础×%s紧度倍率×%s目标倍率×%s锁倍率%s÷%s堆叠%s = %s" % [number(p.base),DisplayNumbers.factor(p.multiplier),DisplayNumbers.factor(p.penalty),DisplayNumbers.factor(p.lock_multiplier),link_text+buff_text,number(p.divisor),slip_text,number(p.damage)]
+ var expression="0（三档免疫普通滑脱）" if p.immune else "（%s基础＋%s属性＋%s蓄力＋%s手部辅助）×%s紧度倍率×%s目标倍率×%s锁倍率×%s部位倍率%s÷%s堆叠" % [number(p.base),number(p.bonus),number(p.charge),number(p.get("assist",{}).get("bonus",0.0)),DisplayNumbers.factor(p.multiplier),DisplayNumbers.factor(p.penalty),DisplayNumbers.factor(p.lock_multiplier),DisplayNumbers.factor(p.get("position",{}).get("factor",1.0)),link_text,number(p.divisor)]
  expression+=buff_text
  if p.get("environment_true",0)>0: expression+="＋%s粗糙墙面真实加成" % number(p.environment_true/slip_buff/material_factor)
  if slip_text!="": expression="（"+expression+"）"+slip_text
@@ -2313,8 +2476,15 @@ func _mana_payment(payload: Dictionary, mana: float) -> Dictionary:
  var temporary=minf(state.temporary_mana,mana) if eligible else 0.0
  return {"mana":mana-temporary,"temporary_mana":temporary,"flask_mana":0.0}
 
+func set_own_mana(value: float) -> void:
+ if state.mana==value: return
+ state.mana=value
+ AntiDrone.mana_changed(self)
+
 func _pay_mana(payment: Dictionary) -> void:
- for field in payment: state[field]-=payment[field]
+ for field in payment:
+  if field=="mana": set_own_mana(state.mana-payment[field])
+  else: state[field]-=payment[field]
  RelicEffects.mana_lost(self,payment.mana,payment.temporary_mana)
 
 # 唯一合法性判定（docs/spec/candidate-removal.md「接口」唯一合法性判定；批 R1 落地，工作名 eligibility）。
@@ -2330,8 +2500,13 @@ func eligibility(payload: Dictionary, cost: int, mana: float, reason: String, ri
   if payload.kind!="manual" and not unlock: reason=Equipment.LOCK_ONLY_REASON
  if cursed_plate(lock_target): reason=SpecialEquipment.CURSED_PLATE_REASON
  if cursed_eyes(lock_target) or cursed_eyes({"slot":payload.get("slot","")}): reason="诅咒眼罩封闭了眼部装备操作。"
+ var payment=_mana_payment(payload,mana)
  var uses_magic=(payload.kind in ["card","prison"] and payload.has("uid") and Cards.uses_magic(payload)) or (payload.kind=="attack" and Cards.Rules.FIXED_MAGIC.has(payload.type))
- if reason=="" and uses_magic and cast_view(Cards.cast_profile(self,payload.type,mana>0,payload.get("free"),payload.get("uid",""))).chance<=0.0: reason="当前施法成功率为0%。"
+ if reason=="" and uses_magic:
+  var profile=Cards.cast_profile(self,payload.type,mana>0,payload.get("free"),payload.get("uid",""))
+  var casting=cast_view(profile)
+  if casting.chance<=0.0 and (casting.reason!="" or not Enchantments.can_retry(self,profile.enchantment_retry_mana,payment)):
+   reason="当前施法成功率为0%。"
  var pressure_risk=Pressure.action_risk(self,payload)
  var extra_traction=Cards.magic_card_traction(self,payload)
  if cost>0 or extra_traction>0:
@@ -2343,7 +2518,6 @@ func eligibility(payload: Dictionary, cost: int, mana: float, reason: String, ri
   if gain>0: pressure_risk+=("\n" if pressure_risk!="" else "")+"牵扯：佩戴的性玩具合计增加%s快感值。" % number(gain*Pressure.gain_multiplier(self))
  if pressure_risk!="": risk+=("\n" if risk!="" else "")+pressure_risk
  if reason == "" and state.energy < cost: reason = "需要%d能量，当前只有%d。" % [cost,state.energy]
- var payment=_mana_payment(payload,mana)
  var flask=payload.get("payment","")=="flask"
  var balance=state.flask_mana if flask else state.mana
  var required=payment.flask_mana if flask else payment.mana
@@ -2429,16 +2603,16 @@ static func copy_item_discard(_g, _args: Dictionary) -> String:
 
 static func copy_status_toggle(_g, args: Dictionary) -> String:
  if args.has("power_name"): return ("开启" if args.enabled else "关闭")+args.power_name+"。能量与魔力费用为0。"
- return "每次触发消耗1层。" if bool(args.get("charge_all",false)) else "下一次触发使用全部蓄力。"
+ return "每次触发消耗1层。" if bool(args.get("charge_all",false)) else "每次触发消耗全部蓄力。"
 
-static func copy_rest_rare(_g, _args: Dictionary) -> String:
- return "剩余%d回合休息。" % (B.REST_TURNS-B.REST_CARD_TURNS.rare)
+static func copy_rest_rare(_g, args: Dictionary) -> String:
+ return "剩余%d回合休息。" % maxi(0,int(args.left)-B.REST_CARD_TURNS.rare)
 
 static func copy_rest_card(_g, args: Dictionary) -> String:
- return "从%d张%s卡中选一张，剩余%d回合休息。" % [int(args.get("count",0)),Cards.Rules.RARITIES[String(args.get("rarity","common"))],B.REST_TURNS-int(args.get("turns",0))]
+ return "从%d张%s卡中选一张，剩余%d回合休息。" % [int(args.get("count",0)),Cards.Rules.RARITIES[String(args.get("rarity","common"))],maxi(0,int(args.left)-int(args.get("turns",0)))]
 
-static func copy_rest_flask(_g, _args: Dictionary) -> String:
- return "保留%d回合用于休息，自身魔力保持当前值。" % (B.REST_TURNS-B.REST_FLASK_TURNS)
+static func copy_rest_flask(_g, args: Dictionary) -> String:
+ return "保留%d回合用于休息，自身魔力保持当前值。" % maxi(0,int(args.left)-B.REST_FLASK_TURNS)
 
 static func copy_rest_begin(_g, args: Dictionary) -> String:
  return "保留%d回合休息时间。" % int(args.get("left",0))
@@ -2495,9 +2669,11 @@ static func copy_wall_move(_g, args: Dictionary) -> String:
  return "移动%d格；%s。" % [int(args.get("distance",0)),String(args.get("result",""))]
 
 static func copy_posture(g, args: Dictionary) -> String:
+ if g.Enchantments.assisted_movement(g): return "助力使本次变换姿势免费。"+String(args.get("bind_detail",""))
  return ("眼罩使站起额外消耗1能量。" if bool(args.get("blind_cost",false)) else "")+RelicEffects.posture_detail(g,String(args.get("dest","")))+String(args.get("bind_detail",""))
 
 static func copy_posture_wall(g, args: Dictionary) -> String:
+ if g.Enchantments.assisted_movement(g): return String(args.get("support",""))+"，助力使本次起身免费。"+String(args.get("bind_detail",""))
  return String(args.get("support",""))+"，额外减1能量；本回合仍可继续行动。"+("眼罩使站起额外消耗1能量。" if bool(args.get("blind_cost",false)) else "")+String(args.get("bind_detail",""))
 
 # 攻击候选的正文：参数带完整 payload 与展示伤害，其余按当前 state 只读现算。
@@ -2516,7 +2692,8 @@ static func copy_attack(g, args: Dictionary) -> String:
  var detail="对%s造成%s点伤害%s。" % ["全部敌人" if all_targets else e.name,g.number(damage if all_targets else shown_damage),"，共%d次" % spec.hits if spec.hits>1 else ""]
  detail+=BasicAttacks.cost_description(type)
  if spec.get("x_cost",false): detail+="耗尽剩余能量X，X至少为1；连续踢X＋1次，X≥3时攻击后躺下。"
- if Cards.attack_ignores_restraints(g,type): detail+="本次体术按自由态发动，忽略拘束限制与减益。"
+ if payload.get("arm_freedom",false): detail+="本次手部体术无视拘束和姿势限制。"
+ elif Cards.attack_ignores_restraints(g,type): detail+="本次体术按自由态发动，忽略拘束限制与减益。"
  var hard_targets=g.state.enemies.filter(func(enemy):return not enemy.gone and (all_targets or enemy.id==e.id) and Enemies.TYPES[enemy.type].get("mechanical",false))
  if damage_type not in ["magic","fixed"] and not hard_targets.is_empty(): detail+="坚硬：机械敌人受到的非魔法伤害减少%s%%。" % g.number((1.0-Enemies.damage_multiplier(g,hard_targets[0].type,damage_type))*100)
  if interrupt: detail+="将待执行意图延后一回合。"
@@ -2614,7 +2791,7 @@ func _phase_branch_units(branch: String, groups: Array = []) -> Array:
 # 状态开关（蓄力切换＋可切换能力）：显示事实的唯一来源；_fact_source 与 command_fact 共用。
 func _status_toggle_facts() -> Array:
  var facts=Cards.toggle_facts(self)
- if state.charge>0 and not state.overloaded and state.phase not in ["cleared","prison_end"]:
+ if can_switch_charge() and not state.overloaded and state.phase not in ["cleared","prison_end"]:
   var toggle_args={"charge_all":state.charge_all}
   facts.append(_fact({"kind":"status_toggle","status":"charge","enabled":not state.charge_all},"切换为普通蓄力" if state.charge_all else "切换为全量蓄力",{"kind":"game.status_toggle","args":toggle_args,"fallback":copy_status_toggle(self,toggle_args)},0,0.0,"","","status_toggle"))
  return facts
@@ -2677,6 +2854,7 @@ func _phase_branch() -> String:
  if not state.relic_bundle.is_empty(): return "relic_bundle"
  if state.phase=="departure": return "departure"
  if not command_domain_ready(): return "domain_blocked"
+ if RopeArt.struggle_only(self): return "hogtie_release"
  if state.phase=="rest_choice": return "rest_choice"
  if state.phase in ["shop","treasure"]: return "shop_treasure"
  if state.phase=="event": return "event"
@@ -2699,6 +2877,7 @@ func _phase_branch() -> String:
 # docs/spec/fact-table-dependencies.md「仍靠人审」）。
 func _phase_facts(groups: Array = []) -> Array:
  match _phase_branch():
+  "hogtie_release": return _phase_branch_units("hogtie_release",groups)
   "rest_choice": return _phase_branch_units("rest_choice",groups)
   "shop_treasure": return _phase_branch_units("shop_treasure",groups)
   "event": return _phase_branch_units("event",groups)
@@ -2721,18 +2900,18 @@ func _phase_facts(groups: Array = []) -> Array:
 # 休息选择块（4 行；rest_choice 分支）。
 func _unit_rest_choice(_facts: Array, _groups: Array = []) -> Array:
  var out: Array = []
- out.append(_fact({"kind":"rest_rare"},"随机获得1张稀有卡 · 扣除%d回合" % B.REST_CARD_TURNS.rare,{"kind":"game.rest_rare","args":{},"fallback":copy_rest_rare(self,{})},0,0.0,"需要更多休息回合。" if state.rest_left<B.REST_CARD_TURNS.rare else "","","rest_service"))
+ var time_args={"left":state.rest_left}
+ out.append(_fact({"kind":"rest_rare"},"随机获得1张稀有卡 · 扣除%d回合" % B.REST_CARD_TURNS.rare,{"kind":"game.rest_rare","args":time_args,"fallback":copy_rest_rare(self,time_args)},0,0.0,"需要更多休息回合。" if state.rest_left<B.REST_CARD_TURNS.rare else "","","rest_service"))
  for type in state.rest_cards:
   var rarity=Cards.Rules.SPECS[type].rarity
   var turns=B.REST_CARD_TURNS[rarity]
-  var rest_args={"count":state.rest_cards.size(),"rarity":rarity,"turns":turns}
+  var rest_args={"count":state.rest_cards.size(),"rarity":rarity,"turns":turns,"left":state.rest_left}
   out.append(_fact({"kind":"rest_card","type":type},"领取「"+B.CARD_NAMES[type]+"」 · 扣除%d回合" % turns,{"kind":"game.rest_card","args":rest_args,"fallback":copy_rest_card(self,rest_args)},0,0.0,"需要更多休息回合。" if state.rest_left<turns else "","","rest_service"))
- out.append(_fact({"kind":"rest_flask"},"魔瓶补充%d魔力 · 扣除%d回合" % [B.REST_FLASK_MANA,B.REST_FLASK_TURNS],{"kind":"game.rest_flask","args":{},"fallback":copy_rest_flask(self,{})},0,0.0,"需要更多休息回合。" if state.rest_left<B.REST_FLASK_TURNS else "","","rest_service"))
+ out.append(_fact({"kind":"rest_flask"},"魔瓶补充%d魔力 · 扣除%d回合" % [B.REST_FLASK_MANA,B.REST_FLASK_TURNS],{"kind":"game.rest_flask","args":time_args,"fallback":copy_rest_flask(self,time_args)},0,0.0,"需要更多休息回合。" if state.rest_left<B.REST_FLASK_TURNS else "","","rest_service"))
  if room_data(state.room).get("rest_reward_used",false):
   for fact in out: fact.source_reason="已选择火堆奖励。"
  out.append_array(Enchantments.facts(self))
- var begin_args={"left":state.rest_left}
- out.append(_fact({"kind":"rest_begin"},"跳过奖励，直接休息",{"kind":"game.rest_begin","args":begin_args,"fallback":copy_rest_begin(self,begin_args)},0,0.0,"","","rest_service"))
+ out.append(_fact({"kind":"rest_begin"},"跳过奖励，直接休息",{"kind":"game.rest_begin","args":time_args,"fallback":copy_rest_begin(self,time_args)},0,0.0,"","","rest_service"))
  return out
 
 # 高潮后缓一缓（overload_climax 分支的单行）。
@@ -2757,8 +2936,8 @@ func _unit_reward(_facts: Array, _groups: Array = []) -> Array:
    out.append(_fact({"kind":"reward","category":"card","type":type},"选择「"+B.CARD_NAMES[type]+"」",{"kind":"card.two_face","args":{"type":type},"fallback":CopyRouter.two_face(self,type)},0,0.0,"","","reward"))
  if state.battle_flask_drop>0 and not state.reward_claimed.has("flask"):
   out.append(_fact({"kind":"reward","category":"flask","type":"boss_mana"},"领取%d魔瓶魔力" % state.battle_flask_drop,{"kind":"game.reward_flask","args":{},"fallback":copy_reward_flask(self,{})},0,0.0,"","","reward"))
- for category in ["item","relic"]:
-  var type=state.battle_item_drop if category=="item" else state.battle_relic_drop
+ for category in ["item"]+RelicRewards.DROP_FIELDS.keys():
+  var type=state.battle_item_drop if category=="item" else state.get(RelicRewards.DROP_FIELDS[category],"")
   if type=="" or state.reward_claimed.has(category): continue
   var title=Tools.TYPES[type].name if category=="item" else Relics.TYPES[type].name
   var other_args={"category":category,"type":type}
@@ -2766,8 +2945,8 @@ func _unit_reward(_facts: Array, _groups: Array = []) -> Array:
  if not state.reward_claimed.has("relic"):
   for type in state.boss_relic_options:
    out.append(_fact({"kind":"reward","category":"relic","type":type},"选择「"+Relics.TYPES[type].name+"」",{"kind":"game.reward_relic","args":{"type":type},"fallback":copy_reward_relic(self,{"type":type})},0,0.0,RelicEffects.gain_reason(self,type),"","reward"))
- for category in ["card","relic"]:
-  var offered=not state.reward_options.is_empty() if category=="card" else (state.battle_relic_drop!="" or not state.boss_relic_options.is_empty())
+ for category in ["card"]+RelicRewards.DROP_FIELDS.keys():
+  var offered=not state.reward_options.is_empty() if category=="card" else state.get(RelicRewards.DROP_FIELDS[category],"")!="" or (category=="relic" and not state.boss_relic_options.is_empty())
   if offered and not state.reward_claimed.has(category):
    out.append(_fact({"kind":"reward_skip","category":category},"跳过",{"kind":"game.reward_skip_category","args":{"category":category},"fallback":copy_reward_skip_category(self,{"category":category})},0,0.0,"","","reward"))
  out.append(_fact({"kind":"reward","type":"skip"},"继续",{"kind":"game.reward_skip","args":{},"fallback":copy_reward_skip(self,{})},0,0.0,"","","reward"))
@@ -2788,7 +2967,11 @@ func _unit_departure(_facts: Array, _groups: Array = []) -> Array:
 
 # 非战斗道具（读累积表去重：不可独立增量，见单元表注释）。
 func _unit_noncombat_consumables(facts: Array, _groups: Array = []) -> Array:
- return Consumables.noncombat_facts(self,facts)
+ var out=Consumables.noncombat_facts(self,facts)
+ if not _phase_action_tail():
+  for card in state.hand:
+   if Cards.ItemCards.outside_turn(self,card): out.append_array(Cards.card_facts(self,card))
+ return out
 
 func _unit_flask_full(_facts: Array, _groups: Array = []) -> Array:
  return ManaFlask.facts(self,true)
@@ -2877,14 +3060,16 @@ func wall_contact() -> bool:
 
 func wall_movement_profile() -> Dictionary:
  var turns=movement_profile().turns
- return {"distance":2 if turns<=2 else 1,"cost":1 if turns==1 else (2 if turns<=3 else 3)}
+ if turns==0: return {"distance":0,"cost":0}
+ var cost=0 if Enchantments.assisted_movement(self) else (1 if turns==1 else (2 if turns<=3 else 3))
+ return {"distance":2 if turns<=2 else 1,"cost":cost}
 
 func wall_view() -> Dictionary:
  var profile=wall_movement_profile()
  var name={"rough":"粗糙墙面","normal":"普通墙面","none":"无可用墙面"}[state.wall]
  var status="已贴墙" if at_wall() else "距墙%d格" % state.wall_distance
- var detail="贴墙后才能借墙起身、安装、使用或取回墙上工具。"
- if at_wall(): detail="可借墙起身，少花1能量，仍可继续行动；墙上工具还需满足姿态和手足条件。"
+ var detail="贴墙可借力起身。"
+ if at_wall(): detail="借墙起身少花1能量。"
  if state.wall=="rough": detail+="贴墙站／坐时，主动挣扎或滑脱额外造成%s点真实伤害。" % number(B.WALL_BONUS)
  if state.wall=="none": status="无墙";detail="途中没有可用墙面。"
  var sources=state.relics.filter(func(id):return RelicEffects.definition(self,id).modifiers.get("always_wall",0)>0)
@@ -2893,7 +3078,7 @@ func wall_view() -> Dictionary:
  if not sources.is_empty():
   source="、".join(sources.map(func(id):return RelicEffects.definition(self,id).name));duration="持有遗物期间持续生效"
   status="视为贴墙"
-  detail=source+"提供持续支撑：始终视为贴墙，可用贴墙起身并免于探索移动摔倒。实际距墙保持原值，墙上工具与挂钩仍需走到对应位置。"
+  detail=source+"提供持续支撑：始终视为贴墙，可用贴墙起身并免于探索移动摔倒。挂钩需要到场使用。"
   if state.wall=="rough": detail+="站／坐时，主动挣扎或滑脱额外造成%s点真实伤害。" % number(B.WALL_BONUS)
  var environment_class=Tools.Environments.WALLS.get(state.wall,"")
  return {"environment_class":environment_class,"environment_name":Tools.Environments.NAMES.get(environment_class,""),"at_wall":at_wall(),"distance":state.wall_distance,"stride":profile.distance,"cost":profile.cost,"status":status,"name":name,"detail":detail,"source":source,"duration":duration}
@@ -2914,7 +3099,7 @@ func base_action_block() -> bool:
 func _attack_fact_display(f: Dictionary) -> Dictionary:
  var type=String(f.payload.get("type",""))
  if Cards.Rules.FIXED_MAGIC.has(type): f["casting"]=cast_view(Cards.cast_profile(self,type,float(f.get("mana",0.0))>0))
- f["body_part"]={"strike":"双臂","heavy":"双臂／双腿","kick":"双腿"}.get(type,"")
+ f["body_part"]="／".join(BasicAttacks.PHYSICAL_PARTS.get(type,[]).map(func(part):return BasicAttacks.PART_NAMES[part]))
  if f.has("casting"):
   var part=f.casting.get("source_part",f.casting.part)
   f["body_part"]="脚趾" if part=="toes" else Cards.Rules.CAST_PART_NAMES[part]
@@ -2931,7 +3116,8 @@ func wall_move_facts() -> Array:
   var distance=mini(profile.distance,state.wall_distance if direction=="toward" else 4-state.wall_distance)
   if state.phase=="prison": distance=mini(profile.distance,Prison.Space.wall_path(self,direction=="toward").size())
   var reason="" if distance>0 else ("已经贴墙。" if direction=="toward" else "已到房间可移动的最远处。")
-  if CaptureBind.has_bind(self): reason=CaptureBind.movement_reason(self)
+  var movement_issue=CaptureBind.movement_reason(self)
+  if movement_issue!="": reason=movement_issue
   var after=state.wall_distance+distance*(-1 if direction=="toward" else 1)
   if state.phase=="prison" and distance>0: after=Prison.Space.wall_distance(Prison.Space.wall_path(self,direction=="toward")[distance-1])
   var label="靠近墙面" if direction=="toward" else "离开墙面"
@@ -2954,8 +3140,9 @@ func posture_facts() -> Array:
   var key = str(state.posture)+">"+dest
   if reason=="": reason=CaptureBind.posture_reason(self,dest)
   var cost_index = {"stand>sit":0,"sit>stand":1,"sit>lie":2,"lie>sit":3}.get(key,0)
-  var cost = maxi(0,B.POSTURE_COSTS[level("legs")][cost_index]-(1 if level("arms")<=1 else 0)-RelicEffects.posture_discount(self,dest))
-  var blind_cost=1 if key=="sit>stand" and occupied("eyes") else 0
+  var assisted=Enchantments.assisted_movement(self)
+  var cost=0 if assisted else maxi(0,B.POSTURE_COSTS[level("legs")][cost_index]-(1 if level("arms")<=1 else 0)-RelicEffects.posture_discount(self,dest))
+  var blind_cost=1 if not assisted and key=="sit>stand" and occupied("eyes") else 0
   cost+=blind_cost
   var bind_detail="捕缚进度＋10。" if reason=="" and CaptureBind.has_bind(self,"guard") else ""
   var posture_args={"dest":dest,"blind_cost":blind_cost,"bind_detail":bind_detail}
@@ -2968,6 +3155,7 @@ func posture_facts() -> Array:
 
 # 底栏（flow 组）与深呼吸（pressure 组）：显示事实的唯一来源；产出顺序与改动前一致。
 func flow_facts() -> Array:
+ if RopeArt.struggle_only(self): return [_fact({"kind":"end"},"结束回合","重新抽牌，继续挣脱驷马绳。",0,0.0,"","","flow")]
  var facts=[]
  if state.phase=="pack":
   facts.append(_fact({"kind":"finish_pack"},"整理完成，离开房间",{"kind":"game.finish_pack","args":{},"fallback":copy_finish_pack(self,{})},0,0.0,"请使用或放下超出容量的道具。" if carried_items()>item_capacity() else "","","flow"))
@@ -2983,9 +3171,9 @@ func flow_facts() -> Array:
  var turn_args={"keep_hand":relic_value("keep_hand")>0,"battle":state.phase=="battle","first":state.order=="first"}
  facts.append(_fact({"kind":"end"},"结束回合",{"kind":"game.end_turn","args":turn_args,"fallback":copy_end_turn(self,turn_args)},0,0.0,"","","flow"))
  if state.phase == "prepare":
-  facts.append(_fact({"kind":"finish_prepare"},"提前结束整备",{"kind":"game.finish_prepare","args":{},"fallback":copy_finish_prepare(self,{})},0,0.0,"","","flow"))
+  facts.append(_fact({"kind":"finish_prepare"},"提前结束整备",{"kind":"game.finish_prepare","args":{},"fallback":copy_finish_prepare(self,{})},0,0.0,RopeArt.HOGTIE_REASON if RopeArt.hogtied(self) else "","","flow"))
  if state.phase=="rest":
-  facts.append(_fact({"kind":"finish_rest"},"提前离开休息房",{"kind":"game.finish_rest","args":{},"fallback":copy_finish_rest(self,{})},0,0.0,"","","flow"))
+  facts.append(_fact({"kind":"finish_rest"},"提前离开休息房",{"kind":"game.finish_rest","args":{},"fallback":copy_finish_rest(self,{})},0,0.0,RopeArt.HOGTIE_REASON if RopeArt.hogtied(self) else "","","flow"))
  return facts
 
 # 投降（底栏）：条件与文案的唯一来源（行与显示事实共用）。
@@ -2999,14 +3187,14 @@ func change_posture(destination: String, support: String="") -> void:
  if CaptureBind.has_bind(self,"guard"): CaptureBind.gain_bind(self,CaptureBind.BIND_GAIN,"姿态切换")
  Pressure.tick(self,"posture")
 
-func kick_profile(variant: Dictionary={}) -> Dictionary:
+func kick_profile(variant: Dictionary={}, gained: int=0) -> Dictionary:
  var freedom=Cards.basic_attack_freedom(self)
  var posture=BasicAttacks.posture(self,"kick",variant)
  var bound=variant.get("kick_bound",false) if freedom else (_bound_feet() and not Cards.action_ignores_restraints(self))
  var leg_level=0 if freedom or Cards.action_ignores_restraints(self) else level("legs")
  var label=("并拢飞踢" if posture=="stand" else "并腿蹬击") if bound else (BasicAttacks.TYPES.kick[0].name if posture=="stand" else "坐姿踢击")
  var base_damage=(B.BOUND_KICK if posture=="stand" else B.BOUND_SEATED_KICK) if bound else (B.KICK if posture=="stand" else B.SEATED_KICK)
- var damage=BasicAttacks.physical_damage(self,base_damage,leg_level)
+ var damage=BasicAttacks.physical_damage(self,base_damage,leg_level,gained)
  var posture_available=posture!="lie"
  var reason="躺姿没有体术攻击，请施法或起身。" if not posture_available else ("腿部活动受限达到三级，无法独立踢击。" if not bound and leg_level>=3 else "")
  var spec=BasicAttacks.TYPES.kick[0]
@@ -3029,7 +3217,7 @@ func _attack_battle_families_ready(g) -> bool:
 # 都只从这里取，故每行恰构造一次、顺序只有一处。三家族与顺序＝转换前 attack_facts()（基础／巫女）++
 # equipment_spell_facts()（装备自解）的表序，不得重排：表序与「重复归一化 params 收敛枚举序首条」都依赖它。
 # 守卫与转换前两条生产者逐条对应：基础／巫女经 _attack_battle_families_ready；装备自解＝非巫女＋factor>0＋
-# target 在 action_targets（原循环的两个前置）。重复归一化 params（同 id 的第二个敌人／目标）复用首条行，
+# target 为可自解的非特殊装备。重复归一化 params（同 id 的第二个敌人／目标）复用首条行，
 # 与 attack_point_fact 按 id 解析到首个对象的内容面同序（行是 params 的纯函数，见 attack_duplicate_params_fixture）。
 func attack_point_walk(g) -> Array:
  var pairs: Array=[]
@@ -3053,6 +3241,7 @@ func attack_point_walk(g) -> Array:
  if factor>0.0:
   var usage=BasicAttacks.usage(g,"fireball")
   for target in g.action_targets():
+   if not _is_fireball_release_target(target): continue
    pairs.append(_attack_point_pair(g,g._equipment_spell_fact(target,factor,usage),first))
  return pairs
 
@@ -3138,7 +3327,7 @@ func attack_point_member(g, params: Dictionary) -> bool:
 func _basic_attack_point_key(g, enemy: Dictionary, type: String, form: int, spec: Dictionary) -> Dictionary:
  var all_targets=bool(spec.get("all",false))
  if type=="fireball": all_targets=bool(Cards.spell_power(g,type).get("all_enemies",false))
- if not Cards.physical_attachment(g,type).is_empty(): all_targets=true
+ if Cards.physical_attachment(g,type).has("multiplier"): all_targets=true
  var x=0
  if bool(spec.get("x_cost",false)):
   var cost=BasicAttacks.energy_cost(g,type,form)
@@ -3151,7 +3340,7 @@ func _witch_attack_point_key(g, enemy: Dictionary, part: String, form: int) -> D
  return g.command_params("attack",{"kind":"attack","type":"witch_"+part,"form":form,"enemy":enemy.id,"all":part=="mouth" and form==1,"target":"","x":0,"part":part,"charge_action":form==0})
 
 # 装备自解家族的成员判断（member 用）：守卫与 _equipment_point_fact 逐条对应（非巫女、factor>0、
-# target 在 action_targets），键面＝该族单行构造 payload 的归一化（除 target 外字段恒定）。
+# target 为可自解的非特殊装备），键面＝该族单行构造 payload 的归一化（除 target 外字段恒定）。
 func _equipment_point_member(g, p: Dictionary) -> bool:
  if Character.active(g): return false
  if float(Cards.spell_power(g,"fireball").get("equipment_damage_factor",0.0))<=0.0: return false
@@ -3161,9 +3350,11 @@ func _equipment_point_member(g, p: Dictionary) -> bool:
 
 # 自解目标按 id 解析（唯一实现）：_equipment_point_fact 与 _equipment_point_member 共用，不构造行。
 func _attack_point_release_target(g, target_id: String) -> Dictionary:
- for target in g.action_targets():
-  if String(target.id)==target_id: return target
- return {}
+ var target=g._equipment(target_id)
+ return target if _is_fireball_release_target(target) else {}
+
+func _is_fireball_release_target(target: Dictionary) -> bool:
+ return not target.is_empty() and not SpecialEquipment.is_special(target)
 
 # 卡牌域 point 登记面的 g 方法转发（S3）：枚举与构造的唯一实现在 core/card_effects.gd（登记项只存 g 上
 # 的方法名，见切片计划 §3），本三处不含第二套逻辑；行为与 core/card_effects.gd::card_point_* 同一实现。
@@ -3202,8 +3393,10 @@ func attack_facts() -> Array:
 
 func _attack_offer_fact(e: Dictionary, type: String, form: int) -> Dictionary:
  var spec=BasicAttacks.forms(self,type)[form]
- var freedom=Cards.basic_attack_freedom(self)
- var posture=BasicAttacks.posture(self,type,spec)
+ var attachment=Cards.physical_attachment(self,type)
+ var gained=int(attachment.get("charge",0))
+ var freedom=Cards.basic_attack_freedom(self) or attachment.get("arms",false)
+ var posture="stand" if freedom and type in ["strike","heavy"] else BasicAttacks.posture(self,type,spec)
  var posture_available=true
  var leg_level=0 if freedom or Cards.action_ignores_restraints(self) else level("legs")
  var cost=BasicAttacks.energy_cost(self,type,form)
@@ -3218,9 +3411,9 @@ func _attack_offer_fact(e: Dictionary, type: String, form: int) -> Dictionary:
  var cooldown_turns=0
  match type:
   "strike","heavy":
-   var ignore_restraints=Cards.attack_ignores_restraints(self,type)
+   var ignore_restraints=freedom or Cards.attack_ignores_restraints(self,type)
    var arm_level=0 if ignore_restraints else level("arms")
-   damage=BasicAttacks.physical_damage(self,spec.damage+Cards.Hannya.heavy_bonus(self,type,form),arm_level)
+   damage=BasicAttacks.physical_damage(self,spec.damage+Cards.Hannya.heavy_bonus(self,type,form),arm_level,gained)
    posture_available=posture=="stand"
    if not posture_available: reason=label+"需要站姿。"
    elif arm_level>=3: reason="需要双臂束缚≤2级："+label+"。"
@@ -3230,7 +3423,7 @@ func _attack_offer_fact(e: Dictionary, type: String, form: int) -> Dictionary:
    if spec.has("postures"):
     var posture_spec=spec.postures.get(posture,spec.postures.values()[0])
     label=posture_spec.name
-    damage=BasicAttacks.physical_damage(self,posture_spec.damage,leg_level)
+    damage=BasicAttacks.physical_damage(self,posture_spec.damage,leg_level,gained)
     posture_available=spec.postures.has(posture)
     if not posture_available: reason="踢击需要站姿或坐姿。" if spec.postures.size()>1 else "连续踢需要坐姿。"
     elif leg_level>posture_spec.max_level: reason="站着踢需要双腿活动自由。" if posture=="stand" else "坐着踢需要腿部束缚≤3级。"
@@ -3238,12 +3431,12 @@ func _attack_offer_fact(e: Dictionary, type: String, form: int) -> Dictionary:
      fall=cost>=spec.fall_energy
      if reason=="" and cost<1: reason="连续踢至少需要1点能量。"
    elif all_targets:
-    damage=BasicAttacks.physical_damage(self,spec.damage,leg_level)
+    damage=BasicAttacks.physical_damage(self,spec.damage,leg_level,gained)
     posture_available=posture=="stand"
     if not posture_available: reason="横扫需要站姿。"
     elif not freedom and not Cards.action_ignores_restraints(self) and (_bound_feet() or leg_level>=3): reason="横扫需要双腿独立活动。"
    else:
-    var kick=kick_profile(spec)
+    var kick=kick_profile(spec,gained)
     label=kick.label;cost=kick.cost;damage=kick.damage;fall=kick.fall;interrupt=kick.interrupt;reason=kick.reason
     posture_available=kick.posture_available
     cooldown_turns=kick.cooldown_turns
@@ -3252,27 +3445,29 @@ func _attack_offer_fact(e: Dictionary, type: String, form: int) -> Dictionary:
    if fall and CaptureBind.fixed_posture(self)=="": risk="攻击后立即躺下。"
   "fireball":
    damage=BasicAttacks.fireball_damage(self)
-   mana=_mana_cost(B.SPELL_COST)
+   mana=BasicAttacks.fireball_mana(self)
    all_targets=Cards.spell_power(self,type).get("all_enemies",false)
  if type!="fireball":
   damage*=Cards.damage_multiplier(self,type)
   interrupt=interrupt or Cards.attack_interrupt(self,type)
- var attachment=Cards.physical_attachment(self,type)
- if not attachment.is_empty():
+ if not attachment.is_empty(): mana=attachment.mana
+ if attachment.has("multiplier"):
   damage*=attachment.multiplier
-  mana=attachment.mana
   all_targets=true
  var usage=BasicAttacks.usage(self,type)
  if reason=="" and usage.limit>0 and usage.remaining<=0: reason="本回合"+label+"次数已用完。"
  if type!="fireball" and state.weakness_turns>0: reason="无力化：本回合体术暂停。"
  var damage_type="magic" if type=="fireball" else "physical"
- if reason=="": reason=Puppets.taunt_reason(self,e,all_targets)
- if reason=="": reason=RopeArt.target_reason(self,e,all_targets)
- if reason=="" and type in ["strike","heavy","kick"] and RopeArt.hogtied(self): reason="驷马缚期间不能使用体术。"
- var shown_damage=damage*Enemies.damage_multiplier(self,e.type,damage_type)
+ if reason=="": reason=enemy_target_reason(e,all_targets)
+ if type in BasicAttacks.PHYSICAL_PARTS and not freedom and RopeArt.hogtied(self):
+  reason=RopeArt.HOGTIE_REASON
+  posture_available=false
+ var shown_damage=Enemies.cap_hit(e,damage*_enemy_hit_multiplier(e,damage_type))
  var attack_payload={"kind":"attack","type":type,"form":form,"hits":spec.hits,"all":all_targets,"enemy":e.id,"damage":damage,"damage_type":damage_type,"interrupt":interrupt,"fall":fall,"cooldown_turns":cooldown_turns}
  if spec.get("x_cost",false): attack_payload.x=cost
  if not attachment.is_empty(): attack_payload.mana_attachment=true
+ if gained>0: attack_payload.attack_charge=gained
+ if attachment.get("arms",false): attack_payload.arm_freedom=true
  var attack_args={"payload":attack_payload,"shown_damage":shown_damage}
  # Compact display uses the same target-adjusted damage as the detailed preview.
  var brief_damage=number(damage if all_targets else shown_damage)
@@ -3302,13 +3497,13 @@ func equipment_spell_facts() -> Array:
 # 装备自解单行构造（原 equipment_spell_facts 的循环体；point 构造与 View 生产者共用同一实现）。
 func _equipment_spell_fact(target: Dictionary, factor: float, usage: Dictionary) -> Dictionary:
  var reason=""
- var definition=SpecialEquipment.DESIGNS[target.type] if SpecialEquipment.is_special(target) else Equipment.TEMPLATES[target.template]
+ var definition=Equipment.TEMPLATES[target.template]
  if not _outer(target): reason="先解除遮挡它的外层拘束具。"
  elif definition.get("damage_factor",1.0)==0.0: reason=target.name+"无法受到伤害。"
  elif usage.remaining<=0: reason="本回合火球术次数已用完。"
  var damage=BasicAttacks.fireball_damage(self)*factor
  var release_args={"target_name":target.name,"damage":damage}
- var fact=_attack_fact_display(_fact({"kind":"attack","type":"fireball","form":0,"hits":1,"all":false,"enemy":"","target":target.id,"damage":damage,"damage_type":"magic","interrupt":false,"fall":false},"火球术 · 自解",{"kind":"game.attack_release","args":release_args,"fallback":copy_attack_release(self,release_args)},Cards.attack_cost(self,"fireball",BasicAttacks.energy_cost(self,"fireball")),_mana_cost(B.SPELL_COST),reason,"","attack"))
+ var fact=_attack_fact_display(_fact({"kind":"attack","type":"fireball","form":0,"hits":1,"all":false,"enemy":"","target":target.id,"damage":damage,"damage_type":"magic","interrupt":false,"fall":false},"火球术 · 自解",{"kind":"game.attack_release","args":release_args,"fallback":copy_attack_release(self,release_args)},Cards.attack_cost(self,"fireball",BasicAttacks.energy_cost(self,"fireball")),BasicAttacks.fireball_mana(self),reason,"","attack"))
  fact.brief=number(damage)+" 伤害"
  fact.brief_tags="%d/%d次" % [usage.remaining,usage.limit]
  return fact
@@ -3388,41 +3583,7 @@ func item_action_facts(item_id: String="") -> Array:
  var facts=[]
  for item in state.items:
   if item_id!="" and item.id!=item_id: continue
-  var spec=Tools.TYPES[item.type]
-  if Tools.operation(item.type)=="buff":
-   facts.append_array(Consumables.use_facts(self,item))
-   continue
-  if Tools.operation(item.type)=="escape":
-   var escape_args={"assisted":Tools.assisted(self)}
-   facts.append(_fact({"kind":"item_use","item":item.id,"target":"hero"},"撕开传送符，离开牢房",{"kind":"game.item_escape","args":escape_args,"fallback":copy_item_escape(self,escape_args)},0,0.0,Tools.escape_reason(self),"","item"))
-   continue
-  if Tools.operation(item.type)=="unlock":
-   for target in action_targets():
-    var unlock_args={"shackle":Equipment.is_shackle(target)}
-    facts.append(_fact({"kind":"item_use","item":item.id,"target":target.id},"开锁 · "+_equipment_name(target),{"kind":"game.item_unlock","args":unlock_args,"fallback":copy_item_unlock(self,unlock_args)},0,0.0,Tools.unlock_reason(self,target),"","item"))
-   if state.phase=="prison":
-    var reason="牢门已经打开。" if state.prison.door_open else ("需要先到牢门前。" if not Tools.assisted(self) and not Prison.Space.at(self,"door") else Tools.unlock_reason(self))
-    facts.append(_fact({"kind":"item_use","item":item.id,"target":"prison_door"},"打开牢门锁",{"kind":"game.item_door_lock","args":{},"fallback":copy_item_door_lock(self,{})},0,0.0,reason,"","item"))
-   continue
-  if item.mount=="carry" and Tools.is_fixed(self,item):
-   continue
-  if item.mount=="carry":
-   for target in action_targets():
-    if SpecialEquipment.is_special(target): continue
-    var cut_reason="直接握持工具切割需要手指自由。" if not Tools.assisted(self) and occupied("fingers") else ""
-    if cut_reason=="": cut_reason=Tools.contact_reason(self,target,item)
-    if cut_reason=="" and not spec.materials.has(target.material): cut_reason=spec.name+"需要适用的切割工具"+Equipment.MATERIAL_NAMES[target.material]+"；请换用兼容的工具。"
-    var cut_args={"damage":spec.damage,"multiplier":Cards.damage_multiplier(self,"equipment")}
-    facts.append(_fact({"kind":"item_use","item":item.id,"target":target.id},"切割 · "+_equipment_name(target),{"kind":"game.item_cut","args":cut_args,"fallback":copy_item_cut(self,cut_args)},0,0.0,cut_reason,"","item"))
-  if item.mount=="carry":
-   for mount in Tools.HEIGHTS:
-    var operators=Tools.install_operators(self,mount,item.type)
-    var install_args={"mount":mount,"operators":operators}
-    facts.append(_fact({"kind":"item_install","item":item.id,"mount":mount,"operator":operators[0] if not operators.is_empty() else ""},"安装到"+Tools.mount_label(mount),{"kind":"game.item_install","args":install_args,"fallback":copy_item_install(self,install_args)},1,0.0,Tools.install_reason(self,mount,item.type),"","item"))
-  else:
-   var operators=Tools.install_operators(self,item.mount,item.type)
-   var retrieve_args={"operators":operators}
-   facts.append(_fact({"kind":"item_retrieve","item":item.id,"mount":"carry","operator":operators[0] if not operators.is_empty() else ""},"取回工具",{"kind":"game.item_retrieve","args":retrieve_args,"fallback":copy_item_retrieve(self,retrieve_args)},0,0.0,Tools.retrieve_reason(self,item),"","item"))
+  facts.append(Cards.ItemCards.conversion(self,item))
  return facts
 
 # 丢弃（道具域）：每件道具一条；守卫与 command_facts 的守卫（departure／relic bundle 分支与两处校验）一致。
@@ -3508,6 +3669,7 @@ func dispatch(cmd: Dictionary, expected_version: int) -> Dictionary:
  # docs/save-fixed-points.md「接口」：本批提交新增的迁移日志条目决定 checkpoint 取值。
  var log_start=_transition_log.size()
  var original=state
+ var recovery=RopeArt.struggle_only(self)
  var hero_copy_context={
   "cost":chosen.cost,
   "pressure_before":state.pressure,
@@ -3520,11 +3682,12 @@ func dispatch(cmd: Dictionary, expected_version: int) -> Dictionary:
    hero_copy_context.manual_family=SpecialEquipment.TYPES[copy_target.type].family
  var action_buffs=Cards.action_buff_ids(self) if Cards.is_card_action(chosen.payload) or chosen.payload.kind=="attack" else []
  state=state.duplicate(true)
+ if recovery: _recovery_target=worn_hogtie().id
  FirstTurnControl.commit(self,chosen)
  _resource_feedback=preload("res://core/resource_feedback.gd").new()
  _card_feedback=[]
  _resource_feedback.capture(state)
- _energy_pressure_pending=chosen.cost>0
+ _energy_pressure_pending=chosen.cost>0 and not recovery
  _card_energy_pressure_pending=Cards.hand_modifier(self,"energy_pressure") if chosen.cost>0 else 0.0
  _capture_energy_pending={"amount":chosen.cost,"guard":CaptureBind.has_bind(self,"guard")} if chosen.cost>0 and CaptureBind.has_bind(self) else {}
  _magic_failed=false
@@ -3549,6 +3712,7 @@ func dispatch(cmd: Dictionary, expected_version: int) -> Dictionary:
  else: _execute(chosen)
  _copy_context={}
  if execution_issue!="":
+  _recovery_target=""
   _card_feedback=[]
   _resource_feedback=null
   _energy_pressure_pending=false
@@ -3560,21 +3724,23 @@ func dispatch(cmd: Dictionary, expected_version: int) -> Dictionary:
   if state.card_chain.is_empty(): Cards.consume_action_buffs(self,action_buffs)
   else: state.card_chain.action_buffs=action_buffs
  _settle_energy_pressure()
- for pulse in range(extra_traction):
+ for pulse in range(0 if recovery else extra_traction):
   _emit("event","熟练而已：额外牵扯1次。",{"traction":{"extra":true,"energy":1,"card_uid":chosen.payload.uid}})
   _apply_traction(1,traction_guard,traction_mark)
- if chosen.payload.kind=="card" and not _magic_failed: Cards.record_play(self,chosen.payload.type,chosen.payload.get("free",false),chosen.payload.get("uid",""))
+ if chosen.payload.kind=="card" and not _magic_failed and not recovery: Cards.record_play(self,chosen.payload.type,chosen.payload.get("free",false),chosen.payload.get("uid",""))
  _cleanup()
  Cards.normalize(self)
- if state.card_chain.is_empty() and Cards.flush_powers(self):
+ if state.card_chain.is_empty() and Cards.flush_mana_powers(self):
   _cleanup()
   if _battle_end_reason()=="victory": _finish_battle("victory")
  if state.card_chain.is_empty(): RelicEffects.flush(self)
  # Only the completed action contributes; phase transitions own their start/end pulses.
- if state.card_chain.is_empty() and not _magic_failed: Pressure.tick(self,Pressure.escape_timing(chosen.payload))
+ if state.card_chain.is_empty() and not _magic_failed and not recovery: Pressure.tick(self,Pressure.escape_timing(chosen.payload))
  if state.card_chain.is_empty() and not state.relic_pending.is_empty(): RelicEffects.flush(self)
  CaptureBind.observe(self)
  _finish_if_saturated()
+ _recovery_target=""
+ if recovery and not RopeArt.hogtied(self): RopeArt.finish_recovery(self)
  var issue=validate()
  if issue!="":
   _resource_feedback=null
@@ -3664,15 +3830,15 @@ func _cast_path(part: String, profile: Dictionary) -> Dictionary:
  var toe_route=part=="hand" and profile.get("toe_route",false)
  var reason=physical_hand_cast_reason() if part=="hand" and not profile.get("body_free",false) else ""
  if toe_route: reason="秘密武器：脚趾被拘束，脚趾施法成功率×0%。" if occupied("toes") else ""
- var formula=("无需身体部位" if part=="none" else "施法部位："+("脚趾（代替手部）" if toe_route else Cards.Rules.CAST_PART_NAMES[part]))+"\n当前快感下的基础成功率：%s%%" % String.num(base*100,6)
+ var formula=("无需身体部位" if part=="none" else "施法部位："+("脚趾（代替手部）" if toe_route else Cards.Rules.CAST_PART_NAMES[part]))+"\n当前快感下的基础成功率：%s" % DisplayNumbers.probability(base)
  for e in (equipment_at("mouth") if part=="mouth" and not unrestricted and not profile.get("ignore_restraints",false) else []):
   var tightness=tier(e.durability,e.maximum)
   var grade_factor=B.MOUTH_CAST_GRADE[e.grade]
   var tightness_factor=B.MOUTH_CAST_TIGHTNESS[tightness]
   multiplier*=grade_factor*tightness_factor
   factors.append({"id":e.id,"grade":e.grade,"tier":tightness,"grade_factor":grade_factor,"tightness_factor":tightness_factor})
-  formula+="\n%s：%s×%s，紧度%d档×%s" % [e.name,Equipment.GRADES[e.grade],number(grade_factor),tightness,number(tightness_factor)]
- if profile.get("multiplier",1.0)!=1.0: formula+="\n法术加成：×"+number(profile.multiplier)
+  formula+="\n%s：%s×%s，紧度%d档×%s" % [e.name,Equipment.GRADES[e.grade],DisplayNumbers.factor(grade_factor),tightness,DisplayNumbers.factor(tightness_factor)]
+ if profile.get("multiplier",1.0)!=1.0: formula+="\n法术加成：×"+DisplayNumbers.factor(profile.multiplier)
  if unrestricted: formula+="\n无尽魔法少女战神：基础动作无视拘束与快感，施法成功率100%。"
  elif profile.get("ignore_restraints",false): formula+="\n心理暗示：本次忽略拘束具影响，快感判定照常。"
  elif profile.get("body_free",false): formula+="\n魔术手：本次手部基础动作忽略拘束条件。" if Character.active(self) and part=="hand" else "\n火焰精通：无视口部装备，手势加成为0。"
@@ -3681,9 +3847,9 @@ func _cast_path(part: String, profile: Dictionary) -> Dictionary:
  if chance_bonus!=0.0: formula+="\n成功率额外加成：＋%s个百分点（倍率之后）。" % number(chance_bonus*100)
  if modifiers.minimum>0: formula+="\n"+"、".join(modifiers.minimum_sources)+("：施法成功率固定为100%。" if modifiers.minimum==1.0 else "：最终成功率最低%s%%。" % number(modifiers.minimum*100))
  var winning_rolls=roundi(clampf(maxf(base*multiplier+chance_bonus,modifiers.minimum),0.0,1.0)*B.CAST_ROLL_STEPS)
- if profile.get("enchantment_guarantee",false) and reason=="":
-  winning_rolls=B.CAST_ROLL_STEPS
-  formula+="\n熟练：该牌施法必定成功。"
+ var retry_mana=float(profile.get("enchantment_retry_mana",-1.0))
+ if retry_mana>=0.0 and reason=="":
+  formula+="\n熟练：判定失败时，再支付%s魔力使本次施法成功。" % number(retry_mana)
  var guarantee=RelicEffects.cast_guarantee(self) if profile.get("paid_cast",true) and reason=="" else ""
  if guarantee!="":
   winning_rolls=B.CAST_ROLL_STEPS
@@ -3695,13 +3861,17 @@ func _cast_path(part: String, profile: Dictionary) -> Dictionary:
   winning_rolls=0
   formula+="\n"+reason
  var chance=float(winning_rolls)/B.CAST_ROLL_STEPS
- return {"part":part,"source_part":"toes" if toe_route else part,"reason":reason,"chance":chance,"winning_rolls":winning_rolls,"base":base,"factors":factors,"multiplier":multiplier,"chance_bonus":chance_bonus,"percent":number(chance*100)+"%","formula":formula,"detail":formula+"\n嘴部施法受口部装备影响；手部施法默认需要双手的手掌和手指均自由，施法动作教程可放宽为一只完整自由手。多种可用部位取最高成功率。"+Cards.failure_refund_detail(self)+"。"}
+ return {"part":part,"source_part":"toes" if toe_route else part,"reason":reason,"chance":chance,"winning_rolls":winning_rolls,"base":base,"factors":factors,"multiplier":multiplier,"chance_bonus":chance_bonus,"percent":DisplayNumbers.probability(chance),"formula":formula,"detail":formula+"\n嘴部施法受口部装备影响；手部施法默认需要双手的手掌和手指均自由，施法动作教程可放宽为一只完整自由手。多种可用部位取最高成功率。"+Cards.failure_refund_detail(self)+"。"}
 
 func _cast_magic(c: Dictionary) -> bool:
  var paid=not c.payload.get("replay",false) and c.mana>0
  var guarantee=RelicEffects.cast_guarantee(self) if paid else ""
  var profile=Cards.cast_profile(self,c.payload.type,paid,c.payload.get("free"),c.payload.get("uid",""))
- if c.payload.get("replay",false): profile.magic_card=false
+ if c.payload.get("replay",false):
+  profile.magic_card=false
+  profile.enchantment_retry_mana=-1.0
+ elif profile.enchantment_retry_mana>=0.0 and Cards.Rules.SPECS[c.payload.type].has("all_mana_minimum"):
+  profile.enchantment_retry_mana=c.mana
  var casting=cast_view(profile)
  _pay_magic(c)
  if guarantee!="" and casting.reason=="": RelicEffects.trigger(self,"paid_cast")
@@ -3712,6 +3882,13 @@ func _cast_magic(c: Dictionary) -> bool:
  if chance>0.0 and chance<1.0:
   roll=_random_index("magic",B.CAST_ROLL_STEPS)
   success=roll<casting.winning_rolls
+ var retry_mana=float(profile.enchantment_retry_mana)
+ var rescued=not success and casting.reason=="" and Enchantments.can_retry(self,retry_mana)
+ if rescued:
+  var retry_payment=_mana_payment(c.payload,retry_mana)
+  _pay_mana(retry_payment)
+  _pay_magic({"payload":c.payload,"mana_payment":retry_payment})
+  success=true
  _magic_failed=not success
  if not success: Character.lose_focus(self,1,"施法失败")
  var refund={"mana":0.0,"temporary_mana":0.0}
@@ -3725,10 +3902,12 @@ func _cast_magic(c: Dictionary) -> bool:
    refund[field]=float(c.mana_payment.get(field,0.0))*refund_rates[field]
    if outcome.power_uid=="": refund[field]=floorf(refund[field])
    if field=="mana": refund[field]=minf(refund[field],maxf(0.0,state.mana_max-state.mana))
-   state[field]+=refund[field]
+   if field=="mana": set_own_mana(state.mana+refund[field])
+   else: state[field]+=refund[field]
  var name=B.CARD_NAMES[c.payload.type] if c.payload.has("uid") else c.label
  var result=("额外施放「%s」" if c.payload.get("replay",false) else "「%s」施法") % name
- result+=("成功" if success else "失败")+"（成功率%s%%）。" % ActionCopy.number(chance*100)
+ result+=("成功" if success else "失败")+"（成功率%s）。" % DisplayNumbers.probability(chance)
+ if rescued: result+="熟练：判定失败后额外消耗%s魔力，成功施放。" % number(retry_mana)
  if casting.source_part=="toes": result+="秘密武器：脚趾代替手部施法。"
  if energy_refund>0: result+="魔路精通：获得%d能量。" % energy_refund
  if refund.mana>0: result+="返还%s魔力。" % number(refund.mana)
@@ -3774,9 +3953,9 @@ func _execute(c: Dictionary) -> void:
    var result="已到墙边，可以借用墙面。" if wall_contact() else "距墙%d格，需贴墙启用墙面效果。" % state.wall_distance
    if not wall_contact() and at_wall(): result="距墙%d格，遗物仍提供贴墙效果。" % state.wall_distance
    _emit("event",("你向墙面靠近" if p.direction=="toward" else "你向远离墙面的方向移动")+"%d格。" % p.distance+result,{"wall_distance":state.wall_distance,"distance":p.distance,"against_wall":at_wall()})
-   if c.cost>0 and p.distance>0: SlipMotion.apply(self,"wall_move")
+   if p.distance>0: SlipMotion.apply(self,"wall_move")
   "posture":
-   if RelicEffects.posture_discount(self,p.dest)>0: state.ribbon_tick=-1
+   if not Enchantments.assisted_movement(self) and RelicEffects.posture_discount(self,p.dest)>0: state.ribbon_tick=-1
    var support=("借墙支撑，" if wall_contact() else "借助遗物支撑，") if p.wall else ""
    change_posture(p.dest,support)
   "card": Cards.play(self,c)
@@ -3818,32 +3997,9 @@ func _execute(c: Dictionary) -> void:
   "rest_begin": _begin_rest()
   "item_use":
    var item=_item(p.item)
-   if Tools.operation(item.type)=="buff":
-    Consumables.use(self,item,p.target)
-    return
-   if Tools.operation(item.type)=="escape":
-    item.uses-=1
-    Prison.escape(self,"return_seal")
-    _emit("event","传送符已用完。")
-    return
-   var target=_equipment(p.target)
-   if Tools.operation(item.type)=="unlock":
-    if p.target=="prison_door": state.prison.door_open=true
-    else: _unlock_equipment(target)
-    _emit("event","用开锁针打开了"+("牢门锁" if p.target=="prison_door" else target.name+"的锁")+"。")
-   else:
-    _apply_equipment_damage(target,Tools.TYPES[item.type].damage*Cards.damage_multiplier(self,"equipment"),"cut")
-    _emit("event","用"+Tools.TYPES[item.type].name+"切割"+target.name+"，剩余耐久"+number(target.durability)+"。")
-   item.uses-=1
-   _emit("event",Tools.TYPES[item.type].name+"剩余%d次。" % item.uses)
-  "item_install", "item_retrieve":
-   var item=_item(p.item)
-   item.mount=p.mount
-   if p.kind=="item_retrieve": item.erase("prison_position")
-   elif state.room=="prison" and state.prison.get("active",false): item.prison_position=Prison.Space.attachment_position(self)
-   if p.kind=="item_install":
-    _emit("event","用"+Tools.OPERATOR_NAMES[p.operator]+"把"+Tools.TYPES[item.type].name+"安装到"+Tools.mount_label(p.mount)+"。",{"installation":{"item":item.id,"mount":p.mount,"operator":p.operator}})
-   else: _emit("event","用"+Tools.OPERATOR_NAMES[p.operator]+"取回"+Tools.TYPES[item.type].name+"。",{"retrieval":{"item":item.id,"operator":p.operator}})
+   _gain_card(item.type,{"remove_left":item.uses},true)
+   state.items.erase(item)
+   _emit("event","「%s」加入手牌。" % B.CARD_NAMES[item.type])
   "item_discard":
    var item=_item(p.item)
    _emit("event","丢弃"+Tools.TYPES[item.type].name+"。")
@@ -3871,14 +4027,14 @@ func _execute(c: Dictionary) -> void:
      "item":
       _gain_tool(p.type)
       _emit("event","领取"+Tools.TYPES[p.type].name+"，收入道具栏。")
-     "relic": RelicEffects.gain(self,p.type,"boss" if room_data(state.room).get("boss",false) else "")
+     "relic","bonus_relic": RelicEffects.gain(self,p.type,"boss" if room_data(state.room).get("boss",false) else "")
      "flask":
       state.flask_mana+=state.battle_flask_drop
       _emit("event",("领取出口守卫奖励，贴身魔瓶获得%d魔力。" if Prison.is_exit_battle(self) else "领取Boss奖励，贴身魔瓶获得%d魔力。") % state.battle_flask_drop,{"boss_flask_reward":state.battle_flask_drop})
    else:
     state.battle_flask_drop=0
     state.battle_item_drop=""
-    state.battle_relic_drop=""
+    state.battle_relic_drop="";state.bonus_relic_drop=""
     state.boss_relic_options=[]
     if Prison.is_exit_battle(self):
      state.reward_options=[]
@@ -3896,14 +4052,19 @@ func _execute_attack(c: Dictionary, targets: Array) -> void:
  var p=c.payload
  if not p.get("replay",false) and BasicAttacks.TYPES[p.type][0].has("first_use_cost"): state.combat.attack_started[p.type]=true
  if p.type=="fireball":
+  state.combat.fireballs_cast=int(state.combat.get("fireballs_cast",0))+1
   if not _cast_magic(c): return
- else: _consume_charge()
+  state.combat.fireballs_succeeded=BasicAttacks.successful_fireballs(self)+1
+ else:
+  _gain_charge(p.get("attack_charge",0))
+  _consume_charge()
  if not p.get("replay",false) and BasicAttacks.TYPES[p.type][0].has("uses_per_turn"): state.combat.attack_uses[p.type]=int(state.combat.attack_uses.get(p.type,0))+1
  if p.get("target","")!="":
   var equipment=_equipment(p.target)
-  var before=equipment.durability
+  var before=EquipmentEnchantments.total_durability(equipment)
   _apply_equipment_damage(equipment,p.damage,p.damage_type)
-  _emit("mechanical","火球术对%s造成%s点魔法伤害，耐久%s→%s。" % [equipment.name,number(before-equipment.durability),number(before),number(equipment.durability)],{"equipment_spell":{"target":equipment.id,"damage_type":p.damage_type,"before":before,"after":equipment.durability,"damage":before-equipment.durability}})
+  var after=EquipmentEnchantments.total_durability(equipment)
+  _emit("mechanical","火球术对%s造成%s点魔法伤害，耐久%s→%s。" % [equipment.name,number(before-after),number(before),number(after)],{"equipment_spell":{"target":equipment.id,"damage_type":p.damage_type,"before":before,"after":after,"damage":before-after}})
   Cards.consume_attack_buffs(self,p.type)
   return
  if p.type=="heavy": state.heavy_used=true
@@ -3913,11 +4074,11 @@ func _execute_attack(c: Dictionary, targets: Array) -> void:
   for hit in range(p.hits):
    if target.is_empty() or target.gone: break
    _damage_enemy(target,p.damage,p.damage_type,c.label+("第%d击" % (hit+1) if p.hits>1 else ""),{"hit":hit+1,"hits":p.hits,"attack":true},damage_group)
-  if not target.is_empty() and not target.gone and p.interrupt and not target.intent.is_empty() and not target.intent.get("delayed",false):
+  if not target.is_empty() and not target.gone and p.interrupt and not target.intent.is_empty() and target.intent.kind!="mech_stun" and not target.intent.get("delayed",false):
    target.intent.delayed=true
    var cancelled=target.intent.get("cancel_on_interrupt",false)
    _emit("event",target.name+("的逮捕准备被打断。" if cancelled else "的意图延后一回合。"),{"interrupt":{"enemy":target.id,"cancelled":cancelled}})
- Cards.consume_attack_buffs(self,p.type)
+ Cards.consume_attack_buffs(self,p.type,targets)
  if p.fall and CaptureBind.fixed_posture(self)=="":
   state.posture="lie"
   RelicEffects.fell(self)
@@ -3931,6 +4092,7 @@ func _cleanup(released: bool=true) -> void:
    if SpecialEquipment.is_reinforcement(item):
     var owner=_equipment(item.owner_id)
     if not owner.is_empty() and SpecialEquipment.supports_reinforcement(owner): owner.reinforcement_state="removed"
+   CaptureBind.removed(self,item.id,released)
    state.special_equipment.erase(item)
    if SpecialEquipment.supports_reinforcement(item):
     for strap in state.special_equipment.duplicate():
@@ -3948,14 +4110,17 @@ func _cleanup(released: bool=true) -> void:
   RopeArt.track(self,e)
   if e.durability<=0.000001 and (not cursed_eyes(e) or e.get("absolute_release",false)):
    _emit("event",e.name+"已解除。")
+   CaptureBind.removed(self,e.id,released)
    state.equipment.remove_at(i)
  for root in state.composites.duplicate():
   var body=_composite_body(root)
   if root.kind=="head" and _equipment(root.attached_to).is_empty():
+   if not body.is_empty(): CaptureBind.removed(self,body.id,released)
    state.composites.erase(root)
    _emit("event","口部固定带已解除，依附其上的头部马具一并移除。")
    continue
   if not body.is_empty() and body.durability<=0.000001:
+   CaptureBind.removed(self,body.id,released)
    root.components=root.components.filter(func(e):return e.get("independent",false) and e.durability>0.000001)
    if root.components.is_empty(): state.composites.erase(root)
    _emit("event",root.name+"的套体已解除。"+("附带部件一并解除。" if root.components.is_empty() else ""))
@@ -3972,10 +4137,12 @@ func _cleanup(released: bool=true) -> void:
  for link in state.links.duplicate():
   RopeArt.track(self,link)
   if link.durability<=0.000001:
+   CaptureBind.removed(self,link.id,released)
    state.links.erase(link)
    _emit("event",link.name+"已解除。")
   elif not link.ends.all(func(id):return link_anchors().any(func(e):return e.id==id)):
    RopeArt.track(self,link,true)
+   CaptureBind.removed(self,link.id,released)
    state.links.erase(link)
    _emit("event",link.name+"连接的一件装备已解除，这条链接随之移除。")
  Pressure.cleanup(self)
@@ -4001,16 +4168,22 @@ func _settle_energy_pressure() -> void:
  _card_energy_pressure_pending=0.0
 
 func _end_turn() -> void:
+ if RopeArt.struggle_only(self):
+  RopeArt.recovery_hand(self)
+  return
+ Cards.tick_weakness(self)
  if state.weakness_turns>0:
   state.weakness_turns-=1
   if state.weakness_turns==0: _emit("event","无力化结束。")
  _settle_energy_pressure()
  state.ribbon_tick=-1
  Cards.end_hand(self)
+ EquipmentEnchantments.turn_end(self)
  RopeArt.turn_end(self)
  Pressure.tick(self,"turn_end")
  _discard_end()
  EnemyPlans.tick_install(self,"turn_end")
+ Cards.end_turn(self)
  RelicEffects.end_turn(self)
  Cards.expire_turn_buffs(self)
  Pressure.relax(self)
@@ -4033,12 +4206,22 @@ func _end_turn() -> void:
    _finish_preparation()
   else: _prepare_round()
   return
- if state.order=="first": _enemy_phase()
+ # Enemy-last interruptions belong to the upcoming player turn. Player-turn
+ # interruptions have already consumed their action window and never carry here.
+ var interrupted_count=0
+ if state.order=="first":
+  var before_enemy_climaxes=state.overload_total
+  _enemy_phase()
+  if state.overloaded and relic_value("climax_continue")<=0:
+   interrupted_count=state.overload_total-before_enemy_climaxes
  if state.phase=="battle":
   Prison.tick_reinforcements(self)
-  _start_round()
+  _start_round(interrupted_count)
 
 func _finish_preparation() -> void:
+ if state.phase in ["prepare","rest"] and RopeArt.struggle_only(self):
+  RopeArt.recovery_hand(self)
+  return
  RelicEffects.end_combat(self)
  Pressure.clear_penalties(self)
  state.weakness_turns=0
@@ -4066,6 +4249,7 @@ func _leave_mounted_tools() -> void:
    state.items.erase(item)
 
 func movement_profile() -> Dictionary:
+ if RopeArt.hogtied(self): return {"speed":0.0,"mode":RopeArt.HOGTIE_POSE,"turns":0}
  var speed=5.0
  var mode="正常步行"
  if state.posture!="stand":
@@ -4095,7 +4279,7 @@ func room_description(room: Dictionary) -> String:
  if room.kind=="entry": return "塔底入口。"
  if room.kind=="prison": return "牢房内可以挣脱、探索、处理出口；巡视按倒计时到达。"
  if room.kind=="exit": return "塔顶出口。"
- if room.kind=="rest": return "休息%d回合 · 挂钩%d次。可领取卡牌或魔力，也可附魔；仅限拘束面。" % [B.REST_TURNS,B.REST_HOOK_USES]
+ if room.kind=="rest": return "休息%d回合 · 挂钩%d次。可领取卡牌或魔力，也可附魔；仅限拘束面。" % [rest_turns(state),B.REST_HOOK_USES]
  var wall="粗糙墙面：贴墙站／坐时，主动挣扎或滑脱额外造成2点真实伤害" if room.wall=="rough" else "普通墙面：贴墙后可借墙起身，无属性加成"
  var encounter=state.room_encounters[room.id]
  var extra=""
@@ -4139,6 +4323,7 @@ func _route_facts(choices: Array) -> Array:
  return out
 
 func room_entry_reason(room: Dictionary, exit_action: Variant=null) -> String:
+ if RopeArt.hogtied(self): return RopeArt.HOGTIE_REASON
  if state.tower_start_pending:
   return "" if state.phase=="map" and Prison.start_room(room) else "出狱起点只能选择第10—11层的非休息、非宝箱区域。"
  if room.is_empty(): return "请在当前塔图中选择房间。"
@@ -4207,7 +4392,7 @@ func _arrive_room() -> void:
  if room.kind=="exit":
   _apply_transition("room_enter",{"phase":"cleared"})
   state.completed_rooms.append(state.room)
-  _emit("event","感谢游玩这次demo。"+("你可以返回菜单，或保留当前成长继续攀塔。" if state.demo_cycle<2 else "三个阶段全部完成。"))
+  _emit("event","感谢游玩这次demo。"+"你可以返回菜单，或保留当前成长继续攀塔。")
  elif room.kind=="entry":
   _apply_transition("room_enter",{"phase":"map"});state.energy=0;state.wall=room.wall
   state.wall_distance=1
@@ -4323,16 +4508,11 @@ func validate() -> String:
     if children[i].max_hp!=inherited: return "分裂敌人的继承生命存在差异"
  for e in state.enemies:
   if e.has("spawned_from") and (e.spawned_from not in enemy_ids or e.spawned_from==e.id): return "分裂敌人的来源缺失"
- var mounts: Array=[]
  var item_ids: Array=[]
  for item in state.items:
-  if Tools.TYPES.has(item.type) and Tools.operation(item.type)!="cut" and item.mount!="carry": return "请选择可安装在墙面的道具。"
+  if item.mount!="carry": return "道具位置有误。"
   if item_ids.has(item.id) or not Tools.TYPES.has(item.type) or item.uses<=0 or item.uses>Tools.TYPES[item.type].uses: return "道具数量或次数有误"
   item_ids.append(item.id)
-  if item.mount!="carry":
-   var point=[item.mount,item.get("prison_position",[])]
-   if point in mounts: return "每条同高度墙缝限安装1件工具。"
-   mounts.append(point)
  if room_data(state.room).is_empty(): return "房间缺失"
  var current_room=room_data(state.room)
  if current_room.has("requires_clear") and not state.completed_rooms.has(current_room.requires_clear): return "击败塔顶守卫后即可抵达出口。"
@@ -4378,7 +4558,7 @@ func validate() -> String:
  return ""
 
 func number(n: float) -> String:
- return str(int(n)) if is_equal_approx(n,roundf(n)) else "%.2f" % n
+ return DisplayNumbers.amount(n)
 
 # 投影入口（唯一）：demand＝需求（组名集合；[] 缺省＝全组，两者同一语义与同一条路径——核心闭包
 # core/game.gd::fact_demand_groups 折算）。E 批不接线：四个 UI 调用点仍取缺省（＝全组）。
@@ -4389,10 +4569,14 @@ func get_view(demand: Array = []) -> Dictionary:
  return result
 
 func export_snapshot() -> Dictionary:
- return state.duplicate(true)
+ var saved=state.duplicate(true)
+ for id in Cards.absent_vulnerable_targets(self): saved.combat.vulnerable.erase(id)
+ return saved
 
 func restore_snapshot(saved: Dictionary) -> Dictionary:
  var candidate=saved.duplicate(true)
+ var removed_opener={}
+ var finish_old_retain=false
  var saved_revision=candidate.get("save_revision")
  var migrate_drone=saved_revision is int and saved_revision in [Snapshot.REINFORCEMENT_STATE_REVISION,Snapshot.CUP_STACK_REVISION,Snapshot.IRON_DRONE_REVISION]
  if saved_revision is int and saved_revision==Snapshot.REINFORCEMENT_STATE_REVISION:
@@ -4406,14 +4590,36 @@ func restore_snapshot(saved: Dictionary) -> Dictionary:
  if saved_revision is int and saved_revision in [Snapshot.REINFORCEMENT_STATE_REVISION,Snapshot.CUP_STACK_REVISION]:
   var migration_issue=Snapshot.migrate_cup_stacks(candidate,self)
   if migration_issue!="": return {"ok":false,"error":"无法继续这份存档："+migration_issue}
- if migrate_drone:
-  Snapshot.migrate_iron_drone(candidate,self)
+ if migrate_drone: Snapshot.migrate_iron_drone(candidate,self)
+ if migrate_drone or (saved_revision is int and saved_revision==Snapshot.INVENTORY_REVISION):
+  var issue=Snapshot.migrate_inventory(candidate)
+  if issue!="": return {"ok":false,"error":issue}
+ if saved_revision is int and saved_revision>=Snapshot.REINFORCEMENT_STATE_REVISION and saved_revision<=Snapshot.OPENER_REVISION:
+  removed_opener=Snapshot.remove_letter_opener(candidate,self)
+  if removed_opener.has("hand") and candidate.get("pending_retain")==true and candidate.hand.all(func(c):return Snapshot.fields(c,"type:s retain_until:i") and not Cards.can_select_retain(self,c)):
+   finish_old_retain=true
+   candidate.pending_retain=false
+ if saved_revision is int and saved_revision>=Snapshot.REINFORCEMENT_STATE_REVISION and saved_revision<=Snapshot.WAR_POWER_REVISION:
+  if saved_revision<=Snapshot.ADAPTABILITY_REVISION: Snapshot.retire_power_to_discard(candidate,"adaptability")
+  if saved_revision<=Snapshot.TOUGH_LEGACY_REVISION:
+   var migration_issue=EquipmentEnchantments.migrate(self,candidate)
+   if migration_issue!="": return {"ok":false,"error":"无法继续这份存档："+migration_issue}
+  if saved_revision<=Snapshot.RESONANCE_POWER_REVISION: Snapshot.retire_resonance_power(candidate)
+  if Snapshot.retire_power_to_discard(candidate,"endless_war_goddess") and candidate.get("phase")=="battle" and candidate.get("card_buffs") is Array and candidate.get("card_buff_uses") is Dictionary:
+   candidate.card_buffs.append("endless_war_goddess")
+   candidate.card_buff_uses.endless_war_goddess=1
+ if saved_revision is int and saved_revision>=Snapshot.REINFORCEMENT_STATE_REVISION and saved_revision<=Snapshot.SINGLE_LAP_REVISION:
+  candidate.demo_lap=1
+  if candidate.get("enemies") is Array:
+   for enemy in candidate.enemies:
+    if enemy is Dictionary and Enemies.TYPES.get(enemy.get("type",""),{}).has("hp_rolls"): enemy.spawn_health_bonus=0.0
   candidate.save_revision=Snapshot.REVISION
  elif not Snapshot.is_current(candidate): return {"ok":false,"code":"version","error":Snapshot.INCOMPATIBLE}
  # The only backfill point for the run identity: a save written before `initial_seed`
  # existed took its identity from the then current `seed`. Patched on the copy before the
  # shared field check, so the caller dictionary, the file and the live state stay untouched.
  if not candidate.has("initial_seed"): candidate.initial_seed=int(candidate.get("seed",0))
+ if candidate.get("practice_kind") in Tower.RETIRED_LINK_PRACTICES: candidate.practice_kind=Tower.current_practice(candidate.practice_kind)
  # Same additive rule for the tower-route history: one unattributed record, nodes/floor
  # stay open until the next real close. No save revision bump.
  if not candidate.has("route_history"): candidate.route_history=RouteHistory.backfill(candidate)
@@ -4421,6 +4627,26 @@ func restore_snapshot(saved: Dictionary) -> Dictionary:
  if issue!="": return {"ok":false,"error":"无法继续这份存档："+issue}
  var previous=state
  state=candidate
+ var had_links=not state.links.is_empty()
+ if not Cards.absent_vulnerable_targets(self).is_empty():
+  state=previous
+  return {"ok":false,"error":"脆弱状态目标不存在。"}
+ issue=Snapshot.retire_links(self)
+ if issue!="":
+  state=previous
+  return {"ok":false,"error":"无法继续这份存档："+issue}
+ if RopeArt.hogtied(self):
+  state.posture="lie"
+  if state.phase=="battle": state.order="last"
+ if not removed_opener.is_empty() and state.card_chain.get("mode")=="select_exhaust" and state.play.size()==1 and Cards.Rules.SPECS[state.play[0].type].has("select_exhaust"):
+  # A replay cannot reselect a retired card that was exhausted earlier.
+  var chain=state.card_chain
+  for target in chain.get("replay_targets",[]):
+   if target.get("selected_uids") is Array and target.selected_uids.any(func(uid):return removed_opener.has(uid)):
+    chain.erase("replay_count");chain.erase("replay_targets")
+    break
+  if ["hand","draw","discard"].any(func(zone):return removed_opener.has(zone)) and Cards.selection_cards(self).size()<chain.remaining:
+   Cards.cancel_chain(self)
  if migrate_drone:
   for enemy in state.enemies:
    var member=Enemies.encounter_member(state,enemy.type)
@@ -4434,11 +4660,22 @@ func restore_snapshot(saved: Dictionary) -> Dictionary:
  var loaded_capture: Dictionary=state.get("capture",{})
  loaded_capture.erase("terminal_equipment")
  issue=validate()
+ if issue=="" and had_links and not state.card_chain.is_empty() and Cards.chain_facts(self).is_empty(): Cards.cancel_chain(self)
  if issue=="" and not state.card_chain.is_empty() and Cards.chain_facts(self).is_empty(): issue="连续卡牌已没有可继续的目标。"
  if issue=="" and state.pending_retain and (state.overloaded or not state.hand.any(func(card):return Cards.can_select_retain(self,card))): issue="保留手牌选择已没有合法目标。"
+ # Recovery could mint exactly one basic card, and could not acquire any further cards.
+ if issue=="" and state.has("hogtie_loan_uid"):
+  var uid="card_%d" % (state.next_card-1)
+  var loan=Cards.instance(self,uid)
+  if not state.hogtie_loan_uid is String or state.hogtie_loan_uid!=uid or loan.get("type","")!=Character.card_id(self,"strain") or loan.get("enchantment","")!="" or loan.get("practice_plays",0)!=0 or not RopeArt.struggle_only(self):
+   issue="驷马绳的临时挣扎牌记录有误。"
+  else:
+   Cards.remove_permanent(self,uid)
+   state.erase("hogtie_loan_uid")
  if issue!="":
   state=previous
   return {"ok":false,"error":"无法继续这份存档："+issue}
+ if finish_old_retain: Cards.finish_retain(self)
  if state.phase=="rest_choice": Enchantments.prepare(self)
  state.version=maxi(int(previous.version),int(state.version))+1
  _scene_start=export_snapshot()

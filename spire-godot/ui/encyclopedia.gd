@@ -97,8 +97,9 @@ func show_entry(entry: Dictionary) -> void:
  host._hide_term()
  selected=entry.id;clear_children(detail)
  detail.add_child(host._label(entry.title,24,host.GOLD))
- detail.add_child(host._label(entry.group+(" · "+entry.rarity_name if entry.has("rarity_name") else (" · "+Catalog.E.GRADES[entry.grade] if entry.grade>0 else "")),15,host.CYAN))
- if entry.category in ["cards","enemies"]: _art_selector(entry)
+ if entry.category!="cards" or Catalog.Cards.SPECS[entry.card].card_type!=entry.rarity:
+  detail.add_child(host._label(entry.group+(" · "+entry.rarity_name if entry.has("rarity_name") else (" · "+Catalog.E.GRADES[entry.grade] if entry.grade>0 else "")),15,host.CYAN))
+ if entry.category=="enemies" or (entry.category=="cards" and (not Catalog.Tools.TYPES.has(entry.id) or host.display_settings.has_formal_art("cards",entry.id))): _art_selector(entry)
  if entry.has("card"):
   _card_family(entry)
  else:
@@ -106,9 +107,6 @@ func show_entry(entry: Dictionary) -> void:
    var icon=RelicIcon.new();icon.relic={"id":entry.id}
    icon.name="EncyclopediaRelicIcon";icon.custom_minimum_size=Vector2(112,112)
    icon.size_flags_horizontal=Control.SIZE_SHRINK_BEGIN;detail.add_child(icon)
-  if entry.has("item"):
-   var icon=preload("res://ui/shop_glyph.gd").new();icon.kind="tool";icon.symbol="return_scroll" if entry.item=="return_seal" else entry.item
-   icon.name="EncyclopediaItemIcon";icon.custom_minimum_size=Vector2(80,80);icon.size_flags_horizontal=Control.SIZE_SHRINK_BEGIN;detail.add_child(icon)
   if entry.get("image","")!="":
    var picture=TextureRect.new();picture.name="EncyclopediaEquipmentImage"
    picture.texture=load(entry.image);picture.custom_minimum_size=Vector2(220,190)

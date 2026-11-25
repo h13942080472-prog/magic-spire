@@ -25,15 +25,20 @@ static func available(g, source: String="normal") -> Array:
 
 static func offer(g, source: String="normal", rng=null, excluded: Array=[], required_relic: String="") -> String:
  var pool=available(g,source).filter(func(id):return id not in excluded and (required_relic=="" or g.Relics.TYPES[id].get("required_relic","")==required_relic))
- var tier=source if source in TIERS or source=="boss" else ("" if required_relic!="" else rarity(source,random(g,100,rng)))
+ var tier=source if source in TIERS or source=="boss" else ("" if required_relic!="" else rarity("normal" if source=="elite_bonus" else source,random(g,100,rng)))
  var choices=pool.filter(func(id):return tier=="" or g.Relics.TYPES[id].rarity==tier)
  var fallback=g.Relics.COMMON_FALLBACK if tier=="common" else g.Relics.FALLBACK
+ if source=="elite_bonus" and fallback in excluded:
+  fallback=g.Relics.FALLBACK if fallback==g.Relics.COMMON_FALLBACK else g.Relics.COMMON_FALLBACK
  var id=fallback if choices.is_empty() else choices[random(g,choices.size(),rng)]
  # Keep offer history for frozen reward validation, not eligibility.
  if id not in g.state.relic_seen: g.state.relic_seen.append(id)
  return id
 
+const DROP_FIELDS={"relic":"battle_relic_drop","bonus_relic":"bonus_relic_drop"}
+
 static func battle_drop(g) -> void:
+ g.state.bonus_relic_drop=""
  g.state.battle_relic_drop=""
  g.state.boss_relic_options=[]
  var room=g.room_data(g.state.room)
@@ -51,3 +56,4 @@ static func battle_drop(g) -> void:
  var encounter=g.Enemies.ENCOUNTERS.get(g.state.room_encounters.get(g.state.room,""),{})
  if encounter.get("rank","")!="elite": return
  g.state.battle_relic_drop=offer(g)
+ if g.relic_value("elite_extra_relic")>0: g.state.bonus_relic_drop=offer(g,"elite_bonus",null,[g.state.battle_relic_drop])

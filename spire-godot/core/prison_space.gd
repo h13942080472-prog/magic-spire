@@ -101,7 +101,7 @@ static func wall_warning(g, route: Array) -> String:
  if not g.wall_contact() or route.is_empty(): return ""
  var segment=route.slice(0,mini(route.size(),g.wall_movement_profile().distance))
  if not segment.any(func(pos):return wall_distance(pos)>0): return ""
- if g.relic_value("always_wall")>0: return "本次会离开墙边；遗物仍提供贴墙效果，墙上工具需回到安装处使用。"
+ if g.relic_value("always_wall")>0: return "本次移动后，遗物继续提供贴墙效果。"
  return "本次会暂时离墙，结束时回到墙边。" if wall_distance(segment.back())==0 else "本次移动后将离墙，墙面效果暂停。"
 
 static func view(g) -> Dictionary:
@@ -112,9 +112,7 @@ static func view(g) -> Dictionary:
   if site.visited and site.discovery!="": label=g.Tools.TYPES[site.discovery].name if g.Tools.TYPES.has(site.discovery) else "通风口"
   var item={"id":site.id,"label":"？？？" if blind and not here else label,"near":not here and route.size()>0 and route.size()<=2,"here":here,"visited":site.visited if not blind or here else false}
   item.interaction={}
-  item.installation_points=g.Tools.installation_points(g) if here else []
   if not blind or here:
-   if here and not item.installation_points.is_empty(): item.interaction={"kind":"wall"}
    if site.id=="place_1": item.interaction={"kind":"door"}
    elif site.discovery=="vent" and site.visited: item.interaction={"kind":"vent"}
    else:

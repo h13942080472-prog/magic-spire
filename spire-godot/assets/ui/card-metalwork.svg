@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="512" viewBox="0 0 320 512">
+ <defs>
+  <linearGradient id="alloy" x1="0" y1="0" x2=".82" y2="1">
+   <stop stop-color="#ffffff"/>
+   <stop offset=".18" stop-color="#a5a5a5"/>
+   <stop offset=".39" stop-color="#dedede"/>
+   <stop offset=".61" stop-color="#646464"/>
+   <stop offset=".81" stop-color="#ffffff"/>
+   <stop offset="1" stop-color="#a5a5a5"/>
+  </linearGradient>
+  <linearGradient id="silver" x2=".3" y2="1">
+   <stop stop-color="#e2d8bc"/>
+   <stop offset=".43" stop-color="#928b79"/>
+   <stop offset="1" stop-color="#605c55"/>
+  </linearGradient>
+ </defs>
+ <path d="M18 2 H302 L317 17 V490 L299 509 H21 L3 491 V17 Z" fill="none" stroke="#26303a" stroke-width="4" opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+ <path d="M18 2 H302 L317 17 V490 L299 509 H21 L3 491 V17 Z" fill="none" stroke="url(#alloy)" stroke-width="2.4" opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+ <g transform="">
+  <path d="M4 18 L19 3 H68 C59 4 56 7 51 9 H24 L10 22 V46 L5 53 Z" fill="url(#alloy)" stroke="#53575b" stroke-width="0.6" opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M9 18 L21 7 H44 L35 10 H24 L11 23 Z" fill="#dedcc9" stroke="none" stroke-width="1" opacity="0.8" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M12 23 L24 12 H30 L15 26 V31 L12 34Z" fill="#646464" stroke="none" stroke-width="1" opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M15 8 L11 13 M33 6 H57" fill="none" stroke="#ffffff" stroke-width="0.55" opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+ </g>
+ <g transform="translate(320 0) scale(-1 1)">
+  <path d="M4 18 L19 3 H68 C59 4 56 7 51 9 H24 L10 22 V46 L5 53 Z" fill="url(#alloy)" stroke="#53575b" stroke-width="0.6" opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M9 18 L21 7 H44 L35 10 H24 L11 23 Z" fill="#dedcc9" stroke="none" stroke-width="1" opacity="0.8" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M12 23 L24 12 H30 L15 26 V31 L12 34Z" fill="#646464" stroke="none" stroke-width="1" opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M15 8 L11 13 M33 6 H57" fill="none" stroke="#ffffff" stroke-width="0.55" opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+ </g>
+ <g transform="">
+  <path d="M4 462 L8 469 V488 L24 504 H48 L53 508 H21 L4 491Z" fill="url(#alloy)" stroke="none" stroke-width="1" opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M9 476 L11 480 V487 L25 500 H37" fill="none" stroke="#ffffff" stroke-width="0.8" opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M18 491 L24 495 L30 494 L27 498Z" fill="#ddd" stroke="none" stroke-width="1" opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+ </g>
+ <g transform="translate(320 0) scale(-1 1)">
+  <path d="M4 462 L8 469 V488 L24 504 H48 L53 508 H21 L4 491Z" fill="url(#alloy)" stroke="none" stroke-width="1" opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M9 476 L11 480 V487 L25 500 H37" fill="none" stroke="#ffffff" stroke-width="0.8" opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M18 491 L24 495 L30 494 L27 498Z" fill="#ddd" stroke="none" stroke-width="1" opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+ </g>
+ <path d="M12 55 L18 60 H302 L308 55" fill="none" stroke="url(#alloy)" stroke-width="1.25" opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+ <path d="M7 69 V313 M7 359 V456" fill="none" stroke="#a5a5a5" stroke-width="1.05" opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+ <circle cx="7" cy="67" r="1.15" fill="#ffffff" stroke="none" stroke-width="1"/>
+ <circle cx="7" cy="315" r="1.15" fill="#ffffff" stroke="none" stroke-width="1"/>
+ <circle cx="7" cy="457" r="1.15" fill="#ffffff" stroke="none" stroke-width="1"/>
+ <path d="M313 69 V313 M313 359 V456" fill="none" stroke="#a5a5a5" stroke-width="1.05" opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+ <circle cx="313" cy="67" r="1.15" fill="#ffffff" stroke="none" stroke-width="1"/>
+ <circle cx="313" cy="315" r="1.15" fill="#ffffff" stroke="none" stroke-width="1"/>
+ <circle cx="313" cy="457" r="1.15" fill="#ffffff" stroke="none" stroke-width="1"/>
+ <path d="M64 54 Q118 57 171 54 H256" fill="none" stroke="#a5a5a5" stroke-width="0.85" opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+ <path d="M75 8 H224 L233 10 H244" fill="none" stroke="#bdc1b4" stroke-width="0.6" opacity="0.45" stroke-linejoin="round" stroke-linecap="round"/>
+</svg>

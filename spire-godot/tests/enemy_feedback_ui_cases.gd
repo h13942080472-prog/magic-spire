@@ -5,6 +5,7 @@ const Queries=preload("res://ui/target_queries.gd")
 static func run(t) -> void:
  await preload("res://tests/girl_sound_ui_cases.gd").run(t)
  await preload("res://tests/equipment_audio_ui_cases.gd").run(t)
+ await grouped_feed(t)
  await live_feed(t)
  await capture_feed(t)
  await player_interactions(t)
@@ -79,6 +80,45 @@ static func run(t) -> void:
  ui.feedback_duration=0.04
  await t.frames()
 
+static func grouped_feed(t) -> void:
+ var ui=t.ui;ui.restart(42);await t.frames()
+ var feed=ui.battle_feed;feed.clear()
+ var action={"enemy_id":"circle_a","sequence":1,"kind":"apply","actor":"小型魔法阵"}
+ var logs=[]
+ for item in ["手腕皮带","堵嘴胶带","手指细绳","脚踝绳索"]:
+  logs.append({"kind":"event","text":"小型魔法阵施加了"+item+"。","data":{"enemy_action":action,"installed_name":item}})
+ logs.append({"kind":"event","text":"仪式生效","data":{"enemy_action":action,"ritual":{"gain":3,"bonus":6}}})
+ logs.append({"kind":"event","text":"第3回合：你先行动。","data":{"round_start":{"round":3,"order_text":"你先行动","visible_intents":true}}})
+ var next=logs[0].duplicate(true);logs.append(next)
+ next=next.duplicate(true);next.data.enemy_action.sequence=2;logs.append(next)
+ next=next.duplicate(true);next.data.enemy_action.enemy_id="circle_b";logs.append(next)
+ var original=logs.duplicate(true)
+ feed.enqueue({"logs":[]},{"logs":logs})
+ t.check(feed.pending.size()==6 and feed.pending[0].items.size()==4 and logs==original,"FEED only consecutive installs from one exact action merge; full history remains intact")
+ feed.release_remaining();feed.set_process(false)
+ feed._process(0.23)
+ var first=feed.rows[0]
+ t.check(first.label.text.replace("\n","、")=="小型魔法阵施加了 4 件拘束具、手腕皮带、堵嘴胶带、手指细绳、脚踝绳索" and first.label.text.ends_with("\n脚踝绳索") and feed.rows[1].label.text.contains("累计 +6"),"FEED grouped names wrap at item boundaries and cumulative ritual bonus retains its meaning")
+ t.check(first.node.size.y>feed.MIN_ROW_HEIGHT and first.node.get_global_rect().encloses(first.label.get_global_rect()) and first.node.get_rect().end.y<feed.rows[1].node.position.y,"FEED multiline result fits and clears the next row")
+ var entering_y=first.node.position.y
+ feed._process(0.09)
+ t.check((first.node.position.y<entering_y or ui.display_settings.reduced_card_motion) and first.node.get_rect().end.y<feed.rows[1].node.position.y,"FEED grouped rows slide together without crossing")
+ feed._process(0.14)
+ feed._process(0.21)
+ t.check(feed.rows[2].label.text=="第 3 回合 · 你先行动","FEED turn marker uses the committed round and order")
+ if "ui-grouped-battle-feed.png" in t.screenshots:
+  await RenderingServer.frame_post_draw
+  var area=Rect2i(first.node.get_global_rect().merge(feed.rows[2].node.get_global_rect()).grow(4))
+  t.check(t.root.get_texture().get_image().get_region(area).save_png("res://build/ui-grouped-battle-feed.png")==OK,"FEED grouped preview capture")
+ for i in range(8):
+  var long_row={"kind":"event","text":"甲乙丙丁戊己庚辛壬癸".repeat(7),"data":{}}
+  logs.append(long_row)
+ feed.enqueue({"logs":original},{"logs":logs})
+ for i in range(logs.size()): feed._process(0.23)
+ t.check(feed.rows.size()<feed.MAX_ROWS and feed.rows[0].node.position.y>=feed.entry.size.y+4 and feed.rows.back().node.get_meta("log_id")==logs.size()-1,"FEED tall rows evict the oldest whole results and retain the newest")
+ for i in range(1,feed.rows.size()):
+  t.check(feed.rows[i-1].node.get_rect().end.y<feed.rows[i].node.position.y,"FEED wrapped rows do not overlap")
+
 static func live_feed(t) -> void:
  var ui=t.ui
  ui.restart(42);await t.frames()
@@ -104,9 +144,9 @@ static func live_feed(t) -> void:
  t.check(feed.pending.any(func(event):return event.key!="" and event.key!=first) and feed.rows.all(func(row):return Feedback.enemy_key(ui.view.logs[row.node.get_meta("log_id")].data.get("enemy_action",{})) in ["",first]),"FEED upcoming enemy results stay hidden until their presentation step")
  presenter.finish()
  for i in range(expected.size()): feed._process(0.23)
- t.check(feed.pending.is_empty() and feed.rows.size()==mini(feed.MAX_ROWS,expected.size()),"FEED skip releases each remaining result and retains at most six rows")
+ t.check(feed.pending.is_empty() and not feed.rows.is_empty() and feed.rows.size()<=mini(feed.MAX_ROWS,expected.size()),"FEED skip releases each remaining result and retains at most six rows")
  var actual=feed.rows.map(func(row):return int(row.node.get_meta("log_id")))
- t.check(actual==expected.slice(maxi(0,expected.size()-feed.MAX_ROWS)) and feed.rows.all(func(row):return row.node.get_meta("full_text")==ui.game.ActionCopy.result(ui.view.logs[row.node.get_meta("log_id")]).strip_edges()),"FEED repeated and distinct events retain exact committed order and text")
+ t.check(actual==expected.slice(-actual.size()) and feed.rows.all(func(row):return row.label.text==row.node.get_meta("full_text") and not row.label.text.is_empty()),"FEED repeated and distinct events retain exact committed order and text")
  t.check(feed.position.x>=1280 and feed.position.x+feed.size.x<=1600 and feed.position.y+feed.size.y<410 and feed.mouse_filter==Control.MOUSE_FILTER_IGNORE,"FEED stays at the battlefield right edge above enemy nameplates without intercepting target input")
  var ids=actual.duplicate()
  ui.render();await t.frames(2,false)

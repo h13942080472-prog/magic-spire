@@ -16,6 +16,7 @@ F（K5 接线）实现面＝UI 节→组声明、共享精确开合、失败退�
 | --- | --- |
 | 表出口 | `core/game.gd::command_facts`（唯一整表出口；D 批起批内只构建一次） |
 | 表的组成（单元序列） | `core/command_registry.gd::FACT_UNITS`（单元表：id／order／owner／producer／groups／input） |
+| 原地挣脱 | `core/rope_master.gd::struggle_only` 控制独占分支 `hogtie_release`。整表和点查询共用 `core/card_effects.gd::_card_point_sites` 的驷马绳手牌目标与 `core/game.gd::flow_facts` 的换手指令。 |
 | 单元连接 | `core/game.gd::_join_fact_units`（唯一通道：按表序 `call(producer, facts)`；未声明单元不产行） |
 | 阶段分支 | `core/game.gd::_phase_branch`（具名分支 id；`core/game.gd::_phase_facts` 与 23 项 kind 域臂共用） |
 | 点查询的来源 | `core/command_registry.gd::ENTRIES[kind].source`（每 kind 一个域臂＝分支守卫＋该分支单元的最小生产者；B 批落地） |

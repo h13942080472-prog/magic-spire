@@ -7,6 +7,10 @@ static func encounter(id: String, seed_value: int=42):
  var g=Game.new(seed_value);g.state.room_encounters.entrance=id;g._start_battle();return g
 
 static func run(t) -> void:
+ preload("res://tests/reinforced_rope_cases.gd").run(t)
+ preload("res://tests/binding_box_plus_cases.gd").run(t)
+ preload("res://tests/mana_smuggler_cases.gd").run(t)
+ preload("res://tests/restraint_mech_cases.gd").run(t)
  humanoid_equipment_audit(t)
  preload("res://tests/enemy_health_cases.gd").run(t)
  preload("res://tests/reinforcement_lock_cases.gd").run(t)
@@ -147,9 +151,8 @@ static func vision_cases(t) -> void:
  # Partial durability loss leaves vision blocked until the last covering item is removed.
  g=Game.new(42)
  var mask=g._install_template("eye_cloth","eyes",8,10,false,"fixture")
- var unlock=g.state.deck.filter(func(c):return c.type=="slip")[0]
- g.state.hand.erase(unlock);g.state.draw.erase(unlock);g.state.hand.append(unlock)
- t.check(t.action(g,"card",{"uid":unlock.uid,"target":mask.id}).ok and not g.can_observe_intents(),"VISION partial slip damage never reveals intent")
+ var unlock=t.hand_card(g,"slip")
+ t.check(t.action(g,"card",{"uid":unlock.uid,"target":mask.id}).ok and g._equipment(mask.id).durability>0 and g._equipment(mask.id).durability<8 and not g.can_observe_intents(),"VISION partial slip damage never reveals intent")
  var h=Game.new(1)
  t.check(h.restore_snapshot(g.export_snapshot()).ok and not h.get_view().enemies[0].intent_visible and h.state.enemies==g.state.enemies,"VISION restore conceals without reroll")
  g.state.round=maxi(g.state.round,2)
@@ -164,8 +167,11 @@ static func vision_cases(t) -> void:
  t.action(g,"end")
  t.check(g.state.enemies[0].guard.bind_ready and not g.get_view().enemies[0].intent_visible and not g.state.logs.any(func(log):return log.text.contains("准备捕缚")),"VISION bind preparation stays functional but concealed")
 
+static func first_floor_weak_types() -> Array:
+ return Enemies.Library.CLASSIFICATIONS.weak.filter(func(type):return Enemies.TYPES[type].get("debut_act",1)==1)
+
 static func library_cases(t) -> void:
- for type in Enemies.Library.CLASSIFICATIONS.weak:
+ for type in first_floor_weak_types():
   var g=encounter(type+"_solo")
   t.check(Enemies.TYPES[type].strength in [1,2] and not g.get_view().enemies[0].has("strength"),"WEAK independent strength within budget "+type)
   t.check(g.state.enemies[0].hp==Enemies.TYPES[type].hp and g.state.enemies[0].grade==1,"WEAK strength does not scale HP or grade "+type)
@@ -394,7 +400,7 @@ static func weak_group_cases(t) -> void:
   t.check(t.action(g,"departure",{"op":"skip"}).ok,"POOL finish floor-zero departure before route sampling")
   g._install_template("belt","wrist",8,10,false,"fixture")
   var before=g.export_snapshot();var options=Enemies.FirstFloor.candidates(g)
-  t.check(g.state==before and options.size()==Enemies.Library.CLASSIFICATIONS.weak.size(),"POOL admission reads all registered eligible types without mutation")
+  t.check(g.state==before and options.size()==first_floor_weak_types().size(),"POOL admission reads all registered eligible types without mutation")
   var next=g.room_data(g.state.room).next[0]
   t.check(t.action(g,"depart",{"room":next}).ok,"POOL enter through real route")
   while g.state.phase=="travel":t.action(g,"travel_step")
@@ -412,11 +418,11 @@ static func weak_group_cases(t) -> void:
   var sampling=LiveGame.new(41)
   sampling._install_template("belt","wrist",8,10,false,"fixture")
   for i in range(256):
-   if seen.size()==Enemies.Library.CLASSIFICATIONS.weak.size() and duplicated: break
+   if seen.size()==first_floor_weak_types().size() and duplicated: break
    var rolled=Enemies.FirstFloor.roll(sampling)
    for member in rolled: seen[member.type]=true
    duplicated=duplicated or (rolled.size()==2 and rolled[0].type==rolled[1].type)
-  t.check(seen.size()==Enemies.Library.CLASSIFICATIONS.weak.size() and duplicated,"POOL all registered types and repeated-type groups reachable")
+  t.check(seen.size()==first_floor_weak_types().size() and duplicated,"POOL all registered types and repeated-type groups reachable")
  var g=LiveGame.new(41)
  t.check(t.action(g,"departure",{"op":"skip"}).ok,"POOL finish floor-zero departure before conditional route sampling")
  g._install_template("mouth_band","mouth",4,10,true,"fixture")
@@ -529,7 +535,7 @@ static func strong_group_cases(t) -> void:
    t.check(g.state==before,"STRONG preview preserves members, variant and no-repeat history")
    g.state.completed_rooms.append(room.id)
  if t.exhaustive:
-  t.check(seen.size()==Enemies.FirstFloor.choices("strong").size() and skins.size()==2 and weak_types.size()==Enemies.Library.CLASSIFICATIONS.weak.filter(func(type):return Enemies.TYPES[type].strength==1).size() and checked_duplicate,"STRONG all recipes material variants and eligible unique weak types reached")
+  t.check(seen.size()==Enemies.FirstFloor.choices("strong").size() and skins.size()==2 and weak_types.size()==first_floor_weak_types().filter(func(type):return Enemies.TYPES[type].strength==1).size() and checked_duplicate,"STRONG all recipes material variants and eligible unique weak types reached")
  # Exact supply boundary: draw all four distinct types, never repeat to fill a shortage.
  var sampling=LiveGame.new(42);var original_pool=Enemies.FirstFloor.POOLS.weak
  Enemies.FirstFloor.POOLS.weak=["rope_solo","belt_solo","tape_solo","cable_tie_solo"]
@@ -572,7 +578,8 @@ static func humanoid_equipment_audit(t) -> void:
  var R=preload("res://tests/replacement_cases.gd")
  var humans=Enemies.TYPES.keys().filter(func(id):return Enemies.TYPES[id].get("humanoid",false))
  for type in humans:
-  var g=Game.new(42,true,"puppeteer_solo" if type=="puppet" else ("guard" if type=="guard" else type+"_solo"))
+  var encounter={"puppet":"puppeteer_solo","guard":"guard","mana_smuggler":"mana_smuggler_pair"}.get(type,type+"_solo")
+  var g=Game.new(42,true,encounter)
   if type=="six_bind": g=preload("res://tests/six_bind_cases.gd").encounter()
   if type=="iron_man":
    g=Game.new(42);g.state.room_encounters.entrance="iron_man_solo";g._start_battle()
@@ -580,11 +587,14 @@ static func humanoid_equipment_audit(t) -> void:
    g=Game.new(42);g.state.room_encounters.entrance="rope_master_solo";g._start_battle()
    g.RopeArt.summon(g,g.RopeArt.master(g))
   var actors=g.state.enemies.filter(func(enemy):return enemy.type==type)
-  t.check(actors.size()==1,"HUMAN AUDIT real encounter contains registered actor: "+type)
+  t.check(actors.size()==(2 if type=="mana_smuggler" else 1),"HUMAN AUDIT real encounter contains registered actor: "+type)
   if actors.is_empty(): continue
   var e=actors[0]
   var before=g.export_snapshot()
   var plans=g.EnemyPlans.installation_intents(g,e)
+  if type==g.DroneOperator.TYPE:
+   t.check(plans.is_empty(),"HUMAN AUDIT handler upgrades and summons; only its drone installs equipment")
+   continue
   t.check(not plans.is_empty() and plans.all(func(plan):return plan.get("replace",false) and g.EnemyPlans.application_spec(g,e,plan).replace),"HUMAN AUDIT every declared installation retains replacement permission: "+type)
   t.check(g.export_snapshot()==before,"HUMAN AUDIT repertoire inspection is read-only: "+type)
   var ordinary=plans.filter(func(plan):return plan.pool=="ordinary" and "belt" in plan.templates)

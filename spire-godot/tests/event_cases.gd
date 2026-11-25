@@ -215,7 +215,7 @@ static func run(t) -> void:
  # Content registrations fail here rather than silently choosing another behavior.
  for id in g.Enemies.TYPES:
   var spec=g.Enemies.TYPES[id]
-  t.check(spec.hp>0 and spec.behavior in ["restraint","dispenser","attachment","lock","guard","humanoid","sequence","six_bind","binding_box","drone","puppeteer","puppet","iron_man","iron_drone","rope_master","rope_assistant"] and spec.visual in ["rope","belt","tape","cable_tie","toybox","silencer","lock","guard","rope_mass","rope_heap","belt_mass","belt_heap","trader","versatile","mixed_bundle","rope_serpent","ominous_circle","six_bind","binding_box","drone","puppeteer","puppet","iron_man"],"CONTENT enemy behavior and visual registered "+id)
+  t.check(spec.hp>0 and spec.behavior in ["restraint","dispenser","attachment","lock","guard","humanoid","sequence","six_bind","binding_box","drone","puppeteer","puppet","iron_man","iron_drone","rope_master","rope_assistant","reinforced_rope","binding_box_plus","mana_smuggler","restraint_mechs","anti_mage_drone","tape_mass","succubus_detective","drone_operator","operator_drone"] and spec.visual in ["rope","belt","tape","cable_tie","toybox","silencer","lock","guard","rope_mass","rope_heap","belt_mass","belt_heap","trader","versatile","mixed_bundle","rope_serpent","ominous_circle","six_bind","binding_box","drone","puppeteer","puppet","iron_man","rope_master","rope_assistant","reinforced_rope","binding_box_plus","mana_smuggler","mini_restraint_mech","support_restraint_mech","anti_mage_drone","tape_mass","succubus_detective","drone_operator","operator_drone"],"CONTENT enemy behavior and visual registered "+id)
   if spec.has("special_pool"): t.check(not spec.special_pool.is_empty() and spec.special_pool.all(func(type):return g.SpecialEquipment.DESIGNS.has(type)),"CONTENT enemy special pool resolves "+id)
   if spec.behavior=="attachment": t.check(spec.attachment_slot in ["eyes","mouth"] and spec.attachment_pool.all(func(template):return spec.attachment_slot in g.Equipment.TEMPLATES[template].slots),"CONTENT attachment pool matches declared body region "+id)
   for field in ["install_pool","final_pool","attachment_pool"]:
@@ -264,13 +264,15 @@ static func run(t) -> void:
  g=Game.new(5);g._gain_card("panic")
  var curse=g.state.discard.pop_back();g.state.hand.append(curse)
  t.check(t.action(g,"card",{"uid":curse.uid}).ok,"EVENT granted panic still plays through the normal candidate")
- t.check(g.state.exhaust.any(func(c):return c.uid==curse.uid) and g.state.deck.size()==11,"EVENT played panic exhausts without permanent deletion")
+ t.check(g.state.exhaust.any(func(c):return c.uid==curse.uid) and g.state.deck.size()==12,"EVENT played panic exhausts without permanent deletion")
  g._reset_piles()
  t.check(g.state.exhaust.is_empty() and g.state.draw.any(func(c):return c.uid==curse.uid),"EVENT curse restores next battle")
 
  g=Game.new(6);g._gain_tool("picks");var tool=g.state.items[0]
  var target=g.add_fixture("thigh",8,10,true)
  var durability=target.durability;var energy=g.state.energy
- t.check(t.action(g,"item_use",{"item":tool.id,"target":target.id}).ok and not g._equipment(target.id).locked and g._equipment(target.id).durability==durability and g.state.energy==energy and g._item(tool.id).uses==1,"EVENT existing picks remain a normal zero-cost unlocking tool")
  t.check(not t.action(g,"item_install",{"item":tool.id}).ok,"EVENT picks cannot install as a cutting tool")
+ t.check(t.action(g,"item_use",{"item":tool.id}).ok and target.locked,"EVENT converting picks leaves the lock intact")
+ var picks=t.hand_card(g,"picks")
+ t.check(t.action(g,"card",{"uid":picks.uid,"target":target.id}).ok and not g._equipment(target.id).locked and g._equipment(target.id).durability==durability and g.state.energy==energy and g.Cards.instance(g,picks.uid).remove_left==1,"EVENT picks unlock for zero energy and spend one use")
  event_gate_names_are_total(t)

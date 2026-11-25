@@ -11,12 +11,13 @@ static func run(t) -> void:
  var face=ui.card_buttons[card.uid]
  t.check(face.rarity=="rare" and t.visible_text(face).contains("无尽魔法少女战神") and face.get_node("CardIllustration").texture!=null,"WAR GODDESS UI shows rare card and configured illustration")
  await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
- t.check(ui.view.mana==0 and ui.view.temporary_mana==0 and ui.view.energy==0 and ui.view.powers.any(func(v):return v.uid==card.uid) and ui.view.speech.text=="无尽战神,出来!","WAR GODDESS UI real card click spends all mana and presents dedicated line")
+ t.check(ui.view.mana==0 and ui.view.temporary_mana==0 and ui.view.energy==1 and ui.game.state.discard.any(func(v):return v.uid==card.uid) and ui.view.speech.text=="无尽战神,出来!","WAR GODDESS UI real card click spends all mana and presents dedicated line")
  preload("res://tests/endless_war_goddess_cases.gd").restrain(ui.game)
+ var rope=ui.game._install_template(ui.game.RopeArt.HOGTIE,"wrist",1,8,false,"fixture")
  ui.render();await t.frames()
  var before=ui.game.export_snapshot()
  var choices=Queries.select(ui.view,"attack",{"type":"kick","enemy":ui.selected_enemy})
- t.check(not choices.is_empty(),"WAR GODDESS UI has kick facts to cycle")
+ t.check(ui.game.RopeArt.hogtied(ui.game) and choices.size()>1,"WAR GODDESS UI offers multiple kick forms while hogtied")
  if choices.is_empty(): return
  for choice in choices:
   var form=choice.payload.form
@@ -27,6 +28,7 @@ static func run(t) -> void:
  t.check(ui.attack_forms.kick==choices[0].payload.form and ui.game.export_snapshot()==before,"WAR GODDESS UI complete candidate cycle is read only")
  t.check(not ui.find_child("BasicAttack_fireball",true,false).disabled and Queries.find(ui.view,"attack",{"type":"fireball","enemy":ui.selected_enemy}).casting.chance==1,"WAR GODDESS UI fireball stays usable with mouth restraint and high pressure")
  ui.attack_forms.kick=choices[-1].payload.form
+ ui.game._apply_equipment_damage(rope,999,"cut");ui.game._cleanup()
  ui.game._finish_battle();ui.game.RelicEffects.end_combat(ui.game);ui.game._start_battle()
  ui.render();await t.frames()
  t.check(ui.view.posture=="lie" and ui.find_child("BasicAttack_kick",true,false)==null,"WAR GODDESS UI expired freedom hides all kicks while lying in the next battle")

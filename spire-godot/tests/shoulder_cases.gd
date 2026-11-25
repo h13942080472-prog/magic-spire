@@ -41,11 +41,16 @@ static func run(t) -> void:
  var left=host.shoulders.pieces[0];var right=host.shoulders.pieces[1]
  t.check(not host.has("binding") and g.tier(host.durability,host.maximum)==2,"SHOULDER extra source can attach below auto threshold")
  left.durability=1;g._cleanup()
- var collateral=g.escape_preview(right,"slip",g.Cards.Rules.SPECS.slip.base*0.5,[],false,false,false,true).damage
+ var initial_right=right.durability
+ var played=t.hand_card(g,"slip")
+ var face_value=t.find_action(g,"card",{"uid":played.uid,"target":left.id,"slot":left.slot}).payload.preview.face_value
+ var preview=g.escape_preview(right,"slip",face_value*0.5,[],false,false,false,true)
+ g.Cards.scale_card_preview(g,preview,"slip",played.uid,right)
+ var collateral=preview.damage
  var cost=g.state.energy;var version=g.state.version
  t.check(hit(t,g,"slip",left).ok and g.state.version==version+1 and g.state.energy==cost-1,"SHOULDER actual card pays and removes selected left")
  host=g._equipment(host.id);right=g._equipment(right.id)
- t.check(g.Shoulders.attached(g,host).size()==1 and is_equal_approx(right.durability,12.0-collateral),"SHOULDER right survives left slip with same-group splash")
+ t.check(g.Shoulders.attached(g,host).size()==1 and is_equal_approx(right.durability,initial_right-collateral),"SHOULDER right survives left slip with same-group splash")
  var half=g.escape_preview(host,"magic_slip",5)
  right.durability=0;g._cleanup()
  var full=g.escape_preview(host,"magic_slip",5)
@@ -61,6 +66,7 @@ static func run(t) -> void:
  t.check(left.crossed and not t.find_action(g,"hook",{"target":left.id}).valid,"SHOULDER cross blocks hook")
  g.state.items[0].mount="high_wall"
  t.check(g.InstalledTools.reason(g,g.state.items[0],left)=="" and not t.find_action(g,"item_use",{"item":g.state.items[0].id,"target":left.id}).valid,"SHOULDER cutter reaches shoulder but requires a matching legal card")
+ g.state.items[0].mount="carry"
  left=g._equipment(left.id)
  t.check(left.durability==right.durability and left.crossed,"SHOULDER viewing crossed shoulder does not spend cutter or damage either side")
  left.durability=left.maximum*0.8;g._cleanup()

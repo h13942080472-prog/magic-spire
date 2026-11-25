@@ -169,32 +169,35 @@ func configure(view: Dictionary, fixed: bool=false, battle_free: bool=false) -> 
  mouse_filter=Control.MOUSE_FILTER_IGNORE
  if is_node_ready(): _align_layers()
 
+func _add_overlay(key: String, image: Texture2D) -> void:
+ # Sprite offsets keep fractional coordinates when the UI snaps Controls to pixels.
+ var layer=Sprite2D.new()
+ layer.name="Overlay_"+key;layer.centered=false;layer.texture=image
+ add_child(layer)
+
 func _ready() -> void:
  if texture==null:texture=FREE
  var layers=LAYERS.merged(leg_layers)
  for key in layers:
-  var layer=TextureRect.new();layer.name="Overlay_"+key;layer.texture=layers[key].texture
-  layer.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;layer.mouse_filter=Control.MOUSE_FILTER_IGNORE
-  add_child(layer)
+  _add_overlay(key,layers[key].texture)
  for key in SPECIAL_LAYERS:
-  var layer=TextureRect.new();layer.name="Overlay_"+key;layer.texture=SPECIAL_LAYERS[key].texture
-  layer.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;layer.mouse_filter=Control.MOUSE_FILTER_IGNORE
-  add_child(layer)
+  _add_overlay(key,SPECIAL_LAYERS[key].texture)
  for key in FREE_SPECIAL_LAYERS:
-  var layer=TextureRect.new();layer.name="Overlay_free_"+key;layer.texture=FREE_SPECIAL_LAYERS[key].texture
-  layer.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;layer.mouse_filter=Control.MOUSE_FILTER_IGNORE
-  add_child(layer)
+  _add_overlay("free_"+key,FREE_SPECIAL_LAYERS[key].texture)
  # Single-leg sleeves replace the ordinary horizontal leg slices and therefore
  # stay last in draw order; otherwise those slices reopen visible seams.
  for key in SINGLE_LEG_DRAW_ORDER:
-  var layer=TextureRect.new();layer.name="Overlay_"+key;layer.texture=single_leg_layers[key].texture
-  layer.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;layer.mouse_filter=Control.MOUSE_FILTER_IGNORE
-  add_child(layer)
+  _add_overlay(key,single_leg_layers[key].texture)
  resized.connect(_align_layers);_align_layers()
 
 func _align_layers() -> void:
- var factor=minf(size.x/texture.get_width(),size.y/texture.get_height())
- var offset=(size-texture.get_size()*factor)/2
+ # KEEP_ASPECT_CENTERED draws the base into integer dimensions.
+ var base_size=Vector2(floorf(texture.get_width()*size.y/texture.get_height()),floorf(size.y))
+ if base_size.x>size.x:
+  base_size.x=floorf(size.x)
+  base_size.y=floorf(texture.get_height()*base_size.x/texture.get_width())
+ var factor=base_size/texture.get_size()
+ var offset=(size-base_size)/2
  var layers=LAYERS.merged(leg_layers)
  for key in layers:
   var layer=get_node("Overlay_"+key)
@@ -220,21 +223,27 @@ func _align_layers() -> void:
    position_in_source=FREE_EYE+(LAYERS[key].origin-BOUND_EYE).rotated(FREE_FACE_ROTATION)*FREE_FACE_SCALE-FREE_CROP
    layer_factor=FREE_FACE_SCALE;angle=FREE_FACE_ROTATION
   layer.position=offset+position_in_source*factor
-  layer.size=layer.texture.get_size()*factor*layer_factor;layer.rotation=angle
+  layer.scale=factor*layer_factor
+  # The material torso's last opaque row blends into transparent texels.
+  # Extend the matching thigh edge half a source texel, keeping its bottom fixed.
+  if key=="thigh_root" and not "single_glove" in active_composite_layers:
+   layer.position.y-=0.5*factor.y
+   layer.scale.y+=0.5*factor.y/layer.texture.get_height()
+  layer.rotation=angle
  for key in SPECIAL_LAYERS:
   var layer=get_node("Overlay_"+key)
   layer.texture=REINFORCEMENT_WITHOUT_CROTCH_ROPE if key=="flat_lock_reinforcement" and not "crotch_rope" in active_special_layers and not "single_glove" in active_composite_layers else SPECIAL_LAYERS[key].texture
   layer.visible=not witch_portrait and variant>=0 and not fixed_portrait and key in active_special_layers
   layer.position=offset+(SPECIAL_LAYERS[key].origin-BOUND_CROP)*factor
-  layer.size=layer.texture.get_size()*factor
+  layer.scale=factor
  for key in FREE_SPECIAL_LAYERS:
   var layer=get_node("Overlay_free_"+key)
   layer.visible=not witch_portrait and battle_free_portrait and variant<0 and not fixed_portrait and key in active_special_layers
   layer.position=offset+(FREE_SPECIAL_LAYERS[key].origin-BATTLE_FREE_CROP)*factor
-  layer.size=layer.texture.get_size()*factor
+  layer.scale=factor
  for key in SINGLE_LEG_DRAW_ORDER:
   var layer=get_node("Overlay_"+key)
   var hidden_by_long=key!="single_leg_long" and "single_leg_long" in active_composite_layers
   layer.visible=not witch_portrait and variant>=0 and not fixed_portrait and key in active_composite_layers and not hidden_by_long
   layer.position=offset+(single_leg_layers[key].origin-BOUND_CROP)*factor
-  layer.size=layer.texture.get_size()*factor
+  layer.scale=factor

@@ -69,6 +69,8 @@ static func run(t) -> void:
  t.check("tailor" not in EventData.TYPES and "locksmith" not in EventData.TYPES,"TOWER retired tailor and locksmith definitions are fully removed")
  t.check("binding_cleric" in event_pool and "succubus_three_games" in event_pool and "succubus_magic_pawnshop" in event_pool and "enchanters_empty_studio" in event_pool and "smuggled_mana_potions" in event_pool and "floating_belt_cluster" in event_pool and "alchemist_tasting_stall" in event_pool and "abandoned_storeroom" in event_pool and "bound_dream_guest_room" in event_pool and "mysterious_woman_statue" in event_pool and "maze_survey_team" in event_pool,"TOWER current authored events remain eligible for normal generation")
  elite_classification(t)
+ second_act_strong_groups(t)
+ mixed_act_encounters(t)
  prison_strong_pool(t)
  route_contract_cases(t)
  merged_departure_cases(t)
@@ -250,6 +252,118 @@ static func elite_classification(t) -> void:
   t.check(false,"TOWER classification fixture requires four ordinary rooms")
  g.Enemies.ENCOUNTERS=encounters
  g.Enemies.FirstFloor.POOLS=pools
+
+static func second_act_strong_groups(t) -> void:
+ var rosters={"drone_operator_solo":["drone_operator"],"succubus_detective_solo":["succubus_detective"],"tape_mass_solo":["tape_mass"],"anti_mage_drone_solo":["anti_mage_drone"],"binding_box_plus_circle":["binding_box_plus","ominous_circle"],"reinforced_rope_quartet":["reinforced_rope","reinforced_rope","reinforced_rope","reinforced_rope"]}
+ for id in rosters:
+  t.check(Tower.strong_groups(1).count(id)==1 and id not in Tower.strong_groups(0) and Tower.strong_groups(2).count(id)==1 and id not in Tower.available_weak_groups(1,[]),"TOWER second-act strong recipe appears once in each later act: "+id)
+ t.check(Tower.strong_groups(1).size()==rosters.size() and Tower.strong_groups(2).size()==rosters.size()+Tower.strong_groups(0).size(),"TOWER later act pools have exactly the registered recipes")
+ var seen={}
+ for seed in range(10,60):
+  if seen.size()==rosters.size(): break
+  var g=Game.new(seed);g.state.demo_cycle=1;g._restart_tower(true)
+  var rooms=g.state.rooms.filter(func(r):return r.get("pool","")=="ordinary")
+  for i in range(4):
+   var room=rooms[i];g.state.room=room.id
+   var previous=g.state.last_strong_group
+   g._start_battle()
+   var id=g.state.room_encounters[room.id]
+   if i<2:
+    t.check(room.encounter_selected=="weak" and id in Tower.SECOND_WEAK_POOL,"TOWER act two starts with two weak fights")
+   else:
+    t.check(room.encounter_selected=="strong" and id in Tower.strong_groups(1) and id!=previous,"TOWER act two draws a different strong group")
+    if rosters.has(id) and not seen.has(id):
+     seen[id]=true
+     t.check(g.state.enemies.map(func(e):return e.type)==rosters[id] and g.validate()=="","TOWER new strong group spawns its exact roster: "+id)
+     preload("res://tests/persistence_cases.gd").roundtrip(t,g,"act two strong encounter "+id)
+   g.state.completed_rooms.append(room.id)
+ t.check(seen.size()==rosters.size(),"TOWER all act two strong groups appear through ordinary battle entry")
+
+static func mixed_act_encounters(t) -> void:
+ var save=preload("res://tests/persistence_cases.gd")
+ var g=Game.new(47)
+ g.state.demo_cycle=2;g._restart_tower(true)
+ var before=g.export_snapshot()
+ var options=Tower.weak_choices(g,[])
+ var eligible=Tower.FirstFloor.candidates(g)
+ var expected=Tower.SECOND_WEAK_POOL.duplicate()
+ for i in range(eligible.size()):
+  var a=eligible[i]
+  if g.Enemies.TYPES[a.type].strength==2:
+   expected.append(Tower.lineup_key([a]))
+   continue
+  for b in eligible.slice(i):
+   if g.Enemies.TYPES[b.type].strength!=1 or (b.type==a.type and g.Enemies.TYPES[a.type].get("unique_in_group",false)): continue
+   expected.append(Tower.lineup_key([a,b]))
+ var keys=options.map(func(p):return Tower.lineup_key(p.members) if p.has("members") else p.id)
+ expected.sort();keys.sort()
+ t.check(keys==expected and g.export_snapshot()==before,"TOWER mixed weak pool gives every eligible unordered formation exactly one ticket without RNG")
+ var rooms=g.state.rooms.filter(func(r):return r.get("pool","")=="ordinary")
+ var partner=save.roundtrip(t,g,"mixed map before first battle")
+ var previous=""
+ for i in range(3):
+  for run in [g,partner]:
+   run.state.room=rooms[i].id;run._start_battle()
+  var room=rooms[i]
+  var key=Tower.lineup_key(room.enemy_members) if room.get("encounter_selected","")=="weak" and room.has("enemy_members") else g.state.room_encounters[room.id]
+  t.check(save.same(g.state,partner.state),"TOWER mixed encounter draw and spawn reproduce across save/load")
+  if i<2: t.check(room.encounter_selected=="weak" and key in expected and key!=previous,"TOWER first two mixed fights draw different legal lineups")
+  else: t.check(room.encounter_selected=="strong" and key in Tower.strong_groups(2),"TOWER third mixed fight enters the combined strong pool")
+  previous=key
+  for run in [g,partner]: run.state.completed_rooms.append(room.id)
+ for cycle in [1,2]:
+  g=Game.new(47);g.state.demo_cycle=cycle;g._restart_tower()
+  rooms=g.state.rooms.filter(func(r):return r.get("pool","")=="strong")
+  var size=Tower.strong_groups(cycle).size()
+  var seen=[]
+  for room in rooms.slice(0,size+1):
+   g.state.room=room.id;g._start_battle()
+   var id=g.state.room_encounters[room.id]
+   t.check(room.encounter_selected=="strong" and id in Tower.strong_groups(cycle) and (id not in seen if seen.size()<size else id!=seen.back()),"TOWER prison return draws current strong recipes without replacement and avoids a repeat on refill")
+   seen.append(id);g.state.completed_rooms.append(room.id)
+  t.check(seen.size()==size+1,"TOWER strong fixture exercises a complete bag and refill")
+
+ # A mixed fixed encounter includes one species from each act.
+ g=Game.new(42);g.state.demo_cycle=2;g._restart_tower(true)
+ var room=g.state.rooms.filter(func(r):return r.get("pool","")=="ordinary")[0]
+ g.state.room=room.id;room.encounter_selected="strong";room.encounter_choices.strong="binding_box_plus_circle"
+ g.state.room_encounters[room.id]=room.encounter_choices.strong
+ g._start_battle()
+ t.check(g.state.enemies.all(func(e):return e.max_hp==g.Enemies.TYPES[e.type].hp*(1.5 if e.type=="binding_box_plus" else 2.0)),"TOWER mixed group scales each species by its debut act")
+ save.roundtrip(t,g,"mixed group with differently scaled enemies")
+ var corrupt=g.export_snapshot()
+ corrupt.enemies.filter(func(e):return e.type=="binding_box_plus")[0].max_hp=130
+ before=g.export_snapshot()
+ t.check(not g.restore_snapshot(corrupt).ok and g.export_snapshot()==before,"TOWER rejects invalid scaled base HP without changing the live fight")
+ var ropes={}
+ for seed in range(40):
+  g=Game.new(seed);g.state.demo_cycle=2
+  g.state.room="entrance";g.state.room_encounters.entrance="reinforced_rope_trio"
+  room=g.room_data("entrance")
+  room.erase("encounter_choices")
+  g._start_battle()
+  for e in g.state.enemies: ropes[e.max_hp]=true
+  if seed==0:
+   save.roundtrip(t,g,"third act rolled rope health")
+   corrupt=g.export_snapshot();corrupt.enemies[0].max_hp=37.0
+   t.check(not g.restore_snapshot(corrupt).ok,"TOWER rejects an in-range rope HP that is not a scaled integer roll")
+  if ropes.size()==6: break
+ var values=ropes.keys();values.sort()
+ t.check(values==[34.5,36.0,37.5,39.0,40.5,42.0],"TOWER all six third-act rope rolls scale once and preserve half points")
+ g=Game.new(42);g.state.demo_cycle=2;g.state.security=2;g.state.room="entrance"
+ g.room_data("entrance").erase("encounter_choices");g.state.room_encounters.entrance="drone_operator_solo"
+ g._start_battle()
+ t.action(g,"end")
+ t.check(g.state.enemies.map(func(e):return e.max_hp)==[172.0,40.0],"TOWER third-act operator and summon add room security after species scaling")
+ save.roundtrip(t,g,"third act operator and summoned drone")
+ var old=g.export_snapshot();old.demo_cycle=1;old.erase("demo_lap");old.save_revision=g.Snapshot.SINGLE_LAP_REVISION
+ for e in old.enemies:
+  e.erase("spawn_health_bonus");e.max_hp=float(g.Enemies.TYPES[e.type].hp);e.hp=e.max_hp-1.0
+ var loaded=Game.new(7)
+ var migrated=loaded.restore_snapshot(old)
+ t.check(migrated.ok and loaded.state.enemies.map(func(e):return e.hp)==[107.0,19.0],"TOWER old encounters retain damage and original unboosted maxima on migration: "+str(migrated))
+ corrupt=g.export_snapshot();corrupt.enemies[0].spawn_health_bonus=-10
+ t.check(not g.restore_snapshot(corrupt).ok,"TOWER rejects a negative frozen security bonus")
 
 static func prison_strong_pool(t) -> void:
  # This seed has a real shop on an eligible release floor.

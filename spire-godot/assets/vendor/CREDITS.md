@@ -1,5 +1,39 @@
 # 素材来源与授权
 
+## 表情遗物与集齐赠牌
+
+🥺、😅、😫、🙄、😂、😨、🤑、😎、🧐、🥵 来自 Microsoft Fluent Emoji 的 Color 系列。遗物图标沿用各自原图，「可是🥺...也...😅」在卡面上组合其中两幅。Copyright (c) Microsoft Corporation，MIT 许可。[固定版本的原图](https://github.com/microsoft/fluentui-emoji/tree/1ffb34c752ecf5d402f04cfb4b392c77f57c54bc/assets)
+
+<details><summary>MIT 许可全文</summary>
+
+MIT License
+
+Copyright (c) Microsoft Corporation.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE
+
+</details>
+
+## 动作栏部位表情
+
+- 手臂 💪、腿 🦵、嘴 👄 使用 Twitter, Inc. 与其他贡献者绘制的 Twemoji v14.0.2。三个原始 SVG 按部位重命名，游戏按按钮尺寸缩放显示。Copyright 2019 Twitter, Inc and other contributors. [Twemoji 图形来源](https://github.com/twitter/twemoji/tree/v14.0.2/assets/svg)　[CC BY 4.0 许可](https://creativecommons.org/licenses/by/4.0/)
+
 ## 用户提供的音频
 
 - `assets/audio/rope-leather-tension.mp3`：用户于2026-10-31提供本地文件 `oxidvideos-rope-amp-leather-tension-449628.mp3` 并指定用于绳索／皮革装备伤害与施加音效。直接复制，未剪辑、转码；播放不循环。SHA256：`DBDC331704548813EE29D98CF4EABE4E195D930258ADE6170B7FF39255E448DA`。来源标识沿用原文件名；未另行推定公开许可证。

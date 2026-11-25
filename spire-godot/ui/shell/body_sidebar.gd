@@ -111,13 +111,24 @@ func _drop_callbacks(ui, button, id: String) -> void:
   var candidate=ui._free_player_candidate(data,id)
   if not candidate.is_empty() and candidate.valid:ui.command_router.emit_deferred(String(candidate.payload.get("kind","")),candidate,int(data.version))
 
+# Sections already order their targets from outside inward. Only read each
+# section's first entry; the count of anatomical sections is bounded.
+func _outer_item(body: Dictionary) -> Dictionary:
+ var outer={}
+ for section in body.sections:
+  if section.equipment.is_empty(): continue
+  var item=section.equipment[0]
+  if outer.is_empty() or item.layer>outer.layer: outer=item
+ return outer
+
 func _presentation_key(ui) -> Array:
  # Only rendered facts: never retain an old View, candidate, or equipment graph.
  var regions=[]
  for region in ui.view.body_regions:
   var members=[]
   for body in region.members:
-   members.append([body.id,body.name,body.count,body.occupied,not body.links.is_empty(),body.can_release,body.slots.duplicate()])
+   var outer=_outer_item(body)
+   members.append([outer.get("durability",0),outer.get("maximum",0),outer.get("lock_only",false),body.id,body.name,body.count,body.occupied,not body.links.is_empty(),body.can_release,body.slots.duplicate()])
   regions.append([region.id,region.name,region.count,members])
  return [size.y,ui.localization.locale,ui._body_at(ui.selected_slot).id,ui.expanded_body_regions.duplicate(),regions]
 
@@ -186,6 +197,12 @@ func configure(ui) -> void:
     button.add_theme_stylebox_override("normal",selected_style)
    button.set_meta("can_release",body.can_release)
    _drop_callbacks(ui,button,body.id);column.add_child(button)
+   var outer=_outer_item(body)
+   if not outer.is_empty() and not outer.get("lock_only",false) and outer.maximum>0:
+    var bar=ui._bar(outer.durability,outer.maximum,ui.GOLD)
+    bar.name="BodyDurability";bar.custom_minimum_size.y=3;bar.mouse_filter=Control.MOUSE_FILTER_IGNORE
+    button.add_child(bar);bar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+    bar.offset_left=8;bar.offset_right=-8;bar.offset_top=-5;bar.offset_bottom=-2
    children.append({"body":body,"button":button})
   rows[region.id]={"region":region,"header":header,"scroller":scroller,"children":children,"height":column.get_combined_minimum_size().y,"header_height":header.get_combined_minimum_size().y}
   base_height+=rows[region.id].header_height+GAP

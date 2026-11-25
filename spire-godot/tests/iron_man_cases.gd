@@ -13,6 +13,7 @@ static func enemy(g, type: String) -> Dictionary:
  return g.state.enemies.filter(func(e):return e.type==type)[0]
 
 static func run(t) -> void:
+ capture_evasion(t)
  interrupt_contract(t)
  capture_contract(t)
  practice_contract(t)
@@ -132,6 +133,33 @@ static func run(t) -> void:
   var tower=Game.new(seed_value)
   summit_seen[tower.state.room_encounters.summit]=true
  t.check(summit_seen.has("six_bind_solo") and summit_seen.has("iron_man_solo") and summit_seen.has("rope_master_solo") and summit_seen.size()==3,"IRON first-floor boss pool can draw Six Bind, Iron Man and Rope Artist")
+
+static func capture_evasion(t) -> void:
+ for witch in [false,true]:
+  var g=encounter(witch)
+  g.state.evasion=5
+  t.check(t.action(g,"end").ok,"CAPTURE EVASION opening enemy actions commit")
+  var iron=enemy(g,"iron_man")
+  var ids=g.state.special_equipment.map(func(item):return item.id)
+  t.check(g.CaptureBind.has_bind(g,"iron_man") and ids.size()==(3 if witch else 1) and g.state.evasion==5,"CAPTURE EVASION opening equipment preserves dodge stacks for both characters")
+  if not witch: g.state.special_equipment[0].remaining=0
+  g._enemy_operation(iron,{"kind":"iron_recharge"})
+  t.check(g.state.special_equipment.map(func(item):return item.id)==ids and g.state.evasion<5,"CAPTURE EVASION regular recharge fitting remains evadable")
+  if not witch: t.check(g.state.special_equipment[0].remaining==g.SpecialEquipment.TYPES[g.state.special_equipment[0].type].duration,"CAPTURE EVASION dodging a recharge fitting preserves the separate battery refill")
+  var left=g.state.evasion
+  g.CaptureBind.clear_bind(g)
+  g._enemy_operation(iron,{"kind":"bind_apply"})
+  t.check(g.CaptureBind.has_bind(g,"iron_man") and g.state.evasion==left and g.state.special_equipment.any(func(item):return item.id not in ids),"CAPTURE EVASION reapplication fits available equipment without consuming dodge")
+ var g=encounter()
+ var drone=enemy(g,"iron_drone");var box=enemy(g,"binding_box")
+ g.CaptureBind.apply_bind(g,drone);g.CaptureBind.apply_bind(g,box)
+ g.state.evasion=2
+ var worn=g.equipment_targets().size()
+ g.CaptureBind.energy_spent(g,g.IronMan.DRONE_ENERGY_THRESHOLD)
+ t.check(g.state.evasion==1 and g.equipment_targets().size()==worn,"CAPTURE EVASION energy-triggered drone tape still consumes dodge")
+ if g.state.guard_bind.sources.binding_box.skip_turn_start: g.CaptureBind.turn_start(g)
+ g.CaptureBind.turn_start(g)
+ t.check(g.state.evasion==0 and g.equipment_targets().size()==worn,"CAPTURE EVASION recurring box leather still consumes dodge")
 
 static func capture_contract(t) -> void:
  for witch in [false,true]:

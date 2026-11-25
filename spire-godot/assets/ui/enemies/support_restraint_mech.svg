@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="250" viewBox="0 0 300 250">
+ <defs>
+  <linearGradient id="shell" x2=".75" y2="1">
+   <stop stop-color="#a7d6d5"/><stop offset=".45" stop-color="#497d8f"/><stop offset="1" stop-color="#2e435c"/>
+  </linearGradient>
+  <linearGradient id="steel" x2="1" y2="1">
+   <stop stop-color="#596d86"/><stop offset="1" stop-color="#22273e"/>
+  </linearGradient>
+  <radialGradient id="field">
+   <stop stop-color="#92ece0" stop-opacity=".61"/><stop offset="1" stop-color="#498ea0" stop-opacity="0"/>
+  </radialGradient>
+ </defs>
+ <ellipse cx="150" cy="222" rx="106" ry="15" fill="#101926" opacity=".72"/>
+ <ellipse cx="150" cy="220" rx="84" ry="11" fill="none" stroke="#7cb9c5" stroke-width="2" opacity=".54"/>
+ <path d="m111 176-22 42h121l-23-42Z" fill="url(#field)"/>
+ <g stroke="#202b40" stroke-width="5" stroke-linejoin="round" stroke-linecap="round">
+  <path d="m112 67-18-31-27-8-19 14 37 13 12 39m92-27 18-31 26-8 20 14-36 13-13 39" fill="url(#steel)"/>
+  <path d="m101 96-34 2-34 32 13 43 31 12 14-14-25-18 2-22 38-12m92-23 33 1 35 32-12 44-31 12-15-14 26-18-1-22-39-12" fill="url(#steel)"/>
+  <path d="m93 87 25-33 65-2 29 35 4 61-30 35-71 2-30-34Z" fill="url(#shell)"/>
+  <path d="m94 135 24 11 63-1 30-11-2 20-24 28-67 3-29-30Z" fill="url(#steel)"/>
+  <path d="m114 171 15 22 44-1 13-23Z" fill="url(#steel)"/>
+  <path d="m119 90 64-2 13 18-9 25-76 2-9-23Z" fill="#1e3048"/>
+  <path d="m122 109 14-10 14 10-14 11Zm29 0 14-10 14 10-14 11Z" fill="#a3f2db" stroke="#5fb1ba" stroke-width="2"/>
+  <path d="m132 143 38-1 8 13-12 11-27 1-13-11Z" fill="#b8996b"/>
+  <path d="m20 150 16-14 23 9 9 26-11 27-30 4-17-20Zm213-7 23-7 19 13 14 30-10 18-30 4-15-19Z" fill="url(#shell)"/>
+ </g>
+ <g fill="none" stroke-linecap="round">
+  <path d="m35 152-11 11 5 19 18 4 9-15-7-10-8 2m219-11 13 11-3 19-19 3-9-14 7-11 9 2" stroke="#b5ece0" stroke-width="4"/>
+  <path d="m102 85 19-24 44-2m31 10 12 17m-86 68 22 16 32-2m-33 25-7 13m26-13 5 13" stroke="#c1ede2" stroke-width="2.5" opacity=".83"/>
+  <path d="M79 198q70 32 148-4M87 48q56-55 124-7" stroke="#76bdbe" stroke-width="2" stroke-dasharray="7 8" opacity=".62"/>
+ </g>
+</svg>

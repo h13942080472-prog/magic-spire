@@ -48,7 +48,7 @@ func start_next() -> void:
  var color=host.GOLD
  if active.field!="":
   var difference=float(active.after)-float(active.before)
-  text=active.label+(" +" if difference>0 else " −")+str(snappedf(absf(difference),0.01)).trim_suffix(".0")
+  text=active.label+(" +" if difference>0 else " −")+host.game.number(absf(difference))
   if active.source!="": text=active.source+"\n"+text
   color=host.CYAN if difference>0 else Color("f0b68f")
  floating.text=text;floating.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
@@ -76,4 +76,4 @@ func update_numbers() -> void:
   if label!=null:
    label.text="%s/%s" % [host.game.number(host.view.mana),host.game.number(host.view.mana_max)]
    var temporary=host.view.temporary_mana
-   if temporary>0: label.text+=" · 临时"+host.game.number(snappedf(temporary,0.1))
+   if temporary>0: label.text+=" · 临时"+host.game.number(temporary)

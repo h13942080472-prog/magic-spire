@@ -23,6 +23,12 @@ static func chinese_runs(text: String) -> Array:
 
 static func run(t) -> void:
  var ui=t.ui
+ ui.restart(42);await t.frames()
+ ui.game.state.mana=23.456
+ var mana_snapshot=ui.game.export_snapshot()
+ ui.render();await t.frames()
+ var meter=ui.find_child("MainManaValue",true,false)
+ t.check(meter!=null and meter.text.begins_with("23.5/") and ui.game.state==mana_snapshot,"LOCALE UI resource meter rounds the label while preserving exact mana and state")
  ui.options_tab="display"
  ui._return_home();await t.frames()
  check_font(t)

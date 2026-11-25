@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="250" viewBox="0 0 300 250">
+ <defs>
+  <linearGradient id="shell" x2="0.8" y2="1">
+   <stop stop-color="#f1bf74"/><stop offset="1" stop-color="#895264"/>
+  </linearGradient>
+  <linearGradient id="steel" x2="0" y2="1">
+   <stop stop-color="#688192"/><stop offset="1" stop-color="#282d45"/>
+  </linearGradient>
+  <linearGradient id="face" x2="1" y2="1">
+   <stop stop-color="#303a54"/><stop offset="1" stop-color="#13192d"/>
+  </linearGradient>
+ </defs>
+ <ellipse cx="150" cy="221" rx="123" ry="18" fill="#111928" opacity=".7"/>
+ <ellipse cx="150" cy="217" rx="106" ry="12" fill="none" stroke="#77b6c3" stroke-width="2" opacity=".48"/>
+ <g stroke="#1e2437" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="m106 163-15 37-26 5-6 17 72 5 9-22-6-39Zm82 1 19 35 23 4 11 17-64 7-14-20 3-41Z" fill="url(#steel)"/>
+  <path d="m60 222 8-15 24-4 10 8 28 3-4 13Zm179-1-11-15-25-4-9 9-21 5 9 12Z" fill="url(#shell)"/>
+  <path d="M106 98 78 112l-11 54 42 17 9-39m66-47 34 14 14 46-40 24-12-44" fill="url(#steel)"/>
+  <path d="m92 103 14-16 87-3 18 21-11 52-34 28-36-1-34-24Z" fill="url(#shell)"/>
+  <path d="m97 113 19 1 14 27h42l18-29 15-2-8 44-34 22-31-1-30-23Z" fill="url(#steel)"/>
+  <path d="m140 112 21-2 13 18-11 16-23 1-14-15Z" fill="#223144"/>
+  <path d="m147 121 10-1 6 8-7 8-10 1-5-8Z" fill="#f6cb87" stroke="#ffe4af" stroke-width="2"/>
+  <path d="m104 69 12-32 64-2 21 31-8 36-85 3Z" fill="url(#shell)"/>
+  <path d="m111 63 15-13 54 1 12 13-5 26-72 3Z" fill="url(#face)"/>
+  <path d="m126 68 19 4-4 12-16 1Zm49-2-19 5 5 12 15-1Z" fill="#96e7e6" stroke="#68adbc" stroke-width="2"/>
+  <path d="m181 37 9-14 14 1-13 18" fill="#d58165"/>
+  <path d="M19 141 34 127l40-6 32 20 9 29-17 26-53 8-28-21-5-24Z" fill="url(#shell)"/>
+  <path d="m17 164 27 15 52-9 14-20 5 20-17 26-53 8-28-21Z" fill="url(#steel)"/>
+  <path d="M28 146 49 139l13 23-19 7-15-8Zm34-11 18-3 14 18-8 12-12 2Z" fill="#f0b97e" stroke="#a46563" stroke-width="3"/>
+  <path d="m190 139 28-20 38 4 29 17 4 28-11 22-38 10-40-10-14-24Z" fill="url(#shell)"/>
+  <path d="m188 151 18 21 40 8 34-14 8-9 1 11-11 22-38 10-40-10-14-24Z" fill="url(#steel)"/>
+  <path d="m211 137 17-6 13 26-16 8-15-11Zm29-5 23 6 12 13-18 8-9-6Z" fill="#f0b97e" stroke="#a46563" stroke-width="3"/>
+ </g>
+ <g fill="none" stroke-linecap="round">
+  <path d="m109 58 16-17 44-2m-145 108 11-10 35-8m123 12 24-15 34 3m-184 83 25-5m109 1 28 2" stroke="#ffe6ac" stroke-width="3" opacity=".85"/>
+  <path d="m28 104-9 6m18-27-11-4m229 26 13 6m-4-28 14-6" stroke="#a2d9d8" stroke-width="2" opacity=".78"/>
+ </g>
+</svg>

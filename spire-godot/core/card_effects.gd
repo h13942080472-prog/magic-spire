@@ -1,4 +1,5 @@
 extends RefCounted
+const ItemCards=preload("res://core/item_cards.gd")
 const Rules=preload("res://data/card_rules.gd")
 const Splash=preload("res://core/card_splash.gd")
 const Hannya=preload("res://core/hannya.gd")
@@ -29,23 +30,46 @@ static func toggle_power(g, p: Dictionary) -> void:
  for card in g.state.powers:
   if card.uid==p.uid: card.power_enabled=p.enabled;return
 
+# Reserve one payment per attack, irrespective of hit or target count.
 static func physical_attachment(g, attack: String) -> Dictionary:
- if attack not in ["strike","heavy","kick"]: return {}
- for id in active_buffs(g):
+ if attack not in g.BasicAttacks.PHYSICAL_PARTS: return {}
+ var available=g.state.mana+g.state.temporary_mana
+ var buffs=active_buffs(g)
+ var cost=0.0
+ var arms=false
+ var charge=0
+ var unit=Rules.MANA_ARM_COST
+ if "mana_arm_bound" in buffs and available>=unit:
+  cost+=unit
+  arms=matches_attack(Rules.BUFFS.mana_arm_bound,attack)
+ if "mana_arm_free" in buffs:
+  var paid=mini(buff_stacks(g,"mana_arm_free"),floori((available-cost)/unit))
+  cost+=paid*unit
+  charge=paid*Rules.BUFFS.mana_arm_free.attack_charge
+ var result={"mana":cost,"arms":arms,"charge":charge}
+ for id in buffs:
   var effect=Rules.BUFFS[id].get("physical_attachment",{})
-  if not effect.is_empty() and g.state.mana+g.state.temporary_mana>=effect.mana: return effect
- return {}
+  if not effect.is_empty() and available-cost>=effect.mana:
+   result.mana+=effect.mana
+   result.multiplier=effect.multiplier
+   break
+ return result if result.mana>0 else {}
 
 static func buff_stacks(g, id: String) -> int:
- if Rules.BUFFS[id].has("attributes") and Rules.BUFFS[id].get("stack_uses",false): return int(g.state.card_buff_uses.get(id,0))
+ var buff=Rules.BUFFS[id]
+ if buff.get("stack_uses",false) and (buff.has("attributes") or buff.has("base_bonus") or buff.has("attack_charge") or buff.has("recharge_on_magic")): return int(g.state.card_buff_uses.get(id,0))
  var total=0
  for card in g.state.powers:
   if Rules.SPECS[card.type].self_faces[card.power_face].buff==id: total+=card.get("power_stacks",1)
  return maxi(1,total)
 
 static func first_magic(g, type: String, free: Variant=null) -> Dictionary:
- var result={"energy_discount":0,"cast_minimum":0.0,"minimum_sources":[]}
+ var result={"energy_discount":0,"cast_minimum":0.0,"minimum_sources":[],"free":false}
  if not Rules.SPECS.has(type) or "magic" not in Rules.type_tags(type,free): return result
+ result.free=_free_magic(g,type,free==true)
+ if "steady_chant" in g.state.card_buffs:
+  result.cast_minimum=1.0
+  result.minimum_sources.append(Rules.BUFFS.steady_chant.name)
  for card in g.state.powers:
   var buff=Rules.BUFFS[Rules.SPECS[card.type].self_faces[card.power_face].buff]
   var effect=buff.get("first_magic",{})
@@ -60,7 +84,9 @@ static func first_magic(g, type: String, free: Variant=null) -> Dictionary:
 # One submitted card spends every discount stack but only one guaranteed-cast use.
 # Runs before resolution/replay, including zero-cost and failed attempts.
 static func consume_first_magic(g, p: Dictionary) -> void:
- if "magic" not in Rules.type_tags(p.type,p.free): return
+ if p.get("replay",false) or "magic" not in Rules.type_tags(p.type,p.free): return
+ for id in g.state.card_buffs.duplicate():
+  if Rules.BUFFS[id].has("next_magic"): consume_buff(g,id)
  var guaranteed=false
  for card in g.state.powers:
   var effect=Rules.BUFFS[Rules.SPECS[card.type].self_faces[card.power_face].buff].get("first_magic",{})
@@ -89,7 +115,7 @@ static func casting_modifiers(g, profile: Dictionary={}) -> Dictionary:
 
 static func buff_requirement(g, buff: Dictionary) -> String:
  var reasons=[]
- if buff.get("no_restraints",false) and not restraint_roots(g,buff.get("include_special",true),true).is_empty(): reasons.append("仍有非特殊装备的拘束具")
+ if buff.get("no_restraints",false) and has_restraints(g,buff.get("include_special",true)): reasons.append("仍有性玩具以外的拘束具")
  if buff.has("max_degree_any"):
   var limits=buff.max_degree_any
   if not limits.keys().any(func(region):return g.restraint_degree(region)<=limits[region]):
@@ -116,7 +142,7 @@ static func failure_outcome(g, c: Dictionary) -> Dictionary:
   var buff=Rules.BUFFS[Rules.SPECS[card.type].self_faces[card.power_face].buff]
   if not buff.has("failure_conversion") or buff_requirement(g,buff)!="": continue
   var effect=buff.failure_conversion
-  if effect.get("temporary_only",false) and (c.mana_payment.temporary_mana<=0 or c.mana_payment.mana>0): continue
+  if effect.get("temporary_only",false) and not fully_reserved(c.mana_payment.mana,c.mana_payment.temporary_mana): continue
   var zero=c.payload.has("uid") and c.cost==0
   if zero and not failure_unlimited(g,buff) and card.get("power_failure_count",0)>=effect.zero_cost_limit: continue
   result={"rates":{"mana":effect.refund,"temporary_mana":effect.refund},"energy":effect.energy,"power_uid":card.uid,"zero_cost":zero}
@@ -155,18 +181,28 @@ static func worn_count(g, include_special: bool=true, min_tier: int=0) -> int:
  var special=g.state.special_equipment.filter(qualifies).size() if include_special else 0
  return ordinary+composites+(special if include_special else 0)
 
-static func occupied_body_count(g) -> int:
+static func occupied_body_count(g, by_region: bool=false) -> int:
  # Presence, not freedom: one occupied hand side already counts its sidebar group.
  var previous=g._begin_equipment_read()
- var count=0
+ var occupied_groups={}
  for group in g.Equipment.panel_groups():
   # Shoulder attachments have no capacity coverage, but occupy the neck/shoulder display group.
-  if not group.special and group.slots.any(func(slot):return not (g.targets_at(slot) if slot=="shoulder" else g.equipment_at(slot)).is_empty()): count+=1
+  if group.special and not by_region: continue
+  var occupied=group.slots.any(func(slot):
+   if group.special: return g.targets_at(slot).any(func(e):return g.SpecialEquipment.is_special(e))
+   if slot=="shoulder": return g.has_targets_at(slot)
+   return not g.equipment_at(slot).is_empty())
+  if occupied: occupied_groups[group.id]=true
+ var count=occupied_groups.size()
+ if by_region:
+  count=g.Equipment.PANEL_REGIONS.filter(func(region):return region.members.any(func(id):return occupied_groups.has(id))).size()
  g._equipment_read=previous
  return count
 
 static func body_count_context(g, type: String) -> Variant:
- return occupied_body_count(g) if Rules.SPECS[type].get("self_faces",{}).values().any(func(face):return face.has("body_draw_divisor")) else null
+ for face in Rules.SPECS[type].get("self_faces",{}).values():
+  if face.has("body_draw_divisor"): return occupied_body_count(g,face.get("region_draw",false))
+ return null
 
 static func mana_cost_multiplier(g) -> float:
  var reduction=0.0
@@ -181,6 +217,7 @@ static func power_attribute_modifier(g, attribute: String) -> float:
  return total
 
 static func begin_turn(g) -> void:
+ consume_buff(g,"slippery")
  expire_turn_buffs(g,true)
  if g.state.phase not in g.RelicEffects.COMBAT_PHASES or not g.state.combat.active: return
  for card in g.state.powers:
@@ -191,10 +228,56 @@ static func begin_turn(g) -> void:
   var amount=card.power_next_draw
   card.power_next_draw=0
   if amount>0: _power_draw(g,card,amount)
+ _turn_effects(g,"turn_start_effects","turn_start_requirements")
+
+static func _turn_effects(g, effects_key: String, requirements_key: String) -> void:
  for id in active_buffs(g):
   var buff=Rules.BUFFS[id]
-  if buff_requirement(g,buff.get("turn_start_requirements",{}))!="": continue
-  for repeat in range(buff_stacks(g,id)): apply_effects(g,buff.get("turn_start_effects",[]),{},buff.name)
+  if not buff.has(effects_key) or buff_requirement(g,buff.get(requirements_key,{}))!="": continue
+  for repeat in range(buff_stacks(g,id)): apply_effects(g,buff[effects_key],{},buff.name)
+
+# Durations belong to the current encounter and to the targets already present when hit.
+# Existing saves store this shared combat effect under its first source's key.
+static func add_weakness(g, source: String) -> void:
+ g.state.combat.drone_weakness=g.state.combat.get("drone_weakness",0)+2
+ g._emit("event",source+"使你获得2层虚弱。")
+
+static func weakness(g) -> float:
+ return 0.75 if g.state.phase=="battle" and g.state.combat.get("drone_weakness",0)>0 else 1.0
+
+static func tick_weakness(g) -> void:
+ if not g.state.combat.has("drone_weakness"): return
+ g.state.combat.drone_weakness-=1
+ if g.state.combat.drone_weakness==0: g.state.combat.erase("drone_weakness")
+
+static func vulnerable(g, target_id: String) -> int:
+ return int(g.state.combat.get("vulnerable",{}).get(target_id,0))
+
+# Target IDs of destroyed equipment can linger until the next decay. Only live
+# targets are persisted, including connections and individual composite pieces.
+static func absent_vulnerable_targets(g) -> Array:
+ var marks=g.state.combat.get("vulnerable",{})
+ if marks.is_empty(): return []
+ var present={}
+ for target in g.state.enemies+g.action_targets(): present[target.id]=true
+ return marks.keys().filter(func(id):return not present.has(id))
+
+static func add_vulnerable(g, target_id: String, layers: int) -> void:
+ if not g.state.combat.has("vulnerable"): g.state.combat.vulnerable={}
+ g.state.combat.vulnerable[target_id]=vulnerable(g,target_id)+layers
+
+static func end_turn(g) -> void:
+ var marked=g.state.combat.get("vulnerable",{})
+ for id in marked.keys():
+  marked[id]-=1
+  if marked[id]<=0: marked.erase(id)
+ if g.state.phase in g.RelicEffects.COMBAT_PHASES and g.state.combat.active:
+  _turn_effects(g,"turn_end_effects","turn_end_requirements")
+
+# Shoulder pieces always have a host in equipment or composites.
+static func has_restraints(g, include_special: bool) -> bool:
+ # Only one lock-only item can be worn, so this probes at most two ordinary entries.
+ return g.state.equipment.any(func(item):return not g.Equipment.lock_only(item)) or not g.state.composites.is_empty() or not g.state.links.is_empty() or (include_special and not g.state.special_equipment.is_empty())
 
 # Count physical roots, not the multiple body slots/components used to display them.
 # Keep depleted roots until cleanup removes them, so the transition is observed once.
@@ -208,6 +291,7 @@ static func restraint_roots(g, include_special: bool=true, include_lock_only: bo
  return ids
 
 static func restraint_changed(g, event: String, count: int=1) -> void:
+ if g._recovery_target!="": return
  if count<=0 or not g.state.combat.active or g.state.phase not in g.RelicEffects.COMBAT_PHASES: return
  for card in g.state.powers:
   var id=Rules.SPECS[card.type].self_faces[card.power_face].buff
@@ -237,6 +321,7 @@ static func expire_turn_buffs(g, at_start: bool=false) -> void:
   var amount=g.state.turn_strength;g.state.turn_strength=0
   g._emit("event","本回合力量加成结束。",{"expired_turn_strength":amount})
  for id in g.state.card_buffs.duplicate():
+  if not at_start and Rules.BUFFS[id].has("mana_per_turn"): consume_buff(g,id)
   if Rules.BUFFS[id].duration=="turn" or (at_start and Rules.BUFFS[id].duration=="next_turn_start"):
    for repeat in range(int(g.state.card_buff_uses.get(id,1))):
     if Rules.BUFFS[id].has("on_expire_effects"): expired_effects.append({"effects":Rules.BUFFS[id].on_expire_effects,"name":Rules.BUFFS[id].name})
@@ -250,6 +335,7 @@ static func expire_turn_buffs(g, at_start: bool=false) -> void:
 static func spell_used(g, spell: String) -> void:
  for id in active_buffs(g):
   var buff=Rules.BUFFS[id]
+  if buff.has("cast_uses"): consume_buff(g,id)
   if buff.get("spell","")==spell:
    for repeat in range(buff_stacks(g,id)): apply_effects(g,buff.get("spell_use_effects",[]),{},buff.name)
 
@@ -262,8 +348,15 @@ static func record_meter(g, key: String, amount: float) -> void:
   if not Rules.BUFFS[id].has(key): continue
   card[METER_FIELDS[key]]=float(card.get(METER_FIELDS[key],0.0))+amount
 
-static func mana_spent(g, amount: float) -> void:
- record_meter(g,"mana_spent",amount)
+static func fully_reserved(own: float, reserve: float) -> bool:
+ return own==0.0 and reserve>0.0
+
+static func mana_spent(g, own: float, reserve: float) -> void:
+ record_meter(g,"mana_spent",own+reserve)
+ if not fully_reserved(own,reserve): return
+ for id in active_buffs(g):
+  var buff=Rules.BUFFS[id]
+  if buff.has("reserve_payment_effects"): apply_effects(g,buff.reserve_payment_effects,{},buff.name)
 
 static func pressure_gained(g, amount: float) -> void:
  record_meter(g,"pressure_gained",amount)
@@ -307,9 +400,6 @@ static func record_play(g, type: String, free: bool=false, played_uid: String=""
   if card.has("power_cast_count") and card.uid!=played_uid:
    card.power_cast_count+=1
    g._emit("event","熟练而已：本回合施法成功率额外＋%s%%。" % g.number(casting_modifiers(g).bonus*100),{"casting_growth":{"uid":card.uid,"cards":card.power_cast_count,"bonus":casting_modifiers(g).bonus}})
- for card in g.state.powers:
-  var effect=Rules.BUFFS[Rules.SPECS[card.type].self_faces[card.power_face].buff].get("periodic",{})
-  if not effect.is_empty() and effect.card_type in Rules.type_tags(type): card.power_progress+=1
  # `free` selects the second face. Cards with two restraint faces use true here
  # as well, so only the shared free-effect classifier can exclude real free faces.
  if Rules.free_effect(type,free): return
@@ -320,11 +410,18 @@ static func record_play(g, type: String, free: bool=false, played_uid: String=""
   if amount>0: g.Pressure.gain(g,amount,Rules.BUFFS[id].name+"的拘束面刺激",true)
 
 static func progress_text(g, id: String) -> String:
+ if id=="grace_free": return "体术伤害×%s" % g.DisplayNumbers.factor(g.state.card_buff_uses[id]*Rules.BUFFS[id].physical_factor_per_x)
+ if id=="grace_bound": return "剩余%d次" % g.state.card_buff_uses[id]
+ if Rules.BUFFS[id].has("mana_per_turn"): return "剩余%d回合" % g.state.card_buff_uses[id]
+ if Rules.BUFFS[id].has("next_magic"): return "剩余%d次" % g.state.card_buff_uses.get(id,0)
+ if id=="slippery" or Rules.BUFFS[id].has("hit_vulnerable"): return "%d层" % g.state.card_buff_uses.get(id,0)
+ if Rules.BUFFS[id].has("recharge_on_magic"): return "每张魔法牌恢复%d次" % buff_stacks(g,id)
+ if id=="echo_firepower": return "火球术伤害＋%d" % (buff_stacks(g,id)*Rules.BUFFS[id].base_bonus)
  if Rules.BUFFS[id].duration=="next_turn_start" and Rules.BUFFS[id].has("on_expire_buff") and not Rules.BUFFS[id].has("attributes"): return "下回合生效"
  if Rules.BUFFS[id].get("toggleable",false): return "已开启 · 右键关闭" if id in active_buffs(g) else "已关闭 · 右键开启"
- if Rules.BUFFS[id].has("turn_start_requirements"):
-  var issue=buff_requirement(g,Rules.BUFFS[id].turn_start_requirements)
-  return "下回合开始时生效" if issue=="" else issue
+ if Rules.BUFFS[id].has("turn_end_requirements"):
+  var issue=buff_requirement(g,Rules.BUFFS[id].turn_end_requirements)
+  return "回合结束时生效" if issue=="" else issue
  if Rules.BUFFS[id].has("first_magic"):
   var remaining=0
   for card in g.state.powers:
@@ -340,16 +437,18 @@ static func progress_text(g, id: String) -> String:
    if Rules.SPECS[card.type].self_faces[card.power_face].buff==id: count=card.get("power_failure_count",0)
   var quota="0费可反复触发" if failure_unlimited(g,buff) else "0费剩余%d次" % maxi(0,buff.failure_conversion.zero_cost_limit-count)
   return ("全临时耗魔失败：能量＋1" if buff.failure_conversion.get("temporary_only",false) else "失败返还100% · 能量＋1")+" · "+quota
- if Rules.BUFFS[id].has("worn_mana_reduction"): return "%d件 · 耗魔－%s%%" % [worn_count(g),g.number(snappedf((1.0-mana_cost_multiplier(g))*100,0.01))]
+ if Rules.BUFFS[id].has("worn_mana_reduction"): return "%d件 · 耗魔－%s%%" % [worn_count(g),g.number((1.0-mana_cost_multiplier(g))*100)]
  if Rules.BUFFS[id].has("card_cast_bonus"): return "本回合＋%s%%" % g.number(casting_modifiers(g).bonus*100)
+ if Rules.BUFFS[id].has("attack_uses") or Rules.BUFFS[id].has("cast_uses") or Rules.BUFFS[id].get("next_action_freedom",false): return "剩余%d次" % g.state.card_buff_uses.get(id,0)
  if Rules.BUFFS[id].has("cast_minimum"): return "最低%s%%" % g.number(Rules.BUFFS[id].cast_minimum*100)
  if Rules.BUFFS[id].has("hannya_level"): return "%d级" % Rules.BUFFS[id].hannya_level
  if Rules.BUFFS[id].has("attributes"):
   var labels={"strength":"力量","dexterity":"灵巧"}
-  return "／".join(Rules.BUFFS[id].attributes.keys().map(func(key):return labels[key]+"＋"+g.number(Rules.BUFFS[id].attributes[key]*buff_stacks(g,id))))
+  return "／".join(Rules.BUFFS[id].attributes.keys().map(func(key):
+   var value=Rules.BUFFS[id].attributes[key]*buff_stacks(g,id)
+   return labels[key]+("－" if value<0 else "＋")+g.number(abs(value))))
  if Rules.BUFFS[id].has("replay"): return "复放%d次" % g.state.card_buff_uses.get(id,0)
- if Rules.BUFFS[id].has("attack_uses") or Rules.BUFFS[id].get("next_action_freedom",false): return "剩余%d次" % g.state.card_buff_uses.get(id,0)
- if Rules.BUFFS[id].has("card_damage_type"): return "下一次滑脱×%s" % g.number(Rules.BUFFS[id].damage_multiplier)
+ if Rules.BUFFS[id].has("card_damage_type"): return "下一次滑脱×%s" % g.DisplayNumbers.factor(Rules.BUFFS[id].damage_multiplier)
  if Rules.BUFFS[id].get("restraint_draw",{}).get("next_turn",false):
   return "下回合抽牌＋%d" % pending_draw(g,id)
  if Rules.BUFFS[id].get("restraint_draw",{}).has("energy"):
@@ -365,11 +464,6 @@ static func progress_text(g, id: String) -> String:
   for card in g.state.powers:
    if Rules.SPECS[card.type].self_faces[card.power_face].buff==id: values.append(g.number(card[METER_FIELDS[key]])+"／"+str(Rules.BUFFS[id][key].step))
   return ("%d重 · 耗魔%s" if key=="mana_spent" else "%d重 · 快感%s") % [buff_stacks(g,id),"、".join(values)]
- var progress=[]
- for card in g.state.powers:
-  if Rules.SPECS[card.type].self_faces[card.power_face].buff==id and card.has("power_progress"):
-   progress.append("%d／%d" % [card.power_progress,Rules.BUFFS[id].periodic.count])
- if not progress.is_empty(): return "、".join(progress)+"张"
  return "%d重效果" % buff_stacks(g,id) if buff_stacks(g,id)>1 else "生效中"
 
 static func pending_draw(g, id: String) -> int:
@@ -377,36 +471,6 @@ static func pending_draw(g, id: String) -> int:
  for card in g.state.powers:
   if Rules.SPECS[card.type].self_faces[card.power_face].buff==id: pending+=card.get("power_next_draw",0)
  return pending
-
-# Resolve after every hit of the played card; continuations never count as more cards.
-static func flush_powers(g) -> bool:
- var triggered=flush_mana_powers(g)
- for card in g.state.powers:
-  var id=Rules.SPECS[card.type].self_faces[card.power_face].buff
-  var effect=Rules.BUFFS[id].get("periodic",{})
-  if effect.is_empty() or card.power_progress<effect.count: continue
-  card.power_progress-=effect.count
-  triggered=true
-  var label=Rules.BUFFS[id].name
-  g._emit("event",label+"触发。",{"power_trigger":{"id":id,"uid":card.uid}})
-  if effect.target=="enemies":
-   var targets=g.state.enemies.filter(func(enemy):return not enemy.gone).map(func(enemy):return enemy.id)
-   var damage=effect.base*card.get("power_stacks",1)*damage_multiplier(g,"card_effect")
-   var damage_group={}
-   for target in targets: g._damage_enemy(g._enemy(target),damage,effect.damage_type,label,{},damage_group)
-  else:
-   # Freeze targets AND multipliers before any removal reveals an inner layer.
-   var hits=[]
-   for target in g.action_targets():
-    if target.durability<=0 or not g._outer(target): continue
-    hits.append({"id":target.id,"preview":g.escape_preview(target,effect.damage_type,effect.base*card.get("power_stacks",1),[],false,true)})
-   for hit in hits:
-    var target=g._equipment(hit.id)
-    if target.is_empty() or target.durability<=0: continue
-    var before=target.durability
-    g._apply_equipment_damage(target,hit.preview.damage,effect.damage_type,true)
-    g._emit("mechanical",label+"："+target.name+"，"+g._formula(hit.preview)+"；耐久 %s → %s。" % [g.number(before),g.number(target.durability)],{"action_result":g.ActionCopy.equipment_result(label,target.name,before,target.durability,effect.damage_type),"power_damage":{"id":id,"target":hit.id,"before":before,"after":target.durability,"preview":hit.preview}})
- return triggered
 
 static func spell_power(g, spell: String) -> Dictionary:
  var result={}
@@ -422,6 +486,7 @@ static func damage_multiplier(g, attack: String) -> float:
  var result=1.0
  for id in active_buffs(g):
   var effect=Rules.BUFFS[id]
+  if effect.has("physical_factor_per_x") and matches_attack(effect,attack): result*=g.state.card_buff_uses[id]*effect.physical_factor_per_x
   if effect.get("attack","") in ["all",attack]: result*=pow(effect.get("damage_multiplier",1.0),buff_stacks(g,id))
  return result
 
@@ -440,7 +505,7 @@ static func scale_card_preview(g, preview: Dictionary, mode: String, uid: String
  var material_factor=g.B.LEATHER_SLIP_MULTIPLIER if mode in ["slip","magic_slip"] and target.get("material","")=="leather" else 1.0
  for key in ["damage","scaled_damage","environment_true"]:
   if preview.has(key): preview[key]*=multiplier*material_factor
- preview.material_factor=material_factor
+ preview.material_factor=preview.get("material_factor",1.0)*material_factor
  preview.damage_buff_multiplier=preview.get("damage_buff_multiplier",1.0)*multiplier
 
 static func consume_card_damage(g, mode: String, damage: float) -> void:
@@ -463,11 +528,18 @@ static func attack_interrupt(g, attack: String) -> bool:
   if buff.get("interrupt",false) and matches_attack(buff,attack): return true
  return false
 
-static func grant_buff(g, id: String) -> void:
+static func grant_buff(g, id: String, stacks: int=1) -> void:
  if id not in g.state.card_buffs: g.state.card_buffs.append(id)
  var buff=Rules.BUFFS[id]
- if buff.get("stack_uses",false): g.state.card_buff_uses[id]=int(g.state.card_buff_uses.get(id,0))+int(buff.get("attack_uses",1))
- elif buff.has("attack_uses"): g.state.card_buff_uses[id]=buff.attack_uses
+ if buff.has("mana_per_turn") or buff.has("physical_factor_per_x"): g.state.card_buff_uses[id]=stacks
+ elif buff.get("stack_uses",false): g.state.card_buff_uses[id]=int(g.state.card_buff_uses.get(id,0))+int(buff.get("attack_uses",1))*stacks
+ elif buff.has("attack_uses") or buff.has("cast_uses"): g.state.card_buff_uses[id]=buff.get("cast_uses",buff.get("attack_uses",0))
+
+static func consume_buff(g, id: String) -> void:
+ if id not in g.state.card_buffs: return
+ g.state.card_buff_uses[id]=int(g.state.card_buff_uses.get(id,1))-1
+ if g.state.card_buff_uses[id]<=0:
+  g.state.card_buffs.erase(id);g.state.card_buff_uses.erase(id)
 
 static func attack_ignores_restraints(g, attack: String) -> bool:
  if basic_attack_freedom(g) or action_ignores_restraints(g): return true
@@ -489,23 +561,30 @@ static func action_buff_ids(g) -> Array:
 static func consume_action_buffs(g, ids: Array) -> void:
  for id in ids:
   if not g.state.card_buff_uses.has(id): continue
-  g.state.card_buff_uses[id]-=1
-  if g.state.card_buff_uses[id]<=0:
-   g.state.card_buff_uses.erase(id)
-   g.state.card_buffs.erase(id)
+  consume_buff(g,id)
   g._emit("event",Rules.BUFFS[id].name+"：已用于本次出牌或基础动作。",{"action_buff_used":id})
 
 static func basic_attack_freedom(g) -> bool:
  return g.state.phase=="battle" and active_buffs(g).any(func(id):return Rules.BUFFS[id].get("unrestricted_basics",false))
 
-static func consume_attack_buffs(g, attack: String) -> void:
+static func consume_attack_buffs(g, attack: String, targets: Array=[]) -> void:
  for id in g.state.card_buff_uses.keys():
   if not matches_attack(Rules.BUFFS[id],attack): continue
-  g.state.card_buff_uses[id]-=1
-  var remaining=g.state.card_buff_uses[id]
-  if remaining==0:
-   g.state.card_buff_uses.erase(id)
+  if Rules.BUFFS[id].has("physical_factor_per_x"):
    g.state.card_buffs.erase(id)
+   g.state.card_buff_uses.erase(id)
+   continue
+  var layers_per_stack=int(Rules.BUFFS[id].get("hit_vulnerable",0))
+  if layers_per_stack>0:
+   var layers=layers_per_stack*int(g.state.card_buff_uses[id])
+   for target_id in targets:
+    var enemy=g._enemy(target_id)
+    if not enemy.is_empty() and not enemy.gone: add_vulnerable(g,target_id,layers)
+   g.state.card_buffs.erase(id)
+   g.state.card_buff_uses.erase(id)
+   continue
+  consume_buff(g,id)
+  var remaining=g.state.card_buff_uses.get(id,0)
   g._emit("event","%s：本次体术按自由态发动，剩余%d次。" % [Rules.BUFFS[id].name,remaining],{"attack_buff_used":id,"remaining":remaining})
  g.state.card_buffs=g.state.card_buffs.filter(func(id):return not (Rules.BUFFS[id].duration=="next_attack" and matches_attack(Rules.BUFFS[id],attack)))
 
@@ -513,37 +592,52 @@ static func uses_magic(p: Dictionary) -> bool:
  return Rules.face_casts(p.type,p.get("free",not Rules.SPECS[p.type].has("self_faces")))
 
 static func energy_cost(g, type: String, free: bool=false) -> int:
+ var first=first_magic(g,type,free)
+ if first.free: return 0
  if Rules.SPECS[type].get("x_cost",false): return maxi(0,g.state.energy-g.Character.Expansion.skill_discount(g,type,free))
  var base=Hannya.energy_cost(g) if Rules.SPECS[type].get("drinking",false) else Rules.energy_cost(type,free)
  if Rules.SPECS[type].has("zero_cost_strength") and g.RelicEffects.attribute(g,"strength")>=Rules.SPECS[type].zero_cost_strength: base=0
- return maxi(0,base-first_magic(g,type,free).energy_discount-g.Character.Expansion.skill_discount(g,type,free))
+ return maxi(0,base-first.energy_discount-g.Character.Expansion.skill_discount(g,type,free))
 
 static func energy_label(g, type: String, free: bool=false) -> String:
  return "X" if Rules.SPECS[type].get("x_cost",false) else str(energy_cost(g,type,free))
 
-static func face_mana(g, type: String, free: bool) -> float:
+static func _free_magic(g, type: String, free: bool) -> bool:
+ return "instant_chant" in g.state.card_buffs and "magic" in Rules.type_tags(type,free)
+
+static func face_mana(g, type: String, free: bool, card: Dictionary={}) -> float:
  var spec=Rules.SPECS[type]
+ if _free_magic(g,type,free): return 0.0
+ var extra=g.Enchantments.extra_mana(card)
  var cost=Rules.face_mana_base(type,free,g.B.SPELL_COST)
  if spec.has("all_mana_minimum"): return g.state.mana+g.state.temporary_mana
  if Rules.face_casts(type,free) and not spec.get("fixed_mana_cost",false): cost=g._mana_cost(cost)
  if "magic" in Rules.type_tags(type,free): cost-=g.relic_value("card_mana_discount")
- return maxf(0.0,cost)
+ return maxf(0.0,cost)+extra
+
+static func royal_gift_amount(g) -> int:
+ const amounts=[1,3,6]
+ var stage=clampi(floori((g.state.combat.turn-1)/3.0),0,amounts.size()-1)
+ return amounts[stage]
 
 static func face_text(g, type: String, free: bool, uid: String="") -> String:
- var show_exhaust=g.Enchantments.show_native_exhaust(g,uid)
+ var exhaust_display=g.Enchantments.native_exhaust_display(g,type,uid)
  var body=""
- if uid!="" and Rules.SPECS[type].has("hannya_stage"):
-  body=Hannya.detail(g,Rules.SPECS[type].hannya_stage,free)+Rules.SPECS[type].get("play_music_text","")+("消耗。" if show_exhaust else "")
+ if Rules.SPECS[type].has("remove_uses"):
+  body=ItemCards.Presentation.card_effect(ItemCards.Presentation.summary(g,type),instance(g,uid).get("remove_left",Rules.SPECS[type].remove_uses))
+ elif uid!="" and Rules.SPECS[type].has("hannya_stage"):
+  body=Hannya.detail(g,Rules.SPECS[type].hannya_stage,free)+Rules.SPECS[type].get("play_music_text","")+("消耗。" if exhaust_display>0 else "")
   body=("固有。" if g.B.CARD_TRAITS.get(type,{}).get("innate",false) else "")+body
  else:
-  body=g.B.card_info(type,g.number(face_mana(g,type,free)),face_damage_values(g,type,uid),true,worn_count(g),body_count_context(g,type),show_exhaust)[2 if free else 1]
+  body=g.B.card_info(type,face_mana(g,type,free,instance(g,uid)),face_damage_values(g,type,uid),true,worn_count(g),body_count_context(g,type),exhaust_display,royal_gift_amount(g) if Rules.SPECS[type].has("gift_value") else 1,g.BasicAttacks.successful_fireballs(g) if Rules.SPECS[type].get("fireball_hits",false) else -1)[2 if free else 1]
  return g.Enchantments.decorate_text(g,type,uid,free,body)
 
 static func face_texts(g, type: String, uid: String="") -> Dictionary:
- if uid!="" and Rules.SPECS[type].has("hannya_stage"):
+ if Rules.SPECS[type].has("gift_value") or Rules.SPECS[type].card_type=="item" or (uid!="" and Rules.SPECS[type].has("hannya_stage")):
   return {"bound":face_text(g,type,false,uid),"free":face_text(g,type,true,uid)}
- var costs={"bound":g.number(face_mana(g,type,false)),"free":g.number(face_mana(g,type,true))}
- var info=g.B.card_info(type,costs,face_damage_values(g,type,uid),true,worn_count(g),body_count_context(g,type),g.Enchantments.show_native_exhaust(g,uid))
+ var card=instance(g,uid)
+ var costs={"bound":face_mana(g,type,false,card),"free":face_mana(g,type,true,card)}
+ var info=g.B.card_info(type,costs,face_damage_values(g,type,uid),true,worn_count(g),body_count_context(g,type),g.Enchantments.native_exhaust_display(g,type,uid),1,g.BasicAttacks.successful_fireballs(g) if Rules.SPECS[type].get("fireball_hits",false) else -1)
  return {"bound":g.Enchantments.decorate_text(g,type,uid,false,info[1]),"free":g.Enchantments.decorate_text(g,type,uid,true,info[2])}
 
 static func instance(g, uid: String) -> Dictionary:
@@ -554,14 +648,21 @@ static func instance(g, uid: String) -> Dictionary:
  return {}
 
 static func metadata(g, type: String, uid: String="") -> Dictionary:
- var costs={"bound":face_mana(g,type,false),"free":face_mana(g,type,true)}
+ var card=instance(g,uid)
+ var costs={"bound":face_mana(g,type,false,card),"free":face_mana(g,type,true,card)}
  var values=face_damage_values(g,type,uid)
- var result=g.B.card_metadata(type,costs,values,worn_count(g),body_count_context(g,type),g.Enchantments.show_native_exhaust(g,uid))
- var enchantment=g.Enchantments.text(g,instance(g,uid)) if uid!="" else {}
+ var result=g.B.card_metadata(type,costs,values,worn_count(g),body_count_context(g,type),g.Enchantments.native_exhaust_display(g,type,uid),g.BasicAttacks.successful_fireballs(g) if Rules.SPECS[type].get("fireball_hits",false) else -1)
+ if Rules.SPECS[type].has("gift_value"): result.face_effects=face_texts(g,type,uid)
+ if Rules.SPECS[type].has("remove_uses"):
+  var remaining=int(instance(g,uid).get("remove_left",Rules.SPECS[type].remove_uses))
+  result.face_requirements=ItemCards.face_requirements(g,type)
+  ItemCards.Presentation.set_remove_terms(result.face_keywords,remaining)
+  result.face_effects=face_texts(g,type,uid)
+ var enchantment=g.Enchantments.text(g,card)
  if not enchantment.is_empty():
   result.enchantment=enchantment
   for side in ["bound","free"]:
-   if not g.Enchantments.face_eligible(g,type,instance(g,uid).enchantment,side=="free",2): continue
+   if not g.Enchantments.face_eligible(g,type,card.enchantment,side=="free",2): continue
    result.face_keywords[side].append(enchantment.duplicate(true))
    result.face_effects[side]+=enchantment.name+"。"
  result.face_damage=values
@@ -569,6 +670,12 @@ static func metadata(g, type: String, uid: String="") -> Dictionary:
   result.note=g.B.CARD_INFO[type][3]+"\n"+g.Character.Expansion.training_progress(instance(g,uid))
  result.face_casting={}
  for side in ["bound","free"]:
+  if Rules.SPECS[type].has("all_mana_minimum"):
+   var extra=g.Enchantments.extra_mana(card)
+   if _free_magic(g,type,side=="free"):
+    result.face_mana[side]=[]
+   elif extra>0:
+    result.face_mana[side][0].detail="耗尽自身魔力与魔力预备，合计至少须能支付%s魔力。" % g.number(Rules.SPECS[type].all_mana_minimum+extra)
   if Rules.face_casts(type,side=="free"):
    result.face_casting[side]=g.cast_view(cast_profile(g,type,costs[side]>0,side=="free",uid))
  if uid!="" and Rules.SPECS[type].has("hannya_stage"):
@@ -592,6 +699,22 @@ static func base_damage(g, type: String, uid: String="") -> float:
  var dynamic_bonus=0.0 if scaling.is_empty() else worn_count(g,scaling.include_special)*scaling.per_item
  return float(spec.get("base",0.0))+dynamic_bonus+g.Relics.card_base_bonus(g.state.relics,type,g.state.get("ditto_form",""))+instance(g,uid).get("damage_bonus",0)
 
+static func grace_extra_hit(g, type: String, free: bool) -> bool:
+ return "grace_bound" in g.state.card_buffs and not Rules.free_effect(type,free) and Rules.damage_type(type,free) in ["strain","slip"]
+
+static func hit_count(g, type: String, free: bool=false) -> int:
+ var spec=Rules.SPECS[type]
+ var base=floori(g.BasicAttacks.fireball_damage(g)) if spec.get("fireball_hits",false) else int(spec.get("hits",1))
+ return base+int(grace_extra_hit(g,type,free))
+
+static func chain_hit_count(chain: Dictionary) -> int:
+ return chain.get("total_hits",Rules.SPECS[chain.type].get("hits",1))
+
+static func bonus_damage_segment(g, type: String) -> bool:
+ var chain=g.state.card_chain
+ if not chain.is_empty(): return chain.type==type and chain.get("bonus_escape_hit",false) and chain.remaining==1
+ return Rules.SPECS[type].get("fireball_hits",false) and grace_extra_hit(g,type,false) and hit_count(g,type)==1
+
 # Numeric face values, not parsed copy. Empty faces have no escape damage.
 # Target-specific bonuses, assistance and multipliers belong to target previews.
 static func face_damage_values(g, type: String, uid: String="") -> Dictionary:
@@ -601,7 +724,7 @@ static func face_damage_values(g, type: String, uid: String="") -> Dictionary:
  for second in [false,true]:
   if Rules.free_effect(type,second): continue
   var side="free" if second else "bound"
-  for hit_index in range(Rules.SPECS[type].get("hits",1)):
+  for hit_index in range(hit_count(g,type,second)):
    values[side].append(g.escape_values(Rules.face_mode(type,second),base,{},false,hit_index).raw)
  return values
 
@@ -618,7 +741,7 @@ static func cast_profile(g, type: String, paid: bool=true, free: Variant=null, u
  profile.paid_cast=paid
  profile.magic_card=Rules.SPECS.has(type) and "magic" in Rules.type_tags(type,free)
  profile.card_type=type
- profile.enchantment_guarantee=g.Enchantments.guaranteed(g,uid)
+ profile.enchantment_retry_mana=g.Enchantments.retry_mana(g,type,free==true,uid)
  profile.desire_curve=Rules.lewd_magic(type)
  profile.card_free=free
  if action_ignores_restraints(g):
@@ -646,7 +769,6 @@ static func end_powers(g) -> void:
  for card in g.state.powers:
   card.erase("power_face")
   card.erase("power_enabled")
-  card.erase("power_progress")
   card.erase("power_cast_count")
   card.erase("power_magic_remaining")
   card.erase("power_failure_count")
@@ -665,10 +787,28 @@ static func end_hand(g) -> void:
   if amount>0:
    g.Pressure.gain(g,amount,"「"+g.B.CARD_NAMES[card.type]+"」的回合末效果")
 
-static func purge_temporary(g) -> void:
+static func drawn_status(g, type: String) -> void:
+ if type==g.Detective.STATUS:
+  g.Detective.provoke(g)
+  return
+ if type!=g.BindingBoxPlus.DISRUPT: return
+ grant_buff(g,g.BindingBoxPlus.FATIGUE)
+ g._emit("event","抽到「扰乱」：本回合力量－1、灵巧－1。",{"drawn_status":type})
+
+static func finish_battle_effects(g) -> void:
+ for id in ["endless_war_goddess","echo_firepower","echo_recharge","steady_chant","instant_chant","study_free","study_bound"]:
+  g.state.card_buffs.erase(id);g.state.card_buff_uses.erase(id)
+ if g.state.enemies.any(func(enemy):return enemy.type==g.Detective.TYPE): purge_temporary(g,g.Detective.STATUS)
+ if g.BindingBoxPlus.CURSE not in g.state.card_buffs: return
+ g.state.card_buffs.erase(g.BindingBoxPlus.CURSE)
+ g.state.card_buffs.erase(g.BindingBoxPlus.FATIGUE)
+ g.state.card_buff_uses.erase(g.BindingBoxPlus.FATIGUE)
+ purge_temporary(g,g.BindingBoxPlus.DISRUPT)
+
+static func purge_temporary(g, only: String="") -> void:
  var ids={}
  for card in g.state.deck:
-  if g.B.CARD_TRAITS.get(card.type,{}).get("temporary",false): ids[card.uid]=true
+  if (only=="" or card.type==only) and g.B.CARD_TRAITS.get(card.type,{}).get("temporary",false): ids[card.uid]=true
  if ids.is_empty(): return
  for zone in ["deck"]+ZONES:
   g.state[zone]=g.state[zone].filter(func(card):return not ids.has(card.uid))
@@ -695,6 +835,7 @@ static func can_target_bind(type: String) -> bool:
 
 # Draw orientation ignores energy/mana shortages; only a real escape route matters.
 static func has_escape_target(g, type: String) -> bool:
+ if Rules.SPECS[type].card_type=="item": return true
  if Rules.SPECS[type].has("bound_modes"): return true
  if Rules.single_face(type) or Rules.SPECS[type].has("self_faces"): return true
  if g.B.CARD_TRAITS.get(type,{}).get("unplayable",false): return true
@@ -719,7 +860,7 @@ static func availability(g, card: Dictionary, free: bool, facts: Array) -> Dicti
  if g.state.overloaded: issue="本回合正在高潮"
  elif not g.state.card_chain.is_empty(): issue="请先完成当前连续效果"
  elif g.state.pending_retain: issue="请先完成保留选择"
- elif g.state.phase not in ["battle","prepare","rest","prison"]: issue="请在行动阶段出牌"
+ elif g.state.phase not in ["battle","prepare","rest","prison"] and not g.RopeArt.struggle_only(g): issue="请在行动阶段出牌"
  if issue=="":
   if options.is_empty(): issue="没有可用的自由部位" if Rules.free_effect(card.type,free) else "没有可处理的拘束具"
   else:
@@ -734,42 +875,61 @@ static func target_payload(g, type: String, slot: String, target: Dictionary, as
  if not target.is_empty():
   if Rules.damage(type):
    var continuing=force_continuation or (spec.get("follow_through",false) and g.state.card_chain.get("type","")==type)
-   p.preview=g.escape_preview(target,p.mode,base_damage(g,type,uid),assist_profiles,false,false,continuing,false,spec.get("ignore_tightness_reduction",false))
-   p.preview.face_value=face_damage_values(g,type,uid)["free" if p.free else "bound"][0]
+   var base=base_damage(g,type,uid)
+   p.preview=g.escape_preview(target,p.mode,base,assist_profiles,false,false,continuing,false,spec.get("ignore_tightness_reduction",false))
+   p.preview.face_value=g.escape_values(p.mode,base).raw
    scale_card_preview(g,p.preview,p.mode,uid,target)
-   p.tool_bonus=g.InstalledTools.preview(g,target,Rules.damage_type(type,p.free),p.preview)
-   if g.SpecialEquipment.is_reinforcement(target):
+   if bonus_damage_segment(g,type): p.preview.release=false
+   var zero_hits=not continuing and spec.get("fireball_hits",false) and hit_count(g,type)==0
+   if zero_hits:
+    p.preview.face_value=0.0;p.preview.release=false
+   if zero_hits or g.SpecialEquipment.is_reinforcement(target):
     p.preview.damage=0.0;p.preview.scaled_damage=0.0;p.preview.environment_true=0.0;p.preview.immune=false
-  elif spec.mode=="lower": p.after=g.lower_durability(target.durability,target.maximum)
+  elif spec.mode=="lower":
+   p.after=target.durability
+   for step in range(spec.get("lower_steps",1)):
+    if p.after<=0: break
+    p.after=g.lower_durability(p.after,target.maximum)
+   p.after=g.RopeArt.floor_value(g,target,p.after)
  return p
 
 static func bind_payload(g, type: String, uid: String="", second: bool=false) -> Dictionary:
  var mode=Rules.face_mode(type,second)
  var fixed=mode=="lower"
  var buff_multiplier=1.0 if fixed else damage_multiplier(g,"equipment")*card_damage_multiplier(g,mode)*g.Character.damage_multiplier(g)*g.Enchantments.multiplier(g,uid)
+ if mode=="strain": buff_multiplier*=weakness(g)
  var guard_multiplier=1.0 if fixed else g.CaptureBind.damage_multiplier(g)
  var multiplier=guard_multiplier*buff_multiplier
- var base=g.CaptureBind.LOWER_DAMAGE if fixed else base_damage(g,type,uid)
+ var base=g.CaptureBind.LOWER_DAMAGE*Rules.SPECS[type].get("lower_steps",1) if fixed else base_damage(g,type,uid)
  var values={"bonus":0.0,"charge":0.0,"raw":base} if fixed else g.escape_values(mode,base)
  var raw=values.raw
+ if Rules.SPECS[type].get("fireball_hits",false) and g.state.card_chain.is_empty() and hit_count(g,type)==0: raw=0.0
  return {"type":type,"slot":g.CaptureBind.BIND_TARGET,"target":g.CaptureBind.BIND_TARGET,"free":second,"mode":mode,
   "preview":{"guard_multiplier":guard_multiplier,"damage_buff_multiplier":buff_multiplier,"base":base,"bonus":values.bonus,"charge":values.charge,"raw":raw,"face_value":raw,"multiplier":multiplier,"damage":raw*multiplier,"environment_true":0.0}}
 
 static func reason(g, p: Dictionary) -> String:
+ if g.Detective.chained(g,p.get("uid","")): return g.Detective.HAND_LOCK
+ if g.RopeArt.struggle_only(g):
+  var target_id=g._recovery_target if g._recovery_target!="" else g.worn_hogtie().id
+  if p.get("mode","")!="strain" or p.get("target","")!=target_id or Rules.free_effect(p.type,p.get("free",false)): return g.RopeArt.HOGTIE_REASON
+ if Rules.SPECS[p.type].card_type=="item": return ItemCards.reason(g,p)
  if not action_ignores_restraints(g) and p.type=="henshin" and g.state.equipment.any(func(e):return g.Equipment.lock_only(e)):
   return "普通 henshin 需要先解除限制项圈；品相完美版可直接使用。"
  var spec=Rules.SPECS[p.type]
- if spec.mode=="power":
+ if Rules.power_face(spec,spec.get("self_faces",{}).get("free" if p.free else "bound",{})):
   var selected=Rules.BUFFS[spec.self_faces["free" if p.free else "bound"].buff]
   var group=selected.get("exclusive_group","")
   if group!="" and active_buffs(g).any(func(id):return Rules.BUFFS[id].get("exclusive_group","")==group):
    return "两面互斥：本场已启用「%s」。" % g.B.CARD_NAMES[p.type]
  # Phase restrictions apply before self-targeted cards return without equipment checks.
  if g.state.phase=="rest" and Rules.free_effect(p.type,p.free): return "休息房禁止卡牌自由效果。"
+ if spec.get("battle_only",false) and g.state.phase!="battle": return "仅限战斗中使用。"
  if spec.has("select_exhaust") and selection_cards(g,p.get("uid","")).size()<spec.select_exhaust: return "需要至少3张可消耗的牌。"
  var pressure=0.0 if p.get("replay",false) else Rules.face_pressure_cost(p.type,p.free)
  if g.state.pressure<pressure: return "需要至少%s点快感。" % g.number(pressure)
- if spec.has("all_mana_minimum") and g.state.mana+g.state.temporary_mana<spec.all_mana_minimum: return "自身与临时魔力合计至少需要%s点。" % g.number(spec.all_mana_minimum)
+ if spec.has("all_mana_minimum") and not _free_magic(g,p.type,p.free):
+  var minimum=spec.all_mana_minimum+g.Enchantments.extra_mana(instance(g,p.get("uid","")))
+  if g.state.mana+g.state.temporary_mana<minimum: return "自身魔力与魔力预备合计至少须能支付%s魔力。" % g.number(minimum)
  var witch_issue=g.Character.Expansion.reason(g,p)
  if witch_issue!="": return witch_issue
  if spec.get("drinking",false):
@@ -786,6 +946,7 @@ static func reason(g, p: Dictionary) -> String:
    if not action_ignores_restraints(g) and g.level(region)>limit: return "需要%s束缚等级≤%d，当前为%d。" % ["腿部" if region=="legs" else "上身",limit,g.level(region)]
  if spec.has("self_faces"):
   var face=spec.self_faces["free" if p.free else "bound"]
+  if face.get("no_restraints",false) and not action_ignores_restraints(g) and has_restraints(g,false): return "需要全身无拘束。"
   if face.has("self_install") and SelfBinding.install_options(g,face.self_install.grade,face.self_install.tier).is_empty(): return "没有位置佩戴新的拘束具。"
   if face.has("requires_posture") and g.state.posture!=face.requires_posture: return "仅限%s使用。" % g.B.POSE_NAMES[face.requires_posture]
   if face.has("posture"):
@@ -808,6 +969,9 @@ static func reason(g, p: Dictionary) -> String:
  var issue=body_reason(g,p.type)
  if issue!="": return issue
  if spec.has("self_binding"): return SelfBinding.reason(g,p)
+ if p.get("self_target",false) and spec.get("sweep_slots",false):
+  if p.get("x",0)<1: return "至少需要1点能量。"
+  return "没有可处理的非敏感部位外层拘束具。" if _sweep_starts(g,p,true).is_empty() else ""
  if p.get("self_target",false): return ""
  if Rules.free_effect(p.type,p.free): return ""
  if spec.has("target_slots") and p.slot not in spec.target_slots and p.target!=g.CaptureBind.BIND_TARGET: return "只能处理%s的拘束具。" % "、".join(spec.target_slots.map(func(slot):return g.B.SLOT_NAMES[slot]))
@@ -828,17 +992,22 @@ static func reason(g, p: Dictionary) -> String:
  return ""
 
 static func detail(g, p: Dictionary) -> String:
+ if Rules.SPECS[p.type].card_type=="item":
+  return ItemCards.Presentation.summary(g,p.type) if Rules.SPECS[p.type].has("remove_uses") else face_text(g,p.type,p.free,p.get("uid",""))
  if p.get("self_target",false):
   if Rules.SPECS[p.type].has("hannya_stage"): return Hannya.detail(g,Rules.SPECS[p.type].hannya_stage,p.free)+Rules.SPECS[p.type].get("play_music_text","")
   var face_args={"type":p.type,"free":p.free,"uid":""}
   var text=g.CopyRouter.text(g,{"kind":"card.face_text","args":face_args,"fallback":face_text_detail(g,face_args)})
   if Rules.SPECS[p.type].has("self_binding"): text+="\n"+SelfBinding.detail(g,p)
+  if Rules.SPECS[p.type].get("sweep_slots",false):
+   text+="\n消耗%d能量。每件外层目标各结算%d段，解除后在该区域顺延。" % [p.x,p.x]
+   if grace_extra_hit(g,p.type,p.free): text+="整张牌最后追加一段伤害。"
   if p.get("hand_uid","")!="":
    var chosen=g._card(p.hand_uid)
    if not chosen.is_empty(): text+="本次消耗「%s」。" % g.B.CARD_NAMES[chosen.type]
   var face=Rules.SPECS[p.type].get("self_faces",{}).get("free" if p.free else "bound",{})
   if face.has("pressure_energy"): text+="本次获得%d能量。" % int(g.state.pressure/face.pressure_energy)
-  if face.has("pressure_temporary_mana"): text+="本次获得%d临时魔力。" % int(g.state.pressure/face.pressure_temporary_mana)
+  if face.has("pressure_temporary_mana"): text+="本次获得%s层魔力预备。" % g.number(Rules.pressure_reserve_layers(g.state.pressure,face.pressure_temporary_mana))
   if face.get("balance_mana_pressure",false): text+="当前均分值：%s。" % g.number((g.state.mana+g.state.pressure)/2.0)
   if face.has("refresh_spell"):
    var usage=g.BasicAttacks.usage(g,face.refresh_spell)
@@ -847,23 +1016,25 @@ static func detail(g, p: Dictionary) -> String:
    var bonus=face.spell_base_bonus
    text+="当前永久加伤＋%d，使用后＋%d。" % [g.state.spell_base_bonuses.get(bonus.spell,0),g.state.spell_base_bonuses.get(bonus.spell,0)+bonus.amount]
   return text
- if Rules.free_effect(p.type,p.free): return g.B.card_info(p.type)[2]
+ if Rules.free_effect(p.type,p.free): return face_text(g,p.type,true,p.get("uid","")) if Rules.SPECS[p.type].get("fireball_hits",false) else g.B.card_info(p.type)[2]
+ if Rules.SPECS[p.type].get("fireball_hits",false) and hit_count(g,p.type)==0 and g.state.card_chain.is_empty(): return "挣扎0次。"
  if p.target==g.CaptureBind.BIND_TARGET:
   if g.RopeArt.bound(g): return "绳艺捕缚不能直接解除，请处理身上的绳索。"
   var preview=p.preview
-  if p.mode=="lower": return "每层降紧固定削减%s点捕缚；使用固定数值，蓄力保留。" % g.number(preview.damage)+Rules.effect_details(Rules.SPECS[p.type])
+  if p.mode=="lower": return "本次降紧削减%s点捕缚，保留蓄力。" % g.number(preview.damage)+Rules.effect_details(Rules.SPECS[p.type])
   var detail="对捕缚造成%s点%s伤害。牌面基础、属性与蓄力构成基础伤害，再应用捕缚与伤害增益倍率。" % [g.number(preview.damage),"挣扎" if p.mode=="strain" else "滑脱"]
   if preview.guard_multiplier>1.0: detail+="\n当前除眼罩、口球外没有其他拘束具，伤害×2。"
-  if preview.damage_buff_multiplier>1.0: detail+="\n卡牌伤害增益×%s。" % g.number(preview.damage_buff_multiplier)
+  if preview.damage_buff_multiplier>1.0: detail+="\n卡牌伤害增益×%s。" % g.DisplayNumbers.factor(preview.damage_buff_multiplier)
   detail+="\n（%s基础＋%s属性＋%s蓄力）×%s = %s" % [g.number(preview.base),g.number(preview.bonus),g.number(preview.charge),g.number(preview.multiplier),g.number(preview.damage)]
-  return detail+Rules.effect_details(Rules.SPECS[p.type])
+  return detail if bonus_damage_segment(g,p.type) else detail+Rules.effect_details(Rules.SPECS[p.type])
  var target=g._equipment(p.target)
  if p.has("preview"):
   var text="对%s造成%s点%s伤害。" % [g._equipment_name(target),g.number(p.preview.get("scaled_damage",p.preview.damage)),"挣扎" if p.mode=="strain" else "滑脱"]
   if p.preview.get("environment_true",0)>0: text+="另加%s点粗糙墙面真实伤害。" % g.number(p.preview.environment_true)
   text+="\n"+g._formula(p.preview)
   text+="\n"+p.preview.assist.detail
-  if p.preview.get("link_factor",1.0)>1.0: text+="\n这件装备仅向下连接，滑脱伤害×%s（已计入）。" % g.number(p.preview.link_factor)
+  if bonus_damage_segment(g,p.type): return text
+  if p.preview.get("link_factor",1.0)>1.0: text+="\n这件装备仅向下连接，滑脱伤害×%s（已计入）。" % g.DisplayNumbers.factor(p.preview.link_factor)
   if not p.get("tool_bonus",{}).is_empty(): text+="\n借助%s的%s：另加%s固定切割，消耗1次工具；每张牌限一次。" % [p.tool_bonus.mount,p.tool_bonus.name,g.number(p.tool_bonus.damage)]
   if p.preview.release: text+="\n条件已满足：本次挣扎直接脱下整件单手套。"
   text+=Rules.effect_details(Rules.SPECS[p.type])
@@ -878,7 +1049,7 @@ static func detail(g, p: Dictionary) -> String:
   if g.Equipment.lock_only(target): return "打开限制项圈的锁；双臂自由后可取下。"+continuation_text
   return "解除%s的锁，耐久和紧度保留。%s" % [target.name,continuation_text]
  if target.has("parent_id"): return "%s耐久 %s → %s，仅削减连接耐久，原装备紧度保留。" % [target.name,g.number(target.durability),g.number(p.after)]
- var lower_text="%s耐久 %s → %s，降紧1档。" % [target.name,g.number(target.durability),g.number(p.after)]
+ var lower_text="%s耐久 %s → %s，降紧%d档。" % [target.name,g.number(target.durability),g.number(p.after),Rules.SPECS[p.type].get("lower_steps",1)]
  if Rules.SPECS[p.type].get("follow_through",false): lower_text+="总计降紧%d档，目标解除后%s。" % [Rules.SPECS[p.type].hits,"超级顺延" if Rules.SPECS[p.type].get("follow_through_scope","region")=="body" else "顺延"]
  return lower_text
 
@@ -925,8 +1096,9 @@ static func target_detail(g, args: Dictionary) -> String:
 # exhaust_hand 的选择展开由 core/card_effects.gd::_target_choices 唯一提供。
 static func card_point_keys(g) -> Array:
  var keys=[]
- if not g._phase_action_tail(): return keys
+ var turn=g._phase_action_tail() or g.RopeArt.struggle_only(g)
  for card in g.state.hand:
+  if not turn and not ItemCards.outside_turn(g,card): continue
   keys.append_array(_card_point_card_keys(g,card))
  return keys
 
@@ -936,15 +1108,26 @@ static func card_point_keys(g) -> Array:
 # self_faces／single_face 之后不再走捕缚与槽位。候选键、成员判断与点构造都从这里取，条件不另写。
 static func _card_point_sites(g, card: Dictionary) -> Array:
  var sites=[]
+ if g.RopeArt.struggle_only(g):
+  var rope=g.worn_hogtie()
+  var spec=Rules.SPECS[card.type]
+  if rope.is_empty() or spec.mode!="strain" or spec.get("sweep_slots",false) or g.B.CARD_TRAITS.get(card.type,{}).get("unplayable",false): return sites
+  for slot in g.Equipment.coverage(rope):
+   if spec.has("target_slots") and slot not in spec.target_slots: continue
+   var item={"slot":slot,"target":rope,"second":false}
+   sites.append({"family":"slots","base":_card_slot_key(card,item),"item":item,"enabled":spec.get("exhaust_hand",false)})
+  return sites
+ if Rules.SPECS[card.type].card_type=="item": return ItemCards.sites(g,card)
  if g.B.CARD_TRAITS.get(card.type,{}).get("unplayable",false): return sites
  var spec=Rules.SPECS[card.type]
  if spec.has("free_slots"):
   sites.append({"family":"free_slots","base":{"kind":"card","uid":card.uid,"type":card.type,"slot":spec.free_slots[0],"target":"","free":true,"mode":spec.mode},"item":{},"enabled":spec.get("exhaust_hand",false)})
- if spec.has("self_faces"):
-  for side in ["bound","free"]:
-   var base={"kind":"card","uid":card.uid,"type":card.type,"slot":"","target":"self","free":side=="free","mode":spec.mode,"self_target":true}
-   if spec.get("x_cost",false): base.x=energy_cost(g,card.type,side=="free")
-   sites.append({"family":"self_faces","base":base,"item":{},"enabled":spec.self_faces[side].get("exhaust_hand",false)})
+ if spec.has("self_faces") or spec.get("sweep_slots",false):
+  for second in [false,true]:
+   var face=spec.get("self_faces",{}).get("free" if second else "bound",{})
+   var base={"kind":"card","uid":card.uid,"type":card.type,"slot":"","target":"self","free":second,"mode":Rules.face_mode(card.type,second),"self_target":true}
+   if spec.get("x_cost",false): base.x=energy_cost(g,card.type,second)
+   sites.append({"family":"self_faces","base":base,"item":{},"enabled":face.get("exhaust_hand",false)})
   return sites
  if Rules.single_face(card.type):
   sites.append({"family":"single_face","base":{"kind":"card","uid":card.uid,"type":card.type,"slot":"","target":"self","free":false,"mode":spec.mode,"self_target":true},"item":{},"enabled":false})
@@ -1027,20 +1210,21 @@ static func card_point_fact(g, params: Dictionary) -> Dictionary:
 static func _card_point_row(g, card: Dictionary, site: Dictionary, choice: Dictionary, p: Dictionary) -> Dictionary:
  var spec=Rules.SPECS[card.type]
  var family=String(site.family)
+ if family=="tool": return _target_fact(g,choice,g.B.CARD_NAMES[card.type],energy_cost(g,card.type,choice.free),g.Enchantments.extra_mana(card),"")
  if family=="free_slots":
-  return _target_fact(g,choice,"自由 · "+g.B.CARD_NAMES[card.type],energy_cost(g,card.type,true),face_mana(g,card.type,true),"")
+  return _target_fact(g,choice,"自由 · "+g.B.CARD_NAMES[card.type],energy_cost(g,card.type,true),face_mana(g,card.type,true,card),"")
  if family=="self_faces":
   var face_label=Rules.face_name(card.type,choice.free)+"面" if spec.has("bound_modes") else ("自由面" if choice.free else "挣脱面")
-  return _target_fact(g,choice,"打出「"+g.B.CARD_NAMES[card.type]+"」 · "+face_label,energy_cost(g,card.type,choice.free),face_mana(g,card.type,choice.free),"")
+  return _target_fact(g,choice,"打出「"+g.B.CARD_NAMES[card.type]+"」 · "+face_label,energy_cost(g,card.type,choice.free),face_mana(g,card.type,choice.free,card),"")
  if family=="single_face":
-  return g._fact(choice,"打出「"+g.B.CARD_NAMES[card.type]+"」",{"kind":"card.target","args":{"payload":choice}},energy_cost(g,card.type),0.0,reason(g,choice),"","card")
+  return g._fact(choice,"打出「"+g.B.CARD_NAMES[card.type]+"」",{"kind":"card.target","args":{"payload":choice}},energy_cost(g,card.type),g.Enchantments.extra_mana(card),reason(g,choice),"","card")
  if family=="bind":
   var second=bool(site.item.get("second",false))
   var bind=bind_payload(g,card.type,card.uid,second)
   bind.kind="card";bind.uid=card.uid
   var bind_choice=_card_point_choice(g,bind,spec.get("exhaust_hand",false),p)
   if bind_choice.is_empty(): return {}
-  return _target_fact(g,bind_choice,"冲开捕缚 · %s伤害" % g.number(bind.preview.damage),energy_cost(g,card.type),face_mana(g,card.type,second),"")
+  return _target_fact(g,bind_choice,"冲开捕缚 · %s伤害" % g.number(bind.preview.damage),energy_cost(g,card.type),face_mana(g,card.type,second,card),"")
  var item=site.item
  var payload=target_payload(g,card.type,item.slot,item.target,g.HandAssist.profiles(g),card.uid,item.second)
  if payload.free and spec.has("free_slots"): return {}
@@ -1062,8 +1246,8 @@ static func card_point_member(g, params: Dictionary) -> bool:
 # 家族与跳过条件全部来自 _card_point_sites（与候选键同一处），不得依赖隐含前提。
 static func _card_point_site(g, params: Dictionary) -> Dictionary:
  var p=g.command_params("card",params)
- if not g._phase_action_tail(): return {}
  var card=g._card(String(p.get("uid","")))
+ if not g._phase_action_tail() and not g.RopeArt.struggle_only(g) and not ItemCards.outside_turn(g,card): return {}
  if card.is_empty() or String(p.get("type",""))!=String(card.type): return {}
  for site in _card_point_sites(g,card):
   var choice=_card_point_choice(g,site.base,bool(site.enabled),p)
@@ -1087,7 +1271,7 @@ static func _card_slot_fact(g, card: Dictionary, item: Dictionary, choice: Dicti
  var label="自由 · "+g.B.SLOT_NAMES[slot] if Rules.free_effect(card.type,choice.free) else "解除 · "+g._equipment_name(target)
  if Rules.free_effect(card.type,choice.free) and slot in ["palm","fingers"] and not g.equipment_at(slot).is_empty(): label="自由 · "+("右" if g.hand_blocked(slot,"left") else "左")+g.B.SLOT_NAMES[slot]
  if spec.has("bound_modes"): label=Rules.face_name(card.type,choice.free)+" · "+g._equipment_name(target)
- return _target_fact(g,choice,label,energy_cost(g,card.type,choice.free),face_mana(g,card.type,choice.free),risk)
+ return _target_fact(g,choice,label,energy_cost(g,card.type,choice.free),face_mana(g,card.type,choice.free,card),risk)
 
 # card 域 View 生产者（唯一，K3）：一次走查（_card_point_sites × _target_choices）直接产出成对结果里的行——
 # 不走「先枚举 params 再逐条查表」的两步，每行恰构造一次（_card_point_row 是唯一单行构造）。重复归一化
@@ -1141,13 +1325,17 @@ static func retain(g, uid: String) -> void:
 static func settle_played_card(g) -> void:
  if g.state.play.is_empty(): return
  var card=g.state.play[0]
+ var remaining=g.Enchantments.exhaust_remaining(g,card)
  g.Enchantments.after_play(g,card)
  card.erase("art_block")
  g.state.play.erase(card)
- g.Character.Expansion.evolve(g,card)
+ if ItemCards.spend(g,card):
+  g._card_motion("play_exhaust",card)
+  return
+ if g._recovery_target=="": g.Character.Expansion.evolve(g,card)
  var exhaust=g.B.CARD_TRAITS.get(card.type,{}).get("exhaust",false) or card.get("exhaust_after_play",false)
  card.erase("exhaust_after_play")
- var destination=g.Enchantments.destination(g,card,exhaust)
+ var destination=g.Enchantments.destination(g,card,exhaust,remaining)
  g._card_motion("play_exhaust" if destination=="exhaust" else "play",card)
  if destination=="hand": g._put_card_in_hand(card)
  else: g.state[destination].append(card)
@@ -1161,12 +1349,21 @@ static func cancel_chain(g) -> void:
 static func play(g, c: Dictionary) -> void:
  var p=c.payload
  var card=g._card(p.uid)
+ if g.state.phase=="battle" and g.BindingBoxPlus.CURSE in g.state.card_buffs and not p.get("replay",false) and "magic" in Rules.type_tags(p.type,p.free):
+  g._gain_temporary_card(g.BindingBoxPlus.DISRUPT,true)
+  g._emit("event","法术诅咒：一张「扰乱」混入抽牌堆。",{"spell_curse_card":p.uid})
  # Casting settles before any physical card movement, including door spells.
+ if _free_magic(g,p.type,p.free): p.waive_magic_payment=true
  var success=not uses_magic(p) or g._cast_magic(c)
+ if not p.get("replay",false) and "magic" in Rules.type_tags(p.type,p.free): g.AntiDrone.magic_played(g)
  g.RopeArt.played(g,p,success)
  consume_first_magic(g,p)
- if g.Character.Expansion.skill_discount(g,p.type,p.free)>0: g.Character.consume_buff(g,"witch_circle_skills")
+ if g.Character.Expansion.skill_discount(g,p.type,p.free)>0: consume_buff(g,"witch_circle_skills")
  if not success: return
+ if "magic" in Rules.type_tags(p.type,p.free):
+  for id in g.state.card_buffs:
+   if Rules.BUFFS[id].has("recharge_on_magic"):
+    g.BasicAttacks.restore_uses(g,Rules.BUFFS[id].recharge_on_magic,buff_stacks(g,id))
  var pressure=0.0 if p.get("replay",false) else Rules.face_pressure_cost(p.type,p.free)
  if pressure>0:
   g.Pressure.lose(g,pressure)
@@ -1179,9 +1376,8 @@ static func play(g, c: Dictionary) -> void:
  var replay=g.Replay.take(g,"card",p.type,p.free)+g.Enchantments.replay_count(g,card,p.free)
  g.Enchantments.begin_play(card,p)
  g.state.hand.erase(card);card.retain_until=-1
- if Rules.SPECS[card.type].card_type=="power":
+ if Rules.power_face(Rules.SPECS[card.type],Rules.SPECS[card.type].get("self_faces",{}).get("free" if p.free else "bound",{})):
   card.power_face="free" if p.free else "bound"
-  if Rules.BUFFS[Rules.SPECS[card.type].self_faces[card.power_face].buff].has("periodic"): card.power_progress=0
   for key in METER_FIELDS:
    if Rules.BUFFS[Rules.SPECS[card.type].self_faces[card.power_face].buff].has(key): card[METER_FIELDS[key]]=0.0
   if Rules.BUFFS[Rules.SPECS[card.type].self_faces[card.power_face].buff].get("restraint_draw",{}).get("next_turn",false): card.power_next_draw=0
@@ -1190,13 +1386,15 @@ static func play(g, c: Dictionary) -> void:
   if replay and not Rules.unique_face(card.type,p.free): card.power_stacks=1+replay
   if Rules.BUFFS[Rules.SPECS[card.type].self_faces[card.power_face].buff].has("first_magic"): card.power_magic_remaining=card.get("power_stacks",1)
   g.state.powers.append(card)
+  if Rules.BUFFS[Rules.SPECS[card.type].self_faces[card.power_face].buff].get("charge_switch",false): g.state.charge_all=true
+  if g.state.phase=="battle": g.RelicEffects.trigger(g,"power_played")
   g._card_motion("play_power",card)
   var buff=Rules.BUFFS[Rules.SPECS[card.type].self_faces[card.power_face].buff]
   g._emit("event","获得「"+buff.name+"」。",{"power":p.type,"face":card.power_face})
   apply_effects(g,Rules.SPECS[card.type].self_faces[card.power_face].get("effects",[]),Rules.SPECS[card.type])
   g.Character.Expansion.resolve(g,p)
   g.Enchantments.after_play(g,card)
-  if replay: g._emit("event","唯一：该能力仅生效一次。" if Rules.unique_face(card.type,p.free) else ("余势复演：这张能力牌的效果额外生效%d次。" % replay),{"replay":{"type":p.type,"skipped":Rules.unique_face(card.type,p.free)}})
+  if replay: g._emit("event","唯一：该能力仅生效一次。" if Rules.unique_face(card.type,p.free) else ("复放：能力额外生效%d次。" % replay),{"replay":{"type":p.type,"skipped":Rules.unique_face(card.type,p.free)}})
   return
  if Rules.exhausts(p.type,p.free,g.B.CARD_TRAITS.get(p.type,{})): card.exhaust_after_play=true
  g.state.play.append(card)
@@ -1206,10 +1404,23 @@ static func play(g, c: Dictionary) -> void:
    var target=g.Replay.target(p);target.selected_uids=[]
    g.state.card_chain.replay_targets=[target];g.state.card_chain.replay_count=replay
   return
- var used=resolve(g,p)
- grow(g,p.type,p.uid)
- if not Rules.free_effect(p.type,p.free) and not p.get("self_target",false) and Rules.SPECS[p.type].get("hits",1)>1:
-  g.state.card_chain={"type":p.type,"slot":p.slot,"remaining":Rules.SPECS[p.type].hits-1,"mode":p.mode,"tools_used":[] if used=="" else [used]}
+ var extra_hit=grace_extra_hit(g,p.type,p.free)
+ var sweep=Rules.SPECS[p.type].get("sweep_slots",false)
+ var segments=1 if Rules.free_effect(p.type,p.free) or p.get("self_target",false) else hit_count(g,p.type,p.free)
+ if extra_hit: consume_buff(g,"grace_bound")
+ var used=""
+ if segments>0:
+  used=resolve(g,p,c.mana_payment.mana+c.mana_payment.temporary_mana,extra_hit and (sweep or segments==1))
+ if g._recovery_target=="": grow(g,p.type,p.uid)
+ var pile=Rules.hand_source(p.type,p.free)
+ if pile!="" and not g.state[pile].is_empty() and g.state.hand.size()<g.B.HAND_LIMIT:
+  g.state.card_chain={"type":p.type,"slot":"","mode":"select_to_hand","remaining":1,"free":p.free}
+  if replay:
+   g.state.card_chain.replay_targets=[g.Replay.target(p)];g.state.card_chain.replay_count=replay
+ elif segments>1:
+  g.state.card_chain={"type":p.type,"slot":p.slot,"remaining":segments-1,"mode":p.mode,"tools_used":[] if used=="" else [used]}
+  if extra_hit: g.state.card_chain.bonus_escape_hit=true
+  if Rules.SPECS[p.type].get("fireball_hits",false) or extra_hit: g.state.card_chain.total_hits=segments
   if Rules.SPECS[p.type].has("bound_modes"): g.state.card_chain.free=p.free
   if Rules.SPECS[p.type].get("follow_through",false):
    g.state.card_chain.region=Rules.follow_through_region(p.slot)
@@ -1218,15 +1429,24 @@ static func play(g, c: Dictionary) -> void:
   if replay:
    g.state.card_chain.replay_targets=[g.Replay.target(p)]
    g.state.card_chain.replay_count=replay
- elif replay:
+ elif replay and segments>0 and (sweep or not extra_hit):
   g._cleanup()
   g.Replay.cards(g,p.type,[g.Replay.target(p)],[] if used=="" else [used],replay)
   settle_played_card(g)
  else: settle_played_card(g)
 
-static func resolve(g, p: Dictionary) -> String:
+static func resolve(g, p: Dictionary, paid_mana: float=0.0, extra_damage_hit: bool=false) -> String:
+ if Rules.SPECS[p.type].card_type=="item":
+  ItemCards.resolve(g,p)
+  return ""
+ if p.type==g.Detective.STATUS:
+  g.Detective.provoke(g)
+  return ""
  if p.get("self_target",false):
   var spec=Rules.SPECS[p.type]
+  if spec.get("sweep_slots",false):
+   _resolve_sweep(g,p,extra_damage_hit)
+   return ""
   if spec.has("self_binding"):
    SelfBinding.resolve(g,p)
    return ""
@@ -1252,25 +1472,44 @@ static func resolve(g, p: Dictionary) -> String:
   if face.has("pressure_energy"): energy+=int(g.state.pressure/face.pressure_energy)
   energy=g._gain_energy(energy)
   var mana_before=g.state.mana
-  var temporary_gain=int(g.state.pressure/face.pressure_temporary_mana) if face.has("pressure_temporary_mana") else 0
+  var temporary_gain=Rules.pressure_reserve_layers(g.state.pressure,face.pressure_temporary_mana)*g.reserve_mana_value() if face.has("pressure_temporary_mana") else 0.0
   g.state.temporary_mana+=temporary_gain
-  g.state.mana=minf(g.state.mana_max,g.state.mana+face.get("mana_gain",0.0))
+  g.set_own_mana(minf(g.state.mana_max,g.state.mana+face.get("mana_gain",0.0)))
   if face.has("spell_base_bonus"):
    var bonus=face.spell_base_bonus
    g.state.spell_base_bonuses[bonus.spell]=int(g.state.spell_base_bonuses.get(bonus.spell,0))+bonus.amount
-  if face.has("buff"): grant_buff(g,face.buff)
+  var gained_buff=face.has("buff") and (not face.has("when_spell_empty") or (g.state.phase=="battle" and g.BasicAttacks.usage(g,face.when_spell_empty).remaining==0))
+  var turns=floori(paid_mana/Rules.BUFFS[face.buff].mana_per_turn) if gained_buff and Rules.BUFFS[face.buff].has("mana_per_turn") else 1
+  if face.get("buff_from_x",false): turns=p.x
+  gained_buff=gained_buff and (turns>0 or Rules.BUFFS[face.buff].has("physical_factor_per_x"))
+  if gained_buff: grant_buff(g,face.buff,turns)
   var worn_count_before=worn_count(g)
   var worn_gain=Rules.worn_gain(face,worn_count_before)
   if face.has("worn_resource"):
-   if face.worn_resource.resource=="mana": g.state.mana=minf(g.state.mana_max,g.state.mana+worn_gain)
+   if face.worn_resource.resource=="mana": g.set_own_mana(minf(g.state.mana_max,g.state.mana+worn_gain))
    elif face.worn_resource.resource=="charge": g._gain_charge(worn_gain)
    elif face.worn_resource.resource=="strength":
     for stack in range(worn_gain): grant_buff(g,face.worn_resource.buff)
    else: g.state.turn_strength+=worn_gain
   var face_effects=face.get("effects",[]).duplicate(true)
-  var body_count=occupied_body_count(g) if face.has("body_draw_divisor") else 0
-  if face.has("body_draw_divisor"): face_effects.append({"op":"draw","amount":int(body_count/face.body_draw_divisor)})
-  var effect_results=apply_effects(g,face_effects,spec)
+  if spec.get("requires_empty_mana_and_unused_flask",false) and (g.state.mana!=0 or g.state.combat.get("flask_used_previous_turn",false)):
+   face_effects.clear()
+  var body_count=occupied_body_count(g,face.get("region_draw",false)) if face.has("body_draw_divisor") else 0
+  var body_draw=Rules.body_draw_amount(face,body_count) if face.has("body_draw_divisor") else 0
+  if face.has("body_draw_divisor"): face_effects.append({"op":"draw","amount":body_draw})
+  var effect_spec={"gift_value":royal_gift_amount(g)} if spec.has("gift_value") else spec
+  var effect_results=apply_effects(g,face_effects,effect_spec)
+  if face.has("convert_to"):
+   if face.convert_to=="charge":
+    var layers=floori(g.state.temporary_mana/g.reserve_mana_value())
+    g.state.temporary_mana-=layers*g.reserve_mana_value()
+    g._gain_charge(layers)
+    effect_results.append("获得%d层蓄力" % layers)
+   else:
+    var layers=g.state.charge
+    g.state.temporary_mana+=layers*g.reserve_mana_value()
+    g._consume_charge(true)
+    effect_results.append("获得%d层魔力预备" % layers)
   if not installed.is_empty(): effect_results.push_front("佩戴「%s」" % installed[0].name)
   if face.has("worn_resource"):
    var gain_copy={"mana":"恢复%s魔力","turn_strength":"本回合力量＋%s","strength":"力量＋%s","charge":"获得%s层蓄力"}[face.worn_resource.resource]
@@ -1285,15 +1524,15 @@ static func resolve(g, p: Dictionary) -> String:
     g.state.exhaust.append(card);g._card_motion("exhaust",card)
     batch_cards.append(card.uid)
    var batch_mana_before=g.state.mana
-   g.state.mana=minf(g.state.mana_max,g.state.mana+batch.get("mana_gain",0.0)*batch_cards.size())
+   g.set_own_mana(minf(g.state.mana_max,g.state.mana+batch.get("mana_gain",0.0)*batch_cards.size()))
    var effects=batch.get("effects",[]).duplicate(true)
    for effect in effects: effect.amount=Rules.amount(effect,spec)*batch_cards.size()
    if not batch_cards.is_empty(): effect_results.append_array(apply_effects(g,effects,spec))
    if batch.has("mana_gain"): effect_results.append("恢复%s魔力" % g.number(g.state.mana-batch_mana_before))
   if face.has("energy_gain") or face.has("pressure_energy"): effect_results.append("获得%d能量" % energy)
   if face.has("mana_gain"): effect_results.append("恢复%s魔力" % g.number(g.state.mana-mana_before))
-  if face.has("pressure_temporary_mana"): effect_results.append("获得%d临时魔力" % temporary_gain)
-  if face.has("buff"): effect_results.append("获得「"+Rules.BUFFS[face.buff].name+"」")
+  if face.has("pressure_temporary_mana"): effect_results.append("获得%s临时魔力" % g.number(temporary_gain))
+  if gained_buff: effect_results.append("获得「"+Rules.BUFFS[face.buff].name+"」")
   if face.has("spell_base_bonus"):
    var bonus=face.spell_base_bonus
    effect_results.append("%s基础伤害永久＋%d" % [g.BasicAttacks.TYPES[bonus.spell][0].name,bonus.amount])
@@ -1310,7 +1549,7 @@ static func resolve(g, p: Dictionary) -> String:
     g._apply_manual_release(target,0.0)
   var record={"card":p.type,"free":p.free,"energy_gain":energy}
   if not installed.is_empty(): record.self_install=installed.map(func(item):return item.id)
-  if face.has("body_draw_divisor"): record.body_draw={"count":body_count,"requested":int(body_count/face.body_draw_divisor)}
+  if face.has("body_draw_divisor"): record.body_draw={"count":body_count,"requested":body_draw}
   if face.has("worn_resource"): record.worn_resource={"count":worn_count_before,"resource":face.worn_resource.resource,"amount":worn_gain,"actual":g.state.mana-mana_before if face.worn_resource.resource=="mana" else worn_gain}
   if face.get("balance_mana_pressure",false): g.Pressure.balance_mana(g)
   var result_text="，".join(effect_results)+"。" if not effect_results.is_empty() else ""
@@ -1322,21 +1561,22 @@ static func resolve(g, p: Dictionary) -> String:
    result_text="消耗「%s」，%s。" % [g.B.CARD_NAMES[exhausted.type],"，".join(effect_results)]
   if face.has("optional_draw"):
    var extra=face.optional_draw
-   var payment=g._mana_payment(p,0.0 if p.get("replay",false) else float(extra.mana_cost))
+   var waived=p.get("replay",false) or p.get("waive_magic_payment",false)
+   var payment=g._mana_payment(p,0.0 if waived else float(extra.mana_cost))
    if g.state.mana>=payment.mana:
     g._pay_mana(payment)
     var before_draw=g.state.hand.size()
     g._draw(extra.count)
     var drawn=g.state.hand.size()-before_draw
     record.optional_draw={"payment":payment,"drawn":drawn}
-    result_text+=("免费追加抽到%d张牌。" % drawn if p.get("replay",false) else "额外支付%s魔力（临时魔力%s、自身魔力%s），追加抽到%d张牌。" % [g.number(extra.mana_cost),g.number(payment.temporary_mana),g.number(payment.mana),drawn])
+    result_text+=("免费追加抽到%d张牌。" % drawn if waived else "额外支付%s魔力（临时魔力%s、自身魔力%s），追加抽到%d张牌。" % [g.number(extra.mana_cost),g.number(payment.temporary_mana),g.number(payment.mana),drawn])
    else:
     record.optional_draw={"payment":{},"drawn":0}
     result_text+="追加抽牌需要%s魔力，当前魔力已耗尽或低于费用。" % g.number(extra.mana_cost)
   if face.has("refresh_spell"):
    var spell=face.refresh_spell
    var usage=g.BasicAttacks.usage(g,spell)
-   g.state.combat.attack_uses[spell]=0
+   g.BasicAttacks.restore_uses(g,spell,usage.used)
    record.refreshed_spell={"spell":spell,"before":usage.remaining,"after":usage.limit}
    result_text="%s剩余次数：%d → %d。" % [g.BasicAttacks.TYPES[spell][0].name,usage.remaining,usage.limit]
   g._emit("event",("额外释放「" if p.get("replay",false) else "打出「")+g.B.CARD_NAMES[p.type]+"」。"+result_text,record)
@@ -1345,9 +1585,9 @@ static func resolve(g, p: Dictionary) -> String:
   var results=apply_effects(g,Rules.SPECS[p.type].get("free_effects",[]),Rules.SPECS[p.type])
   g._emit("event","对自由的%s使用「%s」。%s" % [g.B.SLOT_NAMES[p.slot],g.B.CARD_NAMES[p.type],"，".join(results)+"。" if not results.is_empty() else ""])
   return ""
- return hit(g,p)
+ return hit(g,p,extra_damage_hit)
 
-static func hit(g, p: Dictionary) -> String:
+static func hit(g, p: Dictionary, damage_only: bool=false) -> String:
  if p.target=="prison_door":
   g.state.prison.door_open=true
   g._emit("event","施法打开了牢门锁。")
@@ -1356,7 +1596,7 @@ static func hit(g, p: Dictionary) -> String:
   if p.mode!="lower": g._consume_charge()
   g.CaptureBind.damage_bind(g,p.preview.damage,"「"+g.B.CARD_NAMES[p.type]+"」")
   if p.mode!="lower": consume_card_damage(g,p.mode,p.preview.damage)
-  apply_effects(g,Rules.SPECS[p.type].get("hit_effects",[]),Rules.SPECS[p.type])
+  if not damage_only: apply_effects(g,Rules.SPECS[p.type].get("hit_effects",[]),Rules.SPECS[p.type])
   return ""
  var target=g._equipment(p.target)
  if g.cursed_eyes(target): return "诅咒眼罩封闭了眼部装备操作。"
@@ -1368,30 +1608,31 @@ static func hit(g, p: Dictionary) -> String:
   var before=target.durability
   g._apply_manual_release(target,p.after)
   var name=g.B.CARD_NAMES[p.type]
-  var record={"action_result":g.ActionCopy.equipment_result(name,target.name,before,target.durability),"lower_steps":1}
-  if Rules.SPECS[p.type].get("follow_through",false): record.follow_through_hit={"target":target.id,"slot":p.slot,"hit":Rules.SPECS[p.type].hits-g.state.card_chain.remaining+1 if not g.state.card_chain.is_empty() else 1,"before":before,"after":target.durability}
+  var record={"action_result":g.ActionCopy.equipment_result(name,target.name,before,target.durability),"lower_steps":Rules.SPECS[p.type].get("lower_steps",1)}
+  if Rules.SPECS[p.type].get("follow_through",false): record.follow_through_hit={"target":target.id,"slot":p.slot,"hit":chain_hit_count(g.state.card_chain)-g.state.card_chain.remaining+1 if not g.state.card_chain.is_empty() else 1,"before":before,"after":target.durability}
   g._emit("mechanical","%s：%s耐久 %s → %s。" % [name,target.name,g.number(before),g.number(target.durability)],record)
  else:
   var before_tier=g.equipment_tier(target)
-  var old=target.durability
-  var splashes=Splash.select(g,p)
-  g._apply_equipment_damage(target,p.preview.damage,Rules.damage_type(p.type,p.free))
+  var old=g.EquipmentEnchantments.total_durability(target)
+  var splashes=[] if damage_only or Rules.SPECS[p.type].get("sweep_slots",false) else Splash.select(g,p)
+  g._apply_equipment_damage(target,p.preview.damage,Rules.damage_type(p.type,p.free),false,true,damage_only)
+  var after=g.EquipmentEnchantments.total_durability(target)
   var record=p.preview.duplicate(true)
-  record.action_result=g.ActionCopy.equipment_result("「%s」" % g.B.CARD_NAMES[p.type],target.name,old,target.durability,Rules.damage_type(p.type,p.free))
-  if Rules.SPECS[p.type].get("follow_through",false): record.follow_through_hit={"target":target.id,"slot":p.slot,"hit":Rules.SPECS[p.type].hits-g.state.card_chain.remaining+1 if not g.state.card_chain.is_empty() else 1,"before":old,"after":target.durability}
-  g._emit("mechanical","「%s」处理%s：%s。耐久 %s → %s。" % [g.B.CARD_NAMES[p.type],target.name,g._formula(p.preview),g.number(old),g.number(target.durability)],record)
-  if p.mode!="strain": g.RelicEffects.card_slipped(g,before_tier,target)
+  record.action_result=g.ActionCopy.equipment_result("「%s」" % g.B.CARD_NAMES[p.type],target.name,old,after,Rules.damage_type(p.type,p.free))
+  if Rules.SPECS[p.type].get("follow_through",false): record.follow_through_hit={"target":target.id,"slot":p.slot,"hit":chain_hit_count(g.state.card_chain)-g.state.card_chain.remaining+1 if not g.state.card_chain.is_empty() else p.get("sweep_hit",1),"before":old,"after":after}
+  g._emit("mechanical","「%s」处理%s：%s。耐久 %s → %s。" % [g.B.CARD_NAMES[p.type],target.name,g._formula(p.preview),g.number(old),g.number(after)],record)
+  if not damage_only and p.mode!="strain": g.RelicEffects.card_slipped(g,before_tier,target)
   if p.preview.immune: g._emit("event","三档紧度挡住了普通滑脱，粗糙墙面仍磨去%s点耐久。" % g.number(minf(old,p.preview.environment_true)) if p.preview.get("environment_true",0)>0 else "三档紧度阻止了这次滑脱，装备没有松开。")
-  if target.durability>0 and g.equipment_tier(target)<before_tier:
+  if not damage_only and target.durability>0 and g.equipment_tier(target)<before_tier:
    apply_effects(g,Rules.SPECS[p.type].get("lowered_effects",[]),Rules.SPECS[p.type],g.B.CARD_NAMES[p.type])
-  if target.durability<=0:
+  if not damage_only and target.durability<=0:
    apply_effects(g,Rules.SPECS[p.type].get("destroyed_effects",[]),Rules.SPECS[p.type],g.B.CARD_NAMES[p.type])
   Splash.apply(g,p,splashes)
   var actual_damage=minf(old,p.preview.damage)
   for splash in splashes: actual_damage+=splash.preview.damage
   consume_card_damage(g,p.mode,actual_damage)
- apply_effects(g,Rules.SPECS[p.type].get("hit_effects",[]),Rules.SPECS[p.type])
- return g.InstalledTools.apply(g,target,p.get("tool_bonus",{}))
+ if not damage_only: apply_effects(g,Rules.SPECS[p.type].get("hit_effects",[]),Rules.SPECS[p.type])
+ return ""
 
 static func continuation_points(g, target: Dictionary, slot: String) -> Array:
  if target.is_empty(): return []
@@ -1404,20 +1645,73 @@ static func continuation_part(g, slot: String) -> Array:
   if group is Array and slot in group: return group
  return [slot]
 
-# Select within the current physical point, then body part, then original region.
-# Queries never roll; normalize chooses once during the enclosing transaction.
+static func _sweep_starts(g, p: Dictionary, first_only: bool=false) -> Array:
+ var starts=[]
+ var seen={}
+ var profiles=g.HandAssist.profiles(g)
+ for slot in Rules.SPECS[p.type].target_slots:
+  for target in g.targets_at(slot):
+   if seen.has(target.id) or g.SpecialEquipment.is_special(target) or not g._outer(target): continue
+   var candidate=target_payload(g,p.type,slot,target,profiles,p.uid,p.free)
+   if reason(g,candidate)!="": continue
+   starts.append({"slot":slot,"target":target.id,"points":continuation_points(g,target,slot)})
+   if first_only: return starts
+   seen[target.id]=true
+ return starts
+
+static func _resolve_sweep(g, p: Dictionary, extra_hit: bool=false) -> void:
+ var starts=_sweep_starts(g,p)
+ var reserved={}
+ var sequences=[]
+ # A piece belongs to one sequence even if it covers several starting slots.
+ for start in starts: reserved[start.target]=true
+ for start in starts:
+  var chain={"type":p.type,"free":p.free,"uid":p.uid,"region":Rules.follow_through_region(start.slot)}
+  chain.merge(start)
+  for index in range(p.x):
+   if not _sweep_hit(g,chain,reserved,index+1,false): break
+  if extra_hit: sequences.append(chain)
+ # Continue the last eligible sequence once after the entire sweep.
+ for index in range(sequences.size()-1,-1,-1):
+  if _sweep_hit(g,sequences[index],reserved,p.x+1,true): break
+
+static func _sweep_hit(g, chain: Dictionary, reserved: Dictionary, number: int, damage_only: bool) -> bool:
+ var choices=_follow_through_targets(g,chain,reserved)
+ if choices.is_empty(): return false
+ var choice=choices[g._random_index("card_target",choices.size()) if choices.size()>1 else 0]
+ var target=g._equipment(choice.target)
+ chain.slot=choice.slot;chain.target=choice.target
+ chain.points=continuation_points(g,target,choice.slot)
+ reserved[choice.target]=true
+ choice.sweep_hit=number
+ if damage_only: choice.preview.release=false
+ hit(g,choice,damage_only)
+ if target.durability<=0.000001 or choice.preview.release: g._cleanup()
+ return true
+
 static func follow_through_facts(g) -> Array:
  var chain=g.state.card_chain
  var whole_body=Rules.SPECS[chain.type].get("follow_through_scope","region")=="body"
  var out=[]
+ for p in _follow_through_targets(g,chain):
+  p.kind="chain";p.action="hit"
+  var prefix="继续 · " if p.target==chain.target else ("超级顺延 · " if whole_body else "顺延 · ")
+  out.append(g._fact(p,prefix+g._equipment_name(g._equipment(p.target)),detail(g,p),0,0.0,"","","chain"))
+ return out
+
+# Select within the current physical point, then body part, then original region.
+# Queries never roll. The action that owns the sequence chooses the tied target.
+static func _follow_through_targets(g, chain: Dictionary, reserved: Dictionary={}) -> Array:
+ var spec=Rules.SPECS[chain.type]
+ var whole_body=spec.get("follow_through_scope","region")=="body"
+ var out=[]
  var current=g._equipment(chain.target)
  var profiles=g.HandAssist.profiles(g)
  if not current.is_empty():
-  var p=target_payload(g,chain.type,chain.slot,current,profiles,"",chain.get("free",false))
-  if reason(g,p)=="":
-   p.kind="chain";p.action="hit"
-   out.append(g._fact(p,"继续 · "+g._equipment_name(current),detail(g,p),0,0.0,"","","chain"))
+  var p=target_payload(g,chain.type,chain.slot,current,profiles,chain.get("uid",""),chain.get("free",false),true)
+  if reason(g,p)=="": out.append(p)
   if not out.is_empty() or not whole_body: return out
+ if g._recovery_target!="": return out
  var region=Rules.FOLLOW_THROUGH_REGIONS[Rules.follow_through_region(chain.slot) if whole_body else chain.region]
  var part=continuation_part(g,chain.slot).filter(func(slot):return slot in region)
  var slots=[chain.slot]+part.filter(func(slot):return slot!=chain.slot)+region.filter(func(slot):return slot not in part)
@@ -1427,9 +1721,10 @@ static func follow_through_facts(g) -> Array:
  var best_priority=-1
  for slot in slots:
   for target in g.targets_at(slot):
-   if target.id in seen or not g._outer(target): continue
+   if target.id in seen or reserved.has(target.id) or not g._outer(target): continue
+   if spec.get("sweep_slots",false) and g.SpecialEquipment.is_special(target): continue
    seen.append(target.id)
-   var p=target_payload(g,chain.type,slot,target,profiles,"",chain.get("free",false))
+   var p=target_payload(g,chain.type,slot,target,profiles,chain.get("uid",""),chain.get("free",false),true)
    if reason(g,p)!="": continue
    var rank=2 if slot in region else 3
    if slot in part:
@@ -1440,13 +1735,12 @@ static func follow_through_facts(g) -> Array:
     var priority=g.Equipment.slot_priority(slot)
     if priority<best_priority: continue
     if priority>best_priority: out.clear();best_priority=priority
-   p.kind="chain";p.action="hit"
-   out.append(g._fact(p,("超级顺延 · " if whole_body else "顺延 · ")+g._equipment_name(target),detail(g,p),0,0.0,"","","chain"))
+   out.append(p)
  return out
 
-static func selection_cards(g, exclude_uid: String="") -> Array:
+static func selection_cards(g, exclude_uid: String="", zones: Array=["draw","hand","discard"]) -> Array:
  var cards=[]
- for zone in ["draw","hand","discard"]:
+ for zone in zones:
   for card in g.state[zone]:
    if card.uid!=exclude_uid: cards.append({"zone":zone,"card":card})
  return cards
@@ -1477,6 +1771,14 @@ static func chain_facts(g) -> Array:
  var out=[]
  var chain=g.state.card_chain
  if chain.is_empty(): return out
+ if chain.mode=="select_to_hand":
+  var pile=Rules.hand_source(chain.type,chain.free)
+  for entry in selection_cards(g,"",[pile]):
+   var name=g.B.CARD_NAMES[entry.card.type]
+   var term=g.Enchantments.text(g,entry.card)
+   if not term.is_empty(): name+=" · "+term.name
+   out.append(g._fact({"kind":"chain","action":"select_to_hand","type":chain.type,"free":chain.free,"selected_uid":entry.card.uid},name,"置入手牌。",0,0.0,"","","chain"))
+  return out
  if chain.mode=="select_exhaust":
   for entry in selection_cards(g):
    var zone_name={"draw":"抽牌堆","hand":"手牌","discard":"弃牌堆"}[entry.zone]
@@ -1512,6 +1814,21 @@ static func chain_display_facts(g) -> Array:
  return out
 
 static func continue_card(g, p: Dictionary) -> void:
+ if p.action=="select_to_hand":
+  var pile=Rules.hand_source(p.type,p.free)
+  for card in g.state[pile]:
+   if card.uid==p.selected_uid:
+    g.state[pile].erase(card);g._put_card_in_hand(card,false)
+    var chain=g.state.card_chain
+    if chain.has("replay_targets") and not g.state[pile].is_empty() and g.state.hand.size()<g.B.HAND_LIMIT:
+     var targets=chain.replay_targets
+     chain.replay_count-=1
+     if chain.replay_count==0:
+      chain.erase("replay_targets");chain.erase("replay_count")
+     if g.Replay.card_once(g,chain.type,targets,[]): return
+    finish_chain(g)
+    return
+  return
  if p.action=="select_exhaust":
   select_exhaust(g,p)
   return
@@ -1521,11 +1838,12 @@ static func continue_card(g, p: Dictionary) -> void:
   return
  if Rules.SPECS[p.type].get("follow_through",false) and p.target!=g.CaptureBind.BIND_TARGET:
   var chain=g.state.card_chain
-  if chain.target!=p.target: g._emit("event",("超级顺延至" if Rules.SPECS[p.type].get("follow_through_scope","region")=="body" else "顺延至")+g.B.SLOT_NAMES[p.slot]+"的"+g._equipment_name(g._equipment(p.target))+"。",{"follow_through":{"from":chain.target,"target":p.target,"slot":p.slot,"hit":Rules.SPECS[p.type].hits-chain.remaining+1}})
+  if chain.target!=p.target: g._emit("event",("超级顺延至" if Rules.SPECS[p.type].get("follow_through_scope","region")=="body" else "顺延至")+g.B.SLOT_NAMES[p.slot]+"的"+g._equipment_name(g._equipment(p.target))+"。",{"follow_through":{"from":chain.target,"target":p.target,"slot":p.slot,"hit":chain_hit_count(chain)-chain.remaining+1}})
   chain.target=p.target;chain.slot=p.slot
   chain.points=continuation_points(g,g._equipment(p.target),p.slot)
- if g.state.card_chain.has("replay_targets"): g.state.card_chain.replay_targets.append(g.Replay.target(p))
- var used=hit(g,p)
+ var bonus_hit=bonus_damage_segment(g,p.type)
+ if not bonus_hit and g.state.card_chain.has("replay_targets"): g.state.card_chain.replay_targets.append(g.Replay.target(p))
+ var used=hit(g,p,bonus_hit)
  if used!="":
   if not g.state.card_chain.has("tools_used"): g.state.card_chain.tools_used=[]
   g.state.card_chain.tools_used.append(used)
@@ -1552,7 +1870,7 @@ static func normalize(g) -> void:
    var index=g._random_index("card_target",choices.size()) if choices.size()>1 else 0
    continue_card(g,choices[index].payload)
    g._cleanup()
-  elif choices.size()==1 and g.state.card_chain.mode not in ["unlock","select_exhaust"]:
+  elif choices.size()==1 and g.state.card_chain.mode not in ["unlock","select_exhaust","select_to_hand"]:
    continue_card(g,choices[0].payload)
    g._cleanup()
   else: break
@@ -1584,7 +1902,7 @@ static func validate(g) -> String:
    if card.has("power_next_draw") and (zone!="powers" or not card.power_next_draw is int or card.power_next_draw<0): return "能力牌的待抽牌数量有误。"
    var practice_issue=g.Character.Expansion.validate_card(g,card)
    if practice_issue!="": return practice_issue
-   var enchant_issue=g.Enchantments.card_issue(g,card,zone)
+   var enchant_issue=g.Enchantments.card_issue(g,card,zone,g.state.tick)
    if enchant_issue!="": return enchant_issue
    collection[card.uid]=[card.type,card.get("practice_plays",0),card.get("enchantment","")]
  if permanent!=live: return "牌堆与卡组存在差异。"
@@ -1592,7 +1910,7 @@ static func validate(g) -> String:
  var active=[]
  var exclusive=[]
  for card in g.state.powers:
-  if Rules.SPECS[card.type].card_type!="power" or card.get("power_face","") not in ["bound","free"]: return "能力区的卡牌或牌面有误。"
+  if Rules.SPECS[card.type].card_type!="power" or card.get("power_face","") not in ["bound","free"] or not Rules.power_face(Rules.SPECS[card.type],Rules.SPECS[card.type].self_faces[card.power_face]): return "能力区的卡牌或牌面有误。"
   var id=Rules.SPECS[card.type].self_faces[card.power_face].buff
   var buff=Rules.BUFFS[id]
   var group=buff.get("exclusive_group","")
@@ -1621,17 +1939,15 @@ static func validate(g) -> String:
   if Rules.BUFFS[id].get("restraint_draw",{}).get("next_turn",false):
    if not card.get("power_next_draw") is int or card.power_next_draw<0: return "能力牌缺少下回合抽牌数量。"
   elif card.has("power_next_draw"): return "这张能力没有下回合抽牌效果。"
-  if Rules.BUFFS[id].has("periodic"):
-   if not card.get("power_progress") is int or card.power_progress<0 or card.power_progress>Rules.BUFFS[id].periodic.count: return "能力牌的累计出牌计数有误。"
-   if card.power_progress==Rules.BUFFS[id].periodic.count and g.state.card_chain.is_empty(): return "能力牌触发待结算。"
   active.append(id)
  if not g.state.card_buffs is Array or not g.state.get("card_buff_uses") is Dictionary: return "卡牌增益记录缺损。"
  for id in g.state.card_buff_uses:
   var remaining=g.state.card_buff_uses[id]
-  if id not in g.state.card_buffs or not Rules.BUFFS.has(id) or not remaining is int or remaining<1 or (not Rules.BUFFS[id].get("stack_uses",false) and remaining>Rules.BUFFS[id].get("attack_uses",0)): return "卡牌增益剩余次数有误。"
+  if id=="grace_free" and id in g.state.card_buffs and remaining is int and remaining>=0: continue
+  if id not in g.state.card_buffs or not Rules.BUFFS.has(id) or not remaining is int or remaining<1 or (not Rules.BUFFS[id].get("stack_uses",false) and not Rules.BUFFS[id].has("mana_per_turn") and remaining>Rules.BUFFS[id].get("cast_uses",Rules.BUFFS[id].get("attack_uses",0))): return "卡牌增益剩余次数有误。"
  for id in g.state.card_buffs:
-  if id not in Rules.BUFFS or id in active or Rules.SPECS.values().any(func(spec):return spec.mode=="power" and spec.self_faces.values().any(func(face):return face.buff==id)): return "卡牌增益来源有误或重复。"
-  if (Rules.BUFFS[id].has("attack_uses") or Rules.BUFFS[id].get("stack_uses",false)) and not g.state.card_buff_uses.has(id): return "卡牌增益缺少剩余次数。"
+  if id not in Rules.BUFFS or id in active or Rules.SPECS.values().any(func(spec):return spec.mode=="power" and spec.self_faces.values().any(func(face):return face.get("buff","")==id)): return "卡牌增益来源有误或重复。"
+  if (Rules.BUFFS[id].has("mana_per_turn") or Rules.BUFFS[id].has("physical_factor_per_x") or Rules.BUFFS[id].has("attack_uses") or Rules.BUFFS[id].has("cast_uses") or Rules.BUFFS[id].get("stack_uses",false)) and not g.state.card_buff_uses.has(id): return "卡牌增益缺少剩余次数。"
   if Rules.BUFFS[id].duration=="battle" and not g.RelicEffects.keeps_combat_state(g): return "战斗增益须在场次结束时清空。"
   active.append(id)
  var hannya_issue=Hannya.validate(g)
@@ -1648,7 +1964,14 @@ static func validate(g) -> String:
   if g.state.play[0].type!=type: return "使用中的卡牌类型与连续效果存在差异。"
   if chain.has("action_buffs") and (not chain.action_buffs is Array or chain.action_buffs.any(func(id):return not id is String or id not in action_buff_ids(g) or chain.action_buffs.count(id)!=1)): return "连续卡牌的行动增益记录有误。"
   if Rules.SPECS[type].get("follow_through",false): return "顺延需要在出牌时完整执行。"
-  if chain.get("mode","")=="select_exhaust":
+  if chain.get("mode","")=="select_to_hand":
+   if not chain.get("free") is bool or not chain.get("remaining") is int or chain.remaining!=1 or chain.slot!="": return "置入手牌的选择进度有误。"
+   var pile=Rules.hand_source(type,chain.free)
+   if pile=="" or g.state[pile].is_empty() or g.state.hand.size()>=g.B.HAND_LIMIT or g.state.overloaded or g.state.phase not in ["battle","prepare","rest","prison"]: return "置入手牌的来源有误。"
+   if chain.has("replay_targets"):
+    var targets=chain.replay_targets
+    if not chain.get("replay_count") is int or chain.replay_count<1 or not targets is Array or targets.size()!=1 or targets[0]!=g.Replay.target({"type":type,"uid":g.state.play[0].uid,"target":"self","self_target":true,"free":chain.free}): return "选牌复放目标有误。"
+  elif chain.get("mode","")=="select_exhaust":
    if Rules.SPECS[type].get("select_exhaust",0)!=3 or not chain.get("remaining") is int or chain.remaining<1 or chain.remaining>3 or not chain.get("free") is bool: return "选牌消耗进度有误。"
    if selection_cards(g).size()<chain.remaining or g.state.overloaded or g.state.phase not in ["battle","prepare","rest","prison"]: return "请先进入选牌消耗阶段。"
    if chain.has("replay_targets"):
@@ -1657,6 +1980,9 @@ static func validate(g) -> String:
     if selected.size()!=3-chain.remaining or selected.any(func(uid):return not g.state.exhaust.any(func(card):return card.uid==uid)): return "选牌复放目标有误。"
   else:
    var hits=Rules.SPECS[type].get("hits",1)
+   if chain.has("bonus_escape_hit"):
+    if not chain.get("free",false) is bool or chain.bonus_escape_hit!=true or Rules.free_effect(type,chain.get("free",false)) or Rules.damage_type(type,chain.get("free",false)) not in ["strain","slip"] or chain.get("total_hits",0)!=hits+1: return "挣脱追加段数有误。"
+    hits+=1
    var remaining=chain.get("remaining",0)
    if not remaining is int or remaining<1 or remaining>=hits: return "卡牌剩余段数有误。"
    var used=chain.get("tools_used",[])
@@ -1676,11 +2002,19 @@ static func validate(g) -> String:
  return ""
 
 static func apply_effects(g, effects: Array, spec: Dictionary, source: String="") -> Array:
+ if g._recovery_target!="": return []
  var results=[]
  for effect in effects:
+  if effect.get("amount") is String and effect.amount=="fireballs_succeeded":
+   effect=effect.duplicate()
+   effect.amount=g.BasicAttacks.successful_fireballs(g)
   var value=Rules.amount(effect,spec)
   var description=Rules.effect_text(effect,spec)
   match effect.op:
+   "vulnerable":
+    var targets=g.action_targets() if effect.targets=="equipment" else g.state.enemies.filter(func(enemy):return not enemy.gone)
+    for target in targets: add_vulnerable(g,target.id,value)
+   "slippery": grant_buff(g,"slippery",value)
    "pressure_loss":
     var loss=g.Pressure.lose(g,value)
     description="失去%s快感" % g.number(loss)
@@ -1690,7 +2024,7 @@ static func apply_effects(g, effects: Array, spec: Dictionary, source: String=""
     if outcome.ok: description="佩戴了"+outcome.installed[0].name
     else: description=outcome.reason
    "buff":
-    grant_buff(g,effect.buff)
+    grant_buff(g,effect.buff,maxi(1,value))
     description="获得「"+Rules.BUFFS[effect.buff].name+"」"
     if Rules.BUFFS[effect.buff].has("attack_uses"): description+="，"+Rules.effect_text(effect,spec,true)
    "draw":
@@ -1705,7 +2039,8 @@ static func apply_effects(g, effects: Array, spec: Dictionary, source: String=""
       g._card_motion("retain",card)
      if effect.get("draw_after",0)>0: g._draw(effect.draw_after)
     else: request_retain(g,value,effect.get("draw_after",0))
-   "reserve_mana": g.state.temporary_mana+=value*Rules.RESERVE_MANA_VALUE
+   "mind_preparation": g.state.witch_charges.mind+=value
+   "reserve_mana": g.state.temporary_mana+=value*g.reserve_mana_value()
    "energy":
     var received=effect.duplicate()
     received.amount=g._gain_energy(value)
@@ -1713,7 +2048,7 @@ static func apply_effects(g, effects: Array, spec: Dictionary, source: String=""
    "charge": g._gain_charge(value)
    "mana":
     var before=g.state.mana
-    g.state.mana=minf(g.state.mana_max,before+value)
+    g.set_own_mana(minf(g.state.mana_max,before+value))
     description="恢复%s魔力" % g.number(g.state.mana-before)
    "pressure":
     g.Pressure.gain(g,value,source)

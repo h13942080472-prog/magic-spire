@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="480" viewBox="0 0 256 240">
+<title>活力药剂</title>
+<defs>
+<linearGradient id="ground" x1="0%" y1="0%" x2="95%" y2="100%">
+<stop offset="0%" stop-color="#67424d"/>
+<stop offset="48%" stop-color="#422a39"/>
+<stop offset="100%" stop-color="#101923"/>
+</linearGradient>
+<linearGradient id="gold" x1="0%" y1="0%" x2="95%" y2="100%">
+<stop offset="0%" stop-color="#fff0bf"/>
+<stop offset="18%" stop-color="#e6bb79"/>
+<stop offset="36%" stop-color="#926344"/>
+<stop offset="55%" stop-color="#d6a368"/>
+<stop offset="68%" stop-color="#ffe7a3"/>
+<stop offset="82%" stop-color="#996b51"/>
+<stop offset="100%" stop-color="#62494b"/>
+</linearGradient>
+<linearGradient id="steel" x1="0%" y1="0%" x2="95%" y2="100%">
+<stop offset="0%" stop-color="#f5edcf"/>
+<stop offset="17%" stop-color="#acbabc"/>
+<stop offset="35%" stop-color="#5b7181"/>
+<stop offset="52%" stop-color="#405365"/>
+<stop offset="67%" stop-color="#dce8dd"/>
+<stop offset="83%" stop-color="#9eb2af"/>
+<stop offset="100%" stop-color="#57667b"/>
+</linearGradient>
+<linearGradient id="glass" x1="0%" y1="0%" x2="95%" y2="100%">
+<stop offset="0%" stop-color="#d9e9df"/>
+<stop offset="13%" stop-color="#f2ad68"/>
+<stop offset="28%" stop-color="#67424d"/>
+<stop offset="51%" stop-color="#422a39"/>
+<stop offset="77%" stop-color="#67424d"/>
+<stop offset="92%" stop-color="#f2ad68"/>
+<stop offset="100%" stop-color="#e7e8cf"/>
+</linearGradient>
+<linearGradient id="brew" x1="0%" y1="0%" x2="95%" y2="100%">
+<stop offset="0%" stop-color="#fff4bb"/>
+<stop offset="24%" stop-color="#f2ad68"/>
+<stop offset="55%" stop-color="#bd563b"/>
+<stop offset="100%" stop-color="#422a39"/>
+</linearGradient>
+<linearGradient id="vellum" x1="0%" y1="0%" x2="95%" y2="100%">
+<stop offset="0%" stop-color="#fff0bf"/>
+<stop offset="27%" stop-color="#ead4a5"/>
+<stop offset="58%" stop-color="#dfc295"/>
+<stop offset="81%" stop-color="#b29478"/>
+<stop offset="100%" stop-color="#725d60"/>
+</linearGradient>
+<linearGradient id="masonry" x1="0%" y1="0%" x2="95%" y2="100%">
+<stop offset="0%" stop-color="#596370"/>
+<stop offset="44%" stop-color="#3a4754"/>
+<stop offset="100%" stop-color="#273341"/>
+</linearGradient>
+<radialGradient id="halo">
+<stop stop-color="#f2ad68" stop-opacity=".42"/>
+<stop offset=".56" stop-color="#67424d" stop-opacity=".27"/>
+<stop offset="1" stop-color="#422a39" stop-opacity="0"/>
+</radialGradient>
+</defs>
+<g stroke-linecap="round" stroke-linejoin="round">
+<path d="M0 0H256V240H0Z" fill="url(#ground)"/>
+<ellipse cx="117" cy="102" rx="136" ry="122" fill="url(#halo)"/>
+<g fill="none" stroke="#f2ad68" opacity=".18">
+<path d="M-34 140A146 146 0 0 1 178-6M-25 149A139 139 0 0 1 178 0" fill="none" stroke="#f2ad68" stroke-width="1.1"/>
+<path d="M203 3Q242 22 258 60M219 0q21 13 37 34" fill="none" stroke="#f2ad68" stroke-width="0.7"/>
+</g>
+<path d="M0 180 256 151V240H0Z" fill="#12202d"/>
+<path d="M0 187 256 157V240H0Z" fill="#24333c"/>
+<path d="M0 188 256 157M0 207 256 174M8 232 252 194" fill="none" stroke="#f2ad68" stroke-width="1" opacity=".24"/>
+<path d="M0 199 56 192m-41 8 62-8m105-20 51-6m-33 36 52-8m-237 37 54-8m-16-9 14-2" fill="none" stroke="#f2ad68" stroke-width="0.8" opacity=".29"/>
+<g transform="translate(30 84) scale(0.3)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#f2ad68"/>
+</g>
+<g transform="translate(202 48) scale(0.4)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#f2ad68"/>
+</g>
+<g transform="translate(215 94) scale(0.22000000000000003)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#f2ad68"/>
+</g>
+<g transform="translate(49 140) scale(0.2)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#f2ad68"/>
+</g>
+<g transform="translate(66 40) scale(0.16999999999999998)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#f2ad68"/>
+</g>
+<g transform="translate(188 26) scale(0.18)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#f2ad68"/>
+</g>
+<ellipse cx="130" cy="207" rx="62" ry="9" fill="#14202b"/>
+<ellipse cx="128" cy="207" rx="42" ry="5" fill="#0c1926"/>
+<g transform="rotate(-10 128 126)">
+<path d="m108 68 39 0 2 23 25 16 21 28-3 37-26 26-54 7-34-16-17-32 9-34 36-29Z" fill="url(#glass)" stroke="#17242b" stroke-width="3"/>
+<path d="m68 145 23-15 22 6 24-1 26-13 26 11-2 37-24 24-50 6-32-15-12-28Z" fill="url(#brew)" stroke="#efb88d" stroke-width="1.5"/>
+<path d="m69 144 22-14 24 5 24-3 24-12 26 12-26-6-24 13-24 1-22-4Z" fill="#ffd39a"/>
+<path d="m80 144 11-7 9 47-16-5-10-25Z" fill="#f29b64"/>
+<path d="m185 141-3 26-17 17 7-43Z" fill="#9c4a46"/>
+<path d="M98 115 123 100 147 105 161 143 154 171 126 191 103 174 92 145Z" fill="none" stroke="#6a4849" stroke-width="3"/>
+<path d="m121 109 28-4-13 26 18-3-39 48 9-31-15 2Z" fill="#fff0ac" stroke="#914f3c" stroke-width="2.4"/>
+<path d="m79 123 19-14m50 84 13-3 21-21m-98-13 5 12m28-92 1 13" fill="none" stroke="#ffe8b6" stroke-width="2"/>
+<path d="m112 66-3-18 9-6 23 1 9 7-5 18Z" fill="#92583d" stroke="#17242b" stroke-width="2"/>
+<path d="m115 48 9-4 17 1 4 5-14 4Z" fill="#e2a676"/>
+<path d="m114 55 8 3m15-3 5-2" fill="none" stroke="#653c38" stroke-width="1.6"/>
+<path d="M104 62q24 5 48 0v8q-24 6 -48 0Z" fill="url(#gold)" stroke="#17242b" stroke-width="1.7"/>
+<path d="M106 64q22 4 44 0" fill="none" stroke="#ffe7b6" stroke-width="1.2"/>
+<path d="M107 75q21 5 42 0v4q-21 6 -42 0Z" fill="url(#gold)" stroke="#17242b" stroke-width="1.7"/>
+<path d="M109 77q19 4 38 0" fill="none" stroke="#ffe7b6" stroke-width="1.2"/>
+<path d="M126 59 124 45 117 35 128 40 135 29 138 43 147 40 140 57Z" fill="url(#gold)" stroke="#17242b" stroke-width="1.5"/>
+<g transform="translate(82 122) scale(0.52)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#fff2ce"/>
+</g>
+<g transform="translate(166 135) scale(0.36)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#fff2ce"/>
+</g>
+</g>
+</g>
+</svg>

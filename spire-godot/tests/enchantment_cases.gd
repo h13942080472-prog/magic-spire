@@ -35,6 +35,8 @@ static func run(t) -> void:
  effects(t)
  circulation(t)
  casting_damage_replay(t)
+ nexus_turn(t)
+ assault_and_assist(t)
  boundaries(t)
  validation(t)
  prison_lifetime(t)
@@ -59,14 +61,16 @@ static func eligibility(t) -> void:
   if not g.Cards.Rules.SPECS.has(type): continue
   for id in Enchant.Data.TYPES: t.check(not Enchant.eligible(g,{"type":type},id),"ENCHANT curse/status ineligible: "+type+"/"+id)
  for id in ["recycle","recycle2"]:
-  t.check(not Enchant.eligible(g,{"type":"pot_of_greed"},id) and not Enchant.eligible(g,{"type":"confluence"},id) and not Enchant.eligible(g,{"type":"adaptability"},id),"ENCHANT recycle excludes native exhaust on either face and powers")
+  t.check(not Enchant.eligible(g,{"type":"pot_of_greed"},id) and not Enchant.eligible(g,{"type":"confluence"},id) and not Enchant.eligible(g,{"type":"restraint_embrace"},id),"ENCHANT recycle excludes native exhaust on either face and powers")
  t.check(Enchant.eligible(g,{"type":"strain"},"powerful") and not Enchant.eligible(g,{"type":"unlock"},"powerful"),"ENCHANT powerful only actual escape damage")
  t.check(Enchant.eligible(g,{"type":"ease"},"adept") and not Enchant.eligible(g,{"type":"strain"},"adept"),"ENCHANT adept only magic")
- t.check(Enchant.eligible(g,{"type":"adaptability"},"sow_power") and not Enchant.eligible(g,{"type":"strain"},"sow_power"),"ENCHANT common sow only powers")
+ t.check(Enchant.eligible(g,{"type":"restraint_embrace"},"sow_power") and not Enchant.eligible(g,{"type":"adaptability"},"sow_power"),"ENCHANT common sow only powers")
  t.check(not Enchant.eligible(g,{"type":"strain"},"sow_skill") and Enchant.eligible(g,{"type":"strain"},"innate"),"ENCHANT basic eligible but one energy skill not rare sow")
- t.check(not Enchant.eligible(g,{"type":"fire_mastery"},"replay") and Enchant.eligible(g,{"type":"adaptability"},"replay"),"ENCHANT replay excludes two unique faces")
+ t.check(not Enchant.eligible(g,{"type":"fire_mastery"},"replay") and Enchant.eligible(g,{"type":"restraint_embrace"},"replay"),"ENCHANT replay excludes two unique faces")
  t.check(not Enchant.face_eligible(g,"mana_conversion","fickle",false) and Enchant.face_eligible(g,"mana_conversion","fickle",true),"ENCHANT eligibility uses original face cost")
  t.check(not Enchant.eligible(g,{"type":"strain","enchantment":"retain"},"retain") and Enchant.eligible(g,{"type":"strain","enchantment":"retain"},"innate"),"ENCHANT replacement excludes same slot value only")
+ t.check(Enchant.Data.TYPES.nimble.rarity=="rare" and Enchant.Data.TYPES.nimble_common.rarity=="common","ENCHANT original nimble keeps its ID and is now rare")
+ t.check(Enchant.eligible(g,{"type":"find_weakness"},"nimble") and not Enchant.eligible(g,{"type":"find_weakness"},"nimble_common"),"ENCHANT only rare nimble can attach to a card with two original zero-energy faces")
  for count in range(10): t.check(Enchant.Data.refresh_price(count)==[10,10,10,20,20,20,40,40,40,80][count],"ENCHANT refresh tier boundary "+str(count))
 
 static func service(t) -> void:
@@ -112,6 +116,11 @@ static func service(t) -> void:
 static func effects(t) -> void:
  var g=game();var card=give(g,"strain","nimble");var before=g.state.hand.size()
  t.check(play(t,g,card).ok and g.state.hand.size()==before,"ENCHANT nimble draws once after original effect")
+ g=game();card=give(g,"mana_conversion","nimble_common")
+ g.state.sure_cast=true;before=g.state.hand.size()
+ t.check(play(t,g,card,false).ok and g.state.hand.size()==before-1,"ENCHANT common nimble does not draw on the zero-energy side")
+ g=game();card=give(g,"mana_conversion","nimble_common");before=g.state.hand.size()
+ t.check(play(t,g,card,true).ok and g.state.hand.size()==before,"ENCHANT common nimble draws on the paid side of the same card type")
  g=game();card=give(g,"strain","fickle");g.state.mana=40
  t.check(play(t,g,card).ok and g.state.mana==45,"ENCHANT fickle free restores five own mana")
  g=game();card=give(g,"strain","fickle");var target=g.add_fixture("ankle",100,100)
@@ -119,7 +128,7 @@ static func effects(t) -> void:
  g=game();card=give(g,"mana_conversion","fickle");g.state.charge=0
  t.check(play(t,g,card,false).ok and g.state.charge==0,"ENCHANT zero cost side gains no fickle charge")
  for id in ["sow_power","blessing"]:
-  g=game();card=give(g,"adaptability",id);var energy=g.state.energy
+  g=game();card=give(g,"restraint_embrace",id);var energy=g.state.energy
   t.check(play(t,g,card,false).ok,"ENCHANT ability activation "+id)
   if id=="sow_power": t.check(g.state.energy==energy,"ENCHANT sow refunds one after power")
   else:
@@ -168,8 +177,20 @@ static func circulation(t) -> void:
 
 static func casting_damage_replay(t) -> void:
  var g=game();var card=give(g,"mana_conversion","adept");g.state.pressure=99
- t.check(t.find_action(g,"card",{"uid":card.uid,"free":false}).valid and g.Cards.metadata(g,card.type,card.uid).face_casting.bound.chance==1.0,"ENCHANT adept chance shown and executable near limit")
- t.check(play(t,g,card,false).ok and not g._magic_failed,"ENCHANT adept succeeds")
+ t.check(t.find_action(g,"card",{"uid":card.uid,"free":false}).valid and g.Cards.metadata(g,card.type,card.uid).face_casting.bound.chance<1.0,"ENCHANT adept leaves the normal chance visible")
+ g.state.mana=38.0;g.state.temporary_mana=2.0
+ var rng_before=g.state.rng.magic
+ t.check(play(t,g,card,false).ok and not g._magic_failed and g.state.mana==0 and g.state.temporary_mana==0 and g.state.rng.magic==rng_before+1,"ENCHANT adept spends the face price one more time after the original roll fails")
+ g=game();card=give(g,"mana_conversion","adept");g.state.pressure=99;g.state.mana=39
+ t.check(play(t,g,card,false).ok and g._magic_failed and g.state.mana==29 and contains(g,"hand",card),"ENCHANT adept insufficient extra mana preserves the normal refund and card")
+ g=game();card=give(g,"mana_conversion","adept");g.state.mana=40
+ t.check(play(t,g,card,false).ok and not g._magic_failed and g.state.mana==20,"ENCHANT adept does not surcharge a normally successful spell")
+ g=game();card=give(g,"mana_conversion","adept")
+ g.state.relics=["desire_cube_pro_max"];g.state.mana=39
+ var blocked=t.find_action(g,"card",{"uid":card.uid,"free":false})
+ t.check(not blocked.valid,"ENCHANT zero chance cannot cast when the extra payment is unaffordable")
+ g.state.mana=40;rng_before=g.state.rng.magic
+ t.check(play(t,g,card,false).ok and not g._magic_failed and g.state.mana==0 and g.state.rng.magic==rng_before,"ENCHANT affordable retry rescues zero chance without drawing random numbers")
  g=game();card=give(g,"ease","adept");g.add_fixture("hand",30,30)
  t.check(not t.find_action(g,"card",{"uid":card.uid,"free":false}).valid,"ENCHANT adept does not bypass required body use")
  g=game();card=give(g,"strain","powerful");var target=g.add_fixture("ankle",100,100)
@@ -180,6 +201,13 @@ static func casting_damage_replay(t) -> void:
  t.check(play(t,g,card,false,{"target":target.id}).ok and is_equal_approx(g._equipment(target.id).durability,before-strong.payload.preview.damage),"ENCHANT powerful preview equals executed damage")
  g=game();card=give(g,"mana_conversion","replay");g.state.mana=20
  t.check(play(t,g,card,true).ok and g.state.mana==40 and live(g,card).enchant_used==1,"ENCHANT free face replays same face once with one physical use")
+ card=live(g,card);g.state.discard.erase(card);g.state.hand.append(card)
+ t.check(play(t,g,card,true).ok and g.state.mana==50,"ENCHANT replay cannot trigger a second time in the same session")
+ g.RelicEffects.begin_combat(g);g.state.energy=1
+ card=live(g,card);g.state.discard.erase(card);g.state.hand.append(card)
+ t.check(play(t,g,card,true).ok and g.state.mana==70,"ENCHANT new session refreshes the physical card's replay")
+ g=game();card=give(g,"strain","replay")
+ t.check(play(t,g,card,true).ok and g.state.charge==2 and live(g,card).enchant_used==1,"ENCHANT replay repeats a legal free-slot face without an equipment target")
  g=game();card=give(g,"fire_control","replay");g.Cards.grant_buff(g,"echo_cast_bound")
  t.check(play(t,g,card,false).ok and g.state.temporary_mana==30,"ENCHANT replay adds to original replay buff")
  g=game();card=give(g,"double_unlock","replay");var a=g.add_fixture("ankle",30,30,true);var b=g.add_fixture("ankle",30,30,true)
@@ -192,6 +220,88 @@ static func casting_damage_replay(t) -> void:
  t.check(result.ok,"ENCHANT selected-exhaust begins")
  for i in range(3): t.check(t.action(g,"chain",{"action":"select_exhaust"}).ok,"ENCHANT selected-exhaust continuation")
  t.check(g.state.play.is_empty() and g.state.exhaust.size()==4 and live(g,card).enchant_used==1,"ENCHANT already exhausted replay targets are skipped without second selection")
+
+static func nexus_turn(t) -> void:
+ var g=game();var card=give(g,"strain","nexus")
+ g.state.hand.erase(card);g.state.draw.append(card)
+ var energy=g.state.energy
+ g._draw(1)
+ t.check(g.state.energy==energy+1,"ENCHANT Nexus grants energy on the first actual draw of a turn")
+ var saved=g.export_snapshot()
+ for field in ["enchant_nexus_tick","enchant_nexus_played_tick"]:
+  var bad=saved.duplicate(true)
+  bad.hand.back()[field]=g.state.tick+1
+  t.check(not g.restore_snapshot(bad).ok and g.state==saved,"ENCHANT invalid future Nexus turn cannot be loaded: "+field)
+ var twin=Save.roundtrip(t,g,"Nexus already drawn")
+ if twin!=null: g=twin
+ card=live(g,card);g.state.hand.erase(card);g.state.draw.append(card)
+ g._draw(1)
+ t.check(g.state.energy==energy+1,"ENCHANT Nexus refuses another draw in the saved turn before playing")
+ t.check(play(t,g,card).ok,"ENCHANT playing Nexus unlocks repeated draws for the turn")
+ card=live(g,card);g.state.discard.erase(card);g.state.draw.append(card)
+ g._draw(1)
+ t.check(g.state.energy==energy+1,"ENCHANT Nexus earns energy again after paying for the intervening play")
+ twin=Save.roundtrip(t,g,"Nexus unlocked for this turn")
+ if twin!=null: g=twin
+ card=live(g,card);g.state.hand.erase(card);g.state.draw.append(card)
+ g._draw(1)
+ t.check(g.state.energy==energy+2,"ENCHANT Nexus still earns energy on another draw without replaying it")
+ card=live(g,card);g._gain_card(card.type,card,true)
+ var copy=g.state.hand.back()
+ t.check(copy.uid!=card.uid and copy.enchantment=="nexus" and not copy.has("enchant_nexus_tick") and not copy.has("enchant_nexus_played_tick"),"ENCHANT new Nexus copy inherits the enchantment with independent turn markers")
+ t.check(play(t,g,copy).ok,"ENCHANT Nexus can unlock before its first actual draw")
+ var after_play=g.state.energy
+ var drawn_copy=live(g,copy);g.state.discard.erase(drawn_copy);g.state.draw.append(drawn_copy)
+ g._draw(1)
+ g.state.hand.erase(drawn_copy);g.state.draw.append(drawn_copy)
+ g._draw(1)
+ t.check(g.state.energy==after_play+2,"ENCHANT Nexus played before drawing grants energy on both same-turn draws")
+ card=live(g,card);g.state.hand.erase(card);g.state.draw.append(card)
+ t.check(t.action(g,"end").ok and live(g,card).get("enchant_nexus_tick",-1)==g.state.tick,"ENCHANT Nexus triggers on the first draw of the next turn")
+ energy=g.state.energy
+ card=live(g,card);g.state.hand.erase(card);g.state.draw.append(card)
+ g._draw(1)
+ t.check(g.state.energy==energy,"ENCHANT Nexus no longer has the previous turn's unlock")
+
+static func assault_and_assist(t) -> void:
+ var g=game();var card=give(g,"strain","assault")
+ var enemy=g.state.enemies[0]
+ t.check(play(t,g,card,true).ok and Enchant.Rules.BUFFS.enchantment_assault.hit_vulnerable==2,"ENCHANT assault free face arms the next physical attack")
+ t.check(t.action(g,"attack",{"type":"fireball","enemy":enemy.id}).ok and g.Cards.vulnerable(g,enemy.id)==0 and "enchantment_assault" in g.state.card_buffs,"ENCHANT assault ignores Fireball")
+ enemy=g._enemy(enemy.id)
+ var attack=t.find_action(g,"attack",{"type":"strike","form":1,"enemy":enemy.id})
+ var hp=enemy.hp
+ t.check(g.dispatch(g.command(attack.payload,g.state.version),g.state.version).ok and is_equal_approx(g._enemy(enemy.id).hp,hp-attack.payload.damage*attack.payload.hits) and g.Cards.vulnerable(g,enemy.id)==2 and "enchantment_assault" not in g.state.card_buffs,"ENCHANT assault applies vulnerability once after all hits")
+ g=game();card=give(g,"restraint_embrace","assault")
+ var wrist=g.add_fixture("wrist",8)
+ var leg=g.add_fixture("ankle",8)
+ t.check(play(t,g,card,false).ok and g.Cards.vulnerable(g,wrist.id)==2 and g.Cards.vulnerable(g,leg.id)==2 and g.Cards.vulnerable(g,g.state.enemies[0].id)==0,"ENCHANT assault bound face applies vulnerability across worn restraints")
+ g=game();card=give(g,"binding_power","assault");wrist=g.add_fixture("wrist",8)
+ t.check(play(t,g,card,true).ok and g.Cards.vulnerable(g,wrist.id)==2 and "enchantment_assault" not in g.state.card_buffs,"ENCHANT assault treats the second bound face as bound")
+ g=game();card=give(g,"strain","assist")
+ g.state.posture="sit";g.state.wall_distance=2;g.add_fixture("eyes",4)
+ g.state.mana=4;g.state.energy=1
+ var blocked=t.find_action(g,"card",{"uid":card.uid,"free":true})
+ var before=g.export_snapshot()
+ t.check(not blocked.valid and blocked.mana==5 and not g.dispatch(g.command(blocked.payload,g.state.version),g.state.version).ok and g.state==before,"ENCHANT assist requires its fixed five-mana surcharge before playing")
+ t.check(t.find_action(g,"posture",{"dest":"stand","wall":false}).cost>0 and t.find_action(g,"wall_move",{"direction":"toward"}).cost>0,"ENCHANT assist fixture has paid posture and movement before playing")
+ g.state.mana=3;g.state.temporary_mana=2
+ t.check(play(t,g,card,true).ok and g.state.energy==0 and g.state.mana==0 and g.state.temporary_mana==0 and Enchant.assisted_movement(g),"ENCHANT assist pays through the normal skill play then grants the turn buff")
+ var thigh=preload("res://tests/slip_motion_cases.gd").piece(g,"thigh_root")
+ t.check(t.action(g,"posture",{"dest":"stand","wall":false}).ok and g.state.posture=="stand" and t.action(g,"wall_move",{"direction":"toward"}).ok and g.wall_contact() and g.state.energy==0,"ENCHANT assist permits movement and posture changes at zero remaining resources")
+ t.check(g._equipment(thigh.id).durability<thigh.durability,"ENCHANT assist still applies passive slip after actual movement")
+ t.check(t.action(g,"end").ok and not Enchant.assisted_movement(g) and t.find_action(g,"wall_move",{"direction":"away"}).cost>0,"ENCHANT assist expires at the turn boundary")
+ var Prison=preload("res://tests/prison_cases.gd")
+ g=Prison.intake(t);Prison.clear_fixture(g);g._discard_end()
+ card=give(g,"strain","assist");g.state.energy=1;g.state.mana=5
+ var exploration=preload("res://tests/exploration_fixture.gd").approach(g,"shard")
+ t.check(t.find_action(g,"prison",exploration).cost>0 and play(t,g,card,true).ok and g.state.energy==0,"ENCHANT assist can be paid during prison exploration")
+ t.check(t.action(g,"prison",exploration).ok and "shard" in g.state.prison.found and g.state.energy==0,"ENCHANT assist frees the existing exploration movement and preserves discovery")
+ g=game();card=give(g,"strain","assist")
+ var plain=Cards.give(g,"strain")
+ g.state.mana=5
+ t.check(play(t,g,card).ok and g.state.mana==0 and Enchant.assisted_movement(g),"ENCHANT assist charges only when its own physical card is played")
+ t.check(t.find_action(g,"card",{"uid":plain.uid,"free":true}).mana==0 and play(t,g,plain).ok,"ENCHANT a plain copy of the same card stays payable at zero mana during assist")
 
 static func validation(t) -> void:
  var g=rest();var before=g.export_snapshot()

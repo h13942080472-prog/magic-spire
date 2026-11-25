@@ -53,7 +53,7 @@ static func run(t) -> void:
  await t.mouse_button(t.card_point(magic.uid),MOUSE_BUTTON_RIGHT,false)
  t.check(ui.card_faces[magic.uid]!=old_face and ui.card_buttons[magic.uid].modulate.r==1,"CARD UI dim paid face flips to available free preparation")
  t.check(t.visible_text(ui.card_buttons[magic.uid]).contains(ui.game.Cards.face_text(ui.game,magic.type,true,magic.uid)),"CARD UI preparation remains explicit beside its mana badge")
- t.check(ui.find_child("TermExplanation",true,false)!=null and not t.visible_text(ui.term_popup).contains("施法部位：") and t.visible_text(ui.term_popup).contains("临时魔力"),"CAST UI free face replaces casting explanation with its keyword: "+(t.visible_text(ui.term_popup) if is_instance_valid(ui.term_popup) else "missing"))
+ t.check(ui.find_child("TermExplanation",true,false)!=null and not t.visible_text(ui.term_popup).contains("施法部位：") and t.visible_text(ui.term_popup).contains("每层可抵扣5点"),"CAST UI free face replaces casting explanation with its keyword: "+(t.visible_text(ui.term_popup) if is_instance_valid(ui.term_popup) else "missing"))
  t.check(ui.layout.get_instance_id()==layout_id and ui.card_buttons[magic.uid].get_instance_id()==card_id and is_instance_valid(other) and other.get_instance_id()==other_id and ui.game.view_reads==reads,"CARD UI flip preserves scene/card controls and does not reproject rules")
  t.check(ui.card_buttons[magic.uid].drag_payload.free==ui.card_faces[magic.uid] and ui.card_buttons[magic.uid].drag_payload.version==ui.view.version,"CARD UI partial flip updates drag face without changing version")
  ui.game.state.equipment.clear();ui.game.state.pressure=0
@@ -100,7 +100,7 @@ static func prepared_chant(t) -> void:
   if ui.card_faces.get(card.uid,false)!=free: await t.flip(card.uid)
   var face=ui.card_buttons[card.uid];var text=t.visible_text(face)
   t.check(face.rarity=="common" and face.get_node("CardCost").text=="1" and text.contains("100%") and text.contains("保留") and text.contains("消耗") and face.ILLUSTRATIONS.has("prepared_chant"),"CHANT UI both faces display common rarity, cost, full effect, retention, exhaust and illustration")
-  t.check(text.contains("下回合" if free else "本回合"),"CHANT UI flipping distinguishes current and next-turn effects")
+  t.check(text.contains("下回合" if free else "3次"),"CHANT UI flipping distinguishes three casts from next-turn certainty")
  var before=ui.game.export_snapshot()
  await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
  ui.game.state.pressure=99;ui.render();await t.frames()
@@ -110,6 +110,13 @@ static func prepared_chant(t) -> void:
  t.check(await t.click("end"),"CHANT UI native end-turn action advances the queued effect")
  t.check(ui.find_child("HeroCastingChance",true,false).text.contains("100%") and ui.view.statuses.any(func(s):return s.id=="power_prepared_chant") and not ui.view.statuses.any(func(s):return s.id=="power_prepared_chant_next"),"CHANT UI next turn replaces pending status and displays active certainty")
 
+ ui.restart(42);await t.frames();ui.game._discard_end()
+ card=preload("res://tests/curse_cases.gd").give(ui.game,"prepared_chant")
+ ui.card_faces[card.uid]=false;ui.render();await t.frames()
+ await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
+ t.check(ui.view.statuses.any(func(s):return s.id=="power_prepared_chant_casts" and s.badge=="3"),"CHANT UI bound play shows three charges")
+ t.check(await t.click("attack",{"type":"fireball"}) and ui.view.statuses.any(func(s):return s.id=="power_prepared_chant_casts" and s.badge=="2"),"CHANT UI a committed Fireball updates the visible counter")
+
 static func unlock_preparation(t) -> void:
  var ui=t.ui
  ui.restart(42);await t.frames();ui.game._discard_end()
@@ -118,7 +125,7 @@ static func unlock_preparation(t) -> void:
  if ui.card_faces.get(card.uid,false): await t.flip(card.uid)
  await t.flip(card.uid)
  var face=ui.card_buttons[card.uid]
- t.check(t.visible_text(face).contains("获得2层魔力预备") and t.visible_text(face.get_node("CardMana/Mana_temporary")).strip_edges()=="+10","UNLOCK UI free face and mana badge both show two stacks worth ten points")
+ t.check(t.visible_text(face).contains("获得2层魔力预备") and t.visible_text(face.get_node("CardMana/Mana_temporary")).strip_edges()=="+2","UNLOCK UI free face and mana badge both show two stacks worth ten points")
  var before=ui.game.export_snapshot()
  await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
  t.check(ui.game.state.temporary_mana==before.temporary_mana+10 and ui.game.state.energy==before.energy-1 and ui.game.state.mana==before.mana and ui.game.state.discard.any(func(row):return row.uid==card.uid),"UNLOCK UI actual free-face click grants ten temporary mana and spends one energy")
@@ -149,7 +156,7 @@ static func mana_badges(t) -> void:
  t.check(t.visible_text(surge.get_node("CardMana/Mana_cost")).strip_edges()=="−5" and Queries.find(ui.view,"attack",{"type":"fireball","enemy":ui.selected_enemy}).mana==10,"MANA UI high-pressure spell card badge and fireball retain base costs")
  t.check(not ui.view.pressure.detail.contains("施法魔力消耗"),"MANA UI pressure description no longer advertises surcharge")
  t.check(t.visible_text(exchange.get_node("CardMana/Mana_cost")).strip_edges()=="−20" and not t.visible_text(exchange.get_node("CardText")).contains("耗魔"),"MANA UI fixed payment lives only in the top badge")
- t.check(t.visible_text(temporary.get_node("CardMana/Mana_temporary")).strip_edges()=="+10" and t.visible_text(gain.get_node("CardMana/Mana_gain")).strip_edges()=="+20","MANA UI temporary and regular restoration display point values")
+ t.check(t.visible_text(temporary.get_node("CardMana/Mana_temporary")).strip_edges()=="+2" and t.visible_text(gain.get_node("CardMana/Mana_gain")).strip_edges()=="+20","MANA UI temporary and regular restoration display point values")
  t.check(temporary.get_node("CardMana/Mana_temporary").get_theme_stylebox("panel").border_color!=gain.get_node("CardMana/Mana_gain").get_theme_stylebox("panel").border_color,"MANA UI temporary pool has a distinct visual style")
  t.check(not ui.card_buttons[cards.strain.uid].get_node("CardMana").visible,"MANA UI ordinary physical card has no visible mana component")
  await t.move_mouse(Vector2(600,80));await t.frames()

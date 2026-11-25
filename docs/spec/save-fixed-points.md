@@ -67,8 +67,9 @@ state.initial_seed: int      # = _init 的 run_seed；state.seed 仍由 _restart
 state.route_history: Array   # 塔路历史：每条 {enter,cycle,generation,region,seed,boss,security,nodes,floor}
 
 # 唯一回填点：core/game.gd::restore_snapshot
-#   is_current 通过后、Snapshot.check 之前，对副本回填 initial_seed = seed（缺字段时）；
-#   同一位置把缺字段的 route_history 回填为一条 enter="unknown" 记录（nodes／floor 留 -1）
+#   is_current 通过后、Snapshot.check 之前，对副本依次：回填 initial_seed = seed（缺字段时）；
+#   把已退役的 practice_kind 规范化为 Tower.current_practice；
+#   把缺字段的 route_history 回填为一条 enter="unknown" 记录（nodes／floor 留 -1）
 
 # 唯一写入者与唯一追加点（route 列＝TRANSITIONS 里的声明，语义见 docs/spec/route-history.md）：
 #   core/route_history.gd::open／reason／backfill
@@ -81,8 +82,8 @@ state.route_history: Array   # 塔路历史：每条 {enter,cycle,generation,reg
   `enter="unknown"` 记录，`nodes`／`floor` 留 `-1`，等下一次真正关闭该路线时补齐。回填只发生在
   载入副本上，不改调用方字典、不写盘、不改玩家文件。
 - 缺 `save_revision` 或修订号**不是当前值**的档按迁移链口径处置：
-  比当前早的三档修订号（`core/snapshot.gd::REINFORCEMENT_STATE_REVISION`／`core/snapshot.gd::CUP_STACK_REVISION`／
-  `core/snapshot.gd::IRON_DRONE_REVISION`）由 `core/game.gd::restore_snapshot` 在 `Snapshot.check` 之前
+  已支持的旧修订号（`core/snapshot.gd::REINFORCEMENT_STATE_REVISION`／`core/snapshot.gd::CUP_STACK_REVISION`／
+  `core/snapshot.gd::IRON_DRONE_REVISION`／`core/snapshot.gd::INVENTORY_REVISION`／`core/snapshot.gd::OPENER_REVISION`／`core/snapshot.gd::ADAPTABILITY_REVISION`）由 `core/game.gd::restore_snapshot` 在 `Snapshot.check` 之前
   按迁移链升级（迁移判定旧档数据不完整时整档拒绝、保留当前游戏）；**更早、更新、缺 `save_revision`
   或非整数的一律拒绝，不作迁移**。同口径与迁移函数见 `docs/design/game-design.md` 存档节。
 

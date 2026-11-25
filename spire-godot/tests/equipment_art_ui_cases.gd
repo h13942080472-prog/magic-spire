@@ -16,8 +16,49 @@ static func visible_region_equal(left: Image,right: Image,rect: Rect2i) -> bool:
    if a.a>0.001 and not a.is_equal_approx(b):return false
  return true
 
+static func rendered_leg_seams(t) -> void:
+ # Sample the opaque leg interior across each cut on a transparent render target.
+ var viewport=SubViewport.new()
+ viewport.transparent_bg=true;viewport.render_target_update_mode=SubViewport.UPDATE_ALWAYS
+ t.root.add_child(viewport)
+ var portrait=Portrait.new()
+ viewport.add_child(portrait)
+ var original=preload("res://assets/art/equipment-bound-legs0-v1.png").get_image()
+ for glove in [false,true]:
+  var game=Game.new(42,true,"glove_long") if glove else Game.new(42)
+  if not glove:game.add_fixture("wrist",4)
+  portrait.configure(game.get_view())
+  for layout in [[Vector2i(205,470),1.0],[Vector2i(350,836),1.0],[Vector2i(252,751),1.0],[Vector2i(350,555),1.6]]:
+   var extent: Vector2i=layout[0]
+   var zoom: float=layout[1]
+   viewport.size=Vector2i((Vector2(extent)*zoom).ceil())
+   viewport.canvas_transform=Transform2D.IDENTITY.scaled(Vector2.ONE*zoom)
+   portrait.size=Vector2(extent)
+   await t.frames()
+   var rendered=viewport.get_texture().get_image()
+   var factor=minf(portrait.size.x/original.get_width(),portrait.size.y/original.get_height())
+   var offset=(portrait.size-Vector2(original.get_size())*factor)/2
+   for key in Portrait.leg_layers:
+    var origin=Portrait.leg_layers[key].glove_origin if glove else Portrait.leg_layers[key].origin
+    var top=int(origin.y-Portrait.BOUND_CROP.y)
+    var bottom=top+portrait.get_node("Overlay_"+key).texture.get_height()
+    for source_y in [top,bottom]:
+     if source_y>=original.get_height()-4:continue
+     var start=-1;var end=-1
+     for x in range(original.get_width()):
+      if original.get_pixel(x,source_y).a>0.99:
+       if start<0:start=x
+       end=x
+     var center=Vector2i(((offset+Vector2((start+end)*0.5,source_y)*factor)*zoom).round())
+     var solid=true
+     for y in range(center.y-2,center.y+3):
+      if rendered.get_pixel(center.x,y).a<0.98:solid=false
+     t.check(start>=0 and solid,"PORTRAIT opaque leg has no background at %s/%d glove=%s size=%s" % [key,source_y,glove,extent])
+ viewport.queue_free()
+
 static func run(t) -> void:
  var ui=t.ui
+ await rendered_leg_seams(t)
  # All combinations distinguish occupied locations, even when they have the same level.
  var slots=["thigh","calf","ankle","foot"]
  var layers=[["thigh_root"],["below_knee"],["ankle"],["foot"]]
@@ -100,7 +141,7 @@ static func run(t) -> void:
   t.check(ui.game.export_snapshot()==before,"PORTRAIT single-leg display does not change state or random cursor: "+practice)
  await t.capture("ui-equipment-single-leg-long.png")
 
- ui.game=Game.new(42,true,"component_links")
+ ui.game=Game.new(42,true,"leg_pair")
  ui.render();await t.frames();p=ui.find_child("EquipmentPortrait",true,false)
  t.check(p.active_composite_layers==["single_leg_upper","single_leg_lower"] and p.get_node("Overlay_single_leg_upper").visible and p.get_node("Overlay_single_leg_lower").visible,"PORTRAIT two short single-leg sleeves compose the supplied thigh-and-calf appearance")
  t.check(p.texture==Portrait.single_leg_bases.single_leg_upper_lower[p._single_leg_base_context(false,false)],"PORTRAIT paired short sleeves share a body base with both old silhouettes cleared")
@@ -159,7 +200,10 @@ static func run(t) -> void:
  var item=ui.game.state.items[0].id
  ui.render();await t.frames()
  ui.show_items=true;ui.selected_item=item;ui.render();await t.frames()
- t.check(await t.click("item_use",{"item":item,"target":body.id}),"PORTRAIT real cutting removes leg sleeve while retaining outer bands")
+ t.check(await t.click("item_use",{"item":item}),"PORTRAIT sleeve cutter enters the hand from the backpack")
+ await t.close_information()
+ await t.start_drag(ui.game.state.hand.back().uid,"thigh")
+ await t.release_target(await t.reveal_drop_target(body.id))
  p=ui.find_child("EquipmentPortrait",true,false)
  t.check(p.active_composite_layers.is_empty() and not p.get_node("Overlay_single_leg_upper").visible,"PORTRAIT real sleeve removal clears its supplied difference")
  t.check("thigh_root" in p.active_leg_layers and "above_knee" in p.active_leg_layers and not "mid_thigh" in p.active_leg_layers,"PORTRAIT real independent thigh bands exclude middle layer")

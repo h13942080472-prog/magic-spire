@@ -5,7 +5,7 @@ static func floating_illustrations(t) -> void:
  var arena=preload("res://ui/arena.gd")
  var before=t.ui.game.export_snapshot()
  var missing=[];var broken=[];var display=[];var paths=[]
- for type in ["rope","belt","lock","gag"]:
+ for type in ["rope","reinforced_rope","binding_box_plus","mana_smuggler","belt","lock","gag"]:
   var visual=t.ui.game.Enemies.TYPES[type].visual
   if not arena.ILLUSTRATIONS.has(visual):
    missing.append(type);continue
@@ -26,7 +26,132 @@ static func floating_illustrations(t) -> void:
  t.check(display.is_empty(),"FLOAT ART scales in the existing actor, preserves inactive tint, and never blocks targeting: "+str(display))
  t.check(not arena.ILLUSTRATIONS.has("guard") and t.ui.game.export_snapshot()==before,"FLOAT ART keeps supplied guards separate and never changes battle or random state")
 
+static func restraint_mechs(t) -> void:
+ var applications=[]
+ var observe=func(node):
+  if node.get_script()==preload("res://ui/capture_bind_effect.gd"): applications.append(node.get_instance_id())
+ t.node_added.connect(observe)
+ await t.start_practice("Practice_restraint_mech_pair")
+ var ui=t.ui
+ var enemies=ui.view.enemies
+ t.check(enemies.size()==2 and enemies.map(func(e):return e.maximum)==[32,30],"MECH UI real practice opens the fixed mechanical pair")
+ if enemies.size()!=2:
+  t.node_added.disconnect(observe);return
+ for e in enemies:
+  var actor=ui.find_child("EnemyArt_"+e.id,true,false)
+  t.check(is_instance_valid(actor) and is_instance_valid(actor.enemy_sprite) and actor.enemy_sprite.texture.resource_path.ends_with(e.template+".svg"),"MECH UI each encounter actor uses its own SVG")
+ var speech=ui.find_child("NpcSpeechText",true,false)
+ t.check(is_instance_valid(speech) and speech.is_visible_in_tree() and speech.text=="小身材,大拳头！","MECH UI opening line renders in the NPC speech box")
+ var speaker=ui.layout.enemies[enemies[0].id]
+ var bubble=speaker.find_child("NpcSpeech",true,false)
+ t.check(is_instance_valid(bubble) and speaker.is_ancestor_of(speech) and bubble.size.x<170 and bubble.size.y<55 and bubble.get_global_rect().intersects(speaker.get_child(0).get_global_rect()),"MECH UI short entrance line fits beside the speaking actor")
+ var armor=ui.view.statuses.filter(func(row):return row.id=="mech_armor_"+enemies[0].id)
+ t.check(armor.size()==1 and armor[0].badge=="10" and ui.view.statuses.any(func(row):return row.id=="mech_immune_"+enemies[0].id),"MECH UI projects opening armor with live value and magic immunity")
+ var bar=speaker.get_node("EnemyHp_"+enemies[0].id)
+ var hp_text=speaker.get_node("EnemyHpValue_"+enemies[0].id)
+ var strip=speaker.get_node("StatusStrip_"+enemies[0].id)
+ t.check(hp_text.get_rect()==bar.get_rect() and hp_text.text=="32 / 32" and hp_text.vertical_alignment==VERTICAL_ALIGNMENT_CENTER and hp_text.mouse_filter==Control.MOUSE_FILTER_IGNORE and hp_text.z_index>bar.z_index,"ENEMY HUD health value overlays the bar without blocking input: %s / %s, text=%s" % [hp_text.get_rect(),bar.get_rect(),hp_text.text])
+ t.check(is_equal_approx(strip.position.y-bar.get_rect().end.y,2.0),"ENEMY HUD status strip follows the health bar with a two-pixel gap")
+ var status_buttons=strip.get_child(0).get_children()
+ t.check(not status_buttons.is_empty() and status_buttons.all(func(button):return button.size==Vector2(32,32) and button.get_child(0).size==Vector2(32,32)),"ENEMY HUD buff buttons and artwork use compact 32-pixel bounds")
+ var fill=bar.get_node_or_null("ArmorFill")
+ var badge=speaker.get_node_or_null("StatusIcon_mech_armor_"+enemies[0].id)
+ t.check(is_instance_valid(fill) and fill.visible and fill.position==Vector2.ZERO and is_equal_approx(fill.size.x/bar.size.x,10.0/32) and fill.mouse_filter==Control.MOUSE_FILTER_IGNORE and is_instance_valid(badge) and badge.position.x>=bar.get_rect().end.x,"MECH UI live armor starts at the left edge and the clickable count sits next to the HP bar")
+ await t.capture("ui-restraint-mechs.png")
+ t.check(await t.click("attack",{"type":"strike","form":0,"enemy":enemies[0].id}),"MECH UI strike hits the shield")
+ bar=ui.layout.enemies[enemies[0].id].get_node("EnemyHp_"+enemies[0].id)
+ fill=bar.get_node_or_null("ArmorFill")
+ t.check(is_instance_valid(fill) and is_equal_approx(fill.size.x/bar.size.x,6.0/32) and bar.value==32,"MECH UI partial armor damage shrinks the overlay and leaves HP intact")
+ ui.actor_targets[enemies[1].id].pressed.emit();await t.frames()
+ for use in range(2):
+  t.check(await t.click("attack",{"type":"fireball","enemy":enemies[1].id}),"MECH UI real fireball wounds the unarmored support")
+ ui.render(ui.view)
+ var support_group=ui.layout.enemies[enemies[1].id]
+ var support_text=support_group.get_node("EnemyHpValue_"+enemies[1].id)
+ var support_bar=support_group.get_node("EnemyHp_"+enemies[1].id)
+ t.check(support_text.text=="6 / 30" and support_text.get_rect()==support_bar.get_rect(),"ENEMY HUD real attacks and full refresh keep damage numbers inside the bar: %s / %s, text=%s" % [support_text.get_rect(),support_bar.get_rect(),support_text.text])
+ t.check(await t.click("end") and ui.view.guard_bind.value==60.0 and ui.view.npc_speech.is_empty(),"MECH UI real round advances capture and clears opening speech")
+ var old=ui.layout.enemies[enemies[0].id].get_node_or_null("EnemyHp_"+enemies[0].id+"/ArmorFill")
+ t.check((old==null or not old.visible) and ui.layout.enemies[enemies[0].id].get_node_or_null("StatusIcon_mech_armor_"+enemies[0].id)==null,"MECH UI empty armor removes its visible fill and count")
+ t.check(await t.click("end"),"MECH UI support executes its armor action on the second enemy turn")
+ var support=ui.layout.enemies[enemies[1].id]
+ var support_hp=support.get_node("EnemyHp_"+enemies[1].id)
+ var support_fill=support_hp.get_node_or_null("ArmorFill")
+ t.check(is_instance_valid(support_fill) and support_hp.value==6 and is_equal_approx(support_fill.size.x,support_hp.size.x),"MECH UI armor greater than current HP fills the entire bar")
+ t.check(applications.size()==1,"MECH UI opening bind animates once across ordinary attacks, full redraw and a subsequent progress gain")
+ ui.game.CaptureBind.damage_bind(ui.game,100.0,"fixture")
+ ui.render()
+ var end=ui.view.display_facts.filter(func(fact):return fact.payload.kind=="end")[0]
+ ui.command_router.emit("end",end)
+ var presenter=ui.enemy_feedback
+ t.check(is_instance_valid(presenter) and presenter.current.enemy_id==enemies[0].id and applications.size()==1,"MECH UI a later rebind waits while the first actor is presenting")
+ if is_instance_valid(presenter):
+  while not presenter.closing and presenter.current.kind!="bind_apply": presenter._next()
+  t.check(presenter.current.get("enemy_id","")==enemies[1].id and applications.size()==2,"MECH UI the support's rebind plays once on its own action")
+  presenter.finish()
+ t.node_added.disconnect(observe)
+
 static func run(t) -> void:
+ await t.start_practice("Practice_drone_operator_solo")
+ t.check(t.ui.view.enemies.size()==1 and t.ui.view.enemies[0].maximum==108,"OPERATOR UI practice begins with only the handler")
+ t.check(await t.click("end"),"OPERATOR UI summon commits from the battle window")
+ for unit in t.ui.view.enemies:
+  var art=t.ui.find_child("EnemyArt_"+unit.id,true,false)
+  t.check(is_instance_valid(art) and art.enemy_sprite.texture.resource_path.ends_with("/"+unit.template+".svg"),"OPERATOR UI renders both purpose-drawn actors")
+ t.check(t.ui.view.enemies.size()==2 and t.ui.view.enemies[1].maximum==20,"OPERATOR UI live drone has its own health bar")
+ await t.capture("ui-drone-operator.png")
+ await t.start_practice("Practice_succubus_detective_solo")
+ var detective=t.ui.view.enemies[0]
+ var portrait=t.ui.find_child("EnemyArt_"+detective.id,true,false)
+ t.check(detective.template=="succubus_detective" and detective.maximum==86 and is_instance_valid(portrait) and portrait.enemy_sprite.texture.resource_path.ends_with("/succubus_detective.svg"),"DETECTIVE UI renders the dedicated practice encounter portrait")
+ t.check(await t.click("end"),"DETECTIVE UI executes arrest from the battle window")
+ var hand=t.ui.view.hand
+ for i in hand.size():
+  var button=t.ui.card_buttons[hand[i].uid]
+  var chain=button.get_node_or_null("CaptureChain")
+  var locked=i==0 or i==hand.size()-1
+  t.check(hand[i].chained==locked and (is_instance_valid(chain) and chain.visible)==locked and (not locked or button.drag_payload.is_empty()),"DETECTIVE UI draws chains only on the two current hand edges")
+ await t.capture("ui-succubus-detective.png")
+ await t.start_practice("Practice_tape_mass_solo")
+ var tape=t.ui.view.enemies[0]
+ var tape_art=t.ui.find_child("EnemyArt_"+tape.id,true,false)
+ var flex=t.ui.find_child("StatusIcon_flex_"+tape.id,true,false)
+ t.check(tape.template=="tape_mass" and tape.maximum==76 and is_instance_valid(tape_art) and tape_art.enemy_sprite.texture.resource_path.ends_with("/tape_mass.svg") and is_instance_valid(flex),"TAPE MASS UI practice renders its own battle illustration and flexibility badge")
+ await t.capture("ui-tape-mass.png")
+ await t.start_practice("Practice_anti_mage_drone_solo")
+ var monitor=t.ui.view.enemies[0]
+ var drone_art=t.ui.find_child("EnemyArt_"+monitor.id,true,false)
+ t.check(monitor.template=="anti_mage_drone" and monitor.maximum==70 and is_instance_valid(drone_art) and is_instance_valid(drone_art.enemy_sprite) and drone_art.enemy_sprite.texture.resource_path.ends_with("anti_mage_drone.svg"),"ANTI DRONE UI practice shows the dedicated battle illustration")
+ await t.capture("ui-anti-mage-drone.png")
+ t.check(await t.click("end") and t.ui.game.state.guard_bind.get("progress",0)==40,"ANTI DRONE UI real opening leaves capture at forty")
+ t.check(await t.click("flask",{"op":"deposit"}) and await t.click("flask",{"op":"deposit"}),"ANTI DRONE UI stores mana twice during the announced fit")
+ var badge=t.ui.find_child("IntentIcon_"+monitor.id+"_bind",true,false)
+ t.check(is_instance_valid(badge) and badge.badge=="2" and t.ui.view.enemies[0].intent_icons[0].detail.contains("2件"),"ANTI DRONE UI shows the updated fit count on the live intent icon")
+ await restraint_mechs(t)
+ await t.start_practice("Practice_mana_smuggler_pair")
+ var smugglers=t.ui.view.enemies
+ t.check(smugglers.size()==2 and smugglers.all(func(e):return e.template=="mana_smuggler" and e.maximum==45),"SMUGGLER UI practice spawns the real pair")
+ for e in smugglers:
+  var actor=t.ui.find_child("EnemyArt_"+e.id,true,false)
+  t.check(is_instance_valid(actor) and is_instance_valid(actor.enemy_sprite) and actor.enemy_sprite.texture.resource_path.ends_with("mana_smuggler.svg"),"SMUGGLER UI uses the dedicated portrait")
+ t.check(await t.click("flask",{"op":"deposit"}) and await t.click("end"),"SMUGGLER UI a real deposit funds the theft")
+ t.check(t.ui.view.enemies.map(func(e):return e.intent_icons.filter(func(icon):return icon.kind=="flask")[0].badge)==["10","0"],"SMUGGLER UI updates the two independent flask counters")
+ await t.capture("ui-mana-smugglers.png")
+ await t.start_practice("Practice_binding_box_plus_solo")
+ var box=t.ui.view.enemies[0]
+ var box_actor=t.ui.find_child("EnemyArt_"+box.id,true,false)
+ t.check(box.template=="binding_box_plus" and box.maximum==86 and is_instance_valid(box_actor) and is_instance_valid(box_actor.enemy_sprite) and box_actor.enemy_sprite.texture.resource_path.ends_with("binding_box_plus.svg"),"BOX PLUS UI opens the actual practice with its own enemy art")
+ await t.capture("ui-binding-box-plus.png")
+ t.check(await t.click("end") and "spell_curse" in t.ui.game.state.card_buffs,"BOX PLUS UI real turn end executes the opening curse")
+ await t.start_practice("Practice_reinforced_rope_trio")
+ var reinforced_art="res://assets/ui/enemies/reinforced_rope.svg"
+ var trio=t.ui.view.enemies
+ t.check(t.ui.view.phase=="battle" and trio.size()==3,"REINFORCED ART practice opens the real trio")
+ for e in trio:
+  var actor=t.ui.find_child("EnemyArt_"+e.id,true,false)
+  t.check(e.template=="reinforced_rope" and is_instance_valid(actor) and is_instance_valid(actor.enemy_sprite) and actor.enemy_sprite.texture.resource_path==reinforced_art,"REINFORCED ART every battle actor uses the dedicated SVG")
+ await t.capture("ui-reinforced-rope-trio.png")
+ await enemy_climax_skip(t)
  await six_bind_idle(t)
  await rope_master_turns(t)
  t.ui.game=preload("res://tests/six_bind_cases.gd").encounter()
@@ -270,13 +395,9 @@ static func run(t) -> void:
  await t.start_practice("Practice_rope_solo")
  ui.game._install_template("rope","forearm",8,10,false,"fixture",1,-1,0,"mid_forearm");ui.game.add_fixture("wrist",8);ui.game.add_fixture("fingers",8,10,false,0,"cord")
  var rope_enemy=ui.game.state.enemies[0]
- rope_enemy.intent=ui.game.EnemyPlans.application(["link_rope"])
+ rope_enemy.intent=ui.game.EnemyPlans.application(["rope","cord"])
  ui.render();await t.frames()
- t.check(ui.view.enemies[0].intent_icons[0].kind=="bind","LINK UI displays declared link installation")
- await t.capture("ui-enemy-link-intent.png")
- var before_link=ui.view
- t.check(await t.click("end") and ui.game.state.links.size()==1 and ui.view.action_log.any(func(l):return l.text.contains("链接绳")),"LINK UI real turn installs one link with feedback")
- t.check(preload("res://ui/combat_feedback.gd").steps(before_link,ui.view).any(func(step):return step.slots==ui.game.state.links[0].slots),"LINK UI feedback retains both real connection locations")
+ t.check(ui.view.enemies[0].intent_icons[0].kind=="bind" and await t.click("end") and ui.game.state.links.is_empty(),"ROPE UI ordinary restraint action completes without a link")
 
  ui.game_factory=preload("res://core/game.gd");ui.restart(42);await t.frames()
  t.check(await t.click("departure",{"op":"skip"}) and ui.view.phase=="map","POOL UI completes the formal opening before choosing a room")
@@ -289,6 +410,24 @@ static func run(t) -> void:
  t.check(ui.view.enemies.size() in [1,2] and ui.view.enemies.all(func(e):return e.template!="lock" and not e.has("strength")),"POOL UI shows actual budgeted enemies and excludes lock at free opening")
  await t.capture("ui-weak-budget-group.png")
 
+
+static func enemy_climax_skip(t) -> void:
+ var ui=t.ui
+ ui.restart(42,true,"pressure_battle")
+ ui.game.state.pressure=0;ui.game.state.pressure_sources=[];ui.game.state.relics=[]
+ for enemy in ui.game.state.enemies: enemy.pressure_gain=0;enemy.intent.pressure=120
+ ui.render();await t.frames()
+ var round_before=ui.game.state.round
+ await preload("res://tests/target_sidebar_ui_cases.gd").press(t,ui.end_button)
+ if is_instance_valid(ui.enemy_feedback): ui.enemy_feedback.finish()
+ await t.frames()
+ t.check(ui.view.pressure.overloaded and ui.game.state.round==round_before+1 and ui.game.state.energy==0,"PRESSURE UI real end-turn carries the enemy climax to the next player window")
+ t.check(ui.end_button.visible and not ui.end_button.disabled,"PRESSURE UI skipped turn exposes its usable continue button")
+ await preload("res://tests/target_sidebar_ui_cases.gd").press(t,ui.end_button)
+ if is_instance_valid(ui.enemy_feedback): ui.enemy_feedback.finish()
+ await t.frames()
+ t.check(not ui.view.pressure.overloaded and ui.game.state.round==round_before+2 and ui.notice=="","PRESSURE UI continue returns player control after exactly one skipped turn")
+ ui.restart(42);await t.frames()
 
 static func rope_master_turns(t) -> void:
  var ui=t.ui

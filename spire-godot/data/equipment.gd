@@ -9,12 +9,20 @@ static func slot_priority(slot: String) -> int:
 
 const Special=preload("res://data/special_equipment.gd")
 const BODY_SLOTS=B.ARM_SLOTS+B.LEG_SLOTS
+const PANEL_REGIONS=[
+ {"id":"region_head","name":"头颈","members":["eyes","mouth","neck"]},
+ {"id":"region_upper","name":"手胸","members":["upper_arm","forearm","wrist","hands"]},
+ {"id":"region_lower","name":"臀腿","members":["thigh","calf","ankle","feet"]},
+ {"id":"region_intimate","name":"性器","members":["special_1","special_2","special_3"]}]
 const PANEL_GROUPS=[["eyes"],["mouth"],["neck","shoulder"],["upper_arm"],"special_1",["forearm"],["wrist"],["palm","fingers"],"special_2","special_3",["thigh"],["calf"],["ankle"],["foot","toes"]]
 const LARGE_SLOTS=["upper_arm","forearm","wrist","palm","thigh","calf","ankle","foot"]
 const SMALL_SLOTS=["palm","fingers","foot","toes"]
 const SHACKLES=["handcuffs","ankle_cuffs","finger_cuffs","toe_cuffs"]
 const SHACKLE_RESTRAINT_VALUE=4
 const SHACKLE_MAXIMUM=999.0
+
+static func is_hogtie(template: String) -> bool:
+ return TEMPLATES.get(template,{}).get("hogtie",false)
 
 static func is_shackle(e: Dictionary) -> bool:
  return TEMPLATES.get(e.get("template",""),{}).get("shackle",false)
@@ -68,8 +76,11 @@ const MATERIALS={
  "plastic":{1:["劣质塑料扎带","标准尼龙扎带"],2:["工业尼龙扎带","加强树脂扎带"],3:["魔导树脂扎带"]},
  "cloth":{1:["普通遮光布带"],2:["加厚遮光布带"],3:["加强遮光布带"]}
 }
+const CableTieFactors={"strain":0.5,"slip":1.5,"magic_slip":1.5}
+const MaterialEscapeFactors={"tape":{"strain":1.5,"slip":0.5,"magic_slip":0.5}}
 static var TEMPLATES={
- "art_hogtie":{"name":"驷马缚","material":"rope","slots":["wrist"],"strain":true,"slip":false,"manual":true,"lock":false,"generated":false},
+ "zip_hogtie":{"name":"驷马缚扎带","material":"plastic","escape_factors":CableTieFactors,"slots":["wrist"],"hogtie":true,"strain":true,"slip":false,"manual":true,"lock":false,"generated":false},
+ "art_hogtie":{"name":"驷马缚","hogtie":true,"material":"rope","slots":["wrist"],"strain":true,"slip":false,"manual":true,"lock":false,"generated":false},
  "handcuffs":{"name":"手铐","material":"metal","slots":["wrist"],"strain":true,"slip":true,"manual":false,"lock":true,"max_grade":1,"shackle":true,"generated":false,"damage_factor":0.1},
  "ankle_cuffs":{"name":"脚铐","material":"metal","slots":["ankle"],"strain":true,"slip":true,"manual":false,"lock":true,"max_grade":1,"shackle":true,"generated":false,"damage_factor":0.1},
  "finger_cuffs":{"name":"指铐","material":"metal","slots":["fingers"],"strain":true,"slip":true,"manual":false,"lock":true,"max_grade":1,"shackle":true,"generated":false,"damage_factor":0.1},
@@ -90,13 +101,13 @@ static var TEMPLATES={
  "glove_body":{"name":"单手套套体","material":"leather","slots":[],"strain":true,"slip":true,"manual":false,"lock":true,"min_grade":2},
  "glove_strap":{"name":"单手套肩带","material":"leather","slots":[],"strain":false,"slip":true,"manual":true,"lock":true,"min_grade":2},
  # Links share material/method definitions, but require the separate two-target factory.
- "link_rope":{"name":"链接绳","material":"rope","slots":[],"strain":true,"slip":false,"manual":true,"lock":false},
+ "link_rope":{"generated":false,"name":"链接绳","material":"rope","slots":[],"strain":true,"slip":false,"manual":true,"lock":false},
  "rope":{"name":"绳索","material":"rope","slots":LARGE_SLOTS,"strain":true,"slip":true,"manual":true,"lock":false},
  "cord":{"name":"细绳","material":"rope","slots":SMALL_SLOTS,"strain":true,"slip":true,"manual":true,"lock":false},
  "belt":{"name":"皮带","material":"leather","slots":LARGE_SLOTS,"strain":true,"slip":true,"manual":true,"lock":true},
  "fine_belt":{"name":"细皮带","material":"leather","slots":SMALL_SLOTS,"strain":true,"slip":true,"manual":true,"lock":true},
  "tape":{"name":"胶带","material":"tape","slots":BODY_SLOTS,"strain":true,"slip":true,"manual":false,"lock":false},
- "cable_tie":{"name":"扎带","material":"plastic","slots":BODY_SLOTS,"strain":true,"slip":true,"manual":false,"lock":false},
+ "cable_tie":{"name":"扎带","material":"plastic","escape_factors":CableTieFactors,"slots":BODY_SLOTS,"strain":true,"slip":true,"manual":false,"lock":false},
  # Head fixtures use dedicated definitions; ordinary limb templates never cover the head.
  "eye_cloth":{"name":"布带眼罩","material":"cloth","slots":["eyes"],"strain":false,"slip":true,"manual":true,"lock":false},
  "eye_leather":{"name":"皮革眼罩","material":"leather","slots":["eyes"],"strain":false,"slip":true,"manual":true,"lock":true,"min_grade":2},
@@ -105,6 +116,12 @@ static var TEMPLATES={
 
 static func maximum(grade: int) -> float:
  return {1:B.BASIC_DURABILITY,2:B.MEDIUM_DURABILITY,3:B.HIGH_DURABILITY}.get(grade,0.0)
+
+static func escape_factor(piece: Dictionary, mode: String) -> float:
+ var spec=TEMPLATES[piece.template]
+ # A torso connection inherits its host's material while keeping its own template.
+ var factors=MaterialEscapeFactors.get(piece.get("material",spec.material),spec.get("escape_factors",{}))
+ return factors.get(mode,1.0)
 
 static func capacity(slot: String, template: String="") -> int:
  if slot=="mouth" and template!="" and TEMPLATES[template].material!="tape": return 1
@@ -140,7 +157,7 @@ static func has_mouth_harness(e: Dictionary) -> bool:
 
 static func name_for(template: String, slot: String, grade: int=1, variant: int=0) -> String:
  if TEMPLATES[template].get("lock_only",false) or TEMPLATES[template].get("shackle",false): return TEMPLATES[template].name
- if template=="art_hogtie": return "驷马缚"
+ if is_hogtie(template): return TEMPLATES[template].name
  if template=="mouth_band": return mouth_combination(grade,variant).name
  return ("" if slot in ["eyes","mouth"] else B.SLOT_NAMES[slot])+TEMPLATES[template].name
 
@@ -172,7 +189,7 @@ static func method_text(e: Dictionary) -> String:
  return " / ".join(available)+(" · 可上锁" if allows(e,"lock") else " · 锁孔：无")
 
 static func coverage(e: Dictionary) -> Array:
- if e.get("template","")=="art_hogtie": return ["wrist","ankle"]
+ if is_hogtie(e.get("template","")): return ["wrist","ankle"]
  return e.get("coverage",[e.slot])
 
 # Lock-only pieces use a constant lifecycle marker, never a damageable meter.
@@ -243,7 +260,7 @@ static func slip_points(e: Dictionary) -> Array:
  return physical_points(e)
 
 static func capacity_points(e: Dictionary) -> Array:
- if e.get("template","")=="art_hogtie": return []
+ if is_hogtie(e.get("template","")): return []
  return [] if e.template in ["link_rope","leg_body","glove_strap","jacket_sleeves","jacket_hem","head_harness"] else physical_points(e)
 
 static func overlaps(a: Dictionary, b: Dictionary) -> bool:
@@ -273,7 +290,7 @@ static func validate(e: Dictionary) -> String:
  var actual=e.get("points",[])
  if SEGMENTS.has(e.slot):
   if actual.size()!=1 or actual[0] not in SEGMENTS[e.slot]: return "普通装备必须占据本区域的一个具体位置。"
- elif e.template=="art_hogtie":
+ elif is_hogtie(e.template):
   if actual!=["wrist","ankle"]: return "驷马缚必须同时连接手腕与脚踝。"
  elif actual!=points(e.slot): return "装备的具体位置与身体部位存在差异。"
  return ""

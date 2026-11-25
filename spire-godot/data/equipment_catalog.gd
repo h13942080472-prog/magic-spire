@@ -42,13 +42,41 @@ static func entries() -> Dictionary:
  iron.encounter="iron_man_solo";iron.items=[]
  result.iron_man_solo=entry("iron_man_solo","wrist",iron)
  var artist=scenario("绳艺大师练习","绳索库存、捕缚阈值与助理复活。")
- artist.description="大师%d生命，助理%d生命；击败大师结束战斗。" % [Enemies.TYPES.rope_master.hp,Enemies.TYPES.rope_assistant.hp]
+ artist.description="大师%d生命，助手%d生命；击败大师结束战斗。" % [Enemies.TYPES.rope_master.hp,Enemies.TYPES.rope_assistant.hp]
  artist.encounter="rope_master_solo";artist.items=[]
  result.rope_master_solo=entry("rope_master_solo","wrist",artist)
  var box=scenario("魔导拘束盒练习","用魔法突破坚硬，及时削减捕缚进度。")
  box.description="%d生命。首次施加40/100捕缚，固定为坐姿；每个玩家回合开始追加中级2档皮革拘束具并推进10点。盒内有三件中级2档复合装备。" % Enemies.TYPES.binding_box.hp
  box.encounter="binding_box_solo";box.items=[]
  result.binding_box_solo=entry("binding_box_solo","thigh",box)
+ var operator=scenario("无人机操作员练习","击毁无人机可暂时解除捕缚；击败操作员直接获胜。")
+ operator.description="首回合召唤魔导无人机。操作员轮流强化道具、拘束和防护；维修后的无人机继承强化，胶带增加一件。"
+ operator.encounter="drone_operator_solo";operator.items=[]
+ result.drone_operator_solo=entry("drone_operator_solo","wrist",operator)
+ var detective=scenario("魅魔侦探练习","解开手铐或脚铐，可以解放对应一侧的手牌。")
+ detective.description="%d生命。逮捕后依次打包、反抗禁止、禁止反抗。双铐都已解除时，打包改为铐紧。" % Enemies.TYPES.succubus_detective.hp
+ detective.encounter="succubus_detective_solo";detective.items=[]
+ result.succubus_detective_solo=entry("succubus_detective_solo","wrist",detective)
+ var tape=scenario("胶带团练习","体术每命中一段，胶带团就会获得格挡。")
+ tape.description="%d生命。三连贴每次施加3件胶带，蓄胶使你虚弱并强化接下来两次三连贴。" % Enemies.TYPES.tape_mass.hp
+ tape.encounter="tape_mass_solo";tape.items=[]
+ result.tape_mass_solo=entry("tape_mass_solo","wrist",tape)
+ var monitor=scenario("对法师特化无人机Ⅱ型练习","留意魔力监听，挣脱本场佩戴的拘束具可削减捕缚。")
+ monitor.description="%d生命。首回合强制替换口球并施加捕缚，之后交替施加皮革拘束具和无力化。" % Enemies.TYPES.anti_mage_drone.hp
+ monitor.encounter="anti_mage_drone_solo";monitor.items=[]
+ result.anti_mage_drone_solo=entry("anti_mage_drone_solo","mouth",monitor)
+ var plus=scenario("拘束盒 Plus 练习","留意法术诅咒。有空档时击败盒子，阻止它撤离后提高警戒度。")
+ plus.description="86生命。开场施加法术诅咒，之后轮流施加装备和升温。存活离场时警戒度提升一级。"
+ plus.encounter="binding_box_plus_solo";plus.items=[]
+ result.binding_box_plus_solo=entry("binding_box_plus_solo","thigh",plus)
+ var smugglers=scenario("魔力走私者练习","盯住两人身上偷来的魔力，优先击倒快要逃走的那只。")
+ smugglers.description="两只走私者各55生命，分别摸瓶三次和四次。击败时可追回各自偷走的魔瓶魔力。"
+ smugglers.encounter="mana_smuggler_pair";smugglers.items=[]
+ result.mana_smuggler_pair=entry("mana_smuggler_pair","wrist",smugglers)
+ var mechs=scenario("双拘束机甲练习","在微型机甲出手前击碎护甲。挣开捕缚可暂停它的强化。")
+ mechs.description="微型机甲32生命，辅助机甲30生命。开场施加40捕缚。微型机甲奇数回合开启护甲与魔法免疫，辅助机甲轮流待机、增加施加件数和投送性玩具。"
+ mechs.encounter="restraint_mech_pair";mechs.items=[]
+ result.restraint_mech_pair=entry("restraint_mech_pair","wrist",mechs)
  var drone=scenario("魔导无人机练习","用魔法突破坚硬；注意消耗能量时的捕缚增长。")
  drone.description="%d生命。首回合建立30/100捕缚；之后施加或加固胶带、捕缚＋10、发呆，三步循环。" % Enemies.TYPES.drone.hp
  drone.encounter="drone_solo";drone.items=[]
@@ -59,6 +87,10 @@ static func entries() -> Dictionary:
  result.mixed_bundle_solo=entry("mixed_bundle_solo","wrist",mixed)
  var pair=mixed.duplicate(true);pair.name="两团杂乱拘束具练习";pair.encounter="mixed_pair"
  result.mixed_pair=entry("mixed_pair","wrist",pair)
+ var ropes=scenario("魔力强化绳索练习","多段攻击逐段结算坚韧。击败即将离场的绳索可阻止附魔。")
+ ropes.description="对战三条魔力强化绳索，每条23—28生命，单段最多受到8点伤害。"
+ ropes.encounter="reinforced_rope_trio";ropes.items=[]
+ result.reinforced_rope_trio=entry("reinforced_rope_trio","wrist",ropes)
  var serpent=scenario("绳蛇练习","紧缠会在你的回合结束时施加装备；击败绳蛇可以停止它。")
  serpent.description="与%d生命的游动的绳蛇战斗。缠身增加1层紧缠，之后等概率收紧或甩缚，再返回缠身。" % Enemies.TYPES.rope_serpent.hp
  serpent.encounter="rope_serpent_solo";serpent.items=[]
@@ -121,7 +153,7 @@ static func entries() -> Dictionary:
  for side in ["left","right"]:
   var id="wrap_"+side
   result[id]=entry(id,"palm",scenario(C.spec("wrap",side).name+"练习","另一只手仍能施法、握持工具。包裹共享一条耐久，解除后该侧手掌和手指同时恢复。",[],[assembly("wrap",side,1,1)]))
- result.wrap_both=entry("wrap_both","fingers",scenario("双侧独立包裹练习","双手分别被包裹，手势施法与握持受限，双臂共同固定状态保持原样。可借挂钩或安装工具逐侧解除。",[],[assembly("wrap","left",1,1),assembly("wrap","right",1,1)]))
+ result.wrap_both=entry("wrap_both","fingers",scenario("双侧独立包裹练习","双手分别被包裹，手势施法与握持受限，双臂共同固定状态保持原样。可借挂钩或使用刀具牌逐侧解除。",[],[assembly("wrap","left",1,1),assembly("wrap","right",1,1)]))
  result.head_harness=entry("head_harness","eyes",scenario("眼罩与马具口球练习","口球和马具是一件装备。马具比眼罩更紧时阻止眼罩滑脱。口球解除仅限挣扎或徒手；徒手需要锁已打开且手部条件满足。滑脱牌可用于眼罩。",[ordinary("mouth_band","mouth",2),ordinary("eye_cloth","eyes",1,false,0.4),ordinary("eye_tape","eyes")]))
  for combination in [[1,0],[2,0],[2,1],[3,0]]:
   var gag=ordinary("mouth_band","mouth",combination[0])
@@ -133,14 +165,12 @@ static func entries() -> Dictionary:
  for grade in [2,3]:
   var id="eye_leather_%d" % grade
   result[id]=entry(id,"eyes",scenario(E.GRADES[grade]+"皮革眼罩练习","皮革眼罩遮挡视线，可以上锁。解除请使用滑脱牌。",[ordinary("eye_leather","eyes",grade)]))
- var linked=scenario("复合外带链接练习","大腿外带与小腿外带通过链接绳相连。切断套体后外带及其连接保留；解除任一所连外带时移除链接。",[],[assembly("leg","upper"),assembly("leg","lower")])
- linked.component_links=[{"a_root":0,"a_part":"above_knee","b_root":1,"b_part":"below_knee","slots":["thigh","calf"],"durability":6.4,"blocks_a":true}]
- result.component_links=entry("component_links","thigh",linked)
+ result.leg_pair=entry("leg_pair","thigh",scenario("上下段单腿套练习","分别解除大腿和小腿的套体与外带。",[],[assembly("leg","upper"),assembly("leg","lower")]))
  result.advanced=entry("advanced","wrist",scenario("高级材料练习","高级材料练习：更高耐久。",[ordinary("rope","wrist",3,false,0.4),ordinary("fine_belt","toes",3,true,0.4),ordinary("tape","calf",3,false,0.4),ordinary("cable_tie","thigh",3,false,0.4),ordinary("eye_cloth","eyes",3,false,0.4)]))
  var special=scenario("性玩具与快感练习","无线乳夹在回合开始时震动，马眼棒会在实际支付能量时产生刺激；裆部股绳同时经过小穴与后庭，但只刺激小穴。",[])
  special.special_equipment=[{"type":"nipple_clamp_medium","slot":"special_1_a"},{"type":"urethral_rod_medium","slot":"special_2_d"},{"type":"crotch_rope_medium","slot":"special_3_a"}]
  result.special_equipment=entry("special_equipment","special_1",special)
- var plate_lock=scenario("平板锁练习","开场佩戴高级3档负数跳蛋锁（导尿管），已经上锁并附带平板锁加固带。可安装锯条切断加固带后滑脱；也可先用术式解锁开锁，再以任意正数滑脱伤害解除整件。",[])
+ var plate_lock=scenario("平板锁练习","开场佩戴高级3档负数跳蛋锁（导尿管），已经上锁并附带平板锁加固带。可打出锯条的借墙面切断加固带后滑脱；也可先用术式解锁开锁，再以任意正数滑脱伤害解除整件。",[])
  plate_lock.description="6回合平板锁专项练习。开场装备会提高快感上限、持续产生刺激，并按真实上锁与加固带规则限制解除。提供小石片、锯条和额外一张术式解锁。"
  plate_lock.special_equipment=[{"type":"negative_vibrator_lock_catheter_high","slot":"special_2_a","tier":3}]
  plate_lock.opening_cards=["unlock"]

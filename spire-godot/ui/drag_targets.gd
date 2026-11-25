@@ -62,12 +62,14 @@ static func begin(ui, data: Dictionary) -> void:
  var actors={};var hands={}
  for c in available:
   var p=c.payload
-  if p.kind=="prison" and p.get("action","")=="unlock":
+  if p.get("target","")=="prison_door":
    var panel=hint(ui,"prison_door","牢门","开锁",Rect2(960,180,160,60))
    receiver(ui,panel,"DoorDragTarget",c,data)
   elif p.has("hand_uid") and p.get("self_target",false):
    hands[p.hand_uid]=c
-  elif p.has("enemy") and ui.actor_targets.has(p.enemy): actors[p.enemy]=c
+  elif p.has("enemy") or p.get("mode","")=="enemy":
+   var actor_id=p.get("enemy",p.get("target",""))
+   if ui.actor_targets.has(actor_id): actors[actor_id]=c
   elif p.get("target","")=="guard_bind": actors.guard_bind=c
   elif p.get("self_target",false) or data.has("self_action_key") or (p.kind=="card" and ui._card_is_free(p.uid,p.get("free",false))): actors.hero=c
  for id in actors:

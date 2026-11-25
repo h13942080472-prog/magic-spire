@@ -44,6 +44,7 @@ func _next() -> void:
   if is_instance_valid(ui.battle_feed): ui.battle_feed.release_remaining()
   queue_redraw();return
  current=queue[index]
+ for log_index in current.binds: ui.CombatFeedback.play_bind(ui,log_index)
  ui.equipment_audio.consume(current.get("sound_feedback",[]))
  heading.text=ui.localization.display(current.actor)+" · "+ui.localization.display(current.title)
  if is_instance_valid(ui.battle_feed): ui.battle_feed.release_step(current.key)

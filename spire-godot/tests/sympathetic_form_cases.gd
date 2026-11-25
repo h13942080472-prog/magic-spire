@@ -15,6 +15,9 @@ static func advance(t,g) -> void:
 static func gains(g) -> Array:
  return g.state.logs.filter(func(e):return e.data.get("source","")=="交感形态·自由" and e.data.has("base_gain"))
 
+static func growth(g) -> Array:
+ return [g.Cards.power_attribute_modifier(g,"strength"),g.Cards.power_attribute_modifier(g,"dexterity"),g.BasicAttacks.fireball_damage(g)]
+
 static func run(t) -> void:
  var g=fresh();var card=Cards.give(g,TYPE)
  var c=t.find_action(g,"card",{"uid":card.uid,"free":true});var before=g.export_snapshot()
@@ -24,15 +27,25 @@ static func run(t) -> void:
  g.state.energy=2;before=g.export_snapshot()
  t.check(not t.action(g,"card",{"uid":card.uid,"free":true}).ok and g.state==before,"SYMPATHETIC insufficient energy rejects without power or resource gain")
  g.state.energy=3
- t.check(t.action(g,"card",{"uid":card.uid,"free":true}).ok and g.state.mana==35 and gains(g).is_empty() and g.state.powers[0].uid==card.uid,"SYMPATHETIC activation waits until next turn")
+ t.check(t.action(g,"card",{"uid":card.uid,"free":true}).ok and g.state.mana==35 and gains(g).is_empty() and g.state.powers[0].uid==card.uid,"SYMPATHETIC activation waits until turn end")
+ var base_fire=g.BasicAttacks.fireball_damage(g)
+ g.Cards.begin_turn(g)
+ t.check(growth(g)==[0.0,0.0,base_fire] and gains(g).is_empty(),"SYMPATHETIC turn start grants no free effect")
  advance(t,g)
+ t.check(growth(g)==[1.0,1.0,base_fire+2],"SYMPATHETIC first turn end increases strength, dexterity and fireball damage")
  t.check(g.state.mana==55 and gains(g).size()==1 and gains(g)[0].data.base_gain==10,"SYMPATHETIC clear body restores twenty mana and gains ten base arousal")
  g.state.mana=95;advance(t,g)
  t.check(g.state.mana==100 and gains(g).size()==2,"SYMPATHETIC full mana cap does not prevent the paired arousal effect")
- for kind in ["ordinary","collar","composite","link","shoulder"]:
+ t.check(growth(g)==[2.0,2.0,base_fire+4],"SYMPATHETIC successive ends accumulate combat growth")
+ var saved=Save.roundtrip(t,g,"sympathetic accumulated growth")
+ if saved!=null: t.check(growth(saved)==growth(g),"SYMPATHETIC saved growth retains all modifiers")
+ g.add_fixture("eyes",2);advance(t,g)
+ t.check(growth(g)==[2.0,2.0,base_fire+4],"SYMPATHETIC newly restrained player keeps previous stacks")
+ g.RelicEffects.end_combat(g)
+ t.check(growth(g)==[0.0,0.0,base_fire] and g.state.spell_base_bonuses.get("fireball",0)==0,"SYMPATHETIC combat settlement clears growth without raising permanent fireball damage")
+ for kind in ["ordinary","composite","link","shoulder"]:
   g=fresh()
   if kind=="ordinary": g.add_fixture("eyes",1)
-  elif kind=="collar": g._install_template("restriction_collar","neck",1,1,false,"fixture",3)
   elif kind=="composite": g._install_assembly("glove","short","fixture",2,1)
   else:
    var a=g.add_fixture("forearm",4);var b=g.add_fixture("wrist",4)
@@ -44,6 +57,13 @@ static func run(t) -> void:
   for target in g.state.equipment+g.action_targets(): g._apply_manual_release(target,0.0,true)
   g._cleanup();advance(t,g)
   t.check(g.state.mana==55 and gains(g).size()==1,"SYMPATHETIC removing restraints re-enables the next turn trigger: "+kind)
+ g=fresh()
+ var collar=g._install_template("restriction_collar","neck",1,1,true,"fixture",3)
+ t.check(not collar.is_empty() and Cards.play(t,g,TYPE,true).ok,"SYMPATHETIC activation with collar")
+ advance(t,g)
+ t.check(g.state.mana==55 and gains(g).size()==1,"SYMPATHETIC collar alone permits turn-end gains")
+ g.add_fixture("wrist",8);advance(t,g)
+ t.check(g.state.mana==55 and gains(g).size()==1 and not g._equipment(collar.id).is_empty(),"SYMPATHETIC a wrist restraint alongside the collar blocks the next trigger")
  g=fresh();g._install_special("vaginal_egg_low","special_3_a")
  t.check(Cards.play(t,g,TYPE,true).ok,"SYMPATHETIC special-only activation is legal")
  advance(t,g)
@@ -54,7 +74,7 @@ static func run(t) -> void:
  t.check(g.state.mana==75 and gains(g).size()==2,"SYMPATHETIC duplicate free faces each grant twenty mana and ten base arousal")
  g=fresh();Cards.play(t,g,TYPE,true);g.state.pressure=99
  advance(t,g)
- t.check(g.state.overload_total==1 and g.state.mana==55-g.B.OVERLOAD_MANA and g.state.energy==0 and gains(g).size()==1,"SYMPATHETIC turn arousal enters ordinary climax mana loss and energy reset")
+ t.check(g.state.overload_total==1 and g.state.mana==55-g.B.OVERLOAD_MANA and g.state.energy==g.max_energy()-g.B.OVERLOAD_ENERGY and gains(g).size()==1,"SYMPATHETIC turn-end climax applies mana loss and the following turn energy penalty")
  g=fresh();Cards.play(t,g,TYPE,false);Cards.play(t,g,TYPE,false);Cards.play(t,g,TYPE,true)
  t.check(g.state.temporary_mana==0 and gains(g).is_empty(),"SYMPATHETIC stacked and opposite faces have no immediate grants")
  var twin=Save.roundtrip(t,g,"sympathetic both faces and duplicate stacks")

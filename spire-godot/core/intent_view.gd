@@ -9,6 +9,13 @@ const ICON_TYPES={
  "art_intro":"wait","art_domain":"debuff","art_sweep":"bind","art_tighten":"tighten","art_tightest":"tighten","art_refill":"wait",
  "art_weave":"bind","art_enchant":"debuff","art_admire":"debuff","art_seal":"debuff","art_grief":"wait","art_revive":"wait",
  "art_prepare":"wait","art_status":"bind","art_patch":"bind","art_respect":"debuff","art_play":"debuff","art_rest":"wait","art_help":"wait",
+ "operator_summon":"wait","operator_repair":"wait","operator_tools":"wait","operator_binding":"wait","operator_shield":"wait","operator_salvo":"bind",
+ "detective_pack":"bind","detective_cuff":"bind","detective_restrain":"bind","detective_tighten":"tighten",
+ "tape_triple":"bind","tape_charge":"debuff",
+ "drone_fit":"bind","drone_weaken":"debuff",
+ "plus_curse":"debuff","plus_boost":"wait","plus_double":"bind","plus_fit":"bind","plus_tough":"bind",
+ "smuggler_steal":"bind","smuggler_prepare":"wait","smuggler_leave":"leave",
+ "mech_fit":"bind","mech_stun":"wait","mech_prepare":"wait","mech_idle":"wait","mech_extra":"debuff","mech_toy":"bind",
  "capture":"capture","leave":"leave","hidden":"hidden","delayed":"delayed"}
 const ICON_MESSAGES={
  "debuff":DEBUFF_MESSAGE,"bind":"敌人准备对你施加拘束","tighten":"敌人准备加固你的拘束具",
@@ -62,5 +69,23 @@ static func build(g, enemy: Dictionary, visible: bool) -> Array:
   add(out,"hidden")
   return out
  operation(out,enemy.intent)
+ var move=enemy.intent.get("kind","")
+ if (enemy.type in [g.DroneOperator.TYPE,g.DroneOperator.DRONE,g.Detective.TYPE] or move in g.TapeMass.Actions or move in g.BindingBoxPlus.Actions or move in g.ManaSmuggler.Actions or move in g.Mechs.Actions) and not enemy.intent.is_empty() and not enemy.intent.delayed:
+  out[0].detail=enemy.intent.text
+ if enemy.type==g.DroneOperator.DRONE and move in g.DroneOperator.ToyMoves and not enemy.intent.delayed:
+  var owner=g._enemy(enemy.drone_owner)
+  var extra=owner.drone_tools
+  # The handler acts before its drone, including the currently announced upgrade.
+  if owner.intent.get("kind","")==g.DroneOperator.TOOLS and not owner.intent.delayed and owner.get("acted_round",-1)!=g.state.round: extra+=1
+  if extra>0: out[0].detail="%s · 追加%d件玩具" % [out[0].detail,extra]
+ if enemy.type==g.AntiDrone.TYPE and not enemy.intent.get("delayed",false):
+  if move in g.AntiDrone.Actions:
+   var amount=g.AntiDrone.count(g,enemy)
+   out[0].detail=g.AntiDrone.description(move,amount)
+   out[0].badge=str(amount)
+  elif move=="bind_apply": out[0].detail=enemy.intent.text
+ if g.ManaSmuggler.active(enemy):
+  var amount=g.number(enemy.stolen_mana)
+  out.append({"kind":"flask","label":"已偷魔力","detail":"击败该走私者时退回魔瓶。","caption":"%s魔力" % amount,"badge":amount})
  if not enemy.intent.get("delayed",false) and (enemy.get("spawned_round",-1)==g.state.round or enemy.get("reinforcement_round",-1)==g.state.round): add(out,"spawned")
  return out

@@ -34,10 +34,13 @@ static func valid_target(value: Variant) -> bool:
 
 static func payload(g, type: String, original: Dictionary, used: Array) -> Dictionary:
  var spec=g.Cards.Rules.SPECS[type]
- var p={"kind":"card","type":type,"mode":spec.mode,"free":false,"uid":"","replay":true}
+ var p={"kind":"card","type":type,"mode":Rules.face_mode(type,original.get("free",false)),"free":false,"uid":"","replay":true}
  p.merge(original,true)
  if p.has("selected_uids") and p.selected_uids.any(func(uid):return not g.Cards.selection_cards(g).any(func(entry):return entry.card.uid==uid)): return {}
+ if spec.card_type=="item": return p if g.Cards.reason(g,p)=="" else {}
  if p.self_target: return p if g.Cards.reason(g,p)=="" else {}
+ if p.target=="" and Rules.free_effect(type,p.free):
+  return p if g.B.SLOT_NAMES.has(p.slot) and g.Cards.reason(g,p)=="" else {}
  if p.target=="prison_door":
   if g.state.phase!="prison" or g.state.prison.door_open or not g.Prison.Space.at(g,"door"): return {}
  elif p.target==g.CaptureBind.BIND_TARGET:
@@ -52,21 +55,21 @@ static func payload(g, type: String, original: Dictionary, used: Array) -> Dicti
  return p
 
 static func cards(g, type: String, targets: Array, used: Array=[], count: int=1) -> void:
- for repeat in range(count): _cards_once(g,type,targets,used)
+ for repeat in range(count): card_once(g,type,targets,used)
 
-static func _cards_once(g, type: String, targets: Array, used: Array) -> void:
+static func card_once(g, type: String, targets: Array, used: Array) -> bool:
  var first={}
  for original in targets:
   first=payload(g,type,original,used)
   if not first.is_empty(): break
  if first.is_empty():
-  g._emit("event","余势复演：原目标已失效，跳过额外释放。",{"replay":{"type":type,"skipped":true}})
-  return
- g._emit("event","余势复演：免费额外释放「"+g.B.CARD_NAMES[type]+"」。",{"replay":{"type":type,"skipped":false}})
+  g._emit("event","复放：原目标已失效，跳过额外释放。",{"replay":{"type":type,"skipped":true}})
+  return false
+ g._emit("event","复放：「%s」。" % g.B.CARD_NAMES[type],{"replay":{"type":type,"skipped":false}})
  var failed=g._magic_failed
  var success=not g.Cards.uses_magic(first) or g._cast_magic({"payload":first,"label":g.B.CARD_NAMES[type],"mana_payment":{"mana":0.0}})
  g._magic_failed=failed
- if not success: return
+ if not success: return false
  for original in targets:
   var p=payload(g,type,original,used)
   if p.is_empty(): continue
@@ -74,6 +77,7 @@ static func _cards_once(g, type: String, targets: Array, used: Array) -> void:
   g.Cards.grow(g,type,p.uid)
   if tool!="" and tool not in used: used.append(tool)
   g._cleanup()
+ return true
 
 static func spell(g, c: Dictionary, targets: Array, count: int=1) -> void:
  for repeat in range(count): _spell_once(g,c,targets)
