@@ -4917,79 +4917,92 @@ static func point_query_builds_no_table(t) -> void:
  print("POINT QUERY NO TABLE fixtures=%d rows=%d distinct_answered=%d rebased_covered=%d phase_unit_exempt=%s takeover_builds=1" % [fixtures.size(),rows_seen,compared,covered.size(),str(exempt_hits.keys())])
 
 # Freeze branch identity, command shape, availability, and presentation reasons.
-# 2026-11-21 human-approved re-freeze: flag:equipment_spell and flag:relic_rows were recomputed on the committed
-# tree 69cf2f1 (the c8882cc literals held on no commit tree); the other 61 states are unchanged. The source sha256
-# is taken over the raw blob bytes of 69cf2f1:spire-godot/core/game.gd (`git show` output, LF as committed),
-# the source that reproduces all 63 frozen faces.
-const PREFIX_BRANCH_TABLE_SOURCE_SHA256="EF4B981CBF0E350CCD14A7937DC5496088A7792BED26FBF57C7B4704128BBA41"
+# Link C, upstream segment: all 63 faces were recomputed on the committed tree e4fde8d (the product of 73f7363).
+# 51 states moved against the 69cf2f1 faces and 12 (every domain_blocked sweep) did not. The moves are the item rows
+# (item_use in all 51 states, item_retrieve in 11, item_install in 1: core/item_cards.gd::conversion with
+# core/game.gd::item_action_facts), the status_toggle row gated by core/game.gd::can_switch_charge (gone in 27 states),
+# the card rows of the new starting hand (9 states) and the rekeyed enchant rows of flag:rest_card
+# (data/card_enchantments.gd::TYPES). The source sha256 is taken over the raw blob bytes of
+# e4fde8d:spire-godot/core/game.gd (`git show` output, LF as committed), the source that reproduces all 63 frozen faces.
+const PREFIX_BRANCH_TABLE_SOURCE_SHA256="3FB399A1D6366E897906FD64EF0E2D5169D130ED5F442C66CA18EC1E420950E7"
 # 状态数（字面）：branch_sweep_states() 与下表都必须恰为这个数——「删一态＋同步删基线」在此红。
 const PREFIX_BRANCH_TABLE_STATE_COUNT=63
 const PREFIX_BRANCH_TABLE_BASELINE={
- "sweep:departure|plain":["departure","8","0a2f9d0dde945abd70b6d831f6e00ea0"],
- "sweep:departure|relic_bundle":["relic_bundle","9","db85dae4e279769ca6bbe9a1daa3a82d"],
- "sweep:departure|departure":["departure","8","0a2f9d0dde945abd70b6d831f6e00ea0"],
- "sweep:departure|domain_blocked":["departure","8","0a2f9d0dde945abd70b6d831f6e00ea0"],
- "sweep:rest_choice|plain":["rest_choice","8","89575a0a85aae62335e2c9e104ce3c12"],
- "sweep:rest_choice|relic_bundle":["relic_bundle","9","db85dae4e279769ca6bbe9a1daa3a82d"],
- "sweep:rest_choice|departure":["rest_choice","8","89575a0a85aae62335e2c9e104ce3c12"],
+ "sweep:departure|plain":["departure","9","41a26e82c77d2dceca8b36de6ff8f477"],
+ "sweep:departure|relic_bundle":["relic_bundle","10","7196bca0a9f94e03cf2ab93b5cd1340a"],
+ "sweep:departure|departure":["departure","9","41a26e82c77d2dceca8b36de6ff8f477"],
+ "sweep:departure|domain_blocked":["departure","9","41a26e82c77d2dceca8b36de6ff8f477"],
+ "sweep:rest_choice|plain":["rest_choice","8","3d9a58c33bed6eaeafafc89407b899b8"],
+ "sweep:rest_choice|relic_bundle":["relic_bundle","10","7196bca0a9f94e03cf2ab93b5cd1340a"],
+ "sweep:rest_choice|departure":["rest_choice","8","3d9a58c33bed6eaeafafc89407b899b8"],
  "sweep:rest_choice|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
- "sweep:reward|plain":["reward","7","14c4306fcbef8a2e93b2ed5bf401432d"],
- "sweep:reward|relic_bundle":["relic_bundle","9","db85dae4e279769ca6bbe9a1daa3a82d"],
- "sweep:reward|departure":["reward","7","14c4306fcbef8a2e93b2ed5bf401432d"],
+ "sweep:reward|plain":["reward","7","3ab6bb4c61ce95df3ebde25963b44307"],
+ "sweep:reward|relic_bundle":["relic_bundle","10","7196bca0a9f94e03cf2ab93b5cd1340a"],
+ "sweep:reward|departure":["reward","7","3ab6bb4c61ce95df3ebde25963b44307"],
  "sweep:reward|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
- "sweep:map|plain":["map","8","a507c6c80ccbb62052b1371922fb8f1e"],
- "sweep:map|relic_bundle":["relic_bundle","9","db85dae4e279769ca6bbe9a1daa3a82d"],
- "sweep:map|departure":["map","8","a507c6c80ccbb62052b1371922fb8f1e"],
+ "sweep:map|plain":["map","8","0d1b497f78fbb47fb5cb246e93ee5905"],
+ "sweep:map|relic_bundle":["relic_bundle","10","7196bca0a9f94e03cf2ab93b5cd1340a"],
+ "sweep:map|departure":["map","8","0d1b497f78fbb47fb5cb246e93ee5905"],
  "sweep:map|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
- "sweep:travel|plain":["travel","7","9ad5d6e7271d424ddecc846ba5807c91"],
- "sweep:travel|relic_bundle":["relic_bundle","9","db85dae4e279769ca6bbe9a1daa3a82d"],
- "sweep:travel|departure":["travel","7","9ad5d6e7271d424ddecc846ba5807c91"],
+ "sweep:travel|plain":["travel","7","e68e2ef62adfc5a3026fefafc3013651"],
+ "sweep:travel|relic_bundle":["relic_bundle","10","7196bca0a9f94e03cf2ab93b5cd1340a"],
+ "sweep:travel|departure":["travel","7","e68e2ef62adfc5a3026fefafc3013651"],
  "sweep:travel|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
- "sweep:cleared|plain":["cleared","2","d87610942815b24e6660de917451defe"],
- "sweep:cleared|relic_bundle":["relic_bundle","7","e09edecb14b88418e58a6d14523ac0b8"],
- "sweep:cleared|departure":["cleared","2","d87610942815b24e6660de917451defe"],
+ "sweep:cleared|plain":["cleared","4","74b913991735e4fc37d0a3e0704ab014"],
+ "sweep:cleared|relic_bundle":["relic_bundle","9","0101ca01ae8442ce5301284a8419b5bb"],
+ "sweep:cleared|departure":["cleared","4","74b913991735e4fc37d0a3e0704ab014"],
  "sweep:cleared|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
- "sweep:pack|plain":["pack","10","98237f175a56ee564dfff2cf1d9ad562"],
- "sweep:pack|relic_bundle":["relic_bundle","9","db85dae4e279769ca6bbe9a1daa3a82d"],
- "sweep:pack|departure":["pack","10","98237f175a56ee564dfff2cf1d9ad562"],
+ "sweep:pack|plain":["pack","9","f0cbe267e6ccd863bbef7b3d493e761c"],
+ "sweep:pack|relic_bundle":["relic_bundle","10","7196bca0a9f94e03cf2ab93b5cd1340a"],
+ "sweep:pack|departure":["pack","9","f0cbe267e6ccd863bbef7b3d493e761c"],
  "sweep:pack|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
- "sweep:prison_end|plain":["prison_end","2","d87610942815b24e6660de917451defe"],
- "sweep:prison_end|relic_bundle":["relic_bundle","7","e09edecb14b88418e58a6d14523ac0b8"],
- "sweep:prison_end|departure":["prison_end","2","d87610942815b24e6660de917451defe"],
+ "sweep:prison_end|plain":["prison_end","4","74b913991735e4fc37d0a3e0704ab014"],
+ "sweep:prison_end|relic_bundle":["relic_bundle","9","0101ca01ae8442ce5301284a8419b5bb"],
+ "sweep:prison_end|departure":["prison_end","4","74b913991735e4fc37d0a3e0704ab014"],
  "sweep:prison_end|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
- "sweep:captured|plain":["captured_inspection","7","25b29176db3b31f05af7311596afc648"],
- "sweep:captured|relic_bundle":["relic_bundle","9","db85dae4e279769ca6bbe9a1daa3a82d"],
- "sweep:captured|departure":["captured_inspection","7","25b29176db3b31f05af7311596afc648"],
+ "sweep:captured|plain":["captured_inspection","7","3d277d3c148eced43ffab5098ff6e065"],
+ "sweep:captured|relic_bundle":["relic_bundle","10","7196bca0a9f94e03cf2ab93b5cd1340a"],
+ "sweep:captured|departure":["captured_inspection","7","3d277d3c148eced43ffab5098ff6e065"],
  "sweep:captured|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
- "sweep:inspection|plain":["captured_inspection","8","c170407313358f9de4c81f218f34267c"],
- "sweep:inspection|relic_bundle":["relic_bundle","9","db85dae4e279769ca6bbe9a1daa3a82d"],
- "sweep:inspection|departure":["captured_inspection","8","c170407313358f9de4c81f218f34267c"],
+ "sweep:inspection|plain":["captured_inspection","8","e400c7a09d9983a439f4b7051845a654"],
+ "sweep:inspection|relic_bundle":["relic_bundle","10","7196bca0a9f94e03cf2ab93b5cd1340a"],
+ "sweep:inspection|departure":["captured_inspection","8","e400c7a09d9983a439f4b7051845a654"],
  "sweep:inspection|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
- "sweep:battle|plain":["action_tail","93","eda2a09ed3f0f6bc7af0e4d1188fa9ec"],
- "sweep:battle|relic_bundle":["relic_bundle","8","609bfddb170311c1bb37d8b7048e22ac"],
- "sweep:battle|departure":["action_tail","93","eda2a09ed3f0f6bc7af0e4d1188fa9ec"],
+ "sweep:battle|plain":["action_tail","82","5703444dd25a326267df82fd98fe018c"],
+ "sweep:battle|relic_bundle":["relic_bundle","10","7196bca0a9f94e03cf2ab93b5cd1340a"],
+ "sweep:battle|departure":["action_tail","82","5703444dd25a326267df82fd98fe018c"],
  "sweep:battle|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
- "sweep:prepare|plain":["action_tail","77","833631fa6c50ad5e7c4581502aca2f31"],
- "sweep:prepare|relic_bundle":["relic_bundle","9","db85dae4e279769ca6bbe9a1daa3a82d"],
- "sweep:prepare|departure":["action_tail","77","833631fa6c50ad5e7c4581502aca2f31"],
+ "sweep:prepare|plain":["action_tail","66","107fd7a51b9d7437a7565df443894c4a"],
+ "sweep:prepare|relic_bundle":["relic_bundle","10","7196bca0a9f94e03cf2ab93b5cd1340a"],
+ "sweep:prepare|departure":["action_tail","66","107fd7a51b9d7437a7565df443894c4a"],
  "sweep:prepare|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
- "sweep:rest|plain":["action_tail","77","e3601a017e9673a1a2703b1a3dca969b"],
- "sweep:rest|relic_bundle":["relic_bundle","9","db85dae4e279769ca6bbe9a1daa3a82d"],
- "sweep:rest|departure":["action_tail","77","e3601a017e9673a1a2703b1a3dca969b"],
+ "sweep:rest|plain":["action_tail","66","e949b0641fe2701016b4cb97205120ba"],
+ "sweep:rest|relic_bundle":["relic_bundle","10","7196bca0a9f94e03cf2ab93b5cd1340a"],
+ "sweep:rest|departure":["action_tail","66","e949b0641fe2701016b4cb97205120ba"],
  "sweep:rest|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
- "flag:overload_climax":["overload_climax","6","63ef64aa6bfbda1da4da1baeb6a906da"],
- "flag:pending_retain":["pending_retain","12","690c89746a256c4edb8faec68cc3a51e"],
- "flag:equipment_spell":["action_tail","117","50ac906642527bd782aa49b0ace65ff4"],
- "flag:hook":["action_tail","83","9af4265cf8bad6ad92717e0a7697aa43"],
- "flag:demo_exit":["cleared","4","0df86713c77f877b4564e49107737275"],
- "flag:card_chain":["card_chain","7","682afed1b5f48406d4122b3d0218375a"],
- # The 11 original rows are preserved; this fixture adds 30 card/affix pairs and two refresh payments.
- "flag:rest_card":["rest_choice","43","b1ce12d2620026b620e9b9c2a36c1e91"],
- "flag:reward_skip":["reward","9","c5658346f0bba2c8e302c725e3f2ebb1"],
- "flag:relic_rows":["action_tail","107","ce44aa452e2d7140449c7c27de702cb3"],
- "flag:relic_bundle_equipped":["relic_bundle","8","e7dccde4536f9d304e05b8c58ef03857"],
- "flag:departure_equipped":["departure","8","0a2f9d0dde945abd70b6d831f6e00ea0"],
+ "flag:overload_climax":["overload_climax","8","91fe4fe40da6bea66211947686d2c924"],
+ "flag:pending_retain":["pending_retain","13","94ea2deeeb5a14953f6ba77ff935c6a5"],
+ "flag:equipment_spell":["action_tail","106","55ee451295c918501446995e1286c4fc"],
+ "flag:hook":["action_tail","68","1e7a49eb2465d3eca373d0a6651e50fe"],
+ "flag:demo_exit":["cleared","6","c3015e145a6b2ad38c58820afc2cb755"],
+ "flag:card_chain":["card_chain","8","59dfa83bf61872ab6c4343dd66eff644"],
+ # The original non-enchant rows keep their face except the excluded kinds (REST_CARD_ORIGINAL_EXCLUDED_KINDS); this fixture adds 32 enchant rows: 30 card/affix pairs and two refresh payments.
+ "flag:rest_card":["rest_choice","45","4f1ea9e7f23f6eff3eff7e6121e5750b"],
+ "flag:reward_skip":["reward","9","e3579b72d805e7e9b561145d738155ca"],
+ "flag:relic_rows":["action_tail","96","5288ea9613632d2c1b23b283d89efc8f"],
+ "flag:relic_bundle_equipped":["relic_bundle","10","5dec1b970aeee8c9d7e27092d91d5896"],
+ "flag:departure_equipped":["departure","9","41a26e82c77d2dceca8b36de6ff8f477"],
 }
+
+# flag:rest_card original rows: the rest-choice rows that are not enchant rows keep their pre-service face
+# (key, valid, reason, group, payload). The filter drops what the 73f7363 upstream legitimately moved: enchant (the
+# catalog was rekeyed), item_use and item_discard (consumables became cards, so item rows are rekeyed and regrouped
+# with a hand target) and status_toggle (the charge toggle row is gated by can_switch_charge). What it still guards:
+# the five rows rest_rare, rest_card, rest_flask, rest_begin and flask withdraw are byte-identical on the 69cf2f1
+# product and on the e4fde8d product, so any later change to their key, validity, reason, group or payload is red.
+const REST_CARD_ORIGINAL_EXCLUDED_KINDS=["enchant","item_use","item_discard","status_toggle"]
+const REST_CARD_ORIGINAL_ROW_COUNT=5
+const REST_CARD_ORIGINAL_DIGEST="9e5accfc2b0b22f6216752ffc2e5fdc9"
 
 static func prefix_branch_table_face(g) -> String:
  var rows=g.command_facts()
@@ -5011,9 +5024,9 @@ static func prefix_branch_tables_are_frozen(t) -> void:
   var rows=g.command_facts()
   var have=[g._phase_branch(),str(rows.size()),prefix_branch_table_face(g)]
   if label=="flag:rest_card":
-   var original=rows.filter(func(row):return row.payload.kind!="enchant")
+   var original=rows.filter(func(row):return String(row.payload.kind) not in REST_CARD_ORIGINAL_EXCLUDED_KINDS)
    var digest=r1_digest(JSON.stringify(original.map(func(row):return [String(row.get("key","")),bool(row.get("valid",false)),String(row.get("reason","")),String(row.get("group","")),row.get("payload",{})])))
-   t.check(original.size()==11 and digest=="91a85d569516914243cea1d080feee90","ENCHANT original rest-choice rows preserve their pre-service frozen face")
+   t.check(original.size()==REST_CARD_ORIGINAL_ROW_COUNT and digest==REST_CARD_ORIGINAL_DIGEST,"ENCHANT original rest-choice rows preserve their pre-service frozen face")
   var want=PREFIX_BRANCH_TABLE_BASELINE[label]
   compared+=1
   if JSON.stringify(have)!=JSON.stringify(want): moved.append(label+" have="+JSON.stringify(have)+" want="+JSON.stringify(want))
