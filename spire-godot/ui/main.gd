@@ -4567,7 +4567,7 @@ func _options_drawer() -> void:
   if is_instance_valid(card_interaction): card_interaction.clear())
  content.add_child(motion)
  content.add_child(_label(_text("ui.settings.vsync_note","开启垂直同步可减少画面撕裂；即使选择无上限，帧率仍可能受显示器刷新率限制。"),13,MUTED))
- # CC-D22-1 (docs/spec/update-check.md「开关」): the same CheckButton pattern as the options
+ # docs/spec/update-check.md「开关」: the same CheckButton pattern as the options
  # above; the note is the exact promise the player is asked to accept.
  var update=CheckButton.new();update.name="UpdateCheckEnabled"
  update.text=_text("ui.settings.update_check","启动时检查更新")

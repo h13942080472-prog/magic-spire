@@ -18,7 +18,7 @@ signal checked(offer)
 
 var host
 # The key table is a field so a probe or a suite can verify a manifest with its own key. The
-# shipped default is the only table a player session uses; it is empty until U1b publishes one.
+# shipped default is the only table a player session uses; its entries are the published release keys.
 var keys: Dictionary=Keys.KEYS
 # Test/probe seam with the same shape as ui/feedback_report.gd::transport: a valid Callable
 # replaces HTTPRequest and returns OK; the stand-in answers by calling deliver(), so the
@@ -47,7 +47,7 @@ static func manifest_url() -> String:
 static func current_version() -> String:
  return str(ProjectSettings.get_setting("application/config/version",""))
 
-# U1 covers Windows and Android (Q3). An uncovered platform has no key and yields none, which
+# The check covers Windows and Android. An uncovered platform has no key and yields none, which
 # is the same answer a missing platform entry gives.
 static func platform_key() -> String:
  if OS.has_feature("android"): return "android"

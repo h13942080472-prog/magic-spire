@@ -10,7 +10,7 @@ extends RefCounted
 
 const Manifest=preload("res://update/update_manifest.gd")
 const Keys=preload("res://update/update_keys.gd")
-# CC-D22-1: the startup switch is one key of the existing settings file, never a second store.
+# The startup switch is one key of the existing settings file, never a second store.
 const Settings=preload("res://ui/display_settings.gd")
 
 const PLATFORM="windows-x64"
@@ -27,11 +27,11 @@ const OPENSSL_MANIFEST=FIXTURE_DIRECTORY+"openssl-manifest.json"
 const OPENSSL_SIGNATURE=FIXTURE_DIRECTORY+"openssl-manifest.json.sig"
 const OPENSSL_PUBLIC_KEY=FIXTURE_DIRECTORY+"openssl-public.pem"
 const OPENSSL_VERSION="0.18.4"
-# U1b production key: the DER sha256 of the k1 public key the maintainer generated offline
+# Production key: the DER sha256 of the k1 public key the maintainer generated offline
 # (`openssl pkey -pubin -outform DER | sha256` over the PEM in update/update_keys.gd).
 const PRODUCTION_KEY_ID="k1"
 const PRODUCTION_KEY_DER_SHA256="a4311195c39051d64a0fc5bec6352316eebc9a836d93f0982d52006bcbb8727c"
-# U1b release-scripts fixture: tools/update-manifest.ps1 built manifest.json from the committed
+# Release-scripts fixture: tools/update-manifest.ps1 built manifest.json from the committed
 # inputs (notes.txt, android-package-manifest.json in tools/package-android.ps1's shape, and
 # windows.zip) with the links below, -Serial 4, -KeyId t1 and -Revoked 0.18.3;
 # tools/sign-update-manifest.ps1 signed it through its -KeyTable test seam with a one-time key
@@ -222,14 +222,14 @@ static func unusable_signature_is_rejected(t, pair: Array, keys: Dictionary) -> 
  t.check(empty.get("kind","")=="none" and empty.get("reason","")=="signature","UPDATE unusable_signature_is_rejected: a missing signature is a signature failure: "+str(empty))
  t.check(text.get("kind","")=="none" and text.get("reason","")=="signature","UPDATE unusable_signature_is_rejected: non-base64 signature text is a signature failure: "+str(text))
 
-# CC-D22-2: an empty key table answers "key". The table is passed explicitly: the production
-# table carries k1 since U1b, and its shape is pinned by production_key_table_pins_k1.
+# An empty key table answers "key". The table is passed explicitly: the production
+# table carries k1, and its shape is pinned by production_key_table_pins_k1.
 static func empty_key_table_yields_no_offer(t, pair: Array) -> void:
  var body=bytes_of(document("0.18.4"))
  var offer=Manifest.evaluate(body,signature_of(body,pair),{},CURRENT,PLATFORM)
  t.check(offer.get("kind","")=="none" and offer.get("reason","")=="key","UPDATE empty_key_table_yields_no_offer: an empty key table answers key instead of crashing or trusting the manifest: "+str(offer))
 
-# U1b: the production table holds exactly the maintainer's k1 public key. The pin is the SHA-256
+# The production table holds exactly the maintainer's k1 public key. The pin is the SHA-256
 # of the DER that the PEM body encodes, so one edited character of the pasted key is red here.
 # The table must also pass evaluate's key step as it is (public material only, no private PEM):
 # a k1 manifest with an unverifiable signature then fails at signature, never at key.
@@ -270,7 +270,7 @@ static func private_key_table_entry_is_rejected(t) -> void:
  var offer=Manifest.evaluate(body,signature_of(body,pair),{"k1":private_pem},CURRENT,PLATFORM)
  t.check(offer.get("kind","")=="none" and offer.get("reason","")=="key","UPDATE private_key_table_entry_is_rejected: a private key in the table is a key rejection, never a verified offer: "+str(offer))
 
-# U1b's release pipeline signs with OpenSSL (RSA PKCS#1 v1.5 + SHA-256); the committed fixture
+# The release pipeline signs with OpenSSL (RSA PKCS#1 v1.5 + SHA-256); the committed fixture
 # is the cross-implementation proof, so a release-side signer cannot drift from the engine.
 static func openssl_signed_manifest_interops(t) -> void:
  var body=fixture(OPENSSL_MANIFEST)
@@ -289,7 +289,7 @@ static func openssl_signed_manifest_interops(t) -> void:
  var rejected=Manifest.evaluate(tampered,signature,{"k1":public_pem},CURRENT,PLATFORM)
  t.check(changed==1 and rejected.get("kind","")=="none" and rejected.get("reason","")=="signature","UPDATE openssl_signed_manifest_interops: a one-byte edit after signing is a signature failure: "+str(rejected)+" changed="+str(changed))
 
-# U1b: the release scripts' own output verifies through evaluate on both platforms and carries
+# The release scripts' own output verifies through evaluate on both platforms and carries
 # exactly the scripts' inputs. Android bytes/sha256 must equal the package manifest they were
 # copied from; the Windows pair must equal an independent hash of the committed ZIP (in the
 # release pipeline the generator is the only place that hashes it). One byte changed after
@@ -372,9 +372,9 @@ static func patches_are_ignored(t, pair: Array, keys: Dictionary) -> void:
  var patch={"version":"0.18.4","engine":"4.7.2","base_pck_sha256":"0".repeat(64),"save_revision":3,
   "url":"https://update.magicspire.xyz/v1/0.18.4/patch.zip","bytes":1024,"sha256":"0".repeat(64),"requires_full":false}
  var offer=judge(bytes_of(document("0.18.4",{"patches":[patch]})),pair,keys)
- t.check(offer.get("kind","")=="notice" and not offer.has("patches"),"UPDATE patches_are_ignored: U1 never reads the patch array and never offers one: "+str(offer))
+ t.check(offer.get("kind","")=="notice" and not offer.has("patches"),"UPDATE patches_are_ignored: the update check never reads the patch array and never offers one: "+str(offer))
 
-# CC-D22-1: one key in the existing file, no second store and no new user:// file.
+# One key in the existing file, no second store and no new user:// file.
 static func settings_toggle_uses_one_store(t) -> void:
  DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://build"))
  var path=prefs_path()
@@ -388,7 +388,7 @@ static func settings_toggle_uses_one_store(t) -> void:
  t.check(Settings.new().update_check_enabled,"UPDATE settings_toggle_uses_one_store: a fresh install starts with the startup check on")
  DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
-# ---- 输入域穷举（H2）-----------------------------------------------------------------
+# ---- 输入域穷举 -----------------------------------------------------------------
 
 # A schema-1 document padded with trailing JSON whitespace to exactly the byte cap. Trailing
 # spaces are legal JSON, so the only thing that can reject it is the size check itself.
@@ -474,7 +474,7 @@ static func version_segment_edges(t) -> void:
  t.check(Manifest.compare("0.18.3. fix ","0.18.3.fix")==0,"UPDATE version_segment_edges: whitespace around a segment is not part of it")
  t.check(Manifest.compare("0.18..1","0.18.0.1")==0,"UPDATE version_segment_edges: an explicit empty segment equals numeric zero")
 
-# CC-D22-4: numeric segments compare as decimal digit strings. is_valid_int()/to_int() used to
+# Numeric segments compare as decimal digit strings. is_valid_int()/to_int() used to
 # overflow int64 on a 20-digit segment, print an engine ERROR and collapse two different
 # versions to a tie. The rows below are the gherkin boundary table plus the overflow case.
 static func version_segment_digit_compare(t) -> void:
@@ -489,9 +489,9 @@ static func version_segment_digit_compare(t) -> void:
  t.check(Manifest.compare("1.007","1.7")==0,"UPDATE version_segment_digit_compare: a padded numeric segment keeps its numeric value")
  t.check(Manifest.compare("1."+"0".repeat(20),"1.0")==0,"UPDATE version_segment_digit_compare: an all-zero segment of any length equals numeric zero")
 
-# CC-D22-5: the signature file is a single base64 line. Outer whitespace and line breaks are
+# The signature file is a single base64 line. Outer whitespace and line breaks are
 # tolerated by strip_edges(); internal whitespace is not base64 and stays a signature rejection
-# (signature_position_and_shape_domain). U1b must emit one line with `openssl base64 -A`.
+# (signature_position_and_shape_domain). The release script must emit one line with `openssl base64 -A`.
 static func signature_outer_whitespace_domain(t, pair: Array, keys: Dictionary) -> void:
  var body=bytes_of(document("0.18.4"))
  var text=signature_of(body,pair).get_string_from_utf8()
@@ -500,7 +500,7 @@ static func signature_outer_whitespace_domain(t, pair: Array, keys: Dictionary) 
   var answer=Manifest.evaluate(body,variants[name].to_utf8_buffer(),keys,CURRENT,PLATFORM)
   t.check(answer.get("kind","")=="notice" and String(answer.get("version",""))=="0.18.4","UPDATE signature_outer_whitespace_domain: a signature file with "+name+" still verifies: "+str(answer))
 
-# CC-D22-6: attribution is per field. A latest without a string version is a shape failure
+# Attribution is per field. A latest without a string version is a shape failure
 # (json); a missing or empty full.url is a link failure (url), never json. The two checks are
 # interleaved in evaluate: the links come first, so a manifest with both defects answers url.
 static func missing_field_attribution_domain(t, pair: Array, keys: Dictionary) -> void:

@@ -6517,7 +6517,7 @@ static func update_jump_single_entry(t) -> void:
  var sites=update_source_sites(update_scan_files(["res://ui","res://update","res://core"]),"OS\\.shell_open\\s*\\(")
  t.check(sites==["ui/main.gd::_open_update_url"],"DEP update_jump_single_entry: the update buttons launch only through ui/main.gd::_open_update_url (the open_url seam); a second OS.shell_open in ui/update/core is red: "+str(sites))
 
-# docs/spec/update-check-dependencies.md「单一路径」, release side (U1b hardening): one signer and
+# docs/spec/update-check-dependencies.md「单一路径」, release side: one signer and
 # one manifest generator. These three judgments read source text and never run a script.
 # Scanned: every tools/**/*.ps1 and every .gd under res://, minus the git-ignored trees in
 # UPDATE_RELEASE_IGNORED_DIRECTORIES (.gitignore; local probes and logs live there). `#` starts a

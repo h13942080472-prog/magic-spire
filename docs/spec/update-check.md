@@ -1,7 +1,7 @@
-# 游戏内检查更新与提示（U1、U1b）
+# 游戏内检查更新与提示
 
 契约文件：一次签名清单读取、唯一判定、主页提示与两个跳转按钮、设置页开关的语义；
-发布侧清单生成与签名两份脚本的接口（U1b）。
+发布侧清单生成与签名两份脚本的接口。
 内部实现以代码为准，接口语义以本文件为准；函数名与稳定 ID 是锚点，本文件不写行号。
 本文件不写执行结果：通过／失败／未执行与红集登记 `docs/record/verification.md`。
 
@@ -13,13 +13,13 @@
 - 收束对象：**把一个已签名的更新清单变成玩家可见的一次提示**。链路只有一条：
   `spire-godot/update/update_check.gd::check` 读配置、发最多两个 HTTPS GET，把字节交给
   `spire-godot/update/update_manifest.gd::evaluate` 判定，主页与设置页只显示判定结果。
-- 发布侧（U1b）同样只有一条链路：`spire-godot/tools/update-manifest.ps1` 生成清单，
+- 发布侧同样只有一条链路：`spire-godot/tools/update-manifest.ps1` 生成清单，
   `spire-godot/tools/sign-update-manifest.ps1` 签名，两者见「发布侧脚本」。
-- 不含：下载、校验包体、挂载补丁、写入 `user://` 或 EXE 目录、改 `run/main_scene`（U2）、
-  上传与部署清单（人工动作）、反馈上传（D20）。
+- 不含：下载、校验包体、挂载补丁、写入 `user://` 或 EXE 目录、改 `run/main_scene`（留给后续的补丁挂载）、
+  上传与部署清单（人工动作）、反馈上传。
 - 模块边界：`spire-godot/update/` 是叶子模块，不引用 `ui`、`core`、`data`、`tests`；
   `core` 与 `data` 也不引用 `update`。发 HTTP 的只有 `spire-godot/update/update_check.gd`。
-- 明文口径：**U1 只读一个公开文件**。请求不带存档、种子、设备标识、账号或自定义标识头。
+- 明文口径：**更新检查只读一个公开文件**。请求不带存档、种子、设备标识、账号或自定义标识头。
 - 生产公钥表（`spire-godot/update/update_keys.gd::KEYS`）恰好一条 `k1`：维护者离线生成的
   RSA-3072 公钥，SPKI PEM，DER sha256 为
   `a4311195c39051d64a0fc5bec6352316eebc9a836d93f0982d52006bcbb8727c`。条目写成三引号 PEM 字面量，
@@ -65,7 +65,7 @@ func auto_allowed() -> bool              # 自动检查门槛，见「输入域�
 manifest_url="https://update.magicspire.xyz/v1/manifest.json"
 check_on_start=true
 
-# 开关（CC-D22-1）：ui/display_settings.gd，写入既有 user://display-settings.cfg 的一节
+# 开关：ui/display_settings.gd，写入既有 user://display-settings.cfg 的一节
 var update_check_enabled: bool           # 出厂 true
 func set_update_check(enabled: bool) -> void   # 保存键 update/check_on_start
 
@@ -118,14 +118,14 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
   缺失或不合格时返回 `url`，即使 `latest.version` 同时缺失；`latest`／`bytes` 的形状错误
   只在两个链接可用之后才会返回 `json`。
 - 平台键：Windows 用 `windows-x64`，Android 用 `android`；其它平台得到 `none`／`platform` 或空键。
-- 版本比较（Q8）：按 `.` 分段；数字段是纯十进制数字串（只含 `0`–`9`），去掉前导零后位数多者大、
+- 版本比较：按 `.` 分段；数字段是纯十进制数字串（只含 `0`–`9`），去掉前导零后位数多者大、
   位数相同按字典序比较，全程不经引擎整数，因此 20 位以上的数字段也不会溢出或退化成相等；
   缺省段等于数字 0；非数字段排在缺省段之后，彼此按文本比较；文本段比较不区分大小写
   （`0.18.3.FIX` 与 `0.18.3.fix` 相等），段两端的空白不算内容（`0.18.3. fix` 与 `0.18.3.fix` 相等），
   显式空段（如 `0.18..1`）等于数字段 0。
 - 版本序：`compare` 是 `.` 分段上的全序（自反、反对称、传递），于是 `0.18.10>0.18.9`、
   `0.18.3.fix>0.18.3`、`0.18==0.18.0`、`01==1`。
-- `patches` 数组 U1 不读、不显示、不产生 `patch` 结果。
+- `patches` 数组本检查不读、不显示、不产生 `patch` 结果。
 - 请求：HTTPS GET 清单 → HTTPS GET `<manifest_url>.sig`；`timeout=10`、`max_redirects=0`、
   `body_size_limit=65536`；一次检查**最多两个**请求，不重试、不轮询。
 - 自动检查门槛（`auto_allowed`，四条全真才发）：引擎不是 `--script` 启动（玩家会话）、

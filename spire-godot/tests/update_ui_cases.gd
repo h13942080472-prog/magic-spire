@@ -176,7 +176,7 @@ static func toggle_off_skips_startup(t) -> void:
  t.check(status!=null and String(status.text)==again._text("ui.update.latest","已是最新版本。"),"UPDATE toggle_off_skips_startup: the panel reports the latest version instead of a notice: "+str(status.text if status!=null else ""))
  t.check(again.find_child("HomeUpdateNotice",true,false)==null,"UPDATE toggle_off_skips_startup: a same-version answer never shows the home notice")
 
-# ---- 检查进行中的主页与失败静默（H3）------------------------------------------------
+# ---- 检查进行中的主页与失败静默 ------------------------------------------------
 
 # A transport that records the request and answers nothing: the check stays in flight while the
 # case talks to the home page, so any synchronous gate or busy modal would be visible here.
@@ -220,9 +220,9 @@ static func transport_failures_are_silent(t) -> void:
   await t.frames()
   t.check(ui.show_options,"UPDATE transport_failures_are_silent: the home page stays interactive after "+label)
 
-# ---- re-entry and the empty configuration (F4, CC-D22-9) ---------------------------
+# ---- re-entry and the empty configuration ---------------------------
 
-# CC-D22-9: a check in flight owns the single result emission. A second check() while busy
+# A check in flight owns the single result emission. A second check() while busy
 # is ignored -- no request, no checked; the in-flight check emits exactly one checked when
 # it completes, and the offer it publishes is the one the first call started.
 static func check_in_flight_ignores_second_call(t) -> void:
@@ -250,7 +250,7 @@ static func check_in_flight_ignores_second_call(t) -> void:
  t.check(not ui.update_check.busy and String(ui.update_check.offer.get("version",""))=="0.18.4","UPDATE check_in_flight_ignores_second_call: exactly one offer comes out of the completed check: "+str(ui.update_check.offer))
  t.check(ui.find_child("HomeUpdateNotice",true,false)!=null,"UPDATE check_in_flight_ignores_second_call: the completed check still updates the home notice")
 
-# F4: an empty [update] manifest_url is not a usable target. The startup gate refuses it and
+# An empty [update] manifest_url is not a usable target. The startup gate refuses it and
 # the manual "check now" entry answers url without a request, so a missing configuration
 # never turns into a network attempt and never shows a notice.
 static func empty_manifest_url_sends_no_request(t) -> void:

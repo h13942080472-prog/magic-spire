@@ -67,7 +67,7 @@ const FRAME_LIMITS=[60,120,240,0]
 var frame_limit=60
 var vsync_enabled=true
 var reduced_card_motion=false
-# CC-D22-1 (docs/spec/update-check.md「开关」): the startup update check defaults on and the
+# docs/spec/update-check.md「开关」: the startup update check defaults on and the
 # player can turn it off. The value lives in this file only — no second settings store.
 var update_check_enabled=true
 const Localization=preload("res://ui/localization.gd")
