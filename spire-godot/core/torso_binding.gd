@@ -6,7 +6,7 @@ const NAMES={"linked":"躯干固缚·连接式","integrated":"躯干固缚·一�
 const MAXIMUM={1:10.0,2:16.0,3:24.0}
 
 static func eligible(e: Dictionary) -> bool:
- return not preload("res://data/equipment.gd").is_shackle(e) and e.get("slot","") in SLOTS and not e.has("root_id") and not e.has("parent_id") and e.get("template","") not in ["link_rope","special","art_hogtie"]
+ return not preload("res://data/equipment.gd").is_shackle(e) and e.get("slot","") in SLOTS and not e.has("root_id") and not e.has("parent_id") and e.get("template","") not in ["link_rope","special"] and not preload("res://data/equipment.gd").is_hogtie(e.get("template",""))
 
 static func present(e: Dictionary) -> bool:
  var b=e.get("binding",{})
@@ -23,7 +23,9 @@ static func refresh(g, e: Dictionary) -> void:
   # Parent changes synchronize metadata; only tier-three reinforcement refills the connection.
   var durability=MAXIMUM[e.grade] if reinforced else minf(old.durability,MAXIMUM[e.grade])
   e.binding={"kind":kind,"id":"binding_"+e.id,"parent_id":e.id,"template":"torso_connection","name":NAMES[kind],"slot":e.slot,"points":g.Equipment.physical_points(e).duplicate(),"layer":e.layer,"grade":e.grade,"variant":e.variant,"material":e.material,"locked":false,"maximum":MAXIMUM[e.grade],"durability":durability,"source":e.source}
- if old.is_empty() and kind=="linked": g._equipment_feedback(e.binding,e.binding.durability,true)
+ if old.is_empty() and kind=="linked":
+  g._prepare_worn_piece(e.binding)
+  g._equipment_feedback(e.binding,e.binding.durability,true)
  if reinforced: g._emit("event",e.name+"形成了"+NAMES[kind]+"，将手臂固定在身后。",{"torso_binding":{"target":e.id,"kind":kind,"refreshed":not old.is_empty()}})
 
 static func active(g, e: Dictionary) -> bool:
@@ -79,4 +81,4 @@ static func text(g, e: Dictionary) -> String:
  if not present(e): return ""
  var label=NAMES[e.binding.kind]
  if not active(g,e): return label+"：外层覆盖期间暂停。"
- return label+"：手部触及范围止于大腿上方"+("和双穴区域" if e.slot in ["forearm","wrist"] else "")+"；降档后仍保留。"
+ return label+"：手部触及范围止于大腿上方"+("和双穴区域" if e.slot in ["forearm","wrist"] else "")+"；松脱后仍保留。"

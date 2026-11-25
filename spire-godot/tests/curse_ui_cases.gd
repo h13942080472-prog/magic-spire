@@ -18,7 +18,7 @@ static func run(t) -> void:
  ui.render();await t.frames()
  t.check(ui.view.hand.size()==2 and ui.view.hand[0].cost=="1" and ui.view.hand[1].cost=="—","CURSE UI cost and unplayable cost mark")
  var text=t.visible_text(ui.card_buttons[sensitive])
- t.check(text.contains("保留") and text.contains("被动牌") and text.contains("1.2"),"CURSE UI sensitive complete card text")
+ t.check(text.contains("保留") and text.contains("1.2") and not text.contains("被动牌") and ui.card_buttons[sensitive].get_node("CardHeader/CardClassification").text=="诅咒","CURSE UI sensitive shows its effect, retain and a single classification")
  await t.capture("ui-curse-cards.png")
  var before=ui.game.export_snapshot()
  await t.flip(sensitive)
@@ -40,3 +40,7 @@ static func run(t) -> void:
  point=ui.actor_targets.hero.get_global_rect().get_center()
  await t.move_mouse(point,true);await t.mouse_button(point,MOUSE_BUTTON_LEFT,false)
  t.check(ui.view.energy==2 and ui.game.state.exhaust.any(func(c):return c.uid==panic) and not ui.player_pick,"CURSE UI native player drop directly commits same card candidate")
+ var tease=Cards.give(ui.game,"tease").uid
+ ui.render();await t.frames()
+ var face=ui.card_buttons[tease].get_node("CardText/Content")
+ t.check(ui.card_buttons[tease].get_node("CardHeader/CardClassification").text=="状态" and face.get_node("CardEffect").text=="回合结束仍在手中：快感＋5。","CURSE UI Teasing displays its category once and only the turn-end effect")

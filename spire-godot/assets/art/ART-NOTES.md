@@ -1,5 +1,24 @@
 # 本批美术提示词与来源
 
+## 2026-11-22 熏香遗物
+
+- 原创手绘图标 `assets/ui/relics/incense.svg`（64×64），以青釉香炉、燃着的线香和烟纹表现熏香。
+
+## 2026-11-21 魔力走私者 SVG
+
+- 手绘透明立绘 `assets/ui/enemies/mana_smuggler.svg`（640×740）。绿灰旧斗篷、面罩、皮革药囊和发光魔瓶构成剪影。双人遭遇共用该专属立绘。
+- 立绘经 `ui/arena.gd::ILLUSTRATIONS` 接入；战斗头顶的携带量图标复用 `assets/ui/mana-flask.svg`，数值来自敌人实例的实际携带量。
+
+## 2026-11-21 拘束盒 Plus 与扰乱 SVG
+
+- `assets/ui/enemies/binding_box_plus.svg` 为 640×640 手绘透明立绘。敞开的紫红软衬盒、皮带、黄铜扣和发光的锁牌组成轮廓。
+- `assets/ui/cards/disrupt.svg` 为 480×320 手绘卡图，以被撕开的咒文表现扰乱。战斗与卡牌分别通过原有 `ui/arena.gd::ILLUSTRATIONS` 与 `ui/card_face.gd::ILLUSTRATIONS` 映射读取。
+
+## 2026-11-21 魔力强化绳索 SVG
+
+- 手绘原创透明立绘 `assets/ui/enemies/reinforced_rope.svg`（640×640）。绳身沿圆截面绘制斜向绳股、凹槽和细纤维，两端散开。部分绳股叠加紫蓝、青绿、金黄和粉色反光，彩色星点和光弧表现魔力闪烁。
+- 敌人定义的 `visual` 字段经 `ui/arena.gd::ILLUSTRATIONS` 映射到专属纹理，三只魔力强化绳索共用该怪物立绘。
+
 ## 2026-10-31 强人锁女 SVG 卡图
 
 - 用户要求简洁SVG卡面，直接绘制 `assets/ui/cards/art_submission.svg`（480×320）。以绳索绑合的牌片、黄铜锁扣与中断的攻击符号构图，沿用深紫、金色和青绿配色；无外部素材、位图嵌入、文字字体或脚本依赖。
@@ -475,3 +494,31 @@ assets/ui/relics/masochist_mark.svg、doubao.svg、deepseek.svg 为本次手工�
 - `assets/art/prison-capture-intro-rope-v1.png`：绳索拘束分支；替换源文件 `00014-1991231483.png`，1536×2304，源SHA-256 `F965871847E7BCFF6BA5B57AADA807928B5DBD8EA3B9D0C1236D4B61539B56B4`；无元数据成品SHA-256 `B6870F64469FB74FDE2579B4BC9F64FAFD2B7F7E2DE2C0F818D96712B63A2287`。
 - `assets/art/prison-capture-intro-flat-lock-v1.png`：固定主角立绘／平板锁分支；源文件 `codex-clipboard-8f829d7c-c094-4258-8aca-1d26458c4155.png`，1536×2304，源SHA-256 `5A6D98B02F21797319AF9941ED43A49665BCA3EAB227EFC234BF41DA2290DA51`；无元数据成品SHA-256 `C07AD907E9ACE1BCD784894B4110E9B98E9D59277513E80AF2A5AF00AB89EA91`。
 - `assets/art/hero-hogtie-pose-cutout-v1.png`：仅用于战斗中的驷马缚特殊姿势；源文件 `00003-71753615 (1).png`，1920×1920，源SHA-256 `3792F84EFE76618D7B18686B91539CCF90E9CC9EF3AD68E1D524CC73C6D50F3A`。使用本地 `isnet-anime` 模型移除白底并按非透明边界留24像素裁切，成品1892×1101、RGBA、SHA-256 `B2CF0136BB6D7C5C2CDACAC9AE9BAF24B57FD9D4DE5D4FA6B41107C224D0788D`，无附加元数据。
+
+## 2026-11-21｜道具卡插画
+
+`assets/ui/cards/items/` 收录十种道具的原创手绘 SVG，共十二幅。四种药剂使用不同瓶形，三种卷轴分别绘制羽叶、水滴与星印。开锁针配皮套，石片和锯条各有布面手持与石墙借力两幅。图案以矢量路径和渐变绘制，画布为 512 × 480。手牌、拖牌预览与图鉴共用正式插画，背包与商店使用原有小图标。
+
+## 2026-11-22｜浑身解数卡图
+
+`assets/ui/cards/full_escape.svg` 为项目原创手绘 SVG。断开的金色链节围绕青色星芒展开，画布为 180 × 90。两张拘束面共用此图。
+
+## 2026-11-22｜双拘束机甲立绘
+
+`assets/ui/enemies/mini_restraint_mech.svg` 与 `assets/ui/enemies/support_restraint_mech.svg` 是项目原创手绘 SVG，画布均为 300 × 250。微型机甲使用暖色装甲、粗短双腿和两只大拳套。辅助机甲使用蓝绿色机壳、U 形侧臂和悬浮光束。两幅用于对应战斗角色，微型机甲图也用于入场气泡。
+
+「瞻前顾后」的原创 SVG 卡面位于 `assets/ui/cards/forethought.svg`。左右两叠牌围绕中央眼睛，分别代表抽牌堆与弃牌堆。
+
+十件表情遗物使用 Microsoft Fluent Emoji 的 Color 原图。🥵 和 🤑 的内阴影从原始 SVG 渲染为 192 × 192 透明 PNG，其余八枚使用 SVG。「可是🥺...也...😅」将其中的 🥺 和 😅 排在原卡面背景上。图形版本与许可见 [素材来源](../vendor/CREDITS.md)。
+
+- 2026-11-22 · 「大力」药瓶为原创手绘 SVG，资源为 `assets/ui/relics/power_tonic.svg`。
+
+- 2026-11-22 · 「沉稳咏唱／即刻咏唱」「钻研」「震荡波」「弱点发现」「消力」各使用一幅原创手绘 SVG，依次位于 `assets/ui/cards/dual_chant.svg`、`assets/ui/cards/study.svg`、`assets/ui/cards/shockwave.svg`、`assets/ui/cards/find_weakness.svg` 和 `assets/ui/cards/yield_force.svg`。
+
+- 2026-11-22 · 对法师特化无人机Ⅱ型使用原创透明背景 SVG。双涵道旋翼、监听镜头与两侧皮带卷轴组成战斗立绘，资源为 `assets/ui/enemies/anti_mage_drone.svg`。
+
+- 2026-11-22 · 胶带团使用原创透明背景 SVG，由交错的纸芯胶带卷、露出胶面的带尾与夹缝中的双眼构成，资源为 assets/ui/enemies/tape_mass.svg。
+
+- 2026-11-22 · 魅魔侦探战斗立绘为原创透明背景 SVG，使用风衣、放大镜、手铐及尾部剪影。配套原创手牌锁链覆盖图与「挑弄」卡图位于 `assets/ui/card-capture-chain.svg` 和 `assets/ui/cards/detective_provoke.svg`，人物立绘位于 `assets/ui/enemies/succubus_detective.svg`。
+
+- 2026-11-22 · 无人机操作员与召唤型魔导无人机使用原创手绘透明 SVG。操作员持双摇杆遥控台、戴飞行耳机和背负无线电；无人机带青色光学镜头与腹部胶带卷。资源为 `assets/ui/enemies/drone_operator.svg` 和 `assets/ui/enemies/operator_drone.svg`。

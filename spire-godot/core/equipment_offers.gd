@@ -80,13 +80,10 @@ static func links(g, grade: int) -> Array:
  return offers
 
 # Source whitelist first, then the same priority order for every installer.
-static func for_pool(g, grade: int, templates: Array, locked: bool=false, legal_only: bool=true, allow_links: bool=true) -> Array:
+static func for_pool(g, grade: int, templates: Array, locked: bool=false, legal_only: bool=true) -> Array:
  if templates.is_empty(): return []
  var previous=g._begin_equipment_read()
  var offers=ordinary(g,grade,false,templates,locked,legal_only)
- # Rope and belt families grant their shared link structure, including imported
- # derivatives. Gags, composite components and special equipment are not belts.
- if allow_links and not locked and templates.any(func(id):return E.base_template(id) in ["rope","cord","belt","fine_belt","eye_leather","link_rope"]): offers.append_array(links(g,grade))
  g._equipment_read=previous
  return offers
 

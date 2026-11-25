@@ -45,7 +45,7 @@ static func run(t) -> void:
  t.check(t.action(g,"end").ok and g.RelicEffects.attribute(g,"strength")==0 and g.state.strength==0 and g.state.charge==1,"BIND POWER strength expires at the next turn end while unused charge persists")
  duration_cases(t)
  var info=g.B.card_info("binding_power")
- t.check(info[1].contains("÷2") and info[2].contains("÷4") and not info[1].contains("当前：") and not info[2].contains("当前："),"BIND POWER catalog retains both formulas without inventing live counts")
+ t.check(info[1].contains("每佩戴2件拘束具或性玩具，获得1点临时力量") and info[2].contains("每佩戴4件拘束具或性玩具，获得1层蓄力") and not info[1].contains("当前：") and not info[2].contains("当前："),"BIND POWER catalog retains both formulas without inventing live counts")
 
 static func duration_cases(t) -> void:
  var g=setup(4)

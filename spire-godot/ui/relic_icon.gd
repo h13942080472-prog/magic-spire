@@ -2,6 +2,22 @@ extends Control
 
 # Only renders the counter supplied by the shared relic projection.
 const ART={
+ "pleading_face":preload("res://assets/ui/relics/pleading_face.svg"),
+ "sweat_smile":preload("res://assets/ui/relics/sweat_smile.svg"),
+ "weary_face":preload("res://assets/ui/relics/weary_face.svg"),
+ "rolling_eyes":preload("res://assets/ui/relics/rolling_eyes.svg"),
+ "joy_face":preload("res://assets/ui/relics/joy_face.svg"),
+ "fearful_face":preload("res://assets/ui/relics/fearful_face.svg"),
+ "money_face":preload("res://assets/ui/relics/money_face.png"),
+ "cool_face":preload("res://assets/ui/relics/cool_face.svg"),
+ "monocle_face":preload("res://assets/ui/relics/monocle_face.svg"),
+ "hot_face":preload("res://assets/ui/relics/hot_face.png"),
+ "flint_lighter":preload("res://assets/ui/relics/flint_lighter.svg"),
+ "fire_torch":preload("res://assets/ui/relics/fire_torch.svg"),
+ "flame_mark":preload("res://assets/ui/relics/flame_mark.svg"),
+ "fireball_pamphlet":preload("res://assets/ui/relics/fireball_pamphlet.svg"),
+ "hotpot_base":preload("res://assets/ui/relics/hotpot_base.svg"),
+
  "brainwash_earrings":preload("res://assets/ui/relics/brainwash_earrings.svg"),
  "hypnosis_hairpin":preload("res://assets/ui/relics/hypnosis_hairpin.svg"),
  "lewd_silk_bodysuit":preload("res://assets/ui/relics/lewd_silk_bodysuit.svg"),
@@ -38,6 +54,7 @@ const ART={
 
  "ice_heart":preload("res://assets/ui/relics/ice_heart.svg"),
  "magic_blood":preload("res://assets/ui/relics/magic_blood.svg"),
+ "power_tonic":preload("res://assets/ui/relics/power_tonic.svg"),
  "turtle_shell":preload("res://assets/ui/relics/turtle_shell.svg"),
  "olihakimi":preload("res://assets/ui/relics/olihakimi.svg"),
  "green_bird":preload("res://assets/ui/relics/green_bird.svg"),
@@ -45,6 +62,7 @@ const ART={
  "tentacle_friend":preload("res://assets/ui/relics/tentacle_friend.svg"),
  "spicy_rice_noodles":preload("res://assets/ui/relics/spicy_rice_noodles.svg"),
  "flyer":preload("res://assets/ui/relics/flyer.svg"),
+ "pocket_knife":preload("res://assets/ui/relics/pocket_knife.svg"),
  "kings_gift_revised":preload("res://assets/ui/relics/kings_gift_revised.svg"),
  "rolling_log":preload("res://assets/ui/relics/rolling_log.svg"),
  "marble":preload("res://assets/ui/relics/broccoli.svg"),
@@ -74,6 +92,7 @@ const ART={
  "ember_crystal":preload("res://assets/ui/relics/ember_crystal.svg"),
  "ember":preload("res://assets/ui/relics/ember.svg"),
  "toolbox":preload("res://assets/ui/relics/toolbox.svg"),
+ "incense":preload("res://assets/ui/relics/incense.svg"),
  "hourglass":preload("res://assets/ui/relics/hourglass.svg"),
 }
 var relic: Dictionary={}
@@ -87,7 +106,9 @@ func _ready() -> void:
   var picture=TextureRect.new();picture.texture=ART[art_id];picture.expand_mode=TextureRect.EXPAND_IGNORE_SIZE
   if art_id in ["doubao","deepseek"]: picture.texture_filter=CanvasItem.TEXTURE_FILTER_NEAREST
   picture.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;glyph=picture
- else: glyph=preload("res://ui/shop_glyph.gd").new()
+ else:
+  glyph=preload("res://ui/shop_glyph.gd").new()
+  if art_id=="return_seal": glyph.kind="tool";glyph.symbol="return_scroll"
  glyph.mouse_filter=Control.MOUSE_FILTER_IGNORE;add_child(glyph)
  if not relic.get("counter",{}).is_empty():
   badge=Label.new();badge.name="RelicCounter";badge.text=relic.counter.text

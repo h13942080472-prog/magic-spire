@@ -205,12 +205,6 @@ static func build(ui, container: Control, width: float) -> void:
    var c=candidate(ui,id,data)
    if not c.is_empty() and c.valid: ui.command_router.emit_deferred(String(c.payload.get("kind","")),c,int(data.version))
   update_tile(ui,button,id,selected_data(ui))
- var tools=ui._button(message(ui,"tools","道具使用"),func():ui._open_drawer("show_items"),ui.GOLD)
- tools.name="QuickReleaseTools"
- ui._place(tools,Rect2(394+4*(width+8),556,width,60),container)
- if ui.view.items.any(func(item):return item.installed):
-  tools.text="";tools.mouse_filter=Control.MOUSE_FILTER_IGNORE
-  ui._installed_tools(Rect2(tools.position,tools.size),container)
 
 static func toggle(ui) -> void:
  ui.quick_release_open=not ui.quick_release_open

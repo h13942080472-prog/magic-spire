@@ -1,4 +1,6 @@
 extends RefCounted
+const PHYSICAL_PARTS={"strike":["arms"],"heavy":["arms","legs"],"kick":["legs"]}
+const PART_NAMES={"arms":"双臂","legs":"双腿"}
 const TYPES={
  "strike":[{"name":"肘击","cost":1,"damage":8.0,"hits":1},{"name":"肘击 · 连击","cost":1,"damage":4.0,"hits":2}],
  "heavy":[{"name":"近身短打","cost":2,"damage":18.0,"hits":1},{"name":"近身短打 · 连击","cost":2,"damage":6.0,"hits":3}],
@@ -38,12 +40,24 @@ static func cost_description(type: String) -> String:
 static func kick_cooldown(g) -> int:
  return maxi(0,g.state.kick_last+int(TYPES.kick[0].cooldown_turns)+1-g.state.round)
 
-static func physical_damage(g, base: float, body_level: int) -> float:
- return (base+g.RelicEffects.attribute(g,"strength")+g.charge_bonus())*g.B.BODY_DAMAGE[body_level]
+static func physical_damage(g, base: float, body_level: int, gained: int=0) -> float:
+ return (base+g.RelicEffects.attribute(g,"strength")+g.charge_bonus(0,gained))*g.B.BODY_DAMAGE[body_level]*g.Cards.weakness(g)
+
+static func fireball_factor(g) -> float:
+ return pow(0.2,g.relic_value("five_fireballs"))
+
+static func fireball_mana(g) -> float:
+ if g.state.combat.get("fireballs_cast",0)==0 and g.relic_value("free_first_fireball")>0: return 0.0
+ return g._mana_cost(maxf(0.0,g.B.SPELL_COST-g.relic_value("fireball_mana_discount")))*fireball_factor(g)
+
+static func successful_fireballs(g) -> int:
+ return int(g.state.combat.get("fireballs_succeeded",0))
 
 static func fireball_damage(g) -> float:
  var base=g.B.FIREBALL_ASSISTED if fireball_gesture(g) else g.B.FIREBALL
- return (base+g.state.spell_base_bonuses.get("fireball",0)+g.Cards.spell_power(g,"fireball").get("base_bonus",0.0))*g.Cards.damage_multiplier(g,"fireball")
+ base+=g.relic_value("fireball_base_damage")
+ if g.state.combat.get("fireballs_cast",0)<3: base+=g.relic_value("opening_fireball_bonus")
+ return maxf(0.0,base+g.state.spell_base_bonuses.get("fireball",0)+g.Cards.spell_power(g,"fireball").get("base_bonus",0.0))*g.Cards.damage_multiplier(g,"fireball")*fireball_factor(g)
 
 static func fireball_gesture(g) -> bool:
  return not g.Cards.spell_power(g,"fireball").get("disable_gesture",false) and (g.Cards.basic_attack_freedom(g) or g.Cards.action_ignores_restraints(g) or g.hand_cast_reason()=="")
@@ -51,5 +65,10 @@ static func fireball_gesture(g) -> bool:
 static func usage(g, type: String) -> Dictionary:
  var base=int(TYPES[type][0].get("uses_per_turn",0))
  var limit=base+int(g.Cards.spell_power(g,type).get("extra_uses",0)) if base>0 else 0
+ if type=="fireball" and g.relic_value("five_fireballs")>0: limit=5
  var used=int(g.state.combat.attack_uses.get(type,0))
  return {"limit":limit,"used":used,"remaining":maxi(0,limit-used)}
+
+static func restore_uses(g, type: String, amount: int) -> void:
+ var used=int(g.state.combat.attack_uses.get(type,0))
+ if used>0: g.state.combat.attack_uses[type]=maxi(0,used-amount)

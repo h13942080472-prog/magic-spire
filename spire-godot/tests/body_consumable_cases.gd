@@ -1,29 +1,34 @@
 extends RefCounted
 const Game=preload("res://tests/game_fixture.gd")
 
+static func redraw(g, uid: String) -> void:
+ var card=g.Cards.instance(g,uid)
+ g.state.discard.erase(card);g.state.draw.append(card);g._draw(1)
+
 static func run(t) -> void:
  var g=Game.new(42)
  g.state.equipment.clear();g.state.items.clear();g.state.relics=[]
  var thigh=g._install_template("belt","thigh",16,16,false,"fixture",2)
  var calf=g._install_template("rope","calf",16,16,false,"fixture",2)
- g._gain_tool("lubricant_potion")
- var id=g.state.items.back().id
+ var id=t.take_item_card(g,"lubricant_potion")
  g.add_fixture("upper_arm",16,16);g.add_fixture("fingers",16,16)
  g._install_template("mouth_band","mouth",16,16,false,"fixture",2)
  var before=g.escape_preview(thigh,"slip",4)
  var mana=g.state.mana;var energy=g.state.energy;var round=g.state.round
- var facts=g.command_facts().filter(func(c):return c.payload.kind=="item_use" and c.payload.item==id)
+ var facts=g.command_facts().filter(func(c):return c.payload.kind=="card" and c.payload.uid==id)
  t.check(facts.size()==14 and facts.all(func(c):return c.valid),"OIL all panel groups selectable while standing with hands and mouth bound")
- t.check(before.immune and t.action(g,"item_use",{"item":id,"target":"thigh"}).ok,"OIL applies through formal item candidate")
+ t.check(before.immune and t.action(g,"card",{"uid":id,"target":"thigh"}).ok,"OIL applies through formal item candidate")
  thigh=g._equipment(thigh.id);calf=g._equipment(calf.id)
  var after=g.escape_preview(thigh,"slip",4)
  t.check(not after.immune and after.damage>before.damage and after.slip_buff_multiplier==2.0,"OIL tier-three slip enabled with full multiplier despite mouth restraint")
  t.check(g.escape_preview(calf,"slip",4).immune,"OIL adjacent untreated body group remains immune")
- t.check(g.state.mana==mana and g.state.energy==energy and g.state.round==round and g._item(id).uses==2,"OIL consumes one charge with no resources or turn")
- t.check(t.action(g,"item_use",{"item":id,"target":"thigh"}).ok and g.state.body_buffs.size()==1 and is_equal_approx(g.escape_preview(thigh,"slip",4).damage,after.damage),"OIL repeated use consumes a charge without stacking")
+ t.check(g.state.mana==mana and g.state.energy==energy and g.state.round==round and g.Cards.instance(g,id).remove_left==2,"OIL consumes one charge with no resources or turn")
+ redraw(g,id)
+ t.check(t.action(g,"card",{"uid":id,"target":"thigh"}).ok and g.state.body_buffs.size()==1 and is_equal_approx(g.escape_preview(thigh,"slip",4).damage,after.damage),"OIL repeated use consumes a charge without stacking")
+ redraw(g,id)
  var saved=g.export_snapshot()
- var stale=t.find_action(g,"item_use",{"item":id,"target":"hands"})
- t.check(t.action(g,"item_use",{"item":id,"target":"feet"}).ok and g._item(id).is_empty(),"OIL third use removes empty bottle and can coat a second group")
+ var stale=t.find_action(g,"card",{"uid":id,"target":"hands"})
+ t.check(t.action(g,"card",{"uid":id,"target":"feet"}).ok and g.Cards.instance(g,id).is_empty(),"OIL third use removes empty bottle and can coat a second group")
  var current=g.export_snapshot()
  t.check(not g.dispatch(g.command(stale.payload,saved.version),saved.version).ok and g.state==current,"OIL stale group selection rolls back without adding a coating")
  var feet=g._install_template("rope","foot",16,16,false,"fixture",2)
@@ -54,21 +59,21 @@ static func run(t) -> void:
  g._finish_battle()
  t.check(g.state.body_buffs==buffs,"OIL victory preserves the current session's coatings")
  t.check(t.action(g,"reward",{"type":"skip"}).ok and g.state.phase=="prepare" and g.state.body_buffs==buffs,"OIL reward continuation preserves coatings into preparation")
- g._gain_tool("lubricant_potion");id=g.state.items.back().id
- t.check(t.action(g,"item_use",{"item":id,"target":"hands"}).ok,"OIL can be applied during preparation")
+ id=t.take_item_card(g,"lubricant_potion")
+ t.check(t.action(g,"card",{"uid":id,"target":"hands"}).ok,"OIL can be applied during preparation")
  t.check(t.action(g,"finish_prepare").ok and g.state.body_buffs.is_empty(),"OIL clears at preparation end")
  var hit=Game.new(42)
  hit.state.equipment.clear();hit.state.items.clear();hit.state.relics=[]
  var target=hit._install_template("belt","thigh",16,16,false,"fixture",2)
- hit._gain_tool("lubricant_potion");id=hit.state.items.back().id
- t.check(t.action(hit,"item_use",{"item":id,"target":"thigh"}).ok,"OIL card fixture uses actual potion")
+ id=t.take_item_card(hit,"lubricant_potion")
+ t.check(t.action(hit,"card",{"uid":id,"target":"thigh"}).ok,"OIL card fixture uses actual potion")
  var card=t.hand_card(hit,"slip")
  var choice=t.find_action(hit,"card",{"uid":card.uid,"target":target.id,"free":false})
  var expected=maxf(0.0,target.durability-choice.payload.preview.damage)
  t.check(choice.valid and not choice.payload.preview.immune and t.action(hit,"card",{"uid":card.uid,"target":target.id,"free":false}).ok,"OIL actual normal slip card works at tier three")
  t.check(is_equal_approx(hit._equipment(target.id).get("durability",0.0),expected),"OIL card execution matches coated preview exactly")
- hit._gain_tool("lubricant_potion");id=hit.state.items.back().id
- t.check(t.action(hit,"item_use",{"item":id,"target":"hands"}).ok,"OIL can coat hands independently")
+ id=t.take_item_card(hit,"lubricant_potion")
+ t.check(t.action(hit,"card",{"uid":id,"target":"hands"}).ok,"OIL can coat hands independently")
  for slot in ["palm","fingers"]:
   var hand=hit._install_template("cord",slot,16,16,false,"fixture",2)
   t.check(hit.Consumables.slip_multiplier(hit,hand)==2.0 and hit.Equipment.slip_points(hand).size()==2,"OIL hands include both sides of "+slot)

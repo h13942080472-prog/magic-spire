@@ -7,10 +7,14 @@ static func run(t) -> void:
  paired_faces(t)
  copy_fixed_set_matches_full_entry(t)
  var g=Game.new(42);var before=g.export_snapshot()
+ for type in ["tease","tease_plus"]:
+  var status=Book.card(type)
+  var effect="回合结束仍在手中：快感＋%d。" % (5 if type=="tease" else 8)
+  t.check(status.bound==effect and status.free==effect and status.cost=="—","TERMS unplayable status shows its turn-end effect and printed cost: "+type)
  var pot=Book.card("pot_of_greed")
  t.check(pot.face_keywords.bound==[Text.TERMS.exhaust] and pot.face_keywords.free==[Text.TERMS.exhaust] and pot.note=="","TERMS pot explains exhaust on both faces without a redundant draw glossary")
  var search=Book.card("mana_search")
- t.check(search.face_keywords.bound.size()==1 and search.face_keywords.bound[0].detail=="从抽牌堆抽取指定类型的牌。" and search.note=="","TERMS search has one concise explanation shared across cards")
+ t.check(search.face_keywords.bound.size()==1 and search.face_keywords.bound[0].detail=="优先从抽牌堆抽取指定类型的牌，再从弃牌堆补足。" and search.note=="","TERMS search has one concise explanation shared across cards")
 
  for type in g.Cards.Rules.SPECS:
   var spec=g.Cards.Rules.SPECS[type];var card=Book.card(type)
@@ -23,7 +27,7 @@ static func run(t) -> void:
    t.check(terms.all(func(term):return terms.count(term)==1),"TERMS per-face glossary has no duplicate entries")
    if free and spec.has("free_max_levels"):
     t.check(card.face_requirements.free.filter(func(line):return line.contains("束缚等级")).size()==spec.free_max_levels.size(),"TERMS aggregate body limits displayed separately alongside any casting condition")
- t.check(Book.card("mana_search").free=="检索魔法2。" and Book.card("mana_search").face_requirements.free==["上身束缚等级＝0"],"TERMS search effect and total-level condition are separate")
+ t.check(Book.card("mana_search").free=="抽取魔法2。" and Book.card("mana_search").face_requirements.free==["上身束缚等级＝0"],"TERMS search effect and total-level condition are separate")
  t.check(Book.card("fire_control").face_requirements.free==["手部自由","上身束缚等级≤1"] and not Book.card("fire_control").face_keywords.free.any(func(term):return term.name=="各部位紧度＝0"),"TERMS control combines hand freedom with aggregate upper limit and removes old restriction")
  t.check(Book.card("crossed_legs").face_requirements.bound==["目标：腿部"] and Book.card("crossed_legs").face_requirements.free==["腿部束缚等级≤1"],"TERMS target restriction stays on bound face")
  t.check(Book.card("unlock").free=="获得2层魔力预备。" and Book.card("unlock").face_requirements.free==["使用：手部"],"TERMS preparation retains hand eligibility without a casting roll")
@@ -33,7 +37,7 @@ static func run(t) -> void:
  var spec=g.Cards.Rules.SPECS.mana_search.duplicate(true)
  g.Cards.Rules.SPECS.mana_search.self_faces.free.effects[0].amount=3
  g.Cards.Rules.SPECS.mana_search.free_max_levels.arms=1
- t.check(Book.card("mana_search").free=="检索魔法3。" and Book.card("mana_search").face_requirements.free==["上身束缚等级≤1"],"TERMS text follows mechanical quantity and gate without a second lookup table")
+ t.check(Book.card("mana_search").free=="抽取魔法3。" and Book.card("mana_search").face_requirements.free==["上身束缚等级≤1"],"TERMS text follows mechanical quantity and gate without a second lookup table")
  g.Cards.Rules.SPECS.mana_search=spec
  mana_badges(t)
 
@@ -165,12 +169,12 @@ static func mana_badges(t) -> void:
  t.check(g.export_snapshot()==before,"MANA all card projections leave state and random domains unchanged")
  var spell=g.live_card_text("unlock")
  t.check(spell.face_mana.bound[0].amount==10 and Book.card("unlock").face_mana.bound[0].amount==10 and not spell.face_effects.bound.contains("耗魔"),"MANA high-pressure runtime and catalog both use base cost; body omits duplicate cost")
- t.check(spell.face_mana.free[0].kind=="temporary" and spell.face_mana.free[0].amount==10 and spell.face_effects.free=="获得2层魔力预备。","MANA free preparation becomes ten temporary points with an explicit preparation description")
+ t.check(spell.face_mana.free[0].kind=="temporary" and spell.face_mana.free[0].amount==2 and spell.face_effects.free=="获得2层魔力预备。","MANA free preparation becomes ten temporary points with an explicit preparation description")
  var conversion=g.live_card_text("mana_conversion")
  t.check(conversion.face_mana.bound[0].amount==20 and conversion.face_mana.free[0].kind=="gain" and conversion.face_mana.free[0].amount==10 and conversion.face_costs.free=="1","MANA fixed exchange changes cost/gain with its face without pressure scaling")
- t.check(conversion.face_mana.bound[0].text=="−20" and conversion.face_mana.free[0].text=="+10" and spell.face_mana.free[0].text=="+10","MANA signed badge numbers omit redundant decimal zero while keeping separate pools")
- t.check(g.live_card_text("mana_invocation").face_mana.bound[0].amount==20 and g.live_card_text("fire_control").face_mana.bound[0].amount==10,"MANA direct restoration and temporary points use their real effect amounts")
- t.check(g.live_card_text("adaptability").face_mana.free.is_empty() and g.live_card_text("adaptability").face_effects.free.contains("回合开始：获得1层魔力预备"),"MANA turn-start power is not advertised as immediate gain")
+ t.check(conversion.face_mana.bound[0].text=="−20" and conversion.face_mana.free[0].text=="+10" and spell.face_mana.free[0].text=="+2","MANA signed badge numbers omit redundant decimal zero while keeping separate pools")
+ t.check(g.live_card_text("mana_invocation").face_mana.bound[0].amount==20 and g.live_card_text("fire_control").face_mana.bound[0].amount==2,"MANA direct restoration and temporary points use their real effect amounts")
+ t.check(g.live_card_text("adaptability").face_mana.free.is_empty() and g.live_card_text("adaptability").face_effects.free.contains("将全部蓄力转化为等量魔力预备"),"MANA conversion has no fixed mana amount")
  t.check(g.live_card_text("embers").face_mana.bound.size()==1 and g.live_card_text("embers").face_effects.bound.contains("再耗6魔力"),"MANA optional extra spending retains its condition and is not charged in the base badge")
  t.check(g.live_card_text("strain").face_mana.bound.is_empty() and g.live_card_text("strain").face_mana.free.is_empty(),"MANA no resource interaction means no badge on either face")
 

@@ -1,8 +1,10 @@
 extends Control
 var kind="wait"
+var badge=""
 var highlighted=false
 const GOLD=Color("e8c47b")
 const CYAN=Color("8cdbdc")
+const Flask=preload("res://assets/ui/mana-flask.svg")
 
 func _ready() -> void:
  mouse_filter=Control.MOUSE_FILTER_STOP
@@ -18,6 +20,8 @@ func _draw() -> void:
  draw_circle(Vector2(27,25),23,Color(0.04,0.06,0.1,0.9))
  if highlighted: draw_arc(Vector2(27,25),24,0,TAU,48,CYAN,2,true)
  match kind:
+  "flask":
+   draw_texture_rect(Flask,Rect2(12,6,30,36),false)
   "debuff":
    var spiral=PackedVector2Array()
    for i in range(65):
@@ -57,3 +61,8 @@ func _draw() -> void:
    draw_arc(Vector2(27,19),9,PI,TAU+PI/2,24,CYAN,3,true)
    line([Vector2(27,28),Vector2(27,32)],CYAN)
    draw_circle(Vector2(27,39),2,CYAN)
+ if badge!="":
+  var at=Vector2(9,45)
+  var font=get_theme_default_font()
+  draw_string_outline(font,at,badge,HORIZONTAL_ALIGNMENT_RIGHT,38,15,4,Color("081321"))
+  draw_string(font,at,badge,HORIZONTAL_ALIGNMENT_RIGHT,38,15,Color("effff2"))

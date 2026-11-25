@@ -10,11 +10,13 @@ static func fire(t,g) -> Dictionary:
  return t.find_action(g,"attack",{"type":"fireball","enemy":g.state.enemies[0].id})
 
 static func run(t) -> void:
+ preload("res://tests/wave_chant_cases.gd").run(t)
  preload("res://tests/formation_cases.gd").run(t)
  preload("res://tests/sympathetic_form_cases.gd").run(t)
  preload("res://tests/self_binding_cases.gd").run(t)
  reuse(t)
  preload("res://tests/resonance_cases.gd").run(t)
+ preload("res://tests/mana_arm_cases.gd").run(t)
  preload("res://tests/cumulative_cards_cases.gd").run(t)
  preload("res://tests/practiced_cases.gd").run(t)
  stacking(t)
@@ -27,7 +29,6 @@ static func run(t) -> void:
  preload("res://tests/adaptability_cases.gd").run(t)
  preload("res://tests/fire_dynamics_cases.gd").run(t)
  preload("res://tests/flame_flourish_cases.gd").run(t)
- preload("res://tests/letter_opener_cases.gd").run(t)
  preload("res://tests/binding_enthusiast_cases.gd").run(t)
  var g=Game.new(42)
  var card=give(t,g)
@@ -91,7 +92,7 @@ static func run(t) -> void:
 
 static func stacking(t) -> void:
  var helper=preload("res://tests/curse_cases.gd")
- for type in ["wildfire_descent","binding_enthusiast","restraint_embrace","adaptability","letter_opener","flame_flourish"]:
+ for type in ["wildfire_descent","binding_enthusiast","restraint_embrace","flame_flourish"]:
   for free in [false,true]:
    if type=="flame_flourish" and not free: continue
    var g=Game.new(42);g._discard_end();g.state.energy=30
@@ -103,13 +104,10 @@ static func stacking(t) -> void:
     t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok,"STACK repeated paid activation "+type)
    var id=g.Cards.Rules.SPECS[type].self_faces["free" if free else "bound"].buff
    t.check(g.Cards.buff_stacks(g,id)==2 and g.state.powers.size()==2 and g.validate()=="","STACK two physical powers remain valid "+id)
-   t.check(g.Cards.Rules.BUFFS[id].detail.contains("可叠加"),"STACK status explains repeatable effect "+id)
+   t.check(not g.Cards.Rules.BUFFS[id].detail.contains("叠加"),"STACK status omits the default stacking rule for "+id)
    if type=="wildfire_descent":
     var count=g.state.hand.size()
     t.check(t.action(g,"attack",{"type":"fireball","enemy":g.state.enemies[0].id}).ok and g.state.hand.size()==count+2,"STACK fireball draws two cards")
-   elif type=="adaptability":
-    var mana=g.state.temporary_mana;var charge=g.state.charge
-    t.check(t.action(g,"end").ok and g.state.temporary_mana==mana+(10 if free else 0) and g.state.charge==charge+(0 if free else 2),"STACK turn-start grants twice")
    elif type=="binding_enthusiast":
     var target=g.add_fixture("eyes",20,20)
     t.check(g.Cards.power_attribute_modifier(g,"strength")==2 and g.Cards.power_attribute_modifier(g,"dexterity")==2,"STACK worn attributes double")
@@ -128,17 +126,6 @@ static func stacking(t) -> void:
      t.check(g.Cards.pending_draw(g,id)==2,"STACK wear schedules two draws")
      g.Cards.begin_turn(g)
      t.check(g.Cards.pending_draw(g,id)==0 and g.state.logs.filter(func(log):return log.data.get("power_draw",{}).get("requested",0)==1).size()==2,"STACK both scheduled draws delivered once")
-   elif type=="letter_opener":
-    var target=g.add_fixture("ankle",60,60)
-    var hp=g.state.enemies[0].hp
-    var damage=g.escape_preview(target,"strain",3,[],false,true).damage
-    for i in range(3): t.check(helper.play(t,g,"pleasure_conversion",true).ok,"STACK counted skill")
-    t.check(g.state.powers.all(func(card):return card.power_progress==0),"STACK each opener has its own counter")
-    if free:
-     t.check(g.state.enemies[0].hp==hp-10,"STACK both opener enemy damage effects apply")
-    else:
-     var hits=g.state.logs.filter(func(log):return log.data.get("power_damage",{}).get("target","")==target.id)
-     t.check(hits.size()==2 and is_equal_approx(hits[0].data.power_damage.preview.damage,damage) and hits[0].data.power_damage.after==hits[1].data.power_damage.before and g._equipment(target.id).durability==hits[1].data.power_damage.after,"STACK both opener equipment waves apply in order using current target multipliers")
    else:
     t.check(g.BasicAttacks.usage(g,"fireball").limit==4,"STACK two flourish powers add two maximum casts")
    g.Cards.end_powers(g)
@@ -172,7 +159,7 @@ static func reuse_fail(t,g,type: String="fireball", free: bool=false) -> Diction
 static func reuse(t) -> void:
  var Cards=preload("res://tests/curse_cases.gd")
  var Rules=preload("res://data/card_rules.gd")
- t.check("reuse" in Rules.UNCOMMON and Rules.energy_cost("reuse",true)==1 and Rules.energy_cost("reuse",false)==2 and Rules.unique_face("reuse",true) and Rules.unique_face("reuse",false),"MASTERY rarity costs and unique unchanged")
+ t.check("reuse" in Rules.RARE and "reuse" not in Rules.UNCOMMON and Rules.energy_cost("reuse",true)==1 and Rules.energy_cost("reuse",false)==3 and Rules.unique_face("reuse",true) and Rules.unique_face("reuse",false),"MASTERY rare pool, one free energy, three bound energy and unique faces")
  t.check(Rules.energy_cost("henshin",false)==3 and Rules.energy_cost("henshin",true)==4 and Rules.energy_cost("hannya_henshin",false)==0 and Rules.energy_cost("hannya_henshin",true)==2,"HENSHIN bound costs three, free remains four, perfect variant unchanged")
  for role in ["original","witch"]:
   var g=reuse_setup(t,true,role)
@@ -190,6 +177,7 @@ static func reuse(t) -> void:
    var g=reuse_setup(t,side);g.state.mana=50;g.state.temporary_mana=temporary
    var result=reuse_fail(t,g);var c=result.candidate;var before=result.before
    var eligible=not side or c.mana_payment.mana==0
+   t.check(g.state.hand.size()==before.hand.size()+int(side and eligible),"MASTERY draw on failed basic spell requires full reserve payment and free face")
    var rate=(0.0 if side else 1.0) if eligible else 0.5
    t.check(is_equal_approx(g.state.mana,before.mana-c.mana_payment.mana+(c.mana_payment.mana*rate if eligible else floorf(c.mana_payment.mana*rate))) and is_equal_approx(g.state.temporary_mana,before.temporary_mana-c.mana_payment.temporary_mana+(c.mana_payment.temporary_mana*rate if eligible else 0.0)),"MASTERY actual refund matches paid sources")
    t.check(g.state.energy==before.energy-c.cost+(1 if eligible else 0) and result.spell.energy_refund==(1 if eligible else 0) and g.state.flask_mana==before.flask_mana,"MASTERY energy and log agree; flask untouched")
@@ -200,6 +188,7 @@ static func reuse(t) -> void:
   for n in range(3):
    g.state.mana=50;g.state.temporary_mana=30
    var result=reuse_fail(t,g,"mana_surge")
+   t.check(g.state.hand.size()==result.before.hand.size()+int(side),"MASTERY reserve draw on zero-energy spell is independent of refund quota")
    var rate=(0.0 if side else 1.0) if n<2 else 0.5
    t.check(result.candidate.cost==0 and result.spell.energy_refund==(1 if n<2 else 0) and is_equal_approx(result.spell.mana_refund.temporary_mana,result.candidate.mana*rate if n<2 else 0.0),"MASTERY zero-card conversion exact quota "+str(n))
   t.check(g.state.powers[0].power_failure_count==2,"MASTERY counter saturates at limit")
@@ -209,6 +198,14 @@ static func reuse(t) -> void:
   t.check(not copy.restore_snapshot(bad).ok and copy.state==before,"MASTERY invalid quota restores atomically")
   g._begin_player_turn()
   t.check(g.state.powers[0].power_failure_count==0,"MASTERY next turn restores two opportunities")
+ var success=reuse_setup(t,true)
+ success.state.temporary_mana=30
+ var hand_before=success.state.hand.size()
+ var shot=fire(t,success)
+ t.check(shot.valid and success.dispatch(success.command(shot.payload,success.state.version),success.state.version).ok and not success._magic_failed and success.state.hand.size()==hand_before+1,"MASTERY full reserve payment draws on successful casting")
+ var free_skill=Cards.give(success,"find_weakness")
+ hand_before=success.state.hand.size()
+ t.check(t.action(success,"card",{"uid":free_skill.uid,"free":true}).ok and success.state.hand.size()==hand_before-1,"MASTERY a zero-mana card never triggers reserve draw")
  # Basic requirements gate activation and ongoing conversion independently of quota.
  for missing in ["palm","foot"]:
   var blocked=reuse_setup(t,false)

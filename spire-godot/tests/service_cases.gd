@@ -125,6 +125,36 @@ static func rest_choice(t) -> void:
   for i in range(remaining): t.check(t.action(g,"end").ok,"REST remaining real turn")
   t.check(g.state.phase=="map" and not g.state.combat.active,"REST ends at selected duration")
 
+static func incense(t) -> void:
+ var g=Game.new(42)
+ var room={"id":"rest","kind":"rest"}
+ var excluded=g.Relics.REWARDS.filter(func(id):return id!="incense")
+ t.check(preload("res://tests/rolling_log_cases.gd").offer_tier(g,"uncommon",excluded)=="incense","INCENSE enters the uncommon reward pool")
+ g.RelicEffects.gain(g,"incense")
+ t.check(g.preparation_turns()==g.B.PREPARATION_TURNS and g.room_description(room).contains("休息9回合"),"INCENSE map shows the campfire bonus independently of preparation")
+ g.state.room="rest";g._start_rest()
+ t.check(g.state.rest_left==9 and g.state.hook_uses==g.B.REST_HOOK_USES and g.get_view().reward_panel.continue_label.contains("9回合"),"INCENSE starts the fire with nine turns and ordinary hook uses")
+ Save.roundtrip(t,g,"incense before campfire spending")
+ var before=g.export_snapshot()
+ var bad=before.duplicate(true);bad.rest_left=10
+ t.check(not g.restore_snapshot(bad).ok and g.state==before,"INCENSE rejects excess turns above the owned bonus atomically")
+ bad=before.duplicate(true);bad.relics.erase("incense")
+ t.check(not g.restore_snapshot(bad).ok and g.state==before,"INCENSE rest choice validation uses relics in the incoming save")
+ g.room_data("rest").enchantments.offers=["retain","nimble","exhaust"]
+ t.check(t.action(g,"enchant",{"op":"apply","enchantment":"exhaust"}).ok and g.state.rest_left==5,"INCENSE rare enchant spends four of nine turns")
+ for kind in ["rest_card","rest_rare","rest_flask"]:
+  t.check(g.candidate_detail(t.find_action(g,kind)).contains("2回合"),"INCENSE reward preview uses the budget after enchanting: "+kind)
+ t.check(t.action(g,"rest_flask").ok and g.state.rest_left==2,"INCENSE can spend another three turns on a reward")
+ t.check(t.action(g,"rest_begin").ok and t.action(g,"end").ok and g.state.phase=="rest" and g.state.rest_left==1,"INCENSE plays the remaining turns")
+ t.check(t.action(g,"end").ok and g.state.phase=="map","INCENSE ends rest on the last turn")
+ g=preload("res://tests/ditto_cases.gd").fixture("incense")
+ g.RelicEffects.end_combat(g);g.state.room="rest";g.state.practice=false;g._start_rest()
+ t.check(g.state.rest_left==12,"INCENSE stacks with an active Ditto copy on arrival")
+ Save.roundtrip(t,g,"incense with Ditto at rest choice")
+ g.forced_form="rolling_log"
+ t.check(t.action(g,"rest_begin").ok and g.state.ditto_form=="rolling_log" and g.state.rest_left==12,"INCENSE keeps the allocated turns through the opening reroll")
+ Save.roundtrip(t,g,"incense after Ditto changes at rest opening")
+
 static func flyer(t) -> void:
  var g=Game.new(42)
  var excluded=g.Relics.REWARDS.filter(func(id):return id!="flyer")
@@ -293,6 +323,7 @@ static func run(t) -> void:
  t.check(shop_practice.state.phase=="shop" and shop_practice.state.practice and shop_practice.get_view().shop.stock.size()==12,"SHOP practice uses formal stock generation")
  t.check(shop_practice.restart_snapshot()==shop_practice.state and shop_practice.validate()=="","SHOP practice is a valid scene-start checkpoint")
  rest_choice(t)
+ incense(t)
  flyer(t)
  stock_layout(t)
  rarity_prices(t)

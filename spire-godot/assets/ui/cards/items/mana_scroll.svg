@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="480" viewBox="0 0 256 240">
+<title>节魔卷轴</title>
+<defs>
+<linearGradient id="ground" x1="0%" y1="0%" x2="95%" y2="100%">
+<stop offset="0%" stop-color="#3a4c71"/>
+<stop offset="48%" stop-color="#1c2d47"/>
+<stop offset="100%" stop-color="#101923"/>
+</linearGradient>
+<linearGradient id="gold" x1="0%" y1="0%" x2="95%" y2="100%">
+<stop offset="0%" stop-color="#fff0bf"/>
+<stop offset="18%" stop-color="#e6bb79"/>
+<stop offset="36%" stop-color="#926344"/>
+<stop offset="55%" stop-color="#d6a368"/>
+<stop offset="68%" stop-color="#ffe7a3"/>
+<stop offset="82%" stop-color="#996b51"/>
+<stop offset="100%" stop-color="#62494b"/>
+</linearGradient>
+<linearGradient id="steel" x1="0%" y1="0%" x2="95%" y2="100%">
+<stop offset="0%" stop-color="#f5edcf"/>
+<stop offset="17%" stop-color="#acbabc"/>
+<stop offset="35%" stop-color="#5b7181"/>
+<stop offset="52%" stop-color="#405365"/>
+<stop offset="67%" stop-color="#dce8dd"/>
+<stop offset="83%" stop-color="#9eb2af"/>
+<stop offset="100%" stop-color="#57667b"/>
+</linearGradient>
+<linearGradient id="glass" x1="0%" y1="0%" x2="95%" y2="100%">
+<stop offset="0%" stop-color="#d9e9df"/>
+<stop offset="13%" stop-color="#94cdd5"/>
+<stop offset="28%" stop-color="#3a4c71"/>
+<stop offset="51%" stop-color="#1c2d47"/>
+<stop offset="77%" stop-color="#3a4c71"/>
+<stop offset="92%" stop-color="#94cdd5"/>
+<stop offset="100%" stop-color="#e7e8cf"/>
+</linearGradient>
+<linearGradient id="brew" x1="0%" y1="0%" x2="95%" y2="100%">
+<stop offset="0%" stop-color="#e9faf3"/>
+<stop offset="24%" stop-color="#94cdd5"/>
+<stop offset="55%" stop-color="#42679d"/>
+<stop offset="100%" stop-color="#1c2d47"/>
+</linearGradient>
+<linearGradient id="vellum" x1="0%" y1="0%" x2="95%" y2="100%">
+<stop offset="0%" stop-color="#fff0bf"/>
+<stop offset="27%" stop-color="#ead4a5"/>
+<stop offset="58%" stop-color="#dfc295"/>
+<stop offset="81%" stop-color="#b29478"/>
+<stop offset="100%" stop-color="#725d60"/>
+</linearGradient>
+<linearGradient id="masonry" x1="0%" y1="0%" x2="95%" y2="100%">
+<stop offset="0%" stop-color="#596370"/>
+<stop offset="44%" stop-color="#3a4754"/>
+<stop offset="100%" stop-color="#273341"/>
+</linearGradient>
+<radialGradient id="halo">
+<stop stop-color="#94cdd5" stop-opacity=".42"/>
+<stop offset=".56" stop-color="#3a4c71" stop-opacity=".27"/>
+<stop offset="1" stop-color="#1c2d47" stop-opacity="0"/>
+</radialGradient>
+</defs>
+<g stroke-linecap="round" stroke-linejoin="round">
+<path d="M0 0H256V240H0Z" fill="url(#ground)"/>
+<ellipse cx="117" cy="102" rx="136" ry="122" fill="url(#halo)"/>
+<g fill="none" stroke="#94cdd5" opacity=".18">
+<path d="M-34 140A146 146 0 0 1 178-6M-25 149A139 139 0 0 1 178 0" fill="none" stroke="#94cdd5" stroke-width="1.1"/>
+<path d="M203 3Q242 22 258 60M219 0q21 13 37 34" fill="none" stroke="#94cdd5" stroke-width="0.7"/>
+</g>
+<path d="M0 174C68 166 176 177 256 154V240H0Z" fill="#2a3343"/>
+<path d="M0 195Q88 166 134 178T256 173V240H0Z" fill="#202b3a"/>
+<path d="M0 194Q87 163 137 177T256 170M0 205Q84 175 126 184m54-3 66-11" fill="none" stroke="#a69588" stroke-width="1" opacity=".24"/>
+<g transform="translate(30 84) scale(0.3)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#94cdd5"/>
+</g>
+<g transform="translate(202 48) scale(0.4)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#94cdd5"/>
+</g>
+<g transform="translate(215 94) scale(0.22000000000000003)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#94cdd5"/>
+</g>
+<g transform="translate(49 140) scale(0.2)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#94cdd5"/>
+</g>
+<g transform="translate(66 40) scale(0.16999999999999998)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#94cdd5"/>
+</g>
+<g transform="translate(188 26) scale(0.18)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#94cdd5"/>
+</g>
+<ellipse cx="127" cy="211" rx="73" ry="8" fill="#172234"/>
+<g transform="rotate(13 128 125)">
+<path d="M67 56Q71 40 93 41L173 45Q190 45 191 60Q191 73 181 80Q173 91 170 118L167 166Q162 179 152 184L76 173Q88 164 89 144L93 91Q95 73 84 70Q69 72 67 62Z" fill="url(#vellum)" stroke="#17242b" stroke-width="3"/>
+<path d="M85 42Q70 41 65 53Q59 72 76 78L152 82Q143 66 158 51L175 45Z" fill="#537089" stroke="#17242b" stroke-width="2.4"/>
+<path d="M81 48Q70 48 69 59Q68 69 80 71L145 75Q145 58 154 53Z" fill="#85a7af"/>
+<path d="m81 51 63 4m-65 12 60 5" fill="none" stroke="#d6d7aa" stroke-width="1.5"/>
+<path d="M157 47Q169 39 181 46Q194 52 189 65Q186 77 173 79Q159 78 161 67Q163 59 171 59Q181 59 179 66Q179 71 173 70Q171 67 174 64Q166 64 167 69Q167 74 175 73Q185 69 184 59Q183 51 174 50Q161 48 156 62L151 61Z" fill="url(#gold)" stroke="#17242b" stroke-width="1.6"/>
+<path d="m99 87-4 60 8 10 48 4 7-6 3-61-8-8-46-3Zm5 4 11 1m32 3 6 1m-52 44-1 8 7 7m40 1 7-3 1-9" fill="none" stroke="#648695" stroke-width="1.7"/>
+<path d="M130 89Q124 103 115 111C96 131 110 149 127 147Q150 146 150 126Q150 115 139 103Z" fill="#305572" stroke="#5e8791" stroke-width="2"/>
+<path d="m131 99 11 27-15 14-11-14Z" fill="#8bd9d4" stroke="#17242b" stroke-width="1.6"/>
+<path d="m131 100-3 27 14-1Z" fill="#dbf3d6"/>
+<path d="m116 126 12 1-1 13Z" fill="#4c9fae"/>
+<path d="m101 109 8 0 4-7m38 33h-6m-42 1h6m36-31 6 1" fill="none" stroke="#9a7d50" stroke-width="1.4"/>
+<path d="M74 162Q80 154 88 160L160 169Q153 176 157 185L167 193 88 192Q68 187 69 176Q68 168 74 162Z" fill="#788b92" stroke="#17242b" stroke-width="2.6"/>
+<path d="M74 161Q80 156 88 161L102 164 99 189 85 188Q72 185 73 177Z" fill="url(#gold)" stroke="#17242b" stroke-width="1.5"/>
+<path d="M154 172Q165 162 174 170Q182 176 176 187T161 195Q151 193 150 186T154 172Z" fill="url(#gold)" stroke="#17242b" stroke-width="2"/>
+<ellipse cx="164" cy="182" rx="5" ry="8" fill="#48596b" stroke="#e0b77c" stroke-width="1.3"/>
+<path d="M97 176Q75 185 67 207L80 202 82 213Q84 195 105 182Z" fill="#385c8f" stroke="#17242b" stroke-width="1.8"/>
+<path d="M98 182Q84 192 78 202" fill="none" stroke="#a1b5c9" stroke-width="1"/>
+<g transform="translate(141 123) scale(0.45999999999999996)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#fff2ce"/>
+</g>
+<g transform="translate(172 48) scale(0.4)">
+<path d="M0-10 Q1-2 7 0 Q1 0 0 10 Q-1 1-7 0 Q-1-1 0-10Z" fill="#fff2ce"/>
+</g>
+</g>
+</g>
+</svg>

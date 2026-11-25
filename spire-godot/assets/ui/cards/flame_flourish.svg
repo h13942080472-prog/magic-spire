@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="280" viewBox="0 0 512 280">
+<svg xmlns="http://www.w3.org/2000/svg" width="444" height="280" viewBox="34 0 444 280">
  <defs><radialGradient id="glow"><stop stop-color="#ffe3a1" stop-opacity=".55"/><stop offset="1" stop-color="#662b3c" stop-opacity="0"/></radialGradient><linearGradient id="fire" x2="0" y2="1"><stop stop-color="#fff1b2"/><stop offset=".5" stop-color="#ef9d48"/><stop offset="1" stop-color="#a8444b"/></linearGradient></defs>
  <ellipse cx="256" cy="148" rx="205" ry="126" fill="url(#glow)"/>
  <g fill="none" stroke="#bf965d" opacity=".65"><ellipse cx="256" cy="171" rx="139" ry="54" stroke-width="3"/><ellipse cx="256" cy="171" rx="151" ry="65"/><path d="m89 170 25-10m284 19 25-10M250 97l12-20m-14 162 15 17" stroke-width="3"/></g>

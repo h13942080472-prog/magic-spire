@@ -9,7 +9,7 @@ static func run(t) -> void:
  t.check(ui.game!=null,"SCANNER UI seeded store contains relic")
  if ui.game==null: return
  ui.game.state.mana=100;ui.shop_payment="self"
- ui.game._gain_card("endless_war_goddess")
+ ui.game._gain_card("fire_mastery")
  for i in range(30): ui.game._gain_card("inch")
  ui.render();await t.frames()
  var offer=ui.view.shop.stock.filter(func(row):return row.type==Cases.TYPE)[0]
@@ -19,7 +19,7 @@ static func run(t) -> void:
  if payment!=null: await Pointer.press(t,payment)
  t.check(ui.view.reward_panel.get("selection","")=="card_copy" and ui.view.mana==30 and ui.game.state.deck.size()==count,"SCANNER UI paid pickup opens choice without granting a random card")
  var browser=ui.find_child("DeckBrowser",true,false)
- t.check(browser!=null and browser.cards.all(func(card):return card.type!="endless_war_goddess" and ui.game.Cards.Rules.SPECS[card.type].rarity!="basic"),"SCANNER UI excludes basics and double-unique power")
+ t.check(browser!=null and browser.cards.all(func(card):return card.type!="fire_mastery" and ui.game.Cards.Rules.SPECS[card.type].rarity!="basic"),"SCANNER UI excludes basics and double-unique power")
  var before=ui.game.export_snapshot()
  var search=browser.find_child("DeckSearch",true,false);search.text="一点点抽出";search.text_changed.emit(search.text);await t.frames()
  var button=browser.grid.get_child(0)
@@ -40,7 +40,7 @@ static func run(t) -> void:
  t.check(ui.view.mana==30 and ui.find_child("RelicShortcut_"+Cases.TYPE,true,false)!=null,"SCANNER UI retains pickup icon and does not charge for selection")
  ui.restart(42);ui.game=Cases.shop()
  for zone in ["deck"]+ui.game.Cards.ZONES: ui.game.state[zone]=[]
- ui.game._gain_card("endless_war_goddess");ui.game.RelicEffects.gain(ui.game,Cases.TYPE)
+ ui.game._gain_card("fire_mastery");ui.game.RelicEffects.gain(ui.game,Cases.TYPE)
  ui.render();await t.frames()
  t.check(ui.find_child("DeckBrowser",true,false).cards.is_empty() and t.visible_text(ui.find_child("RelicBundleRewards",true,false)).contains("可复制卡牌：0张"),"SCANNER UI explains an all-ineligible deck")
  await Pointer.press(t,ui.find_child("BundleContinue",true,false))

@@ -5,7 +5,7 @@ extends RefCounted
 # 事实表是扁平数组（core/game_view.gd::build 的 view.display_facts）：组取用按事实自带的 group 字段过滤，
 # 显示点身份按事实自带的 key（形状键）取用——组名与显示键都只有一套命名，不再有行组→View 键的映射表。
 # 纯显示查询（body_at／equipment_entries）语义不变。
-const RELEASE_MODES=["strain","slip","magic_slip","lower","unlock"]
+const RELEASE_MODES=["tool","strain","slip","magic_slip","lower","unlock"]
 # 拖放族键面（同一拖起语义的落点族）：与改动前 siblings 的字段面逐条一致。
 const FAMILY_FIELDS=["kind","type","item","mode","action","free","form"]
 
@@ -102,7 +102,7 @@ static func family_facts(view: Dictionary, data: Dictionary) -> Array:
 
 static func body_cards(view: Dictionary, body: Dictionary, uid: String) -> Array:
  var includes_neck=body.id=="neck" or body.get("members",[]).any(func(member):return member.id=="neck")
- var choices=select(view,"card",{"uid":uid}).filter(func(c):return c.payload.slot in body.slots or (includes_neck and body.targets.has(c.payload.target)))
+ var choices=select(view,"card",{"uid":uid}).filter(func(c):return c.payload.slot in body.slots or ((includes_neck or c.payload.get("mode","")=="tool") and body.targets.has(c.payload.target)))
  var seen={};var unique=[]
  for c in choices:
   # Merge a physical target per face, preferring a usable candidate without reordering it.

@@ -108,7 +108,7 @@ static func run(t) -> void:
 
 static func charge_toggle(t) -> void:
  var ui=t.ui
- ui.restart(42);ui.game._gain_charge(7);ui.game.state.temporary_mana=35.0;ui.render();await t.frames()
+ ui.restart(42);ui.game._gain_charge(7);preload("res://tests/charge_cases.gd").unlock_single(ui.game);ui.game.state.temporary_mana=35.0;ui.render();await t.frames()
  var before=ui.game.export_snapshot()
  var button=ui.find_child("StatusIcon_charge",true,false)
  var point=button.get_global_rect().get_center()
@@ -171,7 +171,7 @@ static func icons(t) -> void:
  t.check(ui.term_popup!=null and t.visible_text(ui.term_popup).contains("本次机会已使用"),"STATUS relic hover includes its own spent trigger")
  await t.move_mouse(Vector2(1550,60));await t.frames()
  await t.capture("ui-status-icons-battle.png")
- for pair in [["wrist_bracer","手腕被拘束时，力量＋2。"],["wraith_ribbon","灵巧＋1。"],["ethereal_pendant","每个整备回合结束时，恢复1魔力。"],["intellect_cloak","魔法牌耗魔－1，最低为0。可叠加。"]]:
+ for pair in [["wrist_bracer","手腕被拘束时，力量＋2。"],["wraith_ribbon","灵巧＋1。"],["ethereal_pendant","每个整备回合结束时，恢复1魔力。"],["intellect_cloak","魔法牌的固定耗魔每件－1，最低为0。"]]:
   relic=ui.find_child("RelicShortcut_"+pair[0],true,false)
   t.check(relic!=null and preload("res://ui/relic_icon.gd").ART.has(pair[0]),"WRIST/RIBBON UI shows a dedicated relic icon: "+pair[0])
   if relic==null: continue

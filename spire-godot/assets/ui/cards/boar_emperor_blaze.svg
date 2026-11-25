@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 280">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="57 0 398 280">
 <defs><radialGradient id="heat"><stop stop-color="#ffe89a"/><stop offset=".5" stop-color="#ffae43"/><stop offset="1" stop-color="#b12b36"/></radialGradient><linearGradient id="crown" x2="0" y2="1"><stop stop-color="#fff0b0"/><stop offset="1" stop-color="#ad742c"/></linearGradient></defs>
 <g fill="none" stroke="#eac67c" opacity=".45"><ellipse cx="256" cy="241" rx="177" ry="19"/><ellipse cx="256" cy="241" rx="150" ry="12"/></g>
 <g fill="url(#heat)"><path d="M112 224Q77 191 123 134Q119 174 155 154Q161 208 112 224Z"/><path d="M170 235Q116 185 166 95Q150 148 198 166Z"/><path d="M256 250Q163 215 205 113Q232 72 235 33Q280 76 275 114Q315 79 307 59Q358 172 304 232Z"/><path d="M342 231Q310 167 350 115Q343 161 375 173Q405 143 397 130Q438 203 388 229Z"/></g>

@@ -3,14 +3,17 @@ const TRANSFER=10.0
 const DEPOSITS=3
 
 static func limit(g, op: String="deposit") -> int:
- if g.state.phase=="battle" or (g.state.phase=="prepare" and op=="deposit"): return DEPOSITS
- if g.state.phase=="prison" and op=="deposit": return 1
+ if g.state.phase=="battle" or (g.state.phase=="prepare" and op=="deposit"): return DEPOSITS+int(g.relic_value("flask_extra_use"))
+ if g.state.phase=="prison" and op=="deposit": return 1+int(g.relic_value("flask_extra_use"))
  return 0
 
 static func limited(g, op: String="deposit") -> bool:
  return limit(g,op)>0
 
 static func reset_turn(g) -> void:
+ var used=g.state.flask_deposits>0 or g.state.combat.get("flask_withdrawals",0)>0 or g.state.combat.get("flask_unmetered_use",false)
+ g.state.combat.flask_used_previous_turn=not g.state.combat.first_turn and used
+ g.state.combat.erase("flask_unmetered_use")
  g.state.flask_deposits=0
  g.state.combat.flask_withdrawals=0
 
@@ -19,10 +22,12 @@ static func remaining(g, op: String) -> int:
  return maxi(0,limit(g,op)-used)
 
 static func validate(g) -> String:
- if not g.Snapshot.fields(g.state,"flask_mana:n flask_deposits:i") or g.state.flask_mana<0 or g.state.flask_deposits<0 or g.state.flask_deposits>DEPOSITS: return "贴身魔瓶的魔力或存入次数有误。"
+ if not g.Snapshot.fields(g.state,"flask_mana:n flask_deposits:i") or g.state.flask_mana<0 or g.state.flask_deposits<0 or g.state.flask_deposits>DEPOSITS+int(g.relic_value("flask_extra_use")): return "贴身魔瓶的魔力或存入次数有误。"
  # Older snapshots have no withdrawal counter; absence means no uses under the new rule.
+ for key in ["flask_used_previous_turn","flask_unmetered_use"]:
+  if not g.state.combat.get(key,false) is bool: return "魔瓶使用记录有误。"
  var used=g.state.combat.get("flask_withdrawals",0)
- if not used is int or used<0 or used>DEPOSITS: return "贴身魔瓶的取出次数有误。"
+ if not used is int or used<0 or used>DEPOSITS+int(g.relic_value("flask_extra_use")): return "贴身魔瓶的取出次数有误。"
  return ""
 
 static func available(g) -> bool:
@@ -70,15 +75,22 @@ static func withdraw_detail(g, args: Dictionary) -> String:
  if not args.get("limited",false): return "取出%s魔力，恢复自身%s魔力，战斗外可反复操作。" % values
  return "取出%s魔力，恢复自身%s魔力，本回合剩余%d次。" % (values+[int(args.get("remaining",0))])
 
+static func change(g, delta: float) -> float:
+ var applied=maxf(delta,-g.state.flask_mana)
+ g.state.flask_mana+=applied
+ return applied
+
 static func execute(g, p: Dictionary) -> void:
+ if not limited(g,p.op): g.state.combat.flask_unmetered_use=true
  if p.op=="deposit":
   var amount=minf(TRANSFER,g.state.mana)
-  g.state.mana-=amount;g.state.flask_mana+=amount
+  g.set_own_mana(g.state.mana-change(g,amount))
   if limited(g): g.state.flask_deposits+=1
   g._emit("event","向贴身魔瓶存入%s魔力。" % g.number(amount))
  else:
   var result=withdrawal(g)
-  g.state.flask_mana-=result.drawn;g.state.mana+=result.restored
+  change(g,-result.drawn)
+  g.set_own_mana(g.state.mana+result.restored)
   if limited(g,"withdraw"): g.state.combat.flask_withdrawals=int(g.state.combat.get("flask_withdrawals",0))+1
   g._emit("event","从贴身魔瓶取出%s魔力，恢复%s魔力。" % [g.number(result.drawn),g.number(result.restored)])
 

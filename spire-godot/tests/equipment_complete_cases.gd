@@ -15,7 +15,7 @@ static func cover_id(g, target: Dictionary, slot: String, point: String="") -> S
 # docs/spec/equipment-query-seam.md「证据入口」: the capacity and physical point edges, their counts and the coverage reason
 # agree with the live path, including templates whose capacity_points is empty.
 static func index_point_edge_parity(t) -> void:
- for kind in ["leg_layers","component_links","head_harness","plain"]:
+ for kind in ["leg_layers","leg_pair","head_harness","plain"]:
   var g=Game.new(42,true,kind) if kind!="plain" else Game.new(42)
   if kind=="plain":
    g.add_fixture("thigh",7,10)
@@ -45,6 +45,10 @@ static func index_point_edge_parity(t) -> void:
  t.check(E.capacity_points(body).is_empty() and physical_members>leg._point_count(point),"INDEX capacity edge excludes the capacity-free body the physical edge still counts: "+point)
  leg._equipment_read=leg_scope
 
+static func cut_with_item(t, g, id: String) -> bool:
+ if not t.action(g,"item_use",{"item":g.state.items[0].id}).ok: return false
+ return t.action(g,"card",{"uid":g.state.hand.back().uid,"target":id}).ok
+
 static func run(t) -> void:
  assembly_preparation(t)
  index_point_edge_parity(t)
@@ -70,10 +74,10 @@ static func run(t) -> void:
   if spec.get("start","")=="prison": correct_phase=g.state.phase=="prison" and g.state.prison.left==g.B.PRISON_INTERVALS[0] and g.state.posture=="lie"
   if spec.get("start","")=="shop": correct_phase=g.state.phase=="shop" and g.state.energy==0 and not g.room_data(g.state.room).stock.is_empty()
   if spec.get("start","")=="rest": correct_phase=g.state.phase=="rest_choice" and g.state.rest_left==6 and g.state.combat.turn==0 and g.room_data(g.state.room).enchantments.offers.size()==3
-  var links_match=g.state.links.size()==spec.get("links",[]).size()+spec.get("component_links",[]).size()
+  var links_match=g.state.links.is_empty()
   if intake:
    correct_phase=g.state.phase=="battle" and g.Prison.is_exit_battle(g) if spec.start=="prison_gate_exit" else g.state.phase=="captured"
-   links_match=not g.state.links.is_empty() if spec.start=="prison_gate_exit" else g.state.links.map(func(e):return e.id)==g.state.capture.links and g.state.special_equipment.map(func(e):return e.id)==g.state.capture.special_baseline
+   if spec.start!="prison_gate_exit": links_match=links_match and g.state.capture.links.is_empty() and g.state.special_equipment.map(func(e):return e.id)==g.state.capture.special_baseline
   t.check(links_match and correct_phase,"CATALOG links and entry phase match declared layout or formal intake "+id)
   var before=JSON.stringify(g.state)
   var view=g.get_view()
@@ -100,24 +104,23 @@ static func run(t) -> void:
   var kept=JSON.stringify(bands)
   body.durability=1
   if variant=="lower": t.action(g,"posture",{"dest":"sit","wall":false})
-  t.check(t.action(g,"item_use",{"item":g.state.items[0].id,"target":body.id}).ok,"LEG actual cutting destroys body "+variant)
+  t.check(cut_with_item(t,g,body.id),"LEG actual cutting destroys body "+variant)
   t.check(JSON.stringify(g._composite(root.id).components)==kept and not C.active(g._composite(root.id)),"LEG all independent bands retain exact identities and state "+variant)
   t.check(g.get_view().bodies.any(func(b):return b.groups.any(func(group):return group.name.contains("遗留外带"))),"LEG UI explains remaining independent bands")
   t.check(g.state.posture==("sit" if variant=="lower" else "stand") and g.validate()=="","LEG no forced posture and valid remaining capacity")
   if variant=="toes": t.check(not g.occupied("foot") and not g.occupied("toes") and g.occupied("ankle"),"LEG toes recover but surviving ankle band still restricts movement")
 
- var g=Game.new(42,true,"component_links")
+ var g=Game.new(42,true,"leg_pair")
  var root=g.state.composites[0]
  var body=piece(g,root.id,"body")
- var link=g.state.links[0].duplicate(true)
  var band=piece(g,root.id,"above_knee")
  band.locked=true
  body.durability=1
- t.check(t.action(g,"item_use",{"item":g.state.items[0].id,"target":body.id}).ok,"LINK cut linked assembly body through normal tool candidate")
- t.check(g._equipment(band.id).locked and JSON.stringify(g.state.links[0])==JSON.stringify(link),"LINK live independent band preserves lock and link after body removed")
+ t.check(cut_with_item(t,g,body.id),"LINK cut linked assembly body through normal tool candidate")
+ t.check(g._equipment(band.id).locked and g.state.links.is_empty(),"LINK live independent band preserves its lock after body removed")
  t.action(g,"posture",{"dest":"sit","wall":false})
- var other=link.ends[1]
- t.check(t.action(g,"manual",{"target":other}).ok and g.state.links.is_empty() and not g._equipment(band.id).is_empty(),"LINK removing the other endpoint cleans rope without deleting independent partner")
+ var other=piece(g,g.state.composites[1].id,"below_knee").id
+ t.check(t.action(g,"manual",{"target":other}).ok and g.state.links.is_empty() and not g._equipment(band.id).is_empty(),"LINK removing the lower band preserves the upper band")
 
  g=Game.new(42,true,"leg_layers")
  t.check(g.state.composites.size()==3 and g.capacity_used("thigh")==2 and g.capacity_used("ankle")==2,"LEG shorts plus long reserve capacity per real band position")
@@ -154,6 +157,7 @@ static func run(t) -> void:
  g.state.items[0].mount="hand_wall"
  sleeves.durability=1
  t.check(g.InstalledTools.reason(g,g.state.items[0],sleeves)=="","JACKET installed tool contacts connection")
+ g.state.items[0].mount="carry"
  g._apply_equipment_damage(sleeves,5,"cut");g._cleanup()
  t.check(g.escape_preview(piece(g,root.id,"body"),"slip",5).reason!="","JACKET hem still required after sleeve connection gone")
  var hem=piece(g,root.id,"hem"); hem.durability=1
@@ -173,7 +177,7 @@ static func run(t) -> void:
   g.RelicEffects.gain(g,"casting_manual")
   t.check(t.find_action(g,"card",{"uid":free.uid,"slot":"fingers","free":true}).valid,"WRAP casting manual permits opposite intact hand for spell preparation")
   g._gain_tool("shard")
-  t.check(t.action(g,"item_use",{"item":g.state.items[0].id,"target":body.id}).ok and g.state.composites.is_empty(),"WRAP free opposite hand cuts and restores both covered slots")
+  t.check(cut_with_item(t,g,body.id) and g.state.composites.is_empty(),"WRAP free opposite hand cuts and restores both covered slots")
   t.check(g.restraint_degree("arms")==0,"WRAP removing last single-sided component restores zero arm score")
  g=Game.new(42,true,"wrap_both")
  t.check(g.level("arms")==1 and g.occupied("fingers") and g.item_capacity()==2 and not g.hands_can_hold(),"WRAP two independent wraps count hand region once and disable both grips")

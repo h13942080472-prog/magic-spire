@@ -12,6 +12,7 @@ static func physical_points(g, target: Dictionary) -> Array:
 
 # Read-only groups; only execution resolves tied targets using card_target RNG.
 static func options(g, p: Dictionary) -> Array:
+ if g.RopeArt.struggle_only(g): return []
  if p.mode not in ["strain","slip","magic_slip"] or not p.has("preview"): return []
  var source=g._equipment(p.target)
  if source.is_empty(): return []
@@ -59,14 +60,15 @@ static func apply(g, p: Dictionary, selected: Array) -> void:
  for choice in selected:
   var target=g._equipment(choice.target)
   if target.is_empty() or target.durability<=0: continue
-  var before=target.durability;var tier=g.equipment_tier(target)
+  var before=g.EquipmentEnchantments.total_durability(target);var tier=g.equipment_tier(target)
   var kind=g.Cards.Rules.damage_type(p.type,p.get("free",false))
   g._apply_equipment_damage(target,choice.preview.damage,kind,false,false)
+  var after=g.EquipmentEnchantments.total_durability(target)
   if kind=="slip": g.RelicEffects.card_slipped(g,tier,target)
   var record=choice.preview.duplicate(true)
-  record.card_splash={"source":p.target,"target":target.id,"point":choice.point,"base":p.preview.face_value,"factor":FACTOR,"before":before,"after":target.durability}
-  record.action_result=g.ActionCopy.equipment_result("波及",target.name,before,target.durability,kind)
-  g._emit("mechanical","「%s」波及%s：%s。耐久%s→%s。" % [g.B.CARD_NAMES[p.type],target.name,g._formula(choice.preview),g.number(before),g.number(target.durability)],record)
+  record.card_splash={"source":p.target,"target":target.id,"point":choice.point,"base":p.preview.face_value,"factor":FACTOR,"before":before,"after":after}
+  record.action_result=g.ActionCopy.equipment_result("波及",target.name,before,after,kind)
+  g._emit("mechanical","「%s」波及%s：%s。耐久%s→%s。" % [g.B.CARD_NAMES[p.type],target.name,g._formula(choice.preview),g.number(before),g.number(after)],record)
 
 static func detail(g, p: Dictionary) -> String:
  var groups=options(g,p)

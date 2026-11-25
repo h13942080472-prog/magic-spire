@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180">
+<svg xmlns="http://www.w3.org/2000/svg" width="284" height="180" viewBox="18 0 284 180">
  <defs>
   <radialGradient id="glow"><stop stop-color="#7ed9d2" stop-opacity=".28"/><stop offset="1" stop-color="#182731" stop-opacity="0"/></radialGradient>
   <linearGradient id="card" x2="1" y2="1"><stop stop-color="#395b69"/><stop offset="1" stop-color="#192b36"/></linearGradient>

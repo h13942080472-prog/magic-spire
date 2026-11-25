@@ -40,8 +40,9 @@ static func profiles(t) -> void:
 
 static func weak_sources(t) -> void:
  for type in preload("res://data/enemy_library.gd").CLASSIFICATIONS.weak:
-  var g=Game.new(42,true,type+"_solo")
-  var enemy=g.state.enemies[0]
+  var encounter={"reinforced_rope":"reinforced_rope_trio","mana_smuggler":"mana_smuggler_pair","mini_restraint_mech":"restraint_mech_pair","support_restraint_mech":"restraint_mech_pair"}.get(type,type+"_solo")
+  var g=Game.new(42,true,encounter)
+  var enemy=g.state.enemies.filter(func(e):return e.type==type)[0]
   for plan in g.EnemyPlans.installation_intents(g,enemy):
    var before=g.export_snapshot()
    var spec=g.EnemyPlans.application_spec(g,enemy,plan)
@@ -49,7 +50,8 @@ static func weak_sources(t) -> void:
    if plan.get("final",false):
     t.check(spec.get("profiles",[])==plan.get("profiles",[]) and spec.grade==plan.grade,"WEAK GRADE final attachment preserves its original specification: "+type)
    else:
-    t.check(not spec.profiles.is_empty() and spec.profiles.all(func(p):return p.grade==1),"WEAK GRADE all non-departure application choices are basic: "+type)
+    var limit=g.Enemies.TYPES[type].get("special_max_grade" if spec.pool=="special" else "ordinary_max_grade",1)
+    t.check(not spec.profiles.is_empty() and spec.profiles==plan.get("profiles",spec.profiles).filter(func(p):return p.grade<=limit),"WEAK GRADE application choices obey the declared limit: "+type)
  var g=Game.new(42,true,"belt_solo");var enemy=g.state.enemies[0]
  var plan=g.EnemyPlans.application(["eye_leather"],1,2,1,false,3)
  plan.allow_links=false

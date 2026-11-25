@@ -68,6 +68,7 @@ static func run(t) -> void:
   e.intent={"kind":"capture","text":"执行收押","delayed":false}
  ui.render();await t.frames()
  t.check(await t.click("end") and ui.view.phase=="captured" and ui.view.security==1 and ui.view.reward_count==0,"SUMMIT UI capture exits final battle once without winning")
+ await preload("res://tests/prison_ui_cases.gd").continue_capture_intro(t)
  t.check(t.visible_text(ui.layout).contains("重新开始") and not t.visible_text(ui.layout).contains("再次挑战"),"SUMMIT UI run loss offers the current new-run action instead of equipment practice")
  await t.capture("ui-44-summit-capture.png")
  t.check(await t.click("prison",{"action":"enter"}) and ui.view.phase=="prison" and not ui.view.practice,"SUMMIT UI loss continues through shared real prison mode")
@@ -90,9 +91,12 @@ static func run(t) -> void:
  ui.game.state.room_encounters.summit="six_bind_solo";ui.game.room_data("summit").encounter="six_bind_solo";ui.game.room_data("summit").name="塔顶 · 六缚"
  await enter_room(t,"summit")
  t.check(ui.view.enemies[0].maximum==300,"EXIT UI next tower displays scaled boss health")
- # Final-cycle boundary only; skip replaying the already-covered full battle path.
+ # Exercise both choices at the third exit through the visible buttons.
  ui.game.state.demo_cycle=2
  preload("res://tests/demo_exit_cases.gd").exit_fixture(ui.game)
  ui.render();await t.frames()
- t.check(Queries.select(ui.view,"demo_exit").size()==1 and Queries.select(ui.view,"demo_exit")[0].payload.kind=="demo_end","EXIT UI final cycle has no continue button")
+ t.check(t.visible_text(ui.layout).contains("新一轮从第一幕开始") and await t.click("demo_continue") and ui.view.demo_cycle==0 and ui.view.phase=="map","EXIT UI third exit offers and enters a new first act")
+ ui.game.state.demo_cycle=2
+ preload("res://tests/demo_exit_cases.gd").exit_fixture(ui.game)
+ ui.render();await t.frames()
  t.check(await t.click("demo_end") and ui.game.state.demo_finished and ui.find_child("HomeContinue",true,false).disabled,"EXIT UI end returns to menu with finished run unavailable")

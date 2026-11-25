@@ -84,7 +84,7 @@ static func selector_button(ui, parent: Node, id: String, label: String, kind: S
  if preview!="" and offers.all(func(c):return c.detail==preview): parent.add_child(ui._label(preview,14,ui.MUTED))
 
 static func action(ui, parent: Node, c: Dictionary, version: int=-1, show_detail: bool=true) -> Button:
- var fee=(" · %s能量" % c.cost if c.cost>0 else "")+(" · %s魔力" % c.mana if c.mana>0 else "")
+ var fee=(" · %s能量" % c.cost if c.cost>0 else "")+(" · %s魔力" % ui.game.number(c.mana) if c.mana>0 else "")
  var button=ui._button(c.label+fee,func():ui.command_router.emit(String(c.payload.get("kind","")),c,version),ui.RED if c.risk!="" else ui.GOLD)
  button.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;button.custom_minimum_size.y=42;button.disabled=not c.valid
  parent.add_child(button);ui.candidate_buttons[c.key]=button
@@ -129,7 +129,7 @@ static func drawer(ui) -> void:
    if selected.has("durability"):
     body.add_child(ui._bar(selected.durability,selected.maximum,ui.CYAN))
     var condition=HBoxContainer.new();body.add_child(condition)
-    var numbers=ui._label(("耐久 %s / %s · 无紧度" % [selected.durability,selected.maximum]) if selected.get("no_tightness",false) else ("耐久 %s / %s  ·  紧度%d" % [selected.durability,selected.maximum,selected.tier]),16,ui.TEXT)
+    var numbers=ui._label(("耐久 %s / %s · 无紧度" % [ui.game.number(selected.durability),ui.game.number(selected.maximum)]) if selected.get("no_tightness",false) else ("耐久 %s / %s  ·  紧度%d" % [ui.game.number(selected.durability),ui.game.number(selected.maximum),selected.tier]),16,ui.TEXT)
     numbers.size_flags_horizontal=Control.SIZE_EXPAND_FILL
     condition.add_child(numbers)
     ui._equipment_lock(condition,selected.locked,selected.id,selected.lockable)
@@ -144,7 +144,7 @@ static func restraint_box(ui, parent: Node, selected: Dictionary) -> VBoxContain
  if selected.has("durability"):
   body.add_child(ui._bar(selected.durability,selected.maximum,ui.CYAN))
   var condition=HBoxContainer.new();body.add_child(condition)
-  var numbers=ui._label(("耐久 %s / %s · 无紧度" % [selected.durability,selected.maximum]) if selected.get("no_tightness",false) else ("耐久 %s / %s  ·  紧度%d" % [selected.durability,selected.maximum,selected.tier]),16,ui.TEXT)
+  var numbers=ui._label(("耐久 %s / %s · 无紧度" % [ui.game.number(selected.durability),ui.game.number(selected.maximum)]) if selected.get("no_tightness",false) else ("耐久 %s / %s  ·  紧度%d" % [ui.game.number(selected.durability),ui.game.number(selected.maximum),selected.tier]),16,ui.TEXT)
   numbers.size_flags_horizontal=Control.SIZE_EXPAND_FILL
   condition.add_child(numbers)
   ui._equipment_lock(condition,selected.locked,selected.id,selected.lockable)
