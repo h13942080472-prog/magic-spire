@@ -4995,14 +4995,14 @@ const PREFIX_BRANCH_TABLE_BASELINE={
 }
 
 # flag:rest_card original rows: the rest-choice rows that are not enchant rows keep their pre-service face
-# (key, valid, reason, group, payload). The filter drops what the 73f7363 upstream legitimately moved: enchant (the
-# catalog was rekeyed), item_use and item_discard (consumables became cards, so item rows are rekeyed and regrouped
-# with a hand target) and status_toggle (the charge toggle row is gated by can_switch_charge). What it still guards:
-# the five rows rest_rare, rest_card, rest_flask, rest_begin and flask withdraw are byte-identical on the 69cf2f1
-# product and on the e4fde8d product, so any later change to their key, validity, reason, group or payload is red.
-const REST_CARD_ORIGINAL_EXCLUDED_KINDS=["enchant","item_use","item_discard","status_toggle"]
-const REST_CARD_ORIGINAL_ROW_COUNT=5
-const REST_CARD_ORIGINAL_DIGEST="9e5accfc2b0b22f6216752ffc2e5fdc9"
+# (key, valid, reason, group, payload). The filter drops only what the 73f7363 upstream legitimately moved: enchant (the
+# catalog was rekeyed), item_use (consumables became cards, so item rows are rekeyed and regrouped with a hand target)
+# and status_toggle (the charge toggle row is gated by can_switch_charge). item_discard is deliberately NOT excluded:
+# the discard rows stay inside the frozen face. What it still guards: the nine remaining rows keep byte-identical
+# key, validity, reason, group and payload against the frozen digest, so any later change to them is red.
+const REST_CARD_ORIGINAL_EXCLUDED_KINDS=["enchant","item_use","status_toggle"]
+const REST_CARD_ORIGINAL_ROW_COUNT=9
+const REST_CARD_ORIGINAL_DIGEST="518dd090bbc9c27b7eefbe33ccdbf1df"
 
 static func prefix_branch_table_face(g) -> String:
  var rows=g.command_facts()
