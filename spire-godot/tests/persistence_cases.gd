@@ -728,7 +728,7 @@ static func save_and_random_untouched(t) -> void:
   var refused=g.dispatch(g.command(blocked[0].payload,g.state.version),g.state.version)
   t.check(not refused.ok and store.writes==refused_before,"G9 save_and_random_untouched: a refused command writes nothing")
 
-# ==== D23f0：塔路历史（docs/spec/save-fixed-points.md「加性字段与只读入口」）====
+# ==== 塔路历史（docs/spec/save-fixed-points.md「加性字段与只读入口」）====
 # 判据只观察正式输入（find_action／action／dispatch）、state.route_history、export_snapshot 与
 # restore_snapshot 的结果，不直接调用 core/route_history.gd；真实塔路用 CoreGame，夹具塔路只用于
 # 需要构造场景的分支。
@@ -937,7 +937,7 @@ static func route_escape_to_gate_capture(t):
  t.check(g.state.map_region=="prison","ROUTEHIST the second capture keeps the prison region, the old gate_exit guess")
  return g
 
-# CC-D23-1（审查 F1）：越狱路线在出口守卫战再次被收押后服满刑期，进入原因仍是 release。
+# 越狱路线在出口守卫战再次被收押后服满刑期，进入原因仍是 release。
 # 判别信号取挂载点当时的状态（state.prison 仍非空），不按上一条记录的 region。
 static func route_history_second_capture_release(t) -> void:
  var g=route_escape_to_gate_capture(t)
@@ -957,7 +957,7 @@ static func route_history_second_capture_release(t) -> void:
  t.check(String(opened.get("boss",""))==String(route_record(g,0).get("boss","")),"ROUTEHIST route_history_second_capture_release: the same cycle keeps the previous summit")
  t.check(int(opened.get("nodes",0))==-1 and int(opened.get("floor",0))==-1,"ROUTEHIST route_history_second_capture_release: the new record stays open")
 
-# CC-D23-1 第二条（审查 V2 未跑成的序列）：cycle 之后在新一代塔路内被捕并服刑，进入原因也是 release。
+# cycle 之后在新一代塔路内被捕并服刑，进入原因也是 release。
 static func route_history_cycle_capture_release(t) -> void:
  var g=route_new_run(t)
  route_win_battle(t,g)
@@ -1061,7 +1061,7 @@ static func route_history_roundtrip(t) -> void:
  t.check(route_history_of(restored)==history,"ROUTEHIST-12 the written and read history is identical")
  t.check(restored.state.save_revision==CoreGame.Snapshot.REVISION,"ROUTEHIST-12 the roundtrip keeps the current revision")
 
-# ==== D23f0 加固矩阵：五类真实切换 × 三种存档形态（plan.md §9）====
+# ==== 加固矩阵：五类真实切换 × 三种存档形态 ====
 # 存档形态只改载入路径：本片写出的档、擦掉 route_history 的旧档、同一旧档标成 IRON_DRONE_REVISION。
 # 每一格都从真实命令推进到切换点，再经真实 dispatch 触发切换；判据只读 state.route_history 与
 # restore_snapshot 的结果（不直接调用 core/route_history.gd）。见 docs/spec/route-history.md「输入域」。

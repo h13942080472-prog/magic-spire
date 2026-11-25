@@ -15,7 +15,7 @@
 - 文件域：`core/route_history.gd`（唯一写入者）、`core/game.gd`（`_init` 字面、`TRANSITIONS` 的
   `route` 列、`_apply_transition` 的唯一追加点、`restore_snapshot` 的唯一回填点）。
 - 非目标：不改存档格式与 `Snapshot.REVISION`；不把地图、走过的节点、进入时的版本或时间／随机值
-  放进 state（归档所需的 `run.segments` 属后续 D23f 的信封内容，不在本片）；不改 `_restart_tower`
+  放进 state（归档所需的 `run.segments` 属后续塔路归档切片的信封内容，不在本片）；不改 `_restart_tower`
   的签名；不改 `core/prison.gd`、`core/demo_exit.gd`、`core/snapshot.gd`。
 
 ## 接口
@@ -63,10 +63,10 @@ core/route_history.gd::backfill(s: Dictionary) -> Array   # 旧档回填为单�
 - **回填**：`core/game.gd::restore_snapshot` 在 `initial_seed` 回填之后、`Snapshot.check` 之前，对
   **载入副本**补一条 `enter="unknown"` 记录（`nodes`／`floor` 留 `-1`，等下一次真正关闭时补齐）。
   读不写盘；调用方字典与文件字节都不变。`Snapshot.check` 零改动：通用逐字段循环要求该字段存在且为
-  `Array`；元素级容错由后续切片的读取方用 `get` 加默认值负责（D23f 的归档摘要、D23g 的历史面板）。
+  `Array`；元素级容错由后续切片的读取方用 `get` 加默认值负责（后续的归档摘要与历史面板切片）。
 - **不升 `Snapshot.REVISION`**：加性字段不升版（依据 `docs/spec/save-fixed-points.md`）。
   同种子、同指令串复现同一段历史：记录不含时间、版本、外部标识或随机值，也不消费任何随机域。
-- **新档被旧版本读取**：D23f0 之前的版本打开 D23f0 之后写的档时，`Snapshot.check` 不拒绝多出的键，
+- **新档被旧版本读取**：本字段引入之前的版本打开其后写的档时，`Snapshot.check` 不拒绝多出的键，
   读档会原样保留 `route_history`，但旧版本不会追加记录，历史因此缺段。这种降级是静默的（不升版、
   没有版本警告），且不做缺段修复；旧版本再写出的档仍带着那段不完整的历史。
 
@@ -90,7 +90,7 @@ core/route_history.gd::backfill(s: Dictionary) -> Array   # 旧档回填为单�
 - 越狱路线 `region=="prison"` 且 `boss==""`，守卫数取 `security`。
 - 练习局不经过 `setup_init`；`Prison.exit_practice` 会走 `escape`，所以练习位里可能出现一条
   `escape` 记录。练习局不归档，core 不为此加练习判断。
-- 加固矩阵（plan.md §9）：进入原因 {`start`、`release`、`escape`、`gate_exit`、`cycle`} ×
+- 加固矩阵：进入原因 {`start`、`release`、`escape`、`gate_exit`、`cycle`} ×
   存档 {新档、缺 `route_history` 的旧档、`IRON_DRONE_REVISION` 迁移档}，共 15 格；
   每格从真实命令推进到切换点，再经真实 `dispatch` 触发切换。
 

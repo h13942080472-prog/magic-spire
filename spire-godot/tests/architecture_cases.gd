@@ -6843,7 +6843,7 @@ static func frozen_anchor_files_match_git(t) -> void:
  t.check(mismatches.is_empty(),"FB frozen_anchor_files_match_git: every anchor blob hash equals its declared sha256 (git unavailable, object missing and hash mismatch all fail closed): "+str(mismatches))
  print("FROZEN ANCHORS: %d anchor(s) recomputed from git blobs, %d matched" % [anchors.size(),anchors.size()-mismatches.size()])
 
-# ==== D23f0：塔路历史（docs/spec/save-fixed-points.md「加性字段与只读入口」）====
+# ==== 塔路历史（docs/spec/save-fixed-points.md「加性字段与只读入口」）====
 # state.route_history 的唯一写入者是 core/route_history.gd；直接写面只有 _init 字面与
 # restore_snapshot 的单行回填，追加只由 TRANSITIONS 的 route 列在 _apply_transition 的
 # not-continuation 块里派生。以下检查读源码文本与声明表，不依赖运行期计数器。
@@ -6880,7 +6880,7 @@ static func route_history_single_writer(t) -> void:
  t.check(text.contains("func open(") and text.contains("func reason(") and text.contains("func backfill("),"ROUTEHIST route_history_single_writer: the owner module declares the three contracted entry points")
  t.check(source_text("core/game.gd").contains("\"route_history\":[]"),"ROUTEHIST route_history_single_writer: the _init literal still creates the field once")
 
-# Review F2: a whitelist of the sites above rather than a list of write shapes, so an alias, a
+# A whitelist of the sites above rather than a list of write shapes, so an alias, a
 # chained element write or an unregistered read is red even when no write pattern matches it.
 static func route_history_reference_sites() -> Array:
  return source_write_sites(["res://core","res://data","res://ui"],"(?<![A-Za-z0-9_])route_history\\b")
@@ -6922,8 +6922,8 @@ static func route_reason_branches_declared(t) -> void:
  t.check(body.find("demo_cycle")>=0 and body.find("region")>=0,"ROUTEHIST route_reason_branches_declared: the reason reads the cycle and the previous region")
  t.check(body.find("return ENTER_START")>=0 and body.find("return ENTER_ESCAPE")>=0,"ROUTEHIST route_reason_branches_declared: setup and escape keep their own reasons")
 
-# A334 H2: the entry reason has one path, open -> reason -> _serving_sentence, all inside the
-# owner module. A call through the module handle (RouteHistory.reason( or g.RouteHistory.reason()
+# The entry reason has one path, open -> reason -> _serving_sentence, all inside the
+# owner module. A call through the module handle (RouteHistory.reason(...) or g.RouteHistory.reason(...))
 # names no route_history token, so the reference whitelist above cannot see it: this scan reads
 # the handle form in core/data/ui and the bare form inside the owner module. The handle is bound
 # once (the game.gd preload) and is only ever followed by a member, so no alias hides a call.
