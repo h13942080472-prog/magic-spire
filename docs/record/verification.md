@@ -5203,3 +5203,13 @@ Godot 4.7.2 专项 66 项断言通过。两个部位各承受两段「浑身解�
 - 规则回归共 59 类，通过 43 类，失败 16 类。桌面 UI 已通过 27 类，失败 22 类。按发布要求停止其余回归。尚未完成的 UI 分类为 persistence。
 - 规则未通过的分类为 rope_master、card_splash、consumables、architecture、event_flow、exploration、slip_motion、runner、wall、special_equipment、services、rewards、core、equipment、composites、pressure。
 - 桌面 UI 未通过的分类为 encyclopedia、display、basic_attacks、exploration、hand_assist、casting、wall、baseline、enemy_feedback、services、body_layout、targeting、interface、normal_play、enemies、equipment_complete、pressure、impact_feedback、guard、events、consumables、rewards。
+
+## 2026-11-26｜冻结基线以 e4fde8d 重做后的 PR 前回归
+
+- 域：`spire-godot` 规则 59 + 界面 50 套件，对照父侧 e4fde8d 逐套件；工作树 `worker/baseline`，验收 HEAD `d6944f0`；改动面为 `tests/architecture_cases.gd`、`tests/frozen-baselines.json`、`tests/check_index.json`、`tests/state_readers.json` 与 `docs/spec/fact-table-dependencies.md`。
+- 全量命令 `tools/check.ps1 -Suite all -UI -UISuite all -KeepGoing -TimeoutSeconds 3600`，运行号 `20261125T204339053-36708`，退出码 1。规则相位 30 个套件有结果行，在 `exploration` 的 SCRIPT ERROR 后提前收尾（与父侧同位置）；界面相位未启动。其余 79 个套件（规则 29、界面 50）逐个独立补跑，各有一条结果行。
+- 汇总：规则 PASS 43／父侧既有红 16；界面 PASS 27／父侧既有红 23；父 PASS 本分支 FAIL 为 0，父 FAIL 本分支 PASS 为 0；39 个两侧均红的套件逐行对照，本分支没有父侧没有的新增红行。
+- 消失的红行：`architecture` 13 行（`baseline_diff_is_declared`×2、`behavior_baseline_equivalence`×2、命令事实计数快照×5、`default_projection_is_unchanged`、`prefix_branch_tables_are_frozen`、ENCHANT 冻结面、`state_read_sites_are_pinned`），均为冻结基线改以 e4fde8d 为终点并重新生成状态读取表后的预期消失；`runner` 2 行（`index_matches_regeneration`、`index_regeneration_is_the_only_writer`），原因是冻结索引的 `generated_from` 漂移，合并后重生成 `tests/check_index.json` 一致。
+- 日志含 `BASELINE DIFF link=C declared_cells=26 moved_cells=26` 与 `PREFIX BRANCH TABLES FROZEN states=63 moved=0`。
+- 敏感性（`tools/check-mutation.ps1 -Check <名>`，逐条串行）：`baseline_diff_is_declared`、`behavior_baseline_equivalence`、`prefix_branch_tables_are_frozen`、`frozen_anchor_files_match_git` 四条均变红且逐字节还原；`default_projection_is_unchanged`（运行目录 `20261125T215844051-55176`，子运行 `20261125T215844660-22444`）：F6 判据行变红，但键改名使同套件另一消费者 `e_profile_matrix` 读取该键抛运行时错误，工具判 `FAILED exit-red=False`（已还原）。在父侧 e4fde8d 复核结果相同（变异运行目录 `20261125T222316079-48264`，子运行 `20261125T222317078-53028`，同为 `FAILED exit-red=False`，两侧均为 90 条同文 SCRIPT ERROR，仅 `architecture_cases.gd` 行号随版本不同），属既有突变设计，非本次改动引入。
+- 仅验证桌面源码；未打包，未做安卓真机验收。
