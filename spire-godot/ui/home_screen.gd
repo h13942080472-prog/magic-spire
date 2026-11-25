@@ -14,6 +14,13 @@ func _ready() -> void:
  character.add_theme_font_size_override("font_size",18)
  ui._place(character,Rect2(1030,140,365,36),self)
  character.item_selected.connect(func(index):ui.selected_character="witch" if index==1 else "original")
+ var elite=CheckBox.new();elite.name="HomeEliteMagicalGirl"
+ elite.text=ui._text("ui.home.elite_magical_girl","精英魔法少女")
+ elite.tooltip_text=ui._text("ui.home.elite_magical_girl_hint","新局的初始卡组加入1张 henshin。")
+ elite.add_theme_font_size_override("font_size",16)
+ elite.add_theme_color_override("font_color",ui.GOLD)
+ ui._place(elite,Rect2(1030,95,217,42),self)
+ elite.toggled.connect(func(enabled):ui.elite_magical_girl_start=enabled)
  var title=ui._label(ui._text("ui.home.title","紧缚尖塔"),96,ui.GOLD);title.name="HomeTitle"
  ui._place(title,Rect2(145,330,720,140),self)
  var language=ui._language_selector()
@@ -72,8 +79,10 @@ func _ready() -> void:
  ui._place(masochist,Rect2(1030,837,365,32),self)
  var custom_hint=ui._label("",13,ui.MUTED);custom_hint.name="HomeCursedPlateHint"
  ui._place(custom_hint,Rect2(1030,869,365,18),self)
- var refresh_chastity=func():
+ var refresh_opening_options=func():
   var witch=ui.selected_character=="witch"
+  elite.disabled=witch
+  elite.set_pressed_no_signal(not witch and ui.elite_magical_girl_start)
   fixed.disabled=witch
   fixed.set_pressed_no_signal(witch or ui.display_settings.fixed_hero_portrait)
   fixed.text="角色2 · 固定站立立绘" if witch else "扶她出去 · "+("开" if fixed.button_pressed else "关")
@@ -91,21 +100,21 @@ func _ready() -> void:
   custom.tooltip_text=ui.localization.display("新局以「诅咒平板锁」替换「余烬护符」，保留前三项开局选择和直接出发。")
   masochist.tooltip_text=ui.localization.display("诅咒平板锁的跳蛋持续生效，高潮后快感保留系数可持续增长。")
   chastity.tooltip_text=ui.localization.display("随机施加性玩具时选择平板锁的概率。范围5%～100%，每次调整5%；锁具位置已满时改选普通性玩具。")
- refresh_chastity.call()
- character.item_selected.connect(func(_index):refresh_chastity.call())
+ refresh_opening_options.call()
+ character.item_selected.connect(func(_index):refresh_opening_options.call())
  fixed.toggled.connect(func(enabled):
   ui.display_settings.set_fixed_hero_portrait(enabled)
   fixed.text="扶她出去 · "+("开" if enabled else "关")
-  refresh_chastity.call()
+  refresh_opening_options.call()
   save_notice.text=ui.display_settings.save_error)
  chastity.toggled.connect(func(enabled):
   ui.display_settings.set_chastity_locks(enabled)
-  refresh_chastity.call()
+  refresh_opening_options.call()
   save_notice.text=ui.display_settings.save_error)
- down.pressed.connect(func():ui.display_settings.adjust_chastity_chance(-5);refresh_chastity.call();save_notice.text=ui.display_settings.save_error)
- up.pressed.connect(func():ui.display_settings.adjust_chastity_chance(5);refresh_chastity.call();save_notice.text=ui.display_settings.save_error)
- custom.toggled.connect(func(enabled):ui.display_settings.set_cursed_plate_start(enabled);refresh_chastity.call();save_notice.text=ui.display_settings.save_error)
- masochist.toggled.connect(func(enabled):ui.display_settings.set_cursed_plate_masochist_mode(enabled);refresh_chastity.call();save_notice.text=ui.display_settings.save_error)
+ down.pressed.connect(func():ui.display_settings.adjust_chastity_chance(-5);refresh_opening_options.call();save_notice.text=ui.display_settings.save_error)
+ up.pressed.connect(func():ui.display_settings.adjust_chastity_chance(5);refresh_opening_options.call();save_notice.text=ui.display_settings.save_error)
+ custom.toggled.connect(func(enabled):ui.display_settings.set_cursed_plate_start(enabled);refresh_opening_options.call();save_notice.text=ui.display_settings.save_error)
+ masochist.toggled.connect(func(enabled):ui.display_settings.set_cursed_plate_masochist_mode(enabled);refresh_opening_options.call();save_notice.text=ui.display_settings.save_error)
  ui._place(chastity,Rect2(1030,751,235,48),self)
  ui._place(down,Rect2(1271,751,58,48),self)
  ui._place(up,Rect2(1337,751,58,48),self)

@@ -12,6 +12,7 @@ static func cast(t,g,type: String,free: bool) -> Dictionary:
  return t.action(g,"card",{"uid":card.uid,"free":free})
 
 static func run(t) -> void:
+ adjusted_escape_cards(t)
  preload("res://tests/lewd_magic_cases.gd").run(t)
  preload("res://tests/supple_flesh_cases.gd").run(t)
  preload("res://tests/binding_power_cases.gd").run(t)
@@ -32,6 +33,9 @@ static func run(t) -> void:
  preload("res://tests/mana_circuit_cases.gd").run(t)
  preload("res://tests/ready_to_strike_cases.gd").run(t)
  preload("res://tests/crossed_legs_cases.gd").run(t)
+ shining_debut(t)
+ preload("res://tests/liberating_grace_cases.gd").run(t)
+ last_resort(t)
  pot_of_greed(t)
  preload("res://tests/embers_cases.gd").run(t)
  preload("res://tests/follow_through_cases.gd").run(t)
@@ -59,14 +63,14 @@ static func run(t) -> void:
  t.check(g.Cards.active_buffs(g).is_empty() and g.Cards.damage_multiplier(g,"fireball")==1,"BUFF battle cleanup removes all battle sources")
 
  g=Game.new(42);g.state.energy=10;cast(t,g,"henshin",true)
- target=preload("res://tests/link_cases.gd").at(g,"mid_thigh")
+ target=preload("res://tests/link_cases.gd").at(g,"mid_thigh",30,30)
  var passive=g.escape_preview(target,"slip",g.SlipMotion.factor("mid_thigh",g.state.posture),[],true)
  var old=target.durability
  c=t.find_action(g,"wall_move",{"direction":"away"})
  t.check(passive.damage_buff_multiplier==2 and g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and is_equal_approx(g._equipment(target.id).durability,old-passive.damage),"BUFF formal movement applies doubled passive damage once")
- target=g._equipment(target.id);g._gain_tool("shard")
- c=t.find_action(g,"item_use",{"item":g.state.items.back().id,"target":target.id})
- t.check(g.candidate_detail(c).contains("10") and g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g._equipment(target.id).is_empty(),"BUFF fixed tool preview and actual cutting both double")
+ old=g._equipment(target.id).durability
+ var knife=t.take_item_card(g,"shard")
+ t.check(g.Cards.ItemCards.Presentation.summary(g,"shard").contains("10点真实伤害") and t.action(g,"card",{"uid":knife,"target":target.id,"free":true}).ok and is_equal_approx(g._equipment(target.id).durability,old-10),"BUFF cutting card preview and damage both reflect the double damage effect")
 
  g=Game.new(42);g.state.energy=10
  t.check(cast(t,g,"strong_elbow",true).ok and cast(t,g,"henshin",true).ok,"BUFF arm preparation combines with battle damage")
@@ -99,19 +103,7 @@ static func run(t) -> void:
   t.check(g.state.rng.magic==before.rng.magic+1 and not g.state.logs.filter(func(x):return x.data.has("spell")).back().data.spell.success,"CONVERSION failure uses the shared casting random domain")
  g=Game.new(42);g.state.energy=0;copy=give(t,g,"mana_conversion");before=g.export_snapshot()
  t.check(not t.action(g,"card",{"uid":copy.uid,"free":true}).ok and g.state==before,"CONVERSION printed zero still requires actual one energy")
- for pressure in [0.0,1.99,2.0,59.0,99.0]:
-  g=Game.new(42);g.state.pressure=pressure;g.state.temporary_mana=5
-  var initial_energy=g.state.energy;var initial_mana=g.state.mana
-  copy=give(t,g,"pleasure_conversion");c=t.find_action(g,"card",{"uid":copy.uid,"free":true})
-  var gain=int(pressure/2.0)
-  t.check(c.valid and g.Cards.detail(g,c.payload).contains("本次获得%d临时魔力。" % gain),"CONVERSION free preview floors current pressure into temporary mana")
-  t.check(t.action(g,"card",{"uid":copy.uid,"free":true}).ok and g.state.temporary_mana==5+gain and g.state.mana==initial_mana and g.state.energy==initial_energy and g.state.pressure==pressure,"CONVERSION free grants only temporary mana without spending pressure")
- var conversion=g.Cards.Rules.SPECS.pleasure_conversion.duplicate(true)
- for invalid in [0,-1,"2"]:
-  conversion.self_faces.free.pressure_temporary_mana=invalid
-  t.check(g.Cards.Rules.definition_reason(conversion)!="","CONVERSION invalid temporary-mana divisor rejected")
- g=Game.new(42);g.state.pressure=59
- t.check(cast(t,g,"pleasure_conversion",false).ok and g.state.energy==5 and g.state.pressure==59,"CONVERSION floor of current resource is gained without spending it")
+ pleasure_conversion(t)
 
  for free in [false,true]:
   g=Game.new(42)
@@ -127,6 +119,35 @@ static func run(t) -> void:
  t.check(cast(t,g,"henshin",false).ok and g.action_targets().is_empty() and g.state.composites.is_empty() and g.state.links.is_empty() and g.state.mana==60 and g.state.items==tools,"HENSHIN releases locked pieces, composite components and links, preserves ordinary tools")
  reward_rules(t)
  henshin_capture(t)
+
+static func pleasure_conversion(t) -> void:
+ for pressure in [0.0,2.0,9.99,10.0,19.99,20.0,59.0,99.0]:
+  var g=Game.new(42);g.state.pressure=pressure;g.state.temporary_mana=5
+  var initial_energy=g.state.energy;var initial_mana=g.state.mana
+  var copy=give(t,g,"pleasure_conversion");var c=t.find_action(g,"card",{"uid":copy.uid,"free":true})
+  var gain=floori(pressure/10.0)
+  t.check(c.valid and g.Cards.detail(g,c.payload).contains("本次获得%s层魔力预备。" % g.number(gain)),"CONVERSION free preview floors current pressure into temporary mana")
+  t.check(t.action(g,"card",{"uid":copy.uid,"free":true}).ok and g.state.temporary_mana==5+gain*g.reserve_mana_value() and g.state.mana==initial_mana and g.state.energy==initial_energy and g.state.pressure==pressure,"CONVERSION free grants only temporary mana without spending pressure")
+ var g=Game.new(42)
+ var conversion=g.Cards.Rules.SPECS.pleasure_conversion.duplicate(true)
+ for invalid in [0,-1,"2"]:
+  conversion.self_faces.free.pressure_temporary_mana=invalid
+  t.check(g.Cards.Rules.definition_reason(conversion)!="","CONVERSION invalid temporary-mana divisor rejected")
+ g.state.pressure=59
+ t.check(cast(t,g,"pleasure_conversion",false).ok and g.state.energy==5 and g.state.pressure==59,"CONVERSION floor of current resource is gained without spending it")
+
+static func adjusted_escape_cards(t) -> void:
+ var g=Game.new(42)
+ g.state.charge=0
+ var card=give(t,g,"inch")
+ var energy=g.state.energy
+ var hand=g.state.hand.size()
+ t.check(t.action(g,"card",{"uid":card.uid,"free":true,"slot":"thigh"}).ok and g.state.energy==energy-1 and g.state.charge==0 and g.state.card_buff_uses.get("slippery",0)==1 and g.state.hand.size()==hand and not g.state.pending_retain,"INCH free face draws and grants one Slippery layer")
+ g=Game.new(42)
+ var target=g.add_fixture("thigh",8)
+ card=give(t,g,"brace")
+ var action=t.find_action(g,"card",{"uid":card.uid,"target":target.id})
+ t.check(action.valid and action.payload.preview.base==5.0 and t.action(g,"card",{"uid":card.uid,"target":target.id}).ok and g.state.charge==1,"BRACE bound face resolves a base-five strain hit and grants one charge")
 
 static func henshin_capture(t) -> void:
  for free in [false,true]:
@@ -183,6 +204,44 @@ static func reward_rules(t) -> void:
  snapshot.rare_offset=41;var before=g.export_snapshot()
  t.check(not g.restore_snapshot(snapshot).ok and g.state==before,"RARITY malformed correction rejected atomically")
 
+static func last_resort(t) -> void:
+ var type="last_resort"
+ var cards=preload("res://tests/curse_cases.gd")
+ for op in ["deposit","withdraw"]:
+  var g=Game.new(42)
+  g.state.mana=0.5 if op=="deposit" else 0.0
+  g.state.flask_mana=10
+  g.state.temporary_mana=10
+  t.check(t.action(g,"flask",{"op":op}).ok,"LAST RESORT commits "+op)
+  g.state.mana=0
+  g._discard_end()
+  var energy=g.state.energy
+  t.check(cards.play(t,g,type,true).ok and g.state.hand.size()==3 and g.state.energy==energy,"LAST RESORT first turn draws three despite current flask use and temporary mana")
+  var charge=g.state.charge
+  t.check(cards.play(t,g,type,false).ok and g.state.charge==charge+3,"LAST RESORT bound face grants three charge")
+  t.check(t.action(g,"end").ok,"LAST RESORT advances after "+op)
+  g=Save.roundtrip(t,g,"last resort previous "+op)
+  g.state.mana=0
+  g._discard_end()
+  charge=g.state.charge
+  for free in [false,true]:
+   var card=cards.give(g,type)
+   t.check(t.action(g,"card",{"uid":card.uid,"free":free}).ok and g.state.hand.is_empty() and g.state.charge==charge and g.state.discard.any(func(c):return c.uid==card.uid),"LAST RESORT previous "+op+" suppresses effect but permits play and discard")
+  t.check(not t.action(g,"flask",{"op":"deposit"}).ok and t.action(g,"end").ok,"LAST RESORT denied deposit and idle turn")
+  g.state.mana=0.1
+  charge=g.state.charge
+  t.check(cards.play(t,g,type,false).ok and g.state.charge==charge,"LAST RESORT positive fractional personal mana permits play without charge")
+  g.state.mana=0
+  t.check(cards.play(t,g,type,false).ok and g.state.charge==charge+3,"LAST RESORT reactivates after an idle turn")
+  var before=g.export_snapshot()
+  var bad=before.duplicate(true);bad.combat.flask_used_previous_turn=1
+  t.check(not g.restore_snapshot(bad).ok and g.state==before,"LAST RESORT invalid flask history rejects atomically")
+ var g=Game.new(42)
+ g.state.mana=1
+ t.check(t.action(g,"flask",{"op":"deposit"}).ok,"LAST RESORT previous encounter deposit")
+ g._start_battle()
+ t.check(not g.state.combat.flask_used_previous_turn,"LAST RESORT new encounter resets prior usage")
+
 static func pot_of_greed(t) -> void:
  var type="pot_of_greed"
  for free in [false,true]:
@@ -207,3 +266,25 @@ static func pot_of_greed(t) -> void:
  g=Game.new(42);g._discard_end();card=preload("res://tests/curse_cases.gd").give(g,type);g.state.energy=0
  before=g.export_snapshot()
  t.check(t.action(g,"card",{"uid":card.uid,"free":true}).ok and g.state.energy==0 and g.state.hand.size()==2 and g.state.exhaust.any(func(x):return x.uid==card.uid),"POT remains playable at zero energy and exhausts after drawing")
+
+static func shining_debut(t) -> void:
+ var type="shining_debut"
+ var fixture=preload("res://tests/binding_search_cases.gd")
+ var give=preload("res://tests/curse_cases.gd")
+ for count in range(5):
+  var g=fixture.setup()
+  var card=give.give(g,type)
+  if count>=1: g.add_fixture("wrist",8);g.add_fixture("forearm",8)
+  if count>=2: g.add_fixture("eyes",8)
+  if count>=3: g.add_fixture("thigh",8)
+  if count>=4: g._install_special("nipple_clamp_low","special_1_a")
+  var text=g.Cards.face_text(g,type,false,card.uid)
+  t.check(text.contains("抽%d张牌" % (count+1)),"DEBUT live region draw matches the number of distinct occupied groups")
+  var mana=g.state.mana;var energy=g.state.energy
+  t.check(t.action(g,"card",{"uid":card.uid,"free":false}).ok and g.state.hand.size()==count+1 and g.state.mana==mana and g.state.energy==energy+1 and g.state.exhaust.any(func(c):return c.uid==card.uid),"DEBUT bound play draws one plus regions and exhausts")
+ var g=fixture.setup();var card=give.give(g,type)
+ g.state.mana=19;g.state.temporary_mana=0
+ t.check(not t.action(g,"card",{"uid":card.uid,"free":true}).ok and not g._card(card.uid).is_empty(),"DEBUT insufficient mana preserves the card")
+ g.state.mana=20;var energy=g.state.energy
+ t.check(t.action(g,"card",{"uid":card.uid,"free":true}).ok and g.state.mana==0 and g.state.energy==energy+2 and g.state.hand.size()==3 and g.state.exhaust.any(func(c):return c.uid==card.uid),"DEBUT free play pays twenty mana and grants energy and draw")
+ t.check(type in g.Character.pool(g,g.Cards.Rules.RARE,"original") and type not in g.Character.pool(g,g.Cards.Rules.RARE,"witch"),"DEBUT belongs to the original character rare pool")

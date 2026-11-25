@@ -6,7 +6,6 @@ $gameDirectory = Split-Path -Parent $PSScriptRoot
 # The Windows PCK excludes content/, so the shipped packs must be read from the directory next to
 # the executable; the development value would produce a package without content.
 Assert-SpirePacksRoot -GameDirectory $gameDirectory -Expected 'adjacent'
-$docsDirectory = Join-Path (Split-Path -Parent $gameDirectory) 'docs'
 $projectText = Get-Content -LiteralPath (Join-Path $gameDirectory 'project.godot') -Raw
 $versionMatch = [regex]::Match($projectText, '(?m)^config/version="([0-9]+\.[0-9]+(?:\.[0-9]+)?(?:\.fix)?)"')
 if (-not $versionMatch.Success) { throw 'Project version is missing or invalid.' }
@@ -37,24 +36,13 @@ if ($exportExit -ne 0 -or -not (Test-Path -LiteralPath $executable) -or (Get-Con
 }
 $contentDirectory = Join-Path $destination 'content'
 [IO.Directory]::CreateDirectory($contentDirectory) | Out-Null
-Copy-Item -LiteralPath (Join-Path $gameDirectory 'content/packs') -Destination $contentDirectory -Recurse
-$versionNotes = Join-Path $docsDirectory ('record/release-notes/release-v' + $packageVersion + '.txt')
-if (Test-Path -LiteralPath $versionNotes) {
-    Copy-Item -LiteralPath $versionNotes -Destination (Join-Path $destination '版本更新内容.txt')
-} else {
-    Copy-Item -LiteralPath (Join-Path (Split-Path -Parent $gameDirectory) '版本更新内容.txt') -Destination $destination
+$packs = Join-Path $gameDirectory 'content/packs'
+foreach ($file in Get-ChildItem -LiteralPath $packs -File -Recurse | Where-Object Extension -ne '.txt') {
+    $target = Join-Path (Join-Path $contentDirectory 'packs') ([IO.Path]::GetRelativePath($packs, $file.FullName))
+    [IO.Directory]::CreateDirectory((Split-Path -Parent $target)) | Out-Null
+    Copy-Item -LiteralPath $file.FullName -Destination $target
 }
-Copy-Item -LiteralPath (Join-Path $gameDirectory '基础操作教学.txt') -Destination $destination
-$licenseDirectory = Join-Path $destination 'licenses'
-[IO.Directory]::CreateDirectory($licenseDirectory) | Out-Null
-Copy-Item -LiteralPath (Join-Path $gameDirectory 'assets/vendor/CREDITS.md') -Destination $licenseDirectory
-Copy-Item -LiteralPath (Join-Path $gameDirectory 'assets/fonts/OFL') -Destination (Join-Path $licenseDirectory 'NotoSansCJK-OFL.txt')
-foreach ($name in @('LICENSE','ASSET_RIGHTS.md')) {
-    Copy-Item -LiteralPath (Join-Path (Split-Path -Parent $gameDirectory) $name) -Destination $destination
-}
-foreach ($name in @('GODOT-LICENSE.txt', 'GODOT-COPYRIGHT.txt')) {
-    Copy-Item -LiteralPath (Join-Path $gameDirectory ('packaging/licenses/' + $name)) -Destination $licenseDirectory
-}
+& (Join-Path $PSScriptRoot 'copy-release-documents.ps1') -GameDirectory $gameDirectory -Destination $destination
 $sourceAfter = Get-RuntimeFingerprint | ConvertTo-Json -Depth 4 -Compress
 if ($sourceBefore -cne $sourceAfter) { throw 'Runtime sources changed during export. Keep this staging folder unpublished and export a fresh build.' }
 $sourceBefore | Set-Content -LiteralPath (Join-Path $logDirectory 'source-manifest.json') -Encoding utf8

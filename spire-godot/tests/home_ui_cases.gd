@@ -68,6 +68,38 @@ static func run(t) -> void:
  await plate_lock_practice(t)
  await preload("res://tests/witch_character_ui_cases.gd").run(t)
  await seed_entry(t)
+ await elite_opening(t)
+
+static func elite_opening(t) -> void:
+ var store=Store.new("res://build/elite-opening-ui-"+str(Time.get_ticks_usec()))
+ await boot(t,store)
+ var ui=t.ui
+ var elite=ui.find_child("HomeEliteMagicalGirl",true,false)
+ var character=ui.find_child("CharacterSelect",true,false)
+ var saves=ui.find_child("HomeSaves",true,false)
+ t.check(elite!=null and not elite.disabled and not elite.button_pressed and elite.get_rect().end.y<=character.position.y and not elite.get_rect().intersects(saves.get_rect()),"ELITE HOME option defaults off and fits above character selection beside saves")
+ if elite==null: return
+ var before=ui.game.export_snapshot()
+ await Click.press(t,"HomeEliteMagicalGirl")
+ t.check(elite.button_pressed and ui.game.export_snapshot()==before and not store.has_files("tower"),"ELITE HOME selecting the option only changes the next opening")
+ character.select(1);character.item_selected.emit(1)
+ t.check(elite.disabled and not elite.button_pressed,"ELITE HOME option is unavailable for the witch")
+ character.select(0);character.item_selected.emit(0)
+ t.check(not elite.disabled and elite.button_pressed,"ELITE HOME changing back restores the choice for the original character")
+ await Click.press(t,"HomeNewGame")
+ var deck=ui.game.export_snapshot().deck
+ t.check(ui.view.phase=="departure" and deck.size()==12 and deck.count(deck.back())==1 and deck.back().type=="henshin","ELITE HOME random start adds the extra card through the actual opening")
+ var saved=store.read_slot("tower")
+ t.check(saved.ok and saved.snapshot.deck==deck,"ELITE HOME saved tower includes the extra starter")
+ ui._return_home();await t.frames()
+ await Click.press(t,"HomeEliteMagicalGirl")
+ await Click.press(t,"HomeContinue")
+ t.check(ui.game.export_snapshot().deck==deck,"ELITE HOME turning off the option does not change the continued run")
+ ui._return_home();await t.frames()
+ await Click.press(t,"HomeEliteMagicalGirl")
+ await Click.press(t,"HomeSeedGame");await Click.press(t,"StartSeedGame")
+ deck=ui.game.export_snapshot().deck
+ t.check(ui.view.phase=="departure" and deck.size()==12 and deck.back().type=="henshin","ELITE HOME seeded start uses the same option")
 
 static func seed_entry(t) -> void:
  var store=Store.new("res://build/seed-entry-ui-"+str(Time.get_ticks_usec()))
@@ -155,7 +187,7 @@ static func custom_opening(t) -> void:
  await Click.press(t,"HomeCursedPlateMasochist")
  await t.capture("ui-home-custom-start.png")
  await Click.press(t,"HomeNewGame")
- t.check(ui.game.state.relics==["cursed_plate_lock"] and ui.game.state.cursed_plate_masochist_mode and ui.view.phase=="departure","CUSTOM HOME new game freezes the selected masochist version and replaces starter through engine")
+ t.check(ui.game.state.relics==["return_seal","cursed_plate_lock"] and ui.game.state.cursed_plate_masochist_mode and ui.view.phase=="departure","CUSTOM HOME new game freezes the selected masochist version and replaces the starter while keeping the return seal")
  t.check(ui.find_child("DepartureOption_3",true,false)==null and ui.find_child("DepartureOption_2",true,false)!=null and ui.find_child("DepartureContinue",true,false)!=null,"CUSTOM HOME only fourth option hidden; other rewards and skip remain")
  var left=ui.find_child("DepartureOption_0",true,false);var right=ui.find_child("DepartureOption_2",true,false)
  t.check(is_equal_approx(left.position.x,1600-right.position.x-right.size.x) and ui.view.reward_panel.destination.contains("三选一"),"CUSTOM HOME three choices centered with correct explanation")
@@ -168,7 +200,7 @@ static func custom_opening(t) -> void:
  await Click.press(t,"HomeCursedPlateStart")
  await Click.press(t,"HomeContinue")
  var resumed=ui.game.export_snapshot();before.version=resumed.version
- t.check(resumed==before and ui.game.state.relics==["cursed_plate_lock"],"CUSTOM HOME continuing uses original scene checkpoint and ignores changed custom preference")
+ t.check(resumed==before and ui.game.state.relics==["return_seal","cursed_plate_lock"],"CUSTOM HOME continuing uses original scene checkpoint and ignores changed custom preference")
  ui._return_home();await t.frames()
 
 static func plate_lock_practice(t) -> void:

@@ -93,7 +93,7 @@ git worktree list
 - **打包脚本必须用 PowerShell 7**（`pwsh`）：`package.ps1`／`package-android.ps1` 使用 `[IO.Path]::GetRelativePath`，Windows PowerShell 5.1 不支持。
 - **Windows 打包的 `GODOT_BIN` 指向 `*_console.exe`**：`find-godot.ps1 -Console` 无匹配时可能回退到 GUI 版，导致退出码缺失与不完整暂存目录；启动前核对返回路径。失败后保留证据，重试使用新 `BuildId`，不为重试强制删除旧目录。
 - **打包的环境前置**：Godot 导出模板须装在 `%APPDATA%\Godot\export_templates\<引擎版本>\`；引擎版本与 `docs/spec/packaging.md` 的当前契约一致。`find-godot.ps1` 不校验版本，存在偏差时先处理，不能将不同环境的产物宣称为已按约验收。
-- **打包读取的输入**（改动前先确认仍在原位）：模块根 `基础操作教学.txt`（随包分发）、`docs/record/release-notes/release-v<版本>.txt`（作为包内 `版本更新内容.txt`）与 `docs/record/release-notes/release-android-v<版本>.txt`、`spire-godot/packaging/licenses/GODOT-LICENSE.txt`／`GODOT-COPYRIGHT.txt`、`assets/vendor/CREDITS.md`、`assets/fonts/OFL`、仓库根 `LICENSE`／`ASSET_RIGHTS.md`／`版本更新内容.txt`。玩家面副本与启动器另存于仓库根 `release/`（`基础操作教学.txt`、`开始游戏.cmd`、`开始游戏.vbs`；从 `release/` 启动时回退找 `../spire-godot/tools/launch.ps1`）。
+- **打包读取的输入**：两平台均由 `tools/copy-release-documents.ps1` 复制仓库根的两份玩家说明与许可，清单见 `docs/spec/packaging.md`。基础操作教学与开发说明保留在仓库。
 
 ## 更新签名私钥保管
 

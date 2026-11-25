@@ -37,7 +37,7 @@ static func practice(t) -> void:
   for free in [false,true]:
    var g=Game.new(42,true,"henshin")
    t.check(g.validate()=="" and g.state.phase=="battle" and g.state.enemies.size()==2 and g.state.equipment.size()==2 and g.state.energy==4,"HENSHIN PRACTICE starts valid real battle with targets and enough first-turn energy")
-   t.check(g.state.hand.size()==8 and g.state.deck.size()==13 and g.state.hand.slice(5).map(func(c):return c.type)==["henshin","hannya_henshin","hannya_2"],"HENSHIN PRACTICE all music cards drawn into opening hand")
+   t.check(g.state.hand.size()==8 and g.state.deck.size()==14 and g.state.hand.slice(5).map(func(c):return c.type)==["henshin","hannya_henshin","hannya_2"],"HENSHIN PRACTICE all music cards drawn into opening hand")
    var card=t.hand_card(g,type);var before=g.export_snapshot()
    var choice=t.find_action(g,"card",{"uid":card.uid,"free":free})
    t.check(choice.valid and g.get_view().practice_options.any(func(row):return row.id=="henshin" and row.node=="Practice_henshin") and g.state==before,"HENSHIN PRACTICE real legal choices and readonly entry: %s %s %s" % [type,str(free),choice.reason])

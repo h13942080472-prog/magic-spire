@@ -29,5 +29,5 @@ static func run(t) -> void:
  await Click.click_card(t,card.uid)
  t.check(ui.game.state.mana==56 and ui.find_child("RelicShortcut_great_wand",true,false).find_child("RelicCounter",true,false).text=="0","WAND UI fifteenth skill auto-recovers and clears display")
  ui.localization.set_locale("en_US")
- t.check(ui.localization.display("大魔棒")=="Great Wand" and ui.localization.display("已积攒3／15点；右键兑换等量魔力，满点自动兑换并清空。").contains("3/15"),"WAND UI English dynamic counter preserves values")
+ t.check(ui.localization.display("大魔棒")=="Great Wand" and ui.localization.display(ui.game.RelicEffects.counter(ui.game,"great_wand").detail).contains("0/15"),"WAND UI English dynamic counter preserves values")
  ui.localization.set_locale("zh_CN")

@@ -2,6 +2,7 @@ extends RefCounted
 
 # Target-specific hand assistance. No state writes or independent action pipeline.
 const E=preload("res://data/equipment.gd")
+const DisplayNumbers=preload("res://data/display_numbers.gd")
 const Special=preload("res://data/special_equipment.gd")
 const SIDES=["left","right"]
 
@@ -42,7 +43,7 @@ static func preview(g, target: Dictionary, current: Array=[]) -> Dictionary:
 
 static func label(hands: Array, amount: float) -> String:
  if hands.is_empty(): return "无手部辅助"
- return ("双手" if hands.size()==2 else ("左手" if hands[0]=="left" else "右手"))+"辅助＋"+str(amount).trim_suffix(".0")
+ return ("双手" if hands.size()==2 else ("左手" if hands[0]=="left" else "右手"))+"辅助＋"+DisplayNumbers.amount(amount)
 
 static func description(g) -> String:
  var lines=["每只手必须手指自由；手掌可用时＋1，手掌受限时减半为＋0.5。两手分别相加，适用于挣扎、普通滑脱和魔法滑脱；手腕、触及与外露条件仍须满足。"]
@@ -63,7 +64,7 @@ static func description(g) -> String:
 static func explain(hands: Array, amount: float, reasons: Array, contributions: Array=[]) -> String:
  var lines=[label(hands,amount)]
  for contribution in contributions:
-  if contribution.factor==0.5: lines.append(("左手" if contribution.side=="left" else "右手")+"：手指自由，手掌受限，辅助减半为＋"+str(contribution.bonus).trim_suffix(".0")+"。")
+  if contribution.factor==0.5: lines.append(("左手" if contribution.side=="left" else "右手")+"：手指自由，手掌受限，辅助减半为＋"+DisplayNumbers.amount(contribution.bonus)+"。")
  for issue in reasons:
   lines.append(("左手" if issue.side=="left" else "右手")+"："+issue.reason)
  return "\n".join(lines)

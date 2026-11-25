@@ -209,7 +209,46 @@ static func committed_receipt(t) -> void:
  var spent_delta=Impact.deltas(spent.get("resource_feedback",[]))
  t.check(spent.ok and release_witch.state.witch_focus==0 and Impact.border_kind_of(spent.get("resource_feedback",[]),release.payload)=="mana" and Impact.border_spec("mana",spent_delta,{}).variant=="loss","FEEDBACK a focus-consuming release asks for the blue loss border")
 
+static func enemy_phase_interruption(t) -> void:
+ for order in ["first","last"]:
+  var g=Game.new(42,true,"pressure_battle")
+  g.state.pressure=0;g.state.relics=[];g.state.pressure_sources=[]
+  for enemy in g.state.enemies:
+   enemy.pressure_gain=0
+   enemy.intent.pressure=120
+  if order=="last":
+   g.state.posture="lie"
+   g._start_round()
+  else:
+   var before=g.export_snapshot()
+   t.check(not g.dispatch(g.command({"kind":"end"},g.state.version-1),g.state.version-1).ok and g.export_snapshot()==before,"PRESSURE stale end-turn cannot run enemies or reserve an interruption")
+   t.check(t.action(g,"end").ok,"PRESSURE real enemy-last turn commits")
+  t.check(g.state.overloaded and g.state.energy==0 and g.state.overload_count==2 and g.state.overload_total==2,"PRESSURE both enemy orders block the upcoming player action window: "+order)
+  t.check(g.state.enemies.all(func(e):return e.stage==2),"PRESSURE interruption keeps the remaining enemies acting exactly once: "+order)
+  t.check(g.command_facts().filter(func(c):return c.valid).all(func(c):return c.payload.kind not in ["card","attack","posture","move","calm","item"]),"PRESSURE interrupted player has no usable cards or action-rail commands: "+order)
+  var before=g.export_snapshot()
+  t.check(not g.dispatch(g.command({"kind":"posture","dest":"sit","wall":false},g.state.version),g.state.version).ok and g.export_snapshot()==before,"PRESSURE blocked action preserves state and random streams: "+order)
+  var restored=Game.new(0,false,"equipment",false)
+  t.check(restored.restore_snapshot(before).ok and restored.state.overloaded and restored.state.energy==0,"PRESSURE save restores the interrupted player window: "+order)
+  t.check(t.action(g,"end").ok and not g.state.overloaded and g.state.enemies.all(func(e):return e.stage==3),"PRESSURE one continue consumes the skip without repeating the preceding enemy phase: "+order)
+
+ # An interruption during the player's own turn consumes that turn only.
+ var g=Game.new(42)
+ for enemy in g.state.enemies: enemy.intent.delayed=true
+ P.gain(g,100,"fixture",true)
+ t.check(t.action(g,"end").ok and not g.state.overloaded and g.state.energy==2,"PRESSURE player-turn climax does not reserve a second skipped turn")
+ # The existing continuation relic still overrides interruption in both orders.
+ for order in ["first","last"]:
+  g=Game.new(42,true,"pressure_battle")
+  g.state.relics=["desire_cube_pro_max","lewd_silk_bodysuit"]
+  g.state.pressure=0;g.state.pressure_sources=[]
+  for enemy in g.state.enemies: enemy.pressure_gain=0;enemy.intent.pressure=120
+  if order=="last": g.state.posture="lie";g._start_round()
+  else: t.check(t.action(g,"end").ok,"PRESSURE continued enemy-last turn commits")
+  t.check(not g.state.overloaded and g.state.overload_total>0 and g.state.energy>0,"PRESSURE continuation relic preserves player actions after enemy climax: "+order)
+
 static func run(t) -> void:
+ enemy_phase_interruption(t)
  overload_charge(t)
  forced_loop_exit(t)
  free_cooling(t)
@@ -287,7 +326,7 @@ static func run(t) -> void:
  g=Game.new(42,true,"pressure_battle")
  t.check(g.state.phase=="battle" and g.state.enemies.all(func(e):return e.intent.pressure==65) and g.get_view().enemies.all(func(e):return e.intent_icons.any(func(icon):return icon.kind=="debuff")),"PRESSURE battle practice has actual publicly frozen skills")
  t.action(g,"end")
- t.check(g.state.pressure==98 and g.state.mana==80 and g.state.energy==2 and g.state.round==2 and g.state.enemies.all(func(e):return e.stage==2),"PRESSURE free cooling precedes both first-order enemies and prevents the second overload")
+ t.check(g.state.pressure==98 and g.state.mana==80 and g.state.energy==0 and g.state.overloaded and g.state.round==2 and g.state.enemies.all(func(e):return e.stage==2),"PRESSURE enemy-last climax skips the next player turn while free cooling prevents the second overload")
  g=Game.new(42,true,"pressure_battle")
  g.state.posture="lie"
  g.state.pressure=70

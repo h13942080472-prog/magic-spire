@@ -72,8 +72,8 @@ state.initial_seed: int    # = _init 的 run_seed；state.seed 仍由 _restart_t
 - 加性字段**不升** `Snapshot.REVISION`（升版会把既有玩家存档判为不兼容）；`Snapshot.check` 的
   通用逐字段循环已要求该字段存在且为 `int`，`core/snapshot.gd` 零改动。
 - 缺字段的旧档按当时的 `state.seed` 回填；缺 `save_revision` 或修订号**不是当前值**的档按迁移链口径处置：
-  比当前早的三档修订号（`core/snapshot.gd::REINFORCEMENT_STATE_REVISION`／`core/snapshot.gd::CUP_STACK_REVISION`／
-  `core/snapshot.gd::IRON_DRONE_REVISION`）由 `core/game.gd::restore_snapshot` 在 `Snapshot.check` 之前
+  已支持的旧修订号（`core/snapshot.gd::REINFORCEMENT_STATE_REVISION`／`core/snapshot.gd::CUP_STACK_REVISION`／
+  `core/snapshot.gd::IRON_DRONE_REVISION`／`core/snapshot.gd::INVENTORY_REVISION`／`core/snapshot.gd::OPENER_REVISION`／`core/snapshot.gd::ADAPTABILITY_REVISION`）由 `core/game.gd::restore_snapshot` 在 `Snapshot.check` 之前
   按迁移链升级（迁移判定旧档数据不完整时整档拒绝、保留当前游戏）；**更早、更新、缺 `save_revision`
   或非整数的一律拒绝，不作迁移**。同口径与迁移函数见 `docs/design/game-design.md` 存档节。
 - `_scene_key` 不变；固定点身份与写入时机不受影响。

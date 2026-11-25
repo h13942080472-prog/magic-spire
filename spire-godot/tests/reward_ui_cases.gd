@@ -128,8 +128,8 @@ static func run(t) -> void:
   var point=player.get_global_rect().get_center()
   await t.move_mouse(point,true);await t.mouse_button(point,MOUSE_BUTTON_LEFT,false)
  else: await t.mouse_button(Vector2(1050,90),MOUSE_BUTTON_LEFT,false)
- t.check(not ui.view.pending_retain and ui.game.state.next_energy==1 and ui.game.state.hand.all(func(c):return c.retain_until==ui.game.state.tick+1),"REWARD UI free peel directly retains all remaining cards without a picker")
- t.check(ui.game.state.hand.any(func(c):return c.uid==first) and ui.game.state.hand.any(func(c):return c.uid==second) and ui.game.B.card_info("peel")[2].contains("保留全部手牌"),"REWARD UI retains the real hand and shows the complete free-face rule")
+ t.check(not ui.view.pending_retain and ui.game.state.next_energy==0 and ui.game.state.card_buff_uses.get("slippery")==2 and ui.game.state.hand.all(func(c):return c.retain_until==ui.game.state.tick+1),"REWARD UI free peel grants two Slippery and directly retains the remaining hand")
+ t.check(ui.game.state.hand.any(func(c):return c.uid==first) and ui.game.state.hand.any(func(c):return c.uid==second) and ui.game.B.card_info("peel")[2]=="获得2层滑溜；保留全部手牌。","REWARD UI retains the real hand and shows both free-face effects")
 
  setup(t);a=ui.game.add_fixture("thigh",4,10,true);b=ui.game.add_fixture("ankle",4,10,true);uid=give(t,"double_unlock")
  ui.render();await t.frames()
@@ -238,9 +238,15 @@ static func battle_loot(t) -> void:
  t.check(ui.show_reward_cards and ui.find_child("RewardBack",true,false)!=null and ui.game.state==before,"LOOT UI native row click opens choices without changing state")
  # The reward card choice is a real card face (docs/spec/card-terms.md「触发面」): hovering it must
  # show one box per term of the face it displays, next to the card and never over it.
- var choice_face=ui.find_child("RewardChoice_"+ui.game.state.reward_options[0],true,false)
- var choice_terms=preload("res://data/balance.gd").card_metadata(ui.game.state.reward_options[0]).face_keywords["free" if choice_face.free_face else "bound"]
- t.check(not choice_terms.is_empty(),"LOOT UI reward choice fixture carries face terms: "+ui.game.state.reward_options[0])
+ var choice_face=null
+ var choice_terms=[]
+ for id in ui.game.state.reward_options:
+  var face=ui.find_child("RewardChoice_"+id,true,false)
+  var terms=preload("res://data/balance.gd").card_metadata(id).face_keywords["free" if face.free_face else "bound"]
+  if not terms.is_empty():
+   choice_face=face;choice_terms=terms;break
+ t.check(choice_face!=null,"LOOT UI at least one real reward choice carries face terms: "+str(ui.game.state.reward_options))
+ if choice_face==null: return
  await t.move_mouse(choice_face.get_global_rect().get_center());await t.frames()
  var choice_popup=ui.find_child("TermExplanation",true,false)
  t.check(choice_popup!=null and preload("res://tests/interface_ui_cases.gd").term_boxes(choice_popup)==choice_terms,"LOOT UI reward choice hover boxes equal the hovered face terms: "+str(preload("res://tests/interface_ui_cases.gd").term_boxes(choice_popup)))
@@ -267,14 +273,13 @@ static func battle_loot(t) -> void:
 
 static func kings_gift(t) -> void:
  var ui=t.ui
- ui.restart(42);ui.game.state.relics=["kings_gift_revised"];ui.game.state.round=7
- for e in ui.game.state.enemies: e.hp=100;e.max_hp=100
+ ui.restart(42);ui.game.state.relics=["kings_gift_revised"];ui.game._start_battle()
  ui.render();await t.frames()
- var shortcut=ui.find_child("RelicShortcut_kings_gift_revised",true,false)
- t.check(shortcut!=null and shortcut.find_child("RelicCounter",true,false).text=="7","KING UI shows current battle round on relic icon")
- t.check(await t.click("end") and ui.view.enemies.all(func(e):return e.hp==23),"KING UI real seventh ending shows damage to every enemy")
- shortcut=ui.find_child("RelicShortcut_kings_gift_revised",true,false)
- t.check(shortcut.find_child("RelicCounter",true,false).text=="✓","KING UI counter switches to fired after committed ending")
+ var gifts=ui.game.state.hand.filter(func(c):return c.type=="royal_gift")
+ t.check(gifts.size()==1 and ui.find_child("RelicShortcut_kings_gift_revised",true,false)!=null,"KING UI displays opening gift beside relic")
+ if not gifts.is_empty():
+  await preload("res://tests/curse_ui_cases.gd").click_card(t,gifts[0].uid)
+  t.check(ui.game.state.exhaust.any(func(c):return c.uid==gifts[0].uid),"KING UI plays and exhausts gift")
  ui.restart(42);await t.frames()
 
 static func marble(t) -> void:

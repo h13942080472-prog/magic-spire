@@ -7,7 +7,7 @@ var exhaustive=false
 var reported_seed_sets={}
 var engine_errors=preload("res://tests/error_collector.gd").new()
 const Selection=preload("res://tests/suite_selection.gd")
-const SUITES={"rope_master":"res://tests/rope_master_cases.gd","enchantments":"res://tests/enchantment_cases.gd","witch_character":"res://tests/witch_character_cases.gd","localization":"res://tests/localization_cases.gd","update":"res://tests/update_cases.gd","card_power":"res://tests/card_power_cases.gd","card_expansion":"res://tests/card_expansion_cases.gd","relics":"res://tests/relic_revision_cases.gd","card_splash":"res://tests/card_splash_cases.gd","card_growth":"res://tests/concentration_cases.gd","item_discard":"res://tests/item_discard_cases.gd","consumables":"res://tests/consumable_cases.gd","basic_attacks":"res://tests/basic_attack_cases.gd","battle_saturation":"res://tests/battle_saturation_cases.gd","replacement":"res://tests/replacement_cases.gd","application":"res://tests/application_cases.gd","architecture":"res://tests/architecture_cases.gd","installation_priority":"res://tests/installation_priority_cases.gd","event_flow":"res://tests/event_flow_cases.gd","curses":"res://tests/curse_cases.gd","encyclopedia":"res://tests/encyclopedia_cases.gd","shop_release":"res://tests/shop_release_cases.gd","content":"res://tests/content_cases.gd","installed_tools":"res://tests/installed_tools_cases.gd","environment_height":"res://tests/environment_height_cases.gd","exploration":"res://tests/exploration_cases.gd","shoulder":"res://tests/shoulder_cases.gd","slip_motion":"res://tests/slip_motion_cases.gd","torso_binding":"res://tests/torso_binding_cases.gd","runner":"res://tests/runner_cases.gd","hand_assist":"res://tests/hand_assist_cases.gd","casting":"res://tests/casting_cases.gd","wall":"res://tests/wall_cases.gd","special_equipment":"res://tests/special_equipment_cases.gd","services":"res://tests/service_cases.gd","intent":"res://tests/intent_cases.gd","action_copy":"res://tests/action_copy_cases.gd","status":"res://tests/status_cases.gd","normal_play":"res://tests/normal_play_cases.gd","persistence":"res://tests/persistence_cases.gd","rewards":"res://tests/reward_cases.gd","events":"res://tests/event_cases.gd","core":null,"equipment":"res://tests/equipment_cases.gd","links":"res://tests/link_cases.gd","composites":"res://tests/composite_cases.gd","equipment_complete":"res://tests/equipment_complete_cases.gd","prison":"res://tests/prison_cases.gd","guard":"res://tests/guard_cases.gd","pressure":"res://tests/pressure_cases.gd","enemies":"res://tests/enemy_cases.gd","iron_man":"res://tests/iron_man_cases.gd","trader":"res://tests/trader_cases.gd","tower":"res://tests/tower_cases.gd","tower_progression":"res://tests/tower_progression_cases.gd"}
+const SUITES={"drone_operator":"res://tests/drone_operator_cases.gd","detective":"res://tests/detective_cases.gd","tape_mass":"res://tests/tape_mass_cases.gd","anti_mage_drone":"res://tests/anti_mage_drone_cases.gd","item_cards":"res://tests/item_card_cases.gd","rope_master":"res://tests/rope_master_cases.gd","enchantments":"res://tests/enchantment_cases.gd","witch_character":"res://tests/witch_character_cases.gd","localization":"res://tests/localization_cases.gd","update":"res://tests/update_cases.gd","card_power":"res://tests/card_power_cases.gd","card_expansion":"res://tests/card_expansion_cases.gd","relics":"res://tests/relic_revision_cases.gd","card_splash":"res://tests/card_splash_cases.gd","card_growth":"res://tests/concentration_cases.gd","item_discard":"res://tests/item_discard_cases.gd","consumables":"res://tests/consumable_cases.gd","basic_attacks":"res://tests/basic_attack_cases.gd","battle_saturation":"res://tests/battle_saturation_cases.gd","replacement":"res://tests/replacement_cases.gd","application":"res://tests/application_cases.gd","architecture":"res://tests/architecture_cases.gd","installation_priority":"res://tests/installation_priority_cases.gd","event_flow":"res://tests/event_flow_cases.gd","curses":"res://tests/curse_cases.gd","encyclopedia":"res://tests/encyclopedia_cases.gd","shop_release":"res://tests/shop_release_cases.gd","content":"res://tests/content_cases.gd","installed_tools":"res://tests/installed_tools_cases.gd","environment_height":"res://tests/environment_height_cases.gd","exploration":"res://tests/exploration_cases.gd","shoulder":"res://tests/shoulder_cases.gd","slip_motion":"res://tests/slip_motion_cases.gd","torso_binding":"res://tests/torso_binding_cases.gd","runner":"res://tests/runner_cases.gd","hand_assist":"res://tests/hand_assist_cases.gd","casting":"res://tests/casting_cases.gd","wall":"res://tests/wall_cases.gd","special_equipment":"res://tests/special_equipment_cases.gd","services":"res://tests/service_cases.gd","intent":"res://tests/intent_cases.gd","action_copy":"res://tests/action_copy_cases.gd","status":"res://tests/status_cases.gd","normal_play":"res://tests/normal_play_cases.gd","persistence":"res://tests/persistence_cases.gd","rewards":"res://tests/reward_cases.gd","events":"res://tests/event_cases.gd","core":null,"equipment":"res://tests/equipment_cases.gd","links":"res://tests/link_cases.gd","composites":"res://tests/composite_cases.gd","equipment_complete":"res://tests/equipment_complete_cases.gd","prison":"res://tests/prison_cases.gd","guard":"res://tests/guard_cases.gd","pressure":"res://tests/pressure_cases.gd","enemies":"res://tests/enemy_cases.gd","iron_man":"res://tests/iron_man_cases.gd","trader":"res://tests/trader_cases.gd","tower":"res://tests/tower_cases.gd","tower_progression":"res://tests/tower_progression_cases.gd"}
 
 
 func check(ok: bool, message: String) -> void:
@@ -20,6 +20,13 @@ func action(g, kind: String, extra: Dictionary = {}) -> Dictionary:
  var c=find_action(g,kind,extra,true)
  if c.valid: return g.dispatch(g.command(c.payload,g.state.version),g.state.version)
  return {"ok":false, "error":"测试没有找到动作：" + kind}
+
+# Convert through the inventory command; callers exercise the resulting physical card.
+func take_item_card(g, type: String) -> String:
+ g._gain_tool(type)
+ var result=action(g,"item_use",{"item":g.state.items.back().id})
+ check(result.ok,"ITEM CARD fixture can add "+type+" to hand")
+ return g.state.hand.back().uid if result.ok else ""
 
 func seed_values(id: String) -> Array:
  var values=Selection.seeds(id,exhaustive)
@@ -76,7 +83,7 @@ func _initialize() -> void:
 func _core_cases() -> void:
  var g = Game.new(42)
  check(g.state.hand.size() == 5, "TC-CORE-0001 initial draw")
- check(g.state.deck.size() == 10, "TC-CORE-0001 ten cards")
+ check(g.state.deck.size() == 11, "TC-CORE-0001 eleven cards")
  var before = JSON.stringify(g.state)
  g.get_view()
  g.command_facts()
@@ -118,7 +125,7 @@ func _more_tests() -> void:
  var motion_log_start=g.state.logs.size()
  check(action(g,"reward",{"type":g.state.reward_options[0]}).ok,"TC-FLOW-0002 reward choice")
  check(action(g,"reward",{"type":"skip"}).ok,"TC-FLOW-0002 continue after pickup")
- check(g.state.deck.size()==11 and g.state.phase=="prepare" and g.state.prepare_left==3,"TC-FLOW-0002 reward enters preparation")
+ check(g.state.deck.size()==12 and g.state.phase=="prepare" and g.state.prepare_left==3,"TC-FLOW-0002 reward enters preparation")
  check(not action(g,"reward",{"type":"brace"}).ok,"TC-FLOW-0002 no duplicate reward")
  g._gain_charge(2)
  g.state.temporary_mana=5
@@ -138,7 +145,7 @@ func _more_tests() -> void:
   var current=g._equipment(item.id)
   check(not current.is_empty() and current.template==item.template and current.locked==item.locked and is_equal_approx(current.durability,item.durability),"TC-FLOW-0004 retained identity, lock and logged durability")
  check(g.state.charge==2 and g.state.temporary_mana==5 and g.state.mana==83,"TC-FLOW-0004 preparation end heals once and retains charge and temporary mana within caps")
- check(g.state.deck.size()==11 and g.validate()=="","TC-FLOW-0004 rebuild deck without loss")
+ check(g.state.deck.size()==12 and g.validate()=="","TC-FLOW-0004 rebuild deck without loss")
 
  g=Game.new(42)
  for enemy in g.state.enemies:
@@ -241,11 +248,11 @@ func _more_tests() -> void:
  g.state.mana=80
  check(action(g,"attack",{"type":"strike","enemy":"enemy_1"}).ok and g.state.phase=="battle","TC-FLOW-0005 first kill no reward")
  check(action(g,"attack",{"type":"strike","enemy":"enemy_2"}).ok and g.state.phase=="reward" and g.state.reward_count==1 and g.state.mana==80,"TC-FLOW-0005 last kill gives reward but defers ending relic")
- g.state.reward_options=["inch","brace","magic_slip"] # Specific retain-card fixture; still uses real reward command.
- check(action(g,"reward",{"type":"inch"}).ok,"TC-RETAIN-0001 obtain retain card")
+ g.state.reward_options=["focus","brace","magic_slip"] # Specific retain-card fixture; still uses real reward command.
+ check(action(g,"reward",{"type":"focus"}).ok,"TC-RETAIN-0001 obtain retain card")
  check(action(g,"reward",{"type":"skip"}).ok,"TC-RETAIN-0001 continue after pickup")
- card=hand_card(g,"inch")
- check(action(g,"card",{"uid":card.uid,"slot":"thigh"}).ok and g.state.pending_retain,"TC-RETAIN-0001 choose retain after drawing")
+ card=hand_card(g,"focus")
+ check(action(g,"card",{"uid":card.uid,"free":true}).ok and g.state.pending_retain,"TC-RETAIN-0001 choose a card to retain")
  var kept=g.state.hand[0].uid
  check(action(g,"retain",{"uid":kept}).ok,"TC-RETAIN-0001 retain selection")
  check(action(g,"end").ok and not g._card(kept).is_empty(),"TC-RETAIN-0002 retained into next turn")

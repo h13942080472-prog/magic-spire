@@ -25,7 +25,7 @@ static func run(t) -> void:
  g.state.energy=3
  var equipment=JSON.stringify(g.state.equipment);var tick=g.state.tick;var mana=g.state.mana
  t.check(t.action(g,"card",{"uid":card.uid}).ok and g.state.energy==2 and g.state.exhaust.any(func(c):return c.uid==card.uid),"CURSE panic pays once and exhausts on play")
- t.check(JSON.stringify(g.state.equipment)==equipment and g.state.tick==tick and g.state.mana==mana and g.state.deck.size()==11,"CURSE no effect on equipment, turn, mana or permanent ownership")
+ t.check(JSON.stringify(g.state.equipment)==equipment and g.state.tick==tick and g.state.mana==mana and g.state.deck.size()==12,"CURSE no effect on equipment, turn, mana or permanent ownership")
  t.check(not t.action(g,"card",{"uid":card.uid}).ok,"CURSE exhausted card cannot replay")
  g._reset_piles()
  t.check(g.state.draw.any(func(c):return c.uid==card.uid) and g.state.exhaust.is_empty(),"CURSE next battle restores exhausted panic")

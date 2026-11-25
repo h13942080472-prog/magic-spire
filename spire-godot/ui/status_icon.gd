@@ -2,7 +2,7 @@ extends Control
 
 # Artwork and counters only; the status projection owns all values and lifetimes.
 const CardArt=preload("res://ui/card_face.gd")
-const KINDS=["info","flame","weakness","bind","stock","shield","charge","ritual","ready","puppet","split","arms","legs","hand","foot","eye","mouth","movement","strength","dexterity","sure_cast","power","mana","energy","pressure","wall","cards","item"]
+const KINDS=["info","flame","weakness","bind","stock","shield","armor","charge","ritual","ready","puppet","split","arms","legs","hand","foot","eye","mouth","movement","strength","dexterity","sure_cast","power","mana","energy","pressure","wall","cards","item"]
 var status: Dictionary={}
 var ink=Color("d8c18f")
 var badge: Label
@@ -13,6 +13,7 @@ func _ready() -> void:
  if status.get("disabled",false): modulate=Color(0.55,0.55,0.55,0.8)
  ink=Color("e7a2a7") if status.tone=="bad" else Color("91d6d0") if status.tone=="good" else Color("d8c18f")
  if status.icon=="mana": ink=Color("c5a2ed")
+ if status.icon=="armor": ink=Color("d5e1ed")
  if status.get("emphasized",false): ink=Color("ffcf65")
  if status.icon=="power" and CardArt.ILLUSTRATIONS.has(status.get("card_type","")):
   var art=TextureRect.new();art.texture=CardArt.ILLUSTRATIONS[status.card_type]
@@ -79,7 +80,7 @@ func _draw() -> void:
   "dexterity":
    stroke([Vector2(11,37),Vector2(20,15),Vector2(36,9),Vector2(35,23),Vector2(24,32),Vector2(16,29)])
    stroke([Vector2(16,28),Vector2(31,14)]);stroke([Vector2(21,23),Vector2(20,16)])
-  "shield","ready":
+  "shield","armor","ready":
    stroke([Vector2(24,8),Vector2(38,14),Vector2(35,31),Vector2(24,40),Vector2(13,31),Vector2(10,14),Vector2(24,8)])
    if status.icon=="ready": stroke([Vector2(16,24),Vector2(22,30),Vector2(33,17)])
   "cards","stock":

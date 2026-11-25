@@ -36,7 +36,24 @@ static func refreshed_preview(t) -> void:
  t.check(current!=null and shown!=null and shown.text==current.text,"CARD PREVIEW reused card inspection reads current availability rather than its mount snapshot")
  t.check(ui.game.export_snapshot()==before,"CARD PREVIEW refreshed inspection preserves state and RNG")
 
+static func full_escape(t) -> void:
+ var ui=t.ui
+ for second in [false,true]:
+  var uid=await setup(t,"full_escape")
+  var g=ui.game
+  g.state.energy=2
+  var wrist=g.add_fixture("wrist",6)
+  var shin=g.add_fixture("calf",6)
+  ui.render();await t.frames()
+  if second: await t.flip(uid)
+  var face=ui.card_buttons[uid]
+  t.check(face.get_node("CardCost").text=="X" and t.visible_text(face).contains("滑脱4×X" if second else "挣扎4×X") and t.visible_text(face).contains("顺延"),"FULL ESCAPE UI each bound face displays X, the correct method and continuation")
+  await preload("res://tests/curse_ui_cases.gd").click_card(t,uid)
+  var hit_targets=g.state.logs.filter(func(log):return log.data.has("follow_through_hit")).map(func(log):return log.data.follow_through_hit.target)
+  t.check(g.state.energy==0 and wrist.id in hit_targets and shin.id in hit_targets and g.state.discard.any(func(card):return card.uid==uid),"FULL ESCAPE UI native click plays on both eligible parts without target selection")
+
 static func run(t) -> void:
+ await full_escape(t)
  await refreshed_preview(t)
  var ui=t.ui
  var uid=await setup(t,"strain")

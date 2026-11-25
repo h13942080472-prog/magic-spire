@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 320">
+<defs>
+ <linearGradient id="coat" x2=".9" y2="1" gradientUnits="objectBoundingBox"><stop stop-color="#486175"/><stop offset=".52" stop-color="#293447"/><stop offset="1" stop-color="#202331"/></linearGradient>
+ <linearGradient id="hair" x2=".8" y2=".85"><stop stop-color="#c87b51"/><stop offset=".55" stop-color="#874635"/><stop offset="1" stop-color="#503742"/></linearGradient>
+ <linearGradient id="leather" x2=".4" y2="1"><stop stop-color="#485269"/><stop offset="1" stop-color="#272b38"/></linearGradient>
+ <linearGradient id="screen" x2="1" y2=".8"><stop stop-color="#9df2e9"/><stop offset="1" stop-color="#418f9c"/></linearGradient>
+</defs>
+<g stroke="#252738" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+ <!-- Antenna and the folded field radio. -->
+ <path d="m76 123-23-70 4-2 25 69" fill="#8d989a"/><path d="m52 52-2-6" stroke="#f9c77d"/>
+ <path d="m73 120 30-9 19 92-36 14-24-12-6-66Z" fill="#344657"/><path d="m61 151 15-4 4 20-16 5Z" fill="#bb905b"/>
+ <!-- Boots, soles and asymmetric weight-bearing stance. -->
+ <path d="m103 180 28 3-7 47-14 43-14 27-22-4 18-41 5-38Z" fill="url(#leather)"/>
+ <path d="m133 179 28 4 5 43-3 47 2 28-21 2-4-45-8-35Z" fill="url(#leather)"/>
+ <path d="m88 260 23 6-13 30-1 9-10 3-30-1-3-6 23-11Z" fill="#343949"/>
+ <path d="m141 267 23-2 3 25 16 10 1 6-38 2-5-9Z" fill="#353846"/>
+ <path d="m56 305 32-1 9-4m49 6 37-3m-93-32 12 4m43 1 13-1" fill="none" stroke="#ab936e"/>
+ <path d="m97 222 12 5-6 16-10-3m47-16 14-1 1 16-12-2" fill="#586779"/>
+ <!-- Flight jacket, harness, tool belt and rolled sleeves. -->
+ <path d="m100 109 18-9 21 0 27 11 9 42-10 34 5 20-28 2-14-11-16 13-27-4 6-44-8-26Z" fill="url(#coat)"/>
+ <path d="m112 107 11 8 16-11-5 41-13 24-12-30Z" fill="#869295"/>
+ <path d="m108 107 9-5 7 15-12 10-8-11m25 0 10-13 11 4-7 16-12-5" fill="#d7c9b0"/>
+ <path d="m98 116 8-5 36 68-7 4Zm43-4 7 3-37 68-7-4Z" fill="#956a49"/>
+ <path d="m91 172 70-1-1 13-70 4Z" fill="#58483f"/><path d="m122 172 14-1-1 11-14 1Z" fill="#c8a875"/>
+ <path d="m92 181 17-1 1 15-17 2Zm63-4 10-1 1 18-9 1Z" fill="#997752"/>
+ <path d="m91 115-13 6-13 34 10 13 28-10 6-14-17 3 9-17" fill="url(#coat)"/>
+ <path d="m158 113 15 5 11 38-10 13-24-13-1-13 17 4-12-19" fill="url(#coat)"/>
+ <path d="m66 150 10 5 17-5 5 11-23 12-12-8Zm90-6 20 11 7-5 2 12-12 9-22-14Z" fill="#b29368"/>
+ <!-- Portable two-stick transmitter held in both hands. -->
+ <path d="m85 145 24 5 30-7 27 7-7 22-29 8-31-6Z" fill="#283747"/>
+ <path d="m103 146 3-17 45-5-1 17Z" fill="#303948"/><path d="m108 141 2-9 36-4-1 10Z" fill="url(#screen)" stroke-width="1"/>
+ <path d="m113 136 7-2 5 1 10-4m-9 29-2 5 17-4" fill="none" stroke="#b0f0cf" stroke-width="1.5"/>
+ <ellipse cx="105" cy="155" rx="6" ry="3.5" fill="#81939a"/><ellipse cx="149" cy="153" rx="6" ry="3.5" fill="#81939a"/><path d="m104 154-2-5m46 3 4-5" stroke="#d8bc90"/>
+ <path d="m77 156 8-7 11 1 7 4-2 3-7-1 4 11-10 3-9-4Zm94 2-6-9-9-3-7 3-1 5 9 1-4 9 8 4 8-4" fill="#d7a58a"/>
+ <!-- Head in three-quarter view, tied hair and brass flight headset. -->
+ <path d="m104 61-14 6-7 20 6 27 12 9-2-16 12 7 7-15 16-5Z" fill="url(#hair)"/>
+ <path d="m140 79 8 11-7 14-8 8-13 2-7-8 1-14Z" fill="#dfa787"/>
+ <path d="m107 55 33-5 13 12 1 14-4 9-1 8-9 10-10 3-11-4-8-11-8-6 2-8Z" fill="#f0c5a5"/>
+ <path d="m99 78-3-17 10-16 18-6 20 5 12 12 2 10-12-2-8-7-7 11-1-7-13 14-2-7-9 15Z" fill="url(#hair)"/>
+ <path d="m100 74-3-13 6-15 14-10 20-1 16 8 10 13-4 4-7-10-15-7-16 1-13 8-6 23" fill="#3f4854"/>
+ <path d="m106 75 9-6 6 5 1 14-6 5-9-5Z" fill="#536275"/><path d="m109 76 7-2 2 4v7l-6 3-4-4Z" fill="#ceac72"/>
+ <path d="m114 86 6 9 17 2" fill="none"/><path d="m134 96 5-1" stroke="#566376" stroke-width="4"/>
+ <path d="m124 75 8-3m9-1 7-1" fill="none" stroke="#8b594d" stroke-width="2"/>
+ <path d="m126 78 7-1m8-2 6-1" fill="none" stroke-width="2"/><path d="m131 77-.5 3m14-5-.4 3" stroke="#4d8077" stroke-width="2.4"/>
+ <path d="m139 79 2 6-3 1m-7 5 5 1 4-2" fill="none" stroke="#ae7465" stroke-width="1.5"/>
+ <path d="m111 52 9-6 11 0m12 1 6 6" fill="none" stroke="#d59965" stroke-width="2"/>
+ <path d="m96 125-5 7 7 5 4-9" fill="#66b6b5"/>
+</g></svg>

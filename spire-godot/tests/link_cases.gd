@@ -126,28 +126,102 @@ static func precise_tool_projection(t) -> void:
  var g=Game.new(42)
  var fixture=precise_tool_fixture(g)
  t.check(fixture.link!="" and g.validate()=="","CONTACT precise link fixture uses valid physical components")
+ t.check(t.action(g,"item_use",{"item":fixture.tool}).ok,"CONTACT convert precise link cutter")
+ var card=g.state.hand.back()
  var before=g.export_snapshot()
- var c=t.find_action(g,"item_use",{"item":fixture.tool,"target":fixture.link})
- var item=g.get_view().items.filter(func(i):return i.id==fixture.tool)[0]
- t.check(c.valid and item.target_groups.any(func(group):return group.id=="thigh" and String(c.get("key","")) in group.keys),"CONTACT exposed knee link remains selectable despite unrelated covered thigh root")
- t.check(g.export_snapshot()==before,"CONTACT candidate and position projection preserve state, logs and random counters")
- t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.export_snapshot()==before,"CONTACT stale projected link action rejects atomically")
- t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g._equipment(fixture.link).durability==3 and g._item(fixture.tool).uses==2 and g.state.energy==before.energy,"CONTACT projected link cut spends one use and only damages shared rope")
+ var fields={"uid":card.uid,"target":fixture.link,"free":false}
+ var c=t.find_action(g,"card",fields)
+ var queries=preload("res://ui/target_queries.gd")
+ var view=g.get_view()
+ var region=queries.body_at(view,"thigh")
+ var choice=queries.release_candidate(view,region,fixture.link,{"card_uid":card.uid,"free":false,"version":view.version},view.version)
+ t.check(c.valid and not choice.is_empty() and choice.valid,"CONTACT exposed knee link is a legal drag target despite unrelated covered thigh root")
+ t.check(g.state==before,"CONTACT target projection is read-only")
+ t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"CONTACT stale link selection rejects atomically")
+ t.check(t.action(g,"card",fields).ok and g._equipment(fixture.link).durability==3 and g.Cards.instance(g,card.uid).remove_left==2 and g.state.energy==before.energy,"CONTACT hand-held cut spends one use on shared rope")
+ preload("res://tests/body_consumable_cases.gd").redraw(g,card.uid)
  at(g,"above_knee",4,10,false,fixture.layer)
  before=g.export_snapshot()
- c=t.find_action(g,"item_use",{"item":fixture.tool,"target":fixture.link})
- item=g.get_view().items.filter(func(i):return i.id==fixture.tool)[0]
- t.check(not c.valid and c.reason.contains("外层") and not item.target_groups.any(func(group):return String(c.get("key","")) in group.keys),"CONTACT covered precise knee cannot borrow another exposed point on the same component")
- t.check(not g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.export_snapshot()==before,"CONTACT covered link rejection preserves tool, equipment and resources")
+ c=t.find_action(g,"card",fields)
+ t.check(not c.valid and c.reason.contains("外层"),"CONTACT covered knee cannot borrow other exposed points")
+ t.check(not t.action(g,"card",fields).ok and g.state==before,"CONTACT rejected link cut preserves the physical card")
+
+static func legacy_practice():
+ var g=Game.new(42,true,"equipment")
+ g.state.equipment.clear()
+ for e in g.Tower.LINK_PRACTICE.equipment:
+  g._install_template(e.template,e.slot,e.durability,g.Equipment.maximum(1),e.locked,"practice",1,-1,0,e.get("point",""))
+ var a=g.state.equipment[0];var b=g.state.equipment[1]
+ g._install_link(a.id,b.id,6.4,"practice",1,[b.id])
+ return g
+
+static func retired_saves(t) -> void:
+ var g=Game.new(42,true,"shoulder_links")
+ var gear=g.state.equipment[0]
+ var shoulder_state=gear.duplicate(true)
+ var a=at(g,"mid_forearm")
+ var b=at(g,"wrist")
+ var rope=g._install_link(a.id,b.id,6.4,"fixture")
+ var before=g.export_snapshot();before.practice_kind="links"
+ var copy=before.duplicate(true)
+ var game=Game.new(43)
+ var result=game.restore_snapshot(before)
+ t.check(result.ok and before==copy and game.state.practice_kind=="equipment" and game.state.links.is_empty(),"LINK legacy practice migrates on the copy")
+ if not result.ok: return
+ t.check(game.state.equipment==before.equipment and game._equipment(gear.id)==shoulder_state and game.state.rng==before.rng and game._equipment(rope.id).is_empty(),"LINK removal preserves host, both built-in shoulder straps, equipment state and RNG")
+ var second=Game.new(44)
+ t.check(second.restore_snapshot(game.export_snapshot()).ok and second.state.equipment==before.equipment and second.state.links.is_empty() and second.state.rng==before.rng,"LINK repeated restore is idempotent")
+ var prison=preload("res://tests/prison_cases.gd").intake(t)
+ prison.state.prison.baseline.append("link_73")
+ prison.state.capture.retained.append("link_73")
+ prison.state.capture.links.append("link_73")
+ prison.state.capture.baseline.append("link_73")
+ preload("res://tests/prison_cases.gd").inspect(t,prison)
+ t.check(t.action(prison,"prison",{"action":"inspect"}).ok and prison.state.prison.missing==["link_73"],"LINK fixture freezes an inspection for a previously removed rope")
+ result=second.restore_snapshot(prison.export_snapshot())
+ t.check(result.ok and second.state.prison.missing.is_empty() and not "link_73" in second.state.prison.baseline and second.state.capture.links.is_empty(),"LINK old prison manifests clear a missing retired rope")
+ if result.ok:
+  var sentence=second.state.prison.sentence_extra
+  t.check(t.action(second,"prison",{"action":"accept"}).ok and second.state.prison.sentence_extra==sentence,"LINK retired rope incurs no inspection penalty")
+ var art_game=preload("res://tests/rope_master_cases.gd").encounter()
+ var boss=art_game.RopeArt.master(art_game)
+ boss.rope_art.domain=true
+ a=at(art_game,"mid_forearm");b=at(art_game,"wrist")
+ rope=art_game._install_link(a.id,b.id,6.4,"fixture")
+ for item in [a,b,rope]: art_game.RopeArt.track(art_game,item)
+ art_game.RopeArt.observe(art_game)
+ var kept=boss.rope_art.total-boss.rope_art.values[rope.id]
+ result=second.restore_snapshot(art_game.export_snapshot())
+ t.check(result.ok and second.RopeArt.master(second).rope_art.total==kept and second.state.guard_bind.progress==kept and second.state.equipment==art_game.state.equipment,"LINK rope master's meter loses only the retired rope's contribution")
+ var weight=boss.rope_art.values[rope.id]
+ for after in [99,100]:
+  var threshold=art_game.export_snapshot()
+  var old_boss=threshold.enemies.filter(func(e):return e.id==boss.id)[0]
+  old_boss.rope_art.total=after+weight;old_boss.rope_art.previous=100
+  old_boss.intent={"kind":"capture","text":"执行收押","delayed":true}
+  threshold.guard_bind.progress=100.0
+  result=second.restore_snapshot(threshold)
+  var resolved=second.RopeArt.master(second)
+  t.check(result.ok and resolved.intent.delayed and (resolved.intent.kind=="capture")== (after==100) and second.state.guard_bind.progress==after and second.state.rng==threshold.rng,"LINK migrated capture follows its remaining threshold and preserves the delay: "+str(after))
+ var battle=preload("res://tests/installation_priority_cases.gd").linked_battle()
+ var enemy=battle.state.enemies[0]
+ var intent=battle.EquipmentOffers.links(battle,2)[0].duplicate(true)
+ intent.merge({"grade":2,"tier":2,"text":"旧意图","source":enemy.id,"delayed":false,"final":true},true)
+ enemy.intent=intent
+ before=battle.export_snapshot()
+ result=second.restore_snapshot(before)
+ t.check(result.ok and second.state.enemies[0].intent.kind=="leave" and before.enemies[0].intent.kind=="link","LINK pending final action retains its departure on load")
+ if result.ok: t.check(t.action(second,"end").ok and second.state.links.is_empty() and second.state.enemies[0].gone,"LINK migrated departure resolves on the actual enemy turn")
 
 static func run(t) -> void:
+ retired_saves(t)
  index_link_edge_parity(t)
  offer_enumeration(t)
  precise_tool_projection(t)
  regional_cases(t)
  lower_only_cases(t)
  crotch_anchor_cases(t)
- var g=Game.new(42,true,"links")
+ var g=legacy_practice()
  var link=g.state.links[0]
  var a=g._equipment(link.ends[0])
  var b=g._equipment(link.ends[1])
@@ -197,19 +271,22 @@ static func run(t) -> void:
  t.check(t.action(g,"manual",{"target":link.id}).ok and g.state.links.is_empty(),"LINK sitting free hands can untie shared rope")
  t.check(g.escape_preview(g._equipment(b.id),"slip",5).reason=="" and g.state.equipment.size()==2,"LINK untying restores exit without removing endpoint equipment")
 
- g=Game.new(42,true,"links")
+ g=legacy_practice()
  link=g.state.links[0]; a=g._equipment(link.ends[0]); b=g._equipment(link.ends[1])
  t.action(g,"posture",{"dest":"sit","wall":false})
  link=g._equipment(link.id)
  link.grade=2;link.maximum=15;link.durability=8
  var shard=g.state.items[0]
+ t.check(t.action(g,"item_use",{"item":shard.id}).ok,"LINK add shard card to hand")
+ var knife_uid=g.state.hand.back().uid
  before=JSON.stringify(g.state)
  var energy=g.state.energy
- t.check(t.action(g,"item_use",{"target":link.id,"item":shard.id}).ok and g._equipment(link.id).durability==3 and g.state.energy==energy,"LINK tool cuts fixed damage with zero energy")
- t.check(t.action(g,"item_use",{"target":link.id,"item":shard.id}).ok and g.state.links.is_empty() and g._item(shard.id).uses==1,"LINK second cut removes rope and decrements same tool uses")
+ t.check(t.action(g,"card",{"target":link.id,"uid":knife_uid}).ok and g._equipment(link.id).durability==3 and g.state.energy==energy,"LINK tool cuts fixed damage with zero energy")
+ preload("res://tests/body_consumable_cases.gd").redraw(g,knife_uid)
+ t.check(t.action(g,"card",{"target":link.id,"uid":knife_uid}).ok and g.state.links.is_empty() and g.Cards.instance(g,knife_uid).remove_left==1,"LINK second cut removes rope and decrements same tool uses")
  t.check(g.state.equipment.size()==2,"LINK cutting rope does not delete its anchors")
 
- g=Game.new(42,true,"links")
+ g=legacy_practice()
  link=g.state.links[0]; a=g._equipment(link.ends[0]); b=g._equipment(link.ends[1])
  t.action(g,"posture",{"dest":"sit","wall":false})
  t.action(g,"manual",{"target":a.id})
@@ -267,7 +344,7 @@ static func lower_only_cases(t) -> void:
   var saved=g.state.links;g.state.links=[]
   var base=g.escape_preview(a,mode,5);g.state.links=saved
   var preview=g.escape_preview(a,mode,5)
-  t.check(is_equal_approx(preview.damage,base.scaled_damage*1.25+base.environment_true) and preview.environment_true==base.environment_true and preview.link_factor==1.25 and g._formula(preview).contains("1.25仅向下链接"),"LOWER LINK exact active factor and formula "+mode)
+  t.check(is_equal_approx(preview.damage,base.scaled_damage*1.25+base.environment_true) and preview.environment_true==base.environment_true and preview.link_factor==1.25 and g._formula(preview).contains("125%仅向下链接"),"LOWER LINK exact active factor and formula "+mode)
  t.check(is_equal_approx(g.escape_preview(a,"strain",5).damage,strain),"LOWER LINK no strain bonus")
  var saved=g.state.links;g.state.links=[]
  var passive=g.escape_preview(a,"slip",1.2,[],true).damage;g.state.links=saved
@@ -282,7 +359,7 @@ static func lower_only_cases(t) -> void:
  t.check(g.escape_preview(a,"slip",5).immune and g.escape_preview(a,"slip",5).scaled_damage==0,"LOWER LINK cannot bypass tier three immunity of scaled damage")
  a.durability=8
  var snapshot=g.export_snapshot();var restored=Game.new(9)
- t.check(restored.restore_snapshot(snapshot).ok and restored.Links.slip_factor(restored,restored._equipment(a.id))==1.25,"LOWER LINK restore derives same bonus without extra state")
+ t.check(restored.restore_snapshot(snapshot).ok and restored.state.links.is_empty() and restored.state.equipment==snapshot.equipment and restored.Links.slip_factor(restored,restored._equipment(a.id))==1.0,"LOWER LINK restore removes the rope and its bonus while preserving both endpoints")
  t.check(g.export_snapshot()==snapshot,"LOWER LINK previews preserve state")
  var card=t.hand_card(g,"slip");var candidate=t.find_action(g,"card",{"uid":card.uid,"target":a.id})
  var expected=candidate.payload.preview.damage;var durability=a.durability
@@ -314,7 +391,7 @@ static func crotch_anchor_cases(t) -> void:
    t.check(g._install_link(pair[0],pair[1],4.8,"fixture").is_empty() and g.export_snapshot()==before,"CROTCH LINK duplicate, remote, self and rope anchors reject atomically")
   t.check(g._install_link(calf.id,crotch.id,4.8,"fixture",1,[],["thigh","special_3_a"]).is_empty() and g.export_snapshot()==before,"CROTCH LINK cannot forge contact on another region")
   var restored=Game.new(9)
-  t.check(restored.restore_snapshot(before).ok and restored.Links.slip_factor(restored,restored._equipment(wrist.id))==1.25,"CROTCH LINK saves retain endpoint identities and direction")
+  t.check(restored.restore_snapshot(before).ok and restored.state.special_equipment==before.special_equipment and restored.Links.slip_factor(restored,restored._equipment(wrist.id))==1.0,"CROTCH LINK load preserves the special endpoint and removes the old bonus")
   var invalid=g.export_snapshot();invalid.links[0].slots[0]="special_3_b"
   var saved=restored.export_snapshot()
   t.check(not restored.restore_snapshot(invalid).ok and restored.export_snapshot()==saved,"CROTCH LINK invalid saved contact rejects atomically")
@@ -346,7 +423,7 @@ static func crotch_anchor_cases(t) -> void:
   prison.Guard.capture(prison,prison.state.enemies[0])
   t.check(prison.validate()=="","CROTCH LINK intake preserves valid special anchors")
   if prison.state.links.any(func(l):return anchor.id in l.ends): generated=true
- t.check(generated,"CROTCH LINK intake quota includes existing crotch ropes")
+ t.check(not generated,"CROTCH LINK intake leaves the existing crotch rope independent")
 
 
 static func regional_cases(t) -> void:
@@ -370,7 +447,8 @@ static func regional_cases(t) -> void:
  t.check(g._prepare_link(root.id,knee.id,8,"fixture",1,[],["thigh","thigh"],["mid_thigh","above_knee"]).is_empty(),"REGIONAL cannot forge an anchor at a different subposition")
  var view=g.get_view();var text=g.Equipment.position_text(rk)
  t.check(text.contains("膝盖上方") and text.contains("大腿根") and not text.contains("大腿中部") and g.Equipment.display_points(rk)==rk.contact_points,"REGIONAL display lists only the two actual attachment positions")
- var restored=preload("res://tests/persistence_cases.gd").roundtrip(t,g,"regional triangle")
+ var restored=Game.new(42)
+ t.check(restored.restore_snapshot(g.export_snapshot()).ok and restored.state.links.is_empty() and restored.state.equipment==g.state.equipment,"REGIONAL old triangle drops all edges and retains its anchors")
  var invalid=g.export_snapshot();var added=rm.duplicate(true)
  added.id="link_"+str(invalid.next_link);invalid.next_link+=1;added.ends=[root.id,extra.id];invalid.links.append(added)
  before=restored.export_snapshot()

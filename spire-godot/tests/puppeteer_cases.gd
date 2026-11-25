@@ -1,7 +1,6 @@
 extends RefCounted
 const Game=preload("res://tests/game_fixture.gd")
 const Save=preload("res://tests/persistence_cases.gd")
-const Cards=preload("res://tests/curse_cases.gd")
 
 static func doll(g) -> Dictionary:
  return g.Puppets.owned(g,g.state.enemies[0])
@@ -208,12 +207,8 @@ static func barrier_capacity(t) -> void:
  g.state.room_encounters.entrance="puppeteer_solo";g._start_battle()
  g.state.witch_charges.mouth=2;g.state.witch_focus=50;g.state.mana=g.state.mana_max
  t.check(t.action(g,"attack",{"type":"witch_mouth","form":1,"enemy":g.state.enemies[0].id}).ok and g.Puppets.capacity(g,doll(g))==2,"PUPPET CAPACITY witch multi-hit area casting shares the same attack grouping")
- g=start(t,false);g._discard_end();g.state.energy=30;doll(g).hp=1
+ g=start(t,false);doll(g).hp=1
  g._damage_enemy(g.state.enemies[0],30,"fixed","耗尽屏障")
- t.check(Cards.play(t,g,"letter_opener",true).ok,"PUPPET CAPACITY activate the real area-damage power")
- for expected in [2,1]:
-  for i in range(3):t.check(Cards.play(t,g,"slip",true).ok,"PUPPET CAPACITY skill play advances the power trigger")
-  t.check(g.Puppets.capacity(g,doll(g))==expected,"PUPPET CAPACITY each power volley groups master damage and doll transfer once")
- g=start(t,false);g.state.relics=["kings_gift_revised"];g.state.round=7;doll(g).hp=1
- g._damage_enemy(g.state.enemies[0],30,"fixed","耗尽屏障")
- t.check(t.action(g,"end").ok and g.Puppets.capacity(g,doll(g))==2 and g.RelicEffects.used(g,"kings_gift_revised"),"PUPPET CAPACITY real turn-ending relic volley groups master damage and doll transfer once")
+ var volley={}
+ for enemy in g.state.enemies.duplicate(): g._damage_enemy(enemy,77,"fixed","测试齐射",{},volley)
+ t.check(g.Puppets.capacity(g,doll(g))==2,"PUPPET CAPACITY grouped fixed damage and doll transfer trigger once")

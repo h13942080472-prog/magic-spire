@@ -41,8 +41,6 @@ const ENTRIES={
  "calm":{"form":"table","source":"_flow_kind_facts"},
  "surrender":{"form":"table","source":"_surrender_kind_facts"},
  "item_use":{"form":"table","source":"_item_use_kind_facts"},
- "item_install":{"form":"table","source":"_item_action_kind_facts"},
- "item_retrieve":{"form":"table","source":"_item_action_kind_facts"},
  "item_discard":{"form":"table","source":"_item_discard_kind_facts"},
  "finish_prepare":{"form":"table","source":"_flow_kind_facts"},
  "finish_rest":{"form":"table","source":"_flow_kind_facts"},
@@ -85,14 +83,16 @@ const ENTRIES={
 # 现算 room_entry_reason）；宽切片单元（relic_effects／hand_cards／prison／events／services）同理；任何"按本次提交的
 # kind 决定复用"的做法不得进入本表（第二份失效真源）。
 const FACT_UNITS=[
+ {"id":"hogtie_cards","order":1,"owner":"hogtie_release","producer":"_unit_hand_cards","groups":["card"],"input":""},
+ {"id":"hogtie_turn","order":2,"owner":"hogtie_release","producer":"_unit_flow","groups":["flow"],"input":""},
  {"id":"relic_bundle_prefix","order":1,"owner":"relic_bundle","producer":"_unit_relic_bundle","groups":["reward"],"input":""},
- {"id":"relic_bundle_consumables","order":2,"owner":"relic_bundle","producer":"_unit_noncombat_consumables","groups":["item"],"input":"relic_bundle_prefix"},
+ {"id":"relic_bundle_consumables","order":2,"owner":"relic_bundle","producer":"_unit_noncombat_consumables","groups":["item","card"],"input":"relic_bundle_prefix"},
  {"id":"relic_bundle_flask","order":3,"owner":"relic_bundle","producer":"_unit_flask_full","groups":["flask"],"input":""},
  {"id":"departure_prefix","order":1,"owner":"departure","producer":"_unit_departure","groups":["flow","reward"],"input":""},
- {"id":"departure_consumables","order":2,"owner":"departure","producer":"_unit_noncombat_consumables","groups":["item"],"input":"departure_prefix"},
+ {"id":"departure_consumables","order":2,"owner":"departure","producer":"_unit_noncombat_consumables","groups":["item","card"],"input":"departure_prefix"},
  {"id":"departure_flask","order":3,"owner":"departure","producer":"_unit_flask_full","groups":["flask"],"input":""},
  {"id":"phase","order":1,"owner":"main","producer":"_unit_phase","groups":["attack","card","chain","demo_exit","event","flow","hook","item","manual","posture","pressure","prison","rest_service","retain","reward","route","service","service_flow","service_refresh","service_release","service_remove","wall_move"],"input":""},
- {"id":"noncombat_consumables","order":2,"owner":"main","producer":"_unit_noncombat_consumables","groups":["item"],"input":"phase"},
+ {"id":"noncombat_consumables","order":2,"owner":"main","producer":"_unit_noncombat_consumables","groups":["item","card"],"input":"phase"},
  {"id":"route","order":3,"owner":"main","producer":"_unit_route","groups":["route"],"input":"phase"},
  {"id":"surrender","order":4,"owner":"main","producer":"_unit_surrender","groups":["surrender"],"input":""},
  {"id":"item_discard","order":5,"owner":"main","producer":"_unit_item_discard","groups":["item"],"input":""},
@@ -123,8 +123,8 @@ const FACT_UNITS=[
  {"id":"flow","order":10,"owner":"action_tail","producer":"_unit_flow","groups":["flow","pressure"],"input":""},
 ]
 
-# _fact_source 的三个前缀 owner（"main" 只在这三者之外到达；core/game.gd::_phase_branch 的前三个 id）。
-const FACT_PREFIX_OWNERS=["relic_bundle","departure","domain_blocked"]
+# Exclusive branches bypass the main command producers.
+const FACT_PREFIX_OWNERS=["relic_bundle","departure","domain_blocked","hogtie_release"]
 
 # ==== K4／K5 需求词汇表（plan §3 E 批；docs/spec/response-pipeline.md 接缝 A 的 `game.get_view()` 行）====
 # 需求（demand）＝一组组名；组 → 单元的映射就是本文件的 FACT_UNITS 组列（同一张表，不另立）。
@@ -221,6 +221,7 @@ static func takeover_source() -> String:
 static func point(g, kind: String, params: Dictionary) -> Dictionary:
  var item=entry(kind)
  if item.is_empty(): return {}
+ if kind not in ["card","end"] and g.RopeArt.struggle_only(g): return {}
  var form=String(item.get("form",""))
  if form=="table":
   for f in g._kind_facts(kind,params):

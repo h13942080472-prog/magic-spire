@@ -2286,7 +2286,7 @@ static func present_hand_delta(before: Dictionary, after: Dictionary, allowed: A
 static func present_hand_usable(row, free: bool) -> bool:
  return bool(row.availability.get("free" if free else "bound",{}).get("usable",true))
 
-# 每张手牌按钮的判据行：实例 id、子树实例集合、徽章样式资源、八个直接子级、位置。
+# 每张手牌按钮的判据行：实例 id、子树实例集合、徽章样式资源、全部直接子级、位置。
 static func present_hand_row(button) -> Dictionary:
  return {"id":button.get_instance_id(),"nodes":present_hand_nodes(button),"styles":present_hand_styles(button),"children":present_hand_children(button),"position":button.position}
 
@@ -2339,7 +2339,7 @@ static func present_hand_incremental(t) -> void:
  var faces_after=ui.card_faces.keys();faces_after.sort()
  t.check(after_key.id==base.id,"DISPLAY hand refresh value change keeps the card instance")
  t.check(after_key.nodes==base.nodes,"DISPLAY hand refresh value change keeps the card subtree with zero create and zero destroy: "+str(present_hand_lost(after_key.nodes,base.nodes)))
- t.check(after_key.children==base.children,"DISPLAY hand refresh value change keeps the eight direct children")
+ t.check(after_key.children==base.children,"DISPLAY hand refresh value change keeps all direct children")
  t.check(ui.card_buttons[uid].home==base.position and ui.card_buttons[uid].position==base.position and is_equal_approx(ui.card_buttons[uid].rotation,ui.card_buttons[uid].resting_angle),"DISPLAY hand refresh value change writes no position and keeps the resting angle: "+str(ui.card_buttons[uid].position)+" vs "+str(base.position))
  t.check(String(ui.card_buttons[uid].find_child("CardAvailability",true,false).text).contains("probe-hand") and t.visible_text(ui.card_buttons[uid]).contains("probe-hand"),"DISPLAY hand refresh value change rewrites only its values")
  t.check(ui.card_buttons.size()==ui.view.hand.size() and ui.game.view_reads==reads and faces_after==faces_before,"DISPLAY hand refresh value change keeps one button per uid without reprojecting")
@@ -2389,7 +2389,7 @@ static func present_hand_incremental(t) -> void:
  for card in ui.view.hand:
   if String(card.uid)==flip_uid: flip_type=String(card.type)
  t.check(ui.card_buttons[flip_uid].get_instance_id()==flip_base.id and ui.card_buttons[flip_uid].free_face!=flip_face,"DISPLAY hand refresh flip keeps the card instance and switches the face")
- t.check(present_hand_children(ui.card_buttons[flip_uid])==flip_base.children,"DISPLAY hand refresh flip keeps the eight direct children")
+ t.check(present_hand_children(ui.card_buttons[flip_uid])==flip_base.children,"DISPLAY hand refresh flip keeps all direct children")
  t.check(t.visible_text(ui.card_buttons[flip_uid]).contains(ui.game.Cards.face_text(ui.game,flip_type,not flip_face,flip_uid)),"DISPLAY hand refresh flip shows the current face copy")
  t.check(cached.has("bound") and cached.has("free"),"DISPLAY hand refresh flip caches one slice per face")
  await t.flip(flip_uid)
@@ -2614,7 +2614,7 @@ static func present_hand_incremental(t) -> void:
  t.check(many.get_node("CardMana").get_child_count()==extra_mana.size(),"DISPLAY hand refresh keeps one mana badge per entry: "+str(many.get_node("CardMana").get_child_count())+" vs "+str(extra_mana.size()))
  var expected_tags=face_script.separate_keywords(extra_effect,extra_keywords)
  var expected_tag_count=expected_tags.keywords.size()+(1 if bool(many_row.get("retained",false)) and "保留" not in expected_tags.keywords else 0)
- t.check(many.get_node("CardKeywords").get_child_count()==expected_tag_count,"DISPLAY hand refresh keeps one keyword tag per entry: "+str(many.get_node("CardKeywords").get_child_count())+" vs "+str(expected_tag_count))
+ t.check(many.get_node("CardText/Content/CardKeywords").get_child_count()==expected_tag_count,"DISPLAY hand refresh keeps one keyword tag per entry: "+str(many.get_node("CardText/Content/CardKeywords").get_child_count())+" vs "+str(expected_tag_count))
  t.check(t.visible_text(many).contains("附加探针") and t.visible_text(many).contains("探针词条") and t.visible_text(many).contains("探针可用性"),"DISPLAY hand refresh shows every changed field")
  t.check(many.get_node("CardText").get_rect().end.y<=many.size.y and many.get_node("CardTitle").get_rect().end.x<=many.size.x,"DISPLAY hand refresh lays the changed fields out once")
  # ---------- E9 一致性守卫失灵只修一张 ----------

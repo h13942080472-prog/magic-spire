@@ -40,12 +40,18 @@ static func install(g, host: Dictionary, template: String, grade: int, source: S
 static func fill(g, host: Dictionary) -> void:
  var pair=host.shoulders
  pair.pieces=pair.pieces.filter(func(e):return e.durability>0.000001)
+ var added=[]
  for side in SIDES:
   if pair.pieces.any(func(e):return e.side==side and e.durability>0.000001): continue
   var maximum=E.maximum(pair.grade)
   pair.pieces.append({"id":host.id+"_shoulder_"+side,"shoulder_host":host.id,"template":pair.template,"name":label(pair.template,side),"slot":"shoulder","side":side,"coverage":[],"contact_slots":["shoulder"],"layer":0,"grade":pair.grade,"variant":pair.variant,"material":E.TEMPLATES[pair.template].material,"locked":false,"maximum":maximum,"durability":maximum*[0.0,0.4,0.8,1.0][pair.grade],"source":pair.source,"crossed":pair.grade==3})
-  g._equipment_feedback(pair.pieces.back(),pair.pieces.back().durability,true)
-  g._emit("event",label(pair.template,side)+"已连到"+g._equipment_name(host)+"，紧度%d档。" % pair.grade,{"shoulder":{"host":host.id,"side":side,"installed":true}})
+  added.append(pair.pieces.back())
+ if added.is_empty(): return
+ for piece in added: g._prepare_worn_piece(piece)
+ g.RelicEffects.restraint_worn(g,added,pair.source)
+ for piece in added:
+  g._equipment_feedback(piece,piece.durability,true)
+  g._emit("event",piece.name+"已连到"+g._equipment_name(host)+"，紧度%d档。" % g.equipment_tier(piece),{"shoulder":{"host":host.id,"side":piece.side,"installed":true}})
   g.Cards.restraint_changed(g,"worn")
 
 static func refresh(g, host: Dictionary) -> void:

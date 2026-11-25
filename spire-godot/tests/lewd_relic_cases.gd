@@ -63,7 +63,8 @@ static func pressure(t) -> void:
  g=fresh(["hypnosis_hairpin","edging_seal","lucidity_necklace"]);g.state.pressure=95
  g.add_fixture("wrist",8,10)
  g.state.enemies[0].intent.delayed=false;g.state.enemies[0].intent.pressure=95
- t.check(t.action(g,"end").ok and g.state.overload_total==1 and not g.state.overloaded and g.state.hand.size()==g.B.DRAW+1 and g.state.relic_pending.is_empty(),"LEWD RELICS enemy-induced reaction and climax settle before the next player reset and draw")
+ var drawn_before=g.state.draw_serial
+ t.check(t.action(g,"end").ok and g.state.overload_total==1 and g.state.overloaded and g.state.energy==0 and g.state.hand.is_empty() and g.state.draw_serial-drawn_before==g.B.DRAW+1 and g.state.relic_pending.is_empty(),"LEWD RELICS enemy-induced climax keeps its reaction and bonus draw, then discards for the skipped player turn")
  g=fresh(["hypnosis_hairpin","ice_heart"]);g.state.pressure=40
  for enemy in g.state.enemies: enemy.intent.delayed=true
  t.check(t.action(g,"end").ok and g.state.pressure>=47 and g.state.relic_pending.is_empty(),"LEWD RELICS passive turn loss settles its reward before leaving the turn")

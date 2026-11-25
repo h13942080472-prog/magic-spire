@@ -99,5 +99,5 @@ static func resolve(g, p: Dictionary) -> void:
    changes.append({"id":item.id,"before":before,"after":g.equipment_tier(item)})
    g._emit("event","自缚：%s紧度%d → %d档。" % [item.name,before,g.equipment_tier(item)],{"self_binding_tighten":changes.back()})
  var mana_before=g.state.mana
- g.state.mana=minf(g.state.mana_max,g.state.mana+rule.mana_per_x*x)
+ g.set_own_mana(minf(g.state.mana_max,g.state.mana+rule.mana_per_x*x))
  g._emit("event","自缚：X＝%d，恢复%s自身魔力。" % [x,g.number(g.state.mana-mana_before)],{"card":p.type,"free":p.free,"x":x,"mana_gain":g.state.mana-mana_before,"self_binding":changes})

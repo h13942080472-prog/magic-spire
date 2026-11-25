@@ -29,6 +29,43 @@ static func leather_slip(t) -> void:
  t.check(not g.dispatch(g.command(choice.payload,g.state.version-1),g.state.version-1).ok and g.export_snapshot()==before,"LEATHER stale slip preserves equipment and resources")
  t.check(g.dispatch(g.command(choice.payload,g.state.version),g.state.version).ok and is_equal_approx(g._equipment(target.id).durability,maxf(0,8-damage)),"LEATHER real card damage matches multiplied preview")
 
+static func material_card_damage(t, template: String, strain_factor: float, slip_factor: float) -> void:
+ for mode in ["strain","slip","magic_slip"]:
+  var g=Game.new(42)
+  g.state.wall="rough";g.state.wall_distance=0
+  var target=g.add_fixture("wrist",18,30,false,0,template)
+  var control=target.duplicate(true);control.template="rope";control.material="rope"
+  var factor=strain_factor if mode=="strain" else slip_factor
+  var card=preload("res://tests/curse_cases.gd").give(g,mode)
+  g.state.sure_cast=true
+  var choice=t.find_action(g,"card",{"uid":card.uid,"target":target.id,"free":false},true)
+  t.check(choice.valid,"MATERIAL genuine card can target "+template+" with "+mode)
+  if not choice.valid: continue
+  var preview=choice.payload.preview
+  var neutral=g.escape_preview(control,mode,preview.base)
+  t.check(preview.material_factor==factor and is_equal_approx(preview.damage,neutral.damage*factor) and neutral.environment_true>0 and is_equal_approx(preview.environment_true,neutral.environment_true*factor),"MATERIAL scales card and wall damage exactly once: "+template+" "+mode)
+  var before=target.durability
+  t.check(g.dispatch(g.command(choice.payload,g.state.version),g.state.version).ok and is_equal_approx(g._equipment(target.id).get("durability",0.0),maxf(0,before-preview.damage)),"MATERIAL applied card damage matches preview: "+template+" "+mode)
+
+static func cable_tie_damage(t) -> void:
+ material_card_damage(t,"cable_tie",0.5,1.5)
+ var g=Game.new(42)
+ g.state.wall="normal";g.state.wall_distance=4
+ var tie=g._install_template("cable_tie","thigh",6,15,false,"fixture",2,0,0,"thigh_root")
+ var plain=g.escape_preview(tie,"slip",1.5,[],true)
+ t.check(is_equal_approx(plain.damage,2.25) and t.action(g,"wall_move",{"direction":"toward"}).ok and is_equal_approx(g._equipment(tie.id).durability,3.75),"CABLE TIE movement applies the passive slip multiplier once")
+ var hogtie=g.add_fixture("wrist",8,10,false,0,"zip_hogtie")
+ t.check(g.escape_preview(hogtie,"strain",2).material_factor==0.5 and g.escape_preview(hogtie,"magic_slip",2).damage==0,"CABLE TIE hogtie resists strain and keeps its slip immunity")
+
+static func tape_damage(t) -> void:
+ material_card_damage(t,"tape",1.5,0.5)
+ var g=Game.new(42);g.state.wall="normal";g.state.wall_distance=4
+ var tape=g._install_template("tape","thigh",6,15,false,"fixture",2,0,0,"thigh_root")
+ t.check(t.action(g,"wall_move",{"direction":"toward"}).ok and is_equal_approx(g._equipment(tape.id).durability,5.25),"TAPE a movement slip deals half of its 1.5 damage")
+ for template in ["hand_wrap","eye_tape","mouth_tape"]:
+  t.check(E.escape_factor({"template":template},"slip")==0.5,"TAPE family includes "+template)
+ t.check(E.escape_factor({"template":"torso_connection","material":"tape"},"strain")==1.5 and E.escape_factor({"template":"torso_connection","material":"rope"},"strain")==1.0,"TAPE connection follows its host material")
+
 static func eye_capacity(t) -> void:
  var g=Game.new(42,true,"head_harness")
  var eyes=g.get_view().bodies.filter(func(b):return b.id=="eyes")[0]
@@ -46,6 +83,8 @@ static func eye_capacity(t) -> void:
 
 static func run(t) -> void:
  leather_slip(t)
+ cable_tie_damage(t)
+ tape_damage(t)
  preload("res://tests/shackle_cases.gd").run(t)
  mouth_stacking(t)
  release_projection(t)
@@ -78,7 +117,8 @@ static func run(t) -> void:
    t.check(not manual.valid and manual.reason.contains("解除牌或工具"),"TEMPLATE structural manual rejection "+template)
    t.check(not g.dispatch(g.command(manual.payload,g.state.version),g.state.version).ok and JSON.stringify(g.state)==before,"TEMPLATE blocked manual is atomic "+template)
    var card=t.hand_card(g,"slip")
-   t.check(t.action(g,"card",{"uid":card.uid,"target":target.id}).ok and g._equipment(target.id).is_empty(),"TEMPLATE actual slip still works "+template)
+   var damage=t.find_action(g,"card",{"uid":card.uid,"target":target.id},true).payload.preview.damage
+   t.check(damage>0 and t.action(g,"card",{"uid":card.uid,"target":target.id}).ok and is_equal_approx(g._equipment(target.id).get("durability",0.0),maxf(0,4-damage)),"TEMPLATE actual slip deals the previewed durability loss "+template)
 
  var g=Game.new(4)
  for args in [["rope","fingers",false],["belt","toes",false],["tape","eyes",false],["cable_tie","mouth",false],["rope","thigh",true],["tape","thigh",true],["cable_tie","thigh",true],["missing","thigh",false]]:
@@ -190,7 +230,7 @@ static func index_predicate_parity(t) -> void:
  t.check(g.occupied("calf")==reference.occupied("calf") and g.capacity_used("calf")==reference.capacity_used("calf") and g._point_count("below_knee")==reference._point_count("below_knee"),"INDEX predicates outside a scope stay live")
 
 static func index_fixture(kind: String):
- if kind=="component": return Game.new(42,true,"component_links")
+ if kind=="component": return Game.new(42,true,"leg_pair")
  if kind=="shoulder": return Game.new(42,true,"shoulder_links")
  var g=Game.new(42)
  g.state.equipment.clear()
@@ -235,7 +275,7 @@ static func index_slot_edge_parity(t) -> void:
 static func index_targets_edge_parity(t) -> void:
  var cases=[]
  for kind in ["plain","component","shoulder"]: cases.append({"label":kind,"game":index_fixture(kind)})
- for kind in ["component_links","shoulder_links","special_equipment","torso_binding"]: cases.append({"label":kind,"game":Game.new(42,true,kind)})
+ for kind in ["leg_pair","shoulder_links","special_equipment","torso_binding"]: cases.append({"label":kind,"game":Game.new(42,true,kind)})
  for entry in cases:
   var g=entry.game
   if entry.label=="special_equipment":

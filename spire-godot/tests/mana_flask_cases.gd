@@ -111,7 +111,9 @@ static func outside_battle(t) -> void:
  g.state.mana=50;g.state.flask_mana=100
  var before=g.export_snapshot()
  for i in range(5): t.check(t.action(g,"flask",{"op":"deposit"}).ok and t.action(g,"flask",{"op":"withdraw"}).ok,"FLASK rest allows repeated transfers outside combat")
- t.check(g.state.tick==before.tick and g.state.flask_deposits==before.flask_deposits and g.state.combat==before.combat,"FLASK rest transfers preserve turn and combat counters")
+ var expected=before.combat.duplicate(true);expected.flask_unmetered_use=true
+ t.check(g.state.tick==before.tick and g.state.flask_deposits==before.flask_deposits and g.state.combat==expected,"FLASK rest transfers record use while preserving turn and combat counters")
+ t.check(t.action(g,"end").ok and g.state.combat.flask_used_previous_turn,"FLASK rest turn remembers unlimited transfers")
 
 static func prison_limits(t) -> void:
  var Prison=preload("res://tests/prison_cases.gd")

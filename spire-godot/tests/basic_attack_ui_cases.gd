@@ -30,7 +30,22 @@ static func run(t) -> void:
   var label=ui.find_child("BasicAttackDetail_"+type,true,false)
   t.check(label.text==c.brief and not label.text.contains(ui.view.enemies[0].name),"BASIC UI compact damage uses the authoritative preview without target prose")
   check_alignment(t,ui.find_child("BasicAttack_"+type,true,false))
+ t.check(slots.back().has_node("BodyIcon_mouth") and slots.back().get_node("BasicAttackMeta").text.contains("下回合"),"BASIC UI breath retains its mouth icon and deferred energy")
+ await t.move_mouse(Vector2(30,90));await t.move_mouse(slots[2].get_global_rect().get_center());await t.frames()
+ t.check(is_instance_valid(ui.term_popup) and t.visible_text(ui.term_popup).contains("部位：双臂／双腿"),"BASIC UI hovering the combined attack explains both pictured limbs")
+ await t.move_mouse(Vector2(30,90));await t.frames()
  await t.capture("ui-basic-action-rail.png")
+ for locale in ["en_US","ja_JP"]:
+  ui._set_language(locale);await t.frames()
+  var spell=t.action_button("fireball")
+  check_alignment(t,spell)
+  var breath=ui.find_child("DeepBreath",true,false)
+  var meta=breath.get_node("BasicAttackMeta")
+  var effect=breath.get_node("DeepBreathDetail")
+  t.check(not effect.get_rect().intersects(meta.get_rect()) and meta.get_theme_font("font").get_string_size(meta.text,HORIZONTAL_ALIGNMENT_LEFT,-1,meta.get_theme_font_size("font_size")).x<=meta.size.x+1,"BASIC UI translated breath resources fit at "+locale)
+  if locale=="en_US":
+   t.check(is_equal_approx(effect.position.y,breath.get_node("BasicAttackTitle").position.y),"BASIC UI long translation frees the second row for resources")
+ ui._set_language("zh_CN");await t.frames()
  for type in ["strike","heavy","kick"]:
   ui.restart(42);await t.frames()
   var before=ui.game.export_snapshot()
@@ -190,12 +205,15 @@ static func check_alignment(t, button: Button) -> void:
  var energy=button.get_node("BasicActionEnergy")
  var candidate=Queries.find(t.ui.view,"attack",{"type":button.drag_payload.action_type,"form":button.drag_payload.form,"enemy":t.ui.selected_enemy})
  t.check(energy.get_node("EnergyCost").get_global_rect().get_center().distance_to(energy.get_global_rect().get_center())<0.5,"BASIC UI available energy numeral is centered")
- t.check(energy.get_node("EnergyCost").text==str(candidate.cost) and energy.texture!=null and meta.text.contains(candidate.body_part) and not meta.text.contains("能量"),"BASIC UI left energy medallion replaces cost text and metadata identifies the body part")
- t.check(title.get_theme_font_size("font_size")>=10 and title.get_theme_font_size("font_size")<=16 and detail.get_theme_font_size("font_size")==title.get_theme_font_size("font_size") and meta.get_theme_font_size("font_size")>=12,"BASIC UI action name and damage share an adaptive readable font")
- t.check(is_equal_approx(title.position.y,detail.position.y) and is_equal_approx(title.size.y,detail.size.y) and title.autowrap_mode==TextServer.AUTOWRAP_OFF and detail.autowrap_mode==TextServer.AUTOWRAP_OFF,"BASIC UI name and damage occupy one shared row")
- t.check(absf((title.position.x+detail.position.x+detail.size.x)/2-(46+button.size.x-12)/2)<1 and is_equal_approx(meta.position.x+meta.size.x/2,(46+button.size.x-18)/2),"BASIC UI text rows center within the area beside the energy icon")
- t.check(title.position.x>=energy.position.x+energy.size.x and meta.position.x>=energy.position.x+energy.size.x and detail.position.x>=title.position.x+title.size.x and detail.position.x+detail.size.x<=button.size.x-10,"BASIC UI energy icon and enlarged primary labels fit without overlapping")
- t.check(meta.get_theme_font("font").get_string_size(meta.text,HORIZONTAL_ALIGNMENT_LEFT,-1,meta.get_theme_font_size("font_size")).x<=meta.size.x+1,"BASIC UI complete cost usage and cast chance fit without truncation")
+ var type=button.drag_payload.action_type
+ var expected={"strike":["arms"],"heavy":["arms","legs"],"kick":["legs"],"fireball":["mouth"]}[type]
+ var icons=button.find_children("BodyIcon_*","TextureRect",false,false)
+ t.check(icons.size()==expected.size() and expected.all(func(part):return button.has_node("BodyIcon_"+part) and button.get_node("BodyIcon_"+part).texture.resource_path=="res://assets/ui/action-"+part+".svg"),"BASIC UI physical and mouth actions show their exact limb pictograms")
+ t.check(energy.get_node("EnergyCost").text==str(candidate.cost) and energy.texture!=null and not meta.text.contains(candidate.body_part) and not meta.text.contains("能量"),"BASIC UI cost appears once and the metadata does not repeat the pictured limb")
+ t.check(title.position.x>=energy.position.x+energy.size.x and icons.all(func(icon):return title.get_rect().end.x<=icon.position.x and button.get_global_rect().encloses(icon.get_global_rect()) and icon.mouse_filter==Control.MOUSE_FILTER_IGNORE),"BASIC UI title fits between the cost and input-transparent body icons")
+ t.check(not title.get_rect().intersects(detail.get_rect()) and not detail.get_rect().intersects(meta.get_rect()) and title.get_theme_font_size("font_size")>=11 and detail.get_theme_font_size("font_size")>=11,"BASIC UI name, effect and metadata fit without overlap in either arrangement")
+ for label in [title,detail,meta]:
+  t.check(label.get_theme_font("font").get_string_size(label.text,HORIZONTAL_ALIGNMENT_LEFT,-1,label.get_theme_font_size("font_size")).x<=label.size.x+1 and button.get_global_rect().encloses(label.get_global_rect()),"BASIC UI full action text fits inside the tile: "+label.text)
  var hint=button.get_node_or_null("KeyboardHint")
  t.check(hint!=null and hint.get_theme_font_size("font_size")==11 and not meta.get_global_rect().intersects(hint.get_global_rect()),"BASIC UI original shortcut style keeps a separate clear area")
 
@@ -233,7 +251,7 @@ static func combo_label_fit(t) -> void:
    for label in [title,damage]:
     var width=label.get_theme_font("font").get_string_size(label.text,HORIZONTAL_ALIGNMENT_LEFT,-1,label.get_theme_font_size("font_size")).x
     t.check(width<=label.size.x and button.get_global_rect().encloses(label.get_global_rect()),"COMBO UI full text fits without ellipsis, including installed-tool rail")
-   t.check(title.get_global_rect().end.x<=damage.get_global_rect().position.x,"COMBO UI complete name and damage never overlap")
+   t.check(not title.get_global_rect().intersects(damage.get_global_rect()),"COMBO UI complete name and damage never overlap")
   t.check(ui.game.export_snapshot()==before,"COMBO UI fitting text leaves resources and combat unchanged")
  ui.restart(42);await t.frames()
 
@@ -361,16 +379,16 @@ static func quick_release(t) -> void:
  await t.start_practice("Practice_prison_test")
  t.check(ui.find_child("BasicActionRail",true,false)!=null,"QUICK exploration retains rail")
  check_exploration_rail_alignment(t)
- ui.game._gain_tool("shard");var tool=ui.game.state.items[-1];tool.mount="hand_wall";ui.render();await t.frames()
+ ui.game._gain_tool("shard");var tool=ui.game.state.items[-1];ui.render();await t.frames()
  await pointer.press(t,ui.find_child("ActionRailToggle",true,false))
- var mounted=ui.find_child("InstalledTools",true,false)
- t.check(mounted!=null and not mounted.get_global_rect().intersects(ui.find_child("ManaFlask",true,false).get_global_rect()),"QUICK exploration puts installed items in fifth slot clear of flask")
- await pointer.press(t,ui.find_child("InstalledTool_"+tool.id,true,false))
- t.check(ui.show_items and ui.selected_item==tool.id,"QUICK installed item opens the original item drawer")
+ var regions=ui.find_child("AttackActions",true,false).find_children("QuickRelease_region_*","Button",true,false)
+ t.check(regions.size()==4 and ui.find_child("QuickReleaseTools",true,false)==null,"QUICK escape rail reserves all four tiles for body targets")
+ await pointer.press(t,ui.find_child("OpenItems",true,false))
+ t.check(ui.show_items and ui.find_child("ItemToHand_"+tool.id,true,false)!=null,"QUICK header opens the bag while the escape rail is active")
  await t.close_information()
  ui.restart(42);ui.localization.set_locale("en_US");ui.render();await t.frames()
  await pointer.press(t,ui.find_child("ActionRailToggle",true,false))
- t.check(ui.find_child("QuickReleaseTools",true,false).text=="Use items" and ui.find_child("QuickRelease_region_upper",true,false).tooltip_text.contains("Select a body part"),"QUICK controls and interaction guidance have English translations")
+ t.check(ui.find_child("QuickRelease_region_upper",true,false).tooltip_text.contains("Select a body part"),"QUICK body interaction guidance has an English translation")
  ui.localization.set_locale("zh_CN");ui.restart(42);await t.frames()
 
 
@@ -522,9 +540,11 @@ static func exploration_fireball(t) -> void:
  point=ui.body_buttons.wrist.get_global_rect().get_center();await t.move_mouse(point,true)
  await t.release_target(await t.reveal_drop_target(c.key))
  t.check(is_equal_approx(ui.game._equipment(target.id).durability,frozen.equipment[0].durability-c.payload.damage) and ui.view.energy==frozen.energy-c.cost and ui.view.mana<frozen.mana,"FIRE exploration drag to restraint pays official mana and energy and applies magic damage")
- ui.game.state.equipment.clear();ui.render();await t.frames()
+ ui.game.state.equipment.clear()
+ var toy=ui.game._install_special("shaft_ring_low","special_2_a",1)
+ ui.render();await t.frames()
  fire=ui.find_child("BasicAttack_fireball",true,false)
- t.check(fire.disabled and fire.tooltip_text.contains("可用目标为0"),"FIRE exploration empty-target placeholder retains the full reason")
+ t.check(not toy.is_empty() and Queries.find(ui.view,"attack",{"type":"fireball","target":toy.id}).is_empty() and fire.disabled and fire.tooltip_text.contains("可用目标为0"),"FIRE exploration with only a toy keeps the release button disabled and offers no toy target")
  check_exploration_rail_alignment(t)
  ui.restart(42);await t.frames()
 

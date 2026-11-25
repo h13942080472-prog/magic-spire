@@ -21,6 +21,10 @@
       "owner": "rule:card_power",
       "signals": 1
     },
+    "spire-godot/tests/anti_mage_drone_cases.gd": {
+      "owner": "rule:anti_mage_drone",
+      "signals": 1
+    },
     "spire-godot/tests/application_cases.gd": {
       "owner": "rule:application",
       "signals": 4
@@ -53,6 +57,10 @@
       "owner": "rule:enemies",
       "signals": 3
     },
+    "spire-godot/tests/binding_box_plus_cases.gd": {
+      "owner": "rule:enemies",
+      "signals": 2
+    },
     "spire-godot/tests/binding_enthusiast_cases.gd": {
       "owner": "rule:card_power",
       "signals": 1
@@ -71,7 +79,7 @@
     },
     "spire-godot/tests/binding_search_ui_cases.gd": {
       "owner": "ui:card_power",
-      "signals": 2
+      "signals": 3
     },
     "spire-godot/tests/body_consumable_cases.gd": {
       "owner": "rule:consumables",
@@ -111,7 +119,7 @@
     },
     "spire-godot/tests/card_power_ui_cases.gd": {
       "owner": "ui:card_power",
-      "signals": 4
+      "signals": 5
     },
     "spire-godot/tests/card_splash_cases.gd": {
       "owner": "rule:card_splash",
@@ -205,6 +213,10 @@
       "owner": "rule:relics",
       "signals": 2
     },
+    "spire-godot/tests/detective_cases.gd": {
+      "owner": "rule:detective",
+      "signals": 2
+    },
     "spire-godot/tests/display_ui_cases.gd": {
       "owner": "ui:display",
       "signals": 8
@@ -225,6 +237,10 @@
       "owner": "rule:enemies",
       "signals": 2
     },
+    "spire-godot/tests/drone_operator_cases.gd": {
+      "owner": "rule:drone_operator",
+      "signals": 2
+    },
     "spire-godot/tests/echo_cast_cases.gd": {
       "owner": "rule:card_power",
       "signals": 1
@@ -243,6 +259,10 @@
     },
     "spire-godot/tests/embers_cases.gd": {
       "owner": "rule:card_expansion",
+      "signals": 1
+    },
+    "spire-godot/tests/emoji_relic_cases.gd": {
+      "owner": "rule:relics",
       "signals": 1
     },
     "spire-godot/tests/enchantment_cases.gd": {
@@ -493,6 +513,10 @@
       "owner": "rule:iron_man",
       "signals": 3
     },
+    "spire-godot/tests/item_card_cases.gd": {
+      "owner": "rule:item_cards",
+      "signals": 3
+    },
     "spire-godot/tests/item_discard_cases.gd": {
       "owner": "rule:item_discard",
       "signals": 1
@@ -512,10 +536,6 @@
     "spire-godot/tests/kip_up_ui_cases.gd": {
       "owner": "ui:card_power",
       "signals": 2
-    },
-    "spire-godot/tests/letter_opener_cases.gd": {
-      "owner": "rule:card_power",
-      "signals": 1
     },
     "spire-godot/tests/leverage_cases.gd": {
       "owner": "rule:card_expansion",
@@ -537,17 +557,21 @@
       "owner": "ui:status",
       "signals": 2
     },
+    "spire-godot/tests/liberating_grace_cases.gd": {
+      "owner": "rule:card_expansion",
+      "signals": 1
+    },
     "spire-godot/tests/light_as_swallow_cases.gd": {
       "owner": "rule:card_expansion",
       "signals": 1
     },
     "spire-godot/tests/link_cases.gd": {
       "owner": "rule:links",
-      "signals": 1
+      "signals": 2
     },
     "spire-godot/tests/localization_cases.gd": {
       "owner": "rule:localization",
-      "signals": 6
+      "signals": 8
     },
     "spire-godot/tests/localization_ui_cases.gd": {
       "owner": "ui:localization",
@@ -559,6 +583,10 @@
     },
     "spire-godot/tests/magic_hand_cases.gd": {
       "owner": "rule:card_expansion",
+      "signals": 1
+    },
+    "spire-godot/tests/mana_arm_cases.gd": {
+      "owner": "rule:card_power",
       "signals": 1
     },
     "spire-godot/tests/mana_attachment_cases.gd": {
@@ -588,6 +616,10 @@
     "spire-godot/tests/mana_search_cases.gd": {
       "owner": "rule:card_power",
       "signals": 1
+    },
+    "spire-godot/tests/mana_smuggler_cases.gd": {
+      "owner": "rule:enemies",
+      "signals": 2
     },
     "spire-godot/tests/membership_card_cases.gd": {
       "owner": "rule:services",
@@ -661,13 +693,17 @@
       "owner": "rule:card_expansion",
       "signals": 2
     },
+    "spire-godot/tests/reinforced_rope_cases.gd": {
+      "owner": "rule:enemies",
+      "signals": 1
+    },
     "spire-godot/tests/reinforcement_lock_cases.gd": {
       "owner": "rule:enemies",
       "signals": 1
     },
     "spire-godot/tests/rekindle_cases.gd": {
       "owner": "rule:card_expansion",
-      "signals": 1
+      "signals": 2
     },
     "spire-godot/tests/relic_bundle_cases.gd": {
       "owner": "rule:relics",
@@ -699,7 +735,11 @@
     },
     "spire-godot/tests/restraint_embrace_ui_cases.gd": {
       "owner": "ui:card_power",
-      "signals": 3
+      "signals": 4
+    },
+    "spire-godot/tests/restraint_mech_cases.gd": {
+      "owner": "rule:enemies",
+      "signals": 2
     },
     "spire-godot/tests/restraint_rollout_cases.gd": {
       "owner": "rule:application",
@@ -843,6 +883,10 @@
     },
     "spire-godot/tests/sympathetic_form_ui_cases.gd": {
       "owner": "ui:card_power",
+      "signals": 3
+    },
+    "spire-godot/tests/tape_mass_cases.gd": {
+      "owner": "rule:tape_mass",
       "signals": 2
     },
     "spire-godot/tests/target_sidebar_ui_cases.gd": {
@@ -917,6 +961,10 @@
       "owner": "ui:wall",
       "signals": 3
     },
+    "spire-godot/tests/wave_chant_cases.gd": {
+      "owner": "rule:card_power",
+      "signals": 1
+    },
     "spire-godot/tests/wildfire_descent_cases.gd": {
       "owner": "rule:card_power",
       "signals": 2
@@ -942,8 +990,9 @@
       "signals": 2
     }
   },
-  "digest": "998d35da844b9f2edaf58e836df952e95f21edd6388e0130866a5591815d078f",
+  "digest": "fc396a1728a5114397cc6a2fbb236ad0f2b877607f799d7511c2bea153943f3d",
   "domain_words": {
+    "ANTI DRONE": [],
     "ART": [
       "ui:display",
       "ui:encyclopedia",
@@ -963,6 +1012,7 @@
       "ui:encyclopedia",
       "ui:interface"
     ],
+    "BOX PLUS": [],
     "BUNDLE": [
       "rule:relics",
       "ui:rewards"
@@ -970,7 +1020,8 @@
     "CAPTURE": [
       "rule:enemies",
       "rule:guard",
-      "rule:iron_man"
+      "rule:iron_man",
+      "rule:rope_master"
     ],
     "CARD": [
       "rule:architecture",
@@ -980,7 +1031,8 @@
       "ui:card_interaction",
       "ui:casting",
       "ui:interface",
-      "ui:rewards"
+      "ui:rewards",
+      "ui:touch"
     ],
     "CAST": [
       "rule:casting",
@@ -996,8 +1048,7 @@
     ],
     "CONTACT": [
       "rule:hand_assist",
-      "rule:links",
-      "ui:installed_tools"
+      "rule:links"
     ],
     "CONTROL": [
       "rule:card_expansion",
@@ -1011,6 +1062,7 @@
       "ui:home"
     ],
     "DECK": [
+      "ui:card_power",
       "ui:interface"
     ],
     "DEMO": [
@@ -1036,8 +1088,7 @@
       "ui:enchantments"
     ],
     "ENV": [
-      "rule:special_equipment",
-      "ui:installed_tools"
+      "rule:special_equipment"
     ],
     "EVENT": [
       "rule:architecture",
@@ -1105,13 +1156,14 @@
     ],
     "ITEM": [
       "rule:consumables",
-      "ui:consumables"
+      "rule:item_cards",
+      "ui:consumables",
+      "ui:items"
     ],
     "LINK": [
       "rule:equipment_complete",
       "rule:installation_priority",
-      "rule:links",
-      "ui:enemies"
+      "rule:links"
     ],
     "LOCK": [
       "rule:enemies",
@@ -1128,6 +1180,10 @@
       "rule:pressure",
       "ui:casting"
     ],
+    "MECH": [
+      "rule:enemies",
+      "ui:enemies"
+    ],
     "MOTION": [
       "rule:slip_motion",
       "ui:slip_motion"
@@ -1137,9 +1193,7 @@
       "ui:display",
       "ui:home"
     ],
-    "PASSIVE": [
-      "rule:installed_tools"
-    ],
+    "PASSIVE": [],
     "POOL": [
       "rule:enemies",
       "rule:equipment",
@@ -1150,11 +1204,13 @@
     ],
     "POWER": [
       "rule:card_power",
+      "rule:status",
       "ui:card_power"
     ],
     "PRESSURE": [
       "rule:pressure",
       "rule:relics",
+      "ui:enemies",
       "ui:pressure",
       "ui:rewards"
     ],
@@ -1174,6 +1230,10 @@
     ],
     "REINFORCE": [
       "rule:enemies"
+    ],
+    "REINFORCED": [
+      "rule:enemies",
+      "ui:enemies"
     ],
     "REINFORCEMENTS": [
       "rule:prison",
@@ -1201,7 +1261,8 @@
     ],
     "ROPE": [
       "rule:rope_master",
-      "ui:enemies"
+      "ui:enemies",
+      "ui:hero_art"
     ],
     "ROUTE": [
       "rule:casting",
@@ -1225,6 +1286,11 @@
     "SHOULDER": [
       "rule:shoulder",
       "ui:shoulder"
+    ],
+    "SMUGGLER": [
+      "rule:enemies",
+      "rule:event_flow",
+      "ui:enemies"
     ],
     "SOURCE": [
       "rule:pressure",
@@ -1258,6 +1324,18 @@
         "ui:card_power"
       ]
     },
+    "spire-godot/core/anti_mage_drone.gd": {
+      "domains": [
+        "ANTI DRONE"
+      ],
+      "suites": []
+    },
+    "spire-godot/core/binding_box_plus.gd": {
+      "domains": [
+        "BOX PLUS"
+      ],
+      "suites": []
+    },
     "spire-godot/core/card_effects.gd": {
       "domains": [
         "CARD",
@@ -1269,11 +1347,13 @@
         "rule:card_power",
         "rule:casting",
         "rule:rewards",
+        "rule:status",
         "ui:card_interaction",
         "ui:card_power",
         "ui:casting",
         "ui:interface",
-        "ui:rewards"
+        "ui:rewards",
+        "ui:touch"
       ]
     },
     "spire-godot/core/consumables.gd": {
@@ -1284,7 +1364,9 @@
       ],
       "suites": [
         "rule:consumables",
-        "ui:consumables"
+        "rule:item_cards",
+        "ui:consumables",
+        "ui:items"
       ]
     },
     "spire-godot/core/contact.gd": {
@@ -1296,7 +1378,6 @@
         "rule:environment_height",
         "rule:hand_assist",
         "rule:links",
-        "ui:installed_tools",
         "ui:wall"
       ]
     },
@@ -1319,6 +1400,15 @@
         "rule:enemies",
         "rule:intent",
         "ui:intent"
+      ]
+    },
+    "spire-godot/core/equipment_enchantments.gd": {
+      "domains": [
+        "REINFORCED"
+      ],
+      "suites": [
+        "rule:enemies",
+        "ui:enemies"
       ]
     },
     "spire-godot/core/hannya.gd": {
@@ -1383,6 +1473,16 @@
         "ui:consumables"
       ]
     },
+    "spire-godot/core/mana_smuggler.gd": {
+      "domains": [
+        "SMUGGLER"
+      ],
+      "suites": [
+        "rule:enemies",
+        "rule:event_flow",
+        "ui:enemies"
+      ]
+    },
     "spire-godot/core/prison.gd": {
       "domains": [
         "PRISON",
@@ -1397,6 +1497,15 @@
     "spire-godot/core/puppet_enemy.gd": {
       "domains": [
         "PUPPET"
+      ],
+      "suites": [
+        "rule:enemies",
+        "ui:enemies"
+      ]
+    },
+    "spire-godot/core/reinforced_rope.gd": {
+      "domains": [
+        "REINFORCED"
       ],
       "suites": [
         "rule:enemies",
@@ -1429,13 +1538,23 @@
         "ui:services"
       ]
     },
+    "spire-godot/core/restraint_mechs.gd": {
+      "domains": [
+        "MECH"
+      ],
+      "suites": [
+        "rule:enemies",
+        "ui:enemies"
+      ]
+    },
     "spire-godot/core/rope_master.gd": {
       "domains": [
         "ROPE"
       ],
       "suites": [
         "rule:rope_master",
-        "ui:enemies"
+        "ui:enemies",
+        "ui:hero_art"
       ]
     },
     "spire-godot/core/self_binding.gd": {
@@ -1463,7 +1582,6 @@
         "rule:installation_priority",
         "rule:links",
         "rule:shoulder",
-        "ui:enemies",
         "ui:shoulder"
       ]
     },
@@ -1545,6 +1663,7 @@
         "rule:equipment",
         "rule:guard",
         "rule:iron_man",
+        "rule:rope_master",
         "ui:enemies"
       ]
     },
@@ -1556,7 +1675,6 @@
       "suites": [
         "rule:environment_height",
         "rule:special_equipment",
-        "ui:installed_tools",
         "ui:wall"
       ]
     },
@@ -1602,8 +1720,7 @@
       "suites": [
         "rule:equipment_complete",
         "rule:installation_priority",
-        "rule:links",
-        "ui:enemies"
+        "rule:links"
       ]
     },
     "spire-godot/data/pressure_sources.gd": {
@@ -1614,6 +1731,7 @@
       "suites": [
         "rule:pressure",
         "rule:relics",
+        "ui:enemies",
         "ui:pressure",
         "ui:rewards"
       ]
@@ -1657,7 +1775,8 @@
         "ui:card_interaction",
         "ui:casting",
         "ui:interface",
-        "ui:rewards"
+        "ui:rewards",
+        "ui:touch"
       ]
     },
     "spire-godot/ui/card_motion.gd": {
@@ -1702,6 +1821,7 @@
         "DECK"
       ],
       "suites": [
+        "ui:card_power",
         "ui:encyclopedia",
         "ui:interface"
       ]
@@ -1942,9 +2062,14 @@
       ]
     }
   },
-  "generated_from": "906495b3adbf784af9f234f8787af63323bf2d3bc3e09a57946799d05d5d84eb",
+  "generated_from": "286503727e10159359c5e3301ef1e9858434128de3eaeeddb2b6cb03f76e581f",
   "registries": {
     "rule": [
+      "drone_operator",
+      "detective",
+      "tape_mass",
+      "anti_mage_drone",
+      "item_cards",
       "rope_master",
       "enchantments",
       "witch_character",
@@ -2059,16 +2184,16 @@
   "stats": {
     "blind": 3,
     "blind_by_design": 3,
-    "case_files": 234,
-    "domains": 65,
-    "domains_declared": 65,
+    "case_files": 246,
+    "domains": 71,
+    "domains_declared": 71,
     "excluded": 15,
-    "inputs": 378,
-    "rule_suites": 55,
-    "source_files": 140,
-    "sources_with_edges": 138,
-    "suite_edges": 571,
-    "suites_with_edges": 103,
+    "inputs": 403,
+    "rule_suites": 60,
+    "source_files": 153,
+    "sources_with_edges": 149,
+    "suite_edges": 599,
+    "suites_with_edges": 108,
     "ui_suites": 51,
     "widen": 1
   },
@@ -2077,6 +2202,11 @@
       "spire-godot/core/action_copy.gd": [
         "preload"
       ],
+      "spire-godot/core/game.gd": [
+        "symbol"
+      ]
+    },
+    "rule:anti_mage_drone": {
       "spire-godot/core/game.gd": [
         "symbol"
       ]
@@ -2306,6 +2436,22 @@
         "preload"
       ]
     },
+    "rule:detective": {
+      "spire-godot/core/game.gd": [
+        "symbol"
+      ],
+      "spire-godot/core/succubus_detective.gd": [
+        "preload"
+      ]
+    },
+    "rule:drone_operator": {
+      "spire-godot/core/drone_operator.gd": [
+        "preload"
+      ],
+      "spire-godot/core/game.gd": [
+        "symbol"
+      ]
+    },
     "rule:enchantments": {
       "spire-godot/core/card_enchantments.gd": [
         "preload"
@@ -2348,6 +2494,9 @@
       "spire-godot/core/enemy_plans.gd": [
         "domain"
       ],
+      "spire-godot/core/equipment_enchantments.gd": [
+        "domain"
+      ],
       "spire-godot/core/equipment_replacement.gd": [
         "preload"
       ],
@@ -2355,8 +2504,18 @@
         "preload",
         "symbol"
       ],
+      "spire-godot/core/mana_smuggler.gd": [
+        "domain"
+      ],
       "spire-godot/core/puppet_enemy.gd": [
         "domain"
+      ],
+      "spire-godot/core/reinforced_rope.gd": [
+        "domain"
+      ],
+      "spire-godot/core/restraint_mechs.gd": [
+        "domain",
+        "preload"
       ],
       "spire-godot/core/self_binding.gd": [
         "preload"
@@ -2450,6 +2609,9 @@
       ],
       "spire-godot/core/game.gd": [
         "symbol"
+      ],
+      "spire-godot/core/mana_smuggler.gd": [
+        "domain"
       ]
     },
     "rule:events": {
@@ -2555,6 +2717,21 @@
         "preload"
       ]
     },
+    "rule:item_cards": {
+      "spire-godot/core/consumables.gd": [
+        "domain"
+      ],
+      "spire-godot/core/game.gd": [
+        "preload",
+        "symbol"
+      ],
+      "spire-godot/core/item_cards.gd": [
+        "preload"
+      ],
+      "spire-godot/ui/target_queries.gd": [
+        "preload"
+      ]
+    },
     "rule:item_discard": {
       "spire-godot/core/game.gd": [
         "preload",
@@ -2573,16 +2750,26 @@
       ],
       "spire-godot/data/links.gd": [
         "domain"
+      ],
+      "spire-godot/ui/target_queries.gd": [
+        "preload"
       ]
     },
     "rule:localization": {
       "spire-godot/core/game.gd": [
+        "preload",
         "symbol"
       ],
       "spire-godot/data/balance.gd": [
         "preload"
       ],
+      "spire-godot/data/display_numbers.gd": [
+        "preload"
+      ],
       "spire-godot/data/encyclopedia.gd": [
+        "preload"
+      ],
+      "spire-godot/data/relics.gd": [
         "preload"
       ],
       "spire-godot/data/tower.gd": [
@@ -2729,6 +2916,9 @@
       ],
       "spire-godot/core/rope_master.gd": [
         "domain"
+      ],
+      "spire-godot/data/enemy_library.gd": [
+        "domain"
       ]
     },
     "rule:services": {
@@ -2789,6 +2979,9 @@
       ]
     },
     "rule:status": {
+      "spire-godot/core/card_effects.gd": [
+        "domain"
+      ],
       "spire-godot/core/game.gd": [
         "symbol"
       ],
@@ -2796,6 +2989,14 @@
         "domain"
       ],
       "spire-godot/ui/status_icon.gd": [
+        "preload"
+      ]
+    },
+    "rule:tape_mass": {
+      "spire-godot/core/game.gd": [
+        "symbol"
+      ],
+      "spire-godot/core/tape_mass.gd": [
         "preload"
       ]
     },
@@ -2833,6 +3034,7 @@
         "domain"
       ],
       "spire-godot/core/game.gd": [
+        "preload",
         "symbol"
       ],
       "spire-godot/data/first_floor_enemy_pools.gd": [
@@ -2993,6 +3195,12 @@
         "domain"
       ],
       "spire-godot/core/witch_expansion.gd": [
+        "domain"
+      ],
+      "spire-godot/ui/card_energy_text.gd": [
+        "preload"
+      ],
+      "spire-godot/ui/deck_browser.gd": [
         "domain"
       ],
       "spire-godot/ui/first_turn_presenter.gd": [
@@ -3199,17 +3407,26 @@
       ]
     },
     "ui:enemies": {
+      "spire-godot/core/equipment_enchantments.gd": [
+        "domain"
+      ],
       "spire-godot/core/game.gd": [
         "preload",
         "symbol"
       ],
+      "spire-godot/core/mana_smuggler.gd": [
+        "domain"
+      ],
       "spire-godot/core/puppet_enemy.gd": [
         "domain"
       ],
-      "spire-godot/core/rope_master.gd": [
+      "spire-godot/core/reinforced_rope.gd": [
         "domain"
       ],
-      "spire-godot/core/shoulder_links.gd": [
+      "spire-godot/core/restraint_mechs.gd": [
+        "domain"
+      ],
+      "spire-godot/core/rope_master.gd": [
         "domain"
       ],
       "spire-godot/data/enemy_library.gd": [
@@ -3218,7 +3435,7 @@
       "spire-godot/data/first_floor_enemy_pools.gd": [
         "domain"
       ],
-      "spire-godot/data/links.gd": [
+      "spire-godot/data/pressure_sources.gd": [
         "domain"
       ],
       "spire-godot/ui/arena.gd": [
@@ -3227,7 +3444,7 @@
       "spire-godot/ui/art_inspection.gd": [
         "domain"
       ],
-      "spire-godot/ui/combat_feedback.gd": [
+      "spire-godot/ui/capture_bind_effect.gd": [
         "preload"
       ],
       "spire-godot/ui/equipment_lock.gd": [
@@ -3397,6 +3614,9 @@
       "spire-godot/core/game.gd": [
         "symbol"
       ],
+      "spire-godot/core/rope_master.gd": [
+        "domain"
+      ],
       "spire-godot/ui/art_inspection.gd": [
         "domain"
       ],
@@ -3485,9 +3705,6 @@
       ]
     },
     "ui:installed_tools": {
-      "spire-godot/core/contact.gd": [
-        "domain"
-      ],
       "spire-godot/core/game.gd": [
         "symbol"
       ],
@@ -3499,9 +3716,6 @@
       ],
       "spire-godot/core/room_services.gd": [
         "preload"
-      ],
-      "spire-godot/data/environments.gd": [
-        "domain"
       ],
       "spire-godot/ui/main.gd": [
         "symbol_ui"
@@ -3607,6 +3821,9 @@
       ]
     },
     "ui:items": {
+      "spire-godot/core/consumables.gd": [
+        "domain"
+      ],
       "spire-godot/core/game.gd": [
         "symbol"
       ],
@@ -3942,8 +4159,14 @@
       ]
     },
     "ui:touch": {
+      "spire-godot/core/card_effects.gd": [
+        "domain"
+      ],
       "spire-godot/core/game.gd": [
         "symbol"
+      ],
+      "spire-godot/ui/card_interaction.gd": [
+        "domain"
       ],
       "spire-godot/ui/keyboard_input.gd": [
         "symbol_ui"
