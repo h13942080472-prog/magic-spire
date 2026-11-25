@@ -4,6 +4,7 @@ const Rules=preload("res://data/card_rules.gd")
 static func eligible(g, type: String) -> bool:
  if not g.Character.allowed_card(g,type): return false
  var spec=Rules.SPECS[type]
+ if spec.card_type=="item": return false
  var required=Rules.REWARD_POOL_RELICS.get(spec.get("reward_pool",""),"")
  if required!="" and required not in g.state.relics: return false
  if spec.card_type!="power" or not Rules.unique_face(type,false) or not Rules.unique_face(type,true): return true

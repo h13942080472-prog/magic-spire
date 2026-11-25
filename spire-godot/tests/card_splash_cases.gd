@@ -83,7 +83,7 @@ static func face_values(t) -> void:
  t.check(book.bound.contains("挣扎6") and book.free.contains("滑脱6") and g.state==before,"FACE VALUES encyclopedia remains static and live projections never consume charge")
  entry.face_damage.bound[0]=999
  t.check(g.live_card_text(card.type,card.uid).face_damage.bound==[14.0],"FACE VALUES returned numeric containers are isolated")
- t.check(g.live_card_text("strain").free.contains("蓄力1") and g.live_card_text("ease").bound.contains("降紧1") and g.live_card_text("ease").face_damage.bound.is_empty(),"FACE VALUES resource gains and fixed lowering never receive damage bonuses")
+ t.check(g.live_card_text("strain").free.contains("蓄力1") and g.live_card_text("ease").bound.contains("降紧2") and g.live_card_text("ease").face_damage.bound.is_empty(),"FACE VALUES resource gains and fixed lowering never receive damage bonuses")
  var sequence=g.live_card_text("chain")
  t.check(sequence.face_damage.bound==[9.0,9.0,6.0] and sequence.bound.contains("挣扎9×2＋6×1"),"FACE VALUES limited charge displays exact per-hit values")
  t.check(t.action(g,"status_toggle",{"status":"charge","enabled":true}).ok,"FACE VALUES full-charge mode changes through formal command")

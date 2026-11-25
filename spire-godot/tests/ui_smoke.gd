@@ -719,7 +719,7 @@ func _baseline_tests() -> void:
  check(await click("reward",{"type":Queries.select(ui.view,"reward")[0].payload.type}),"choose displayed reward card")
  check(await click("reward",{"type":"skip"}),"continue after card pickup")
  for i in range(3): check(await click("end"),"preparation round")
- check(ui.view.phase=="map" and ui.view.deck_count==11,"preparation opens route")
+ check(ui.view.phase=="map" and ui.view.deck_count==12,"preparation opens route")
  await capture("ui-05-map.png")
  check(await click("depart",{"room":"west"}),"choose connected room")
  await capture("ui-06-travel.png")
@@ -745,7 +745,7 @@ func _baseline_tests() -> void:
  await frames()
  root.size=Vector2i(1440,810)
  await frames()
- check(ui.view.encounter==1 and ui.view.deck_count==10,"restart resets run")
+ check(ui.view.encounter==1 and ui.view.deck_count==11,"restart resets run")
  check(ui.layout.get_global_rect().end.y<=901,"logical canvas fits")
  await capture("ui-08-default-window.png")
  print("UI BASELINE: default window captured; checking resize and actor drags")
@@ -770,28 +770,8 @@ func _baseline_tests() -> void:
  await _composite_ui_tests()
 
 func _link_ui_tests() -> void:
- await start_practice("StartLinkPractice")
- check(ui.view.practice_kind=="links" and ui.view.room_name=="链接练习室" and ui.view.rest_left==6,"LINK real entry initializes the configured practice")
- var link=ui.view.bodies.filter(func(b):return b.id=="calf")[0].links[0]
- await inspect_body("calf")
- check(ui.body_buttons.ankle.text.contains("链") and visible_text(ui.layout).contains("链接绳"),"LINK both end buttons and equipment details identify the connection")
- var uid=ui.view.hand.filter(func(c):return c.type=="strain")[0].uid
- var candidate=Queries.find(ui.view,"card",{"uid":uid,"slot":"calf","target":link.id})
- var predicted=candidate.payload.preview.damage
- await start_drag(uid,"calf")
- var index=ui.drop_targets.keys().find(candidate.key)
- index=await reveal_drop_target(candidate.key)
- check(index>=0 and visible_text(ui.term_popup).contains(ui.game.number(predicted)+"点挣扎伤害"),"LINK hovered target explains shared durability")
- await capture("ui-22-link-targets.png")
- await release_target(index)
- check(is_equal_approx(ui.game._equipment(link.id).durability,8-predicted) and ui.view.energy==2 and not ui.card_buttons.has(uid),"LINK native drag applies one shared hit and spends one card")
- check(await click("posture",{"dest":"sit","wall":false}),"LINK seated contact reached through ordinary posture action")
- ui.show_items=true; ui.selected_item=ui.view.items[0].id; ui.render(); await frames()
- check(await click("item_use",{"item":ui.selected_item,"target":link.id}),"LINK tool action is connected to actual rope")
- check(ui.game.state.links.is_empty() and ui.game.state.equipment.size()==2 and ui.view.items[0].uses==2,"LINK cut removes only shared rope, keeps anchors and spends a tool use")
- ui.show_items=false; ui.render(); await frames(); await inspect_body("ankle")
- check(ui.view.bodies.filter(func(b):return b.id=="ankle")[0].links.is_empty() and not ui.body_buttons.ankle.text.contains("链"),"LINK endpoint UI updates after removal")
- await capture("ui-23-link-released.png")
+ await start_practice("StartEquipmentPractice")
+ check(ui.view.practice_options.all(func(entry):return entry.id not in ["links","component_links"]) and ui.game.state.links.is_empty(),"PRACTICE retired link scenarios are absent from the real practice menu")
 
 func _composite_ui_tests() -> void:
  await start_practice("StartShortGlovePractice")

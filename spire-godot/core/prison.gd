@@ -31,7 +31,7 @@ static func intake_climax(g) -> Dictionary:
  var resolved=g.Pressure.scripted_climax(g,"收押时的手部榨精")
  return {"method":"hand","flat_lock":flat,"low_semen":low,"count":resolved.count,"mana_before":resolved.mana_before,"mana_lost":resolved.mana_lost,"mana_after":resolved.mana_after,"narration_cue":"prison.intake.milk."+suffix}
 
-static func intake_scene(g, intake: Dictionary, links: Array, climax: Dictionary) -> Dictionary:
+static func intake_scene(g, intake: Dictionary, climax: Dictionary) -> Dictionary:
  var restraints: Array[String]=[]
  for item in intake.get("installed",[]):
   if item.has("components"): restraints.append(g.Composites.wear_text(item))
@@ -42,13 +42,11 @@ static func intake_scene(g, intake: Dictionary, links: Array, climax: Dictionary
  for item in intake.get("special",[]):
   var wear=g.SpecialEquipment.wear_text(item.type)
   if wear!="": toys.append(wear)
- var link_lines: Array[String]=[]
- for link in links: link_lines.append(g.Links.wear_text(link.name))
  return {
   "opening":g.ActionCopy.line("prison.intake.opening",{},true),
   "guard_intro":g.ActionCopy.line("prison.guard.intake",{},true),
   "restraints":restraints,
-  "links":link_lines,
+  "links":[],
   "toys":toys,
   "milking":g.ActionCopy.line(climax.narration_cue,{},true),
   "closing":g.ActionCopy.line("prison.intake.closing",{},true),
@@ -74,8 +72,6 @@ static func intake_equipment(g) -> Dictionary:
  var enough=not rule.is_empty() and count>=rule.floor
  var quota=0 if enough else (rule.floor-count+rule.extra if not rule.is_empty() else B.CAPTURE_EXTRA_BASE+g.state.security)
  var spec=equipment_spec(g,quota,false,true)
- # Intake links have their own quota and must not consume ordinary/root slots.
- spec.allow_links=false
  var installed=g.Application.execute(g,spec,"prison","prison").installed
  if not rule.is_empty():
   # Components change tightness, but only whole roots consume intake slots.
@@ -109,6 +105,9 @@ static func intake_label(g) -> String:
 
 # Intake and inspection share this source declaration; Application owns selection,
 # batch counting and legal replacement. Special equipment remains a separate source.
+static func raise_security(g) -> void:
+ g.state.security=mini(5,g.state.security+1)
+
 static func equipment_spec(g, count: int, replace: bool=false, intake: bool=false) -> Dictionary:
  var rule=B.PRISON_SECURITY[g.state.security]
  var tier=2 if intake and B.PRISON_INTAKE.has(g.state.security) else rule.tier
@@ -138,6 +137,16 @@ static func refill_batteries(g) -> Array:
   item.remaining=maximum
   charged.append(item.id)
  return charged
+
+static func inspection_findings(g) -> String:
+ var p=g.state.prison
+ var findings=[]
+ if not p.missing.is_empty(): findings.append("少了%d件拘束具。她准备再给你加上%d件%s。" % [p.missing.size(),p.missing.size()+B.PRISON_VIOLATION_EXTRA,equipment_label(g)])
+ if not p.special_missing.is_empty(): findings.append("少了%d件性玩具。她又拿来了%d件%s。" % [p.special_missing.size(),p.special_missing.size()+1,toy_label(g)])
+ if findings.is_empty(): findings.append("一件也没少。")
+ var exposed_tools=g.state.items.filter(func(item):return item.mount!="carry").size()
+ if exposed_tools>0: findings.append("牢房里的%d件工具也被她找到了。" % exposed_tools)
+ return "".join(findings)
 
 static func initial(g) -> Dictionary:
  var pool=ACTIVE_DISCOVERIES.duplicate()
@@ -197,6 +206,7 @@ static func end_turn(g) -> void:
 # 监狱显示点的事实构造（批 R5：行生产转发改显示事实构建）：形状恒为 prison＋action，extra 只带显示所需的
 # 非提交字段（site／direction／steps／wall_warning 等），提交身份由 command_params 投影。
 static func add(out: Array, g, action: String, label: String, copy, cost: int=0, reason: String="", extra: Dictionary={}) -> void:
+ if action in ["explore","vent_kick","vent_exit","key","door_exit"] and g.RopeArt.hogtied(g): reason=g.RopeArt.HOGTIE_REASON
  var payload={"kind":"prison","action":action}
  payload.merge(extra)
  out.append(g._fact(payload,label,copy,cost,0.0,reason,"","prison"))
@@ -270,7 +280,7 @@ static func unlock_facts(g) -> Array:
   var reason="牢门已经打开。" if p.door_open else ("需要先到牢门前。" if not Space.at(g,"door") else g.Cards.body_reason(g,card.type))
   var payload={"kind":"prison","action":"unlock","uid":card.uid,"type":card.type,"target":"prison_door","slot":"wrist","mode":"unlock","free":false}
   var door_args={"type":card.type}
-  facts.append(g._fact(payload,g.B.CARD_NAMES[card.type]+" · 牢门",{"kind":"prison.unlock_door","args":door_args,"fallback":unlock_door_detail(g,door_args)},g.Cards.energy_cost(g,card.type,false),g.Cards.face_mana(g,card.type,false),reason,"","prison"))
+  facts.append(g._fact(payload,g.B.CARD_NAMES[card.type]+" · 牢门",{"kind":"prison.unlock_door","args":door_args,"fallback":unlock_door_detail(g,door_args)},g.Cards.energy_cost(g,card.type,false),g.Cards.face_mana(g,card.type,false,card),reason,"","prison"))
  return facts
 
 static func capacity_reason(g) -> String:
@@ -303,13 +313,7 @@ static func execute(g, c: Dictionary) -> String:
    var current_special=g.state.special_equipment.map(func(e):return e.id)
    p.special_missing=p.special_baseline.filter(func(id):return id not in current_special)
    p.stage="result"
-   var findings=[]
-   if not p.missing.is_empty(): findings.append("少了%d件拘束具。她准备再给你加上%d件%s。" % [p.missing.size(),p.missing.size()+B.PRISON_VIOLATION_EXTRA,equipment_label(g)])
-   if not p.special_missing.is_empty(): findings.append("少了%d件性玩具。她又拿来了%d件%s。" % [p.special_missing.size(),p.special_missing.size()+1,toy_label(g)])
-   if findings.is_empty(): findings.append("一件也没少。")
-   var exposed_tools=g.state.items.filter(func(item):return item.mount!="carry").size()
-   if exposed_tools>0: findings.append("牢房里的%d件工具也被她找到了。" % exposed_tools)
-   p.report="".join(findings)
+   p.report=inspection_findings(g)
    g._emit("event",p.report)
   "accept":
    var equipment_violation=not p.missing.is_empty()

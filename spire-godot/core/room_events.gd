@@ -523,13 +523,12 @@ static func freeze_effects(g, declared: Array) -> Dictionary:
    for _index in range(declared_effect.count):
     var spec={"pool":"ordinary","templates":declared_effect.templates,"count":1,"grade":declared_effect.grade,"tier":declared_effect.tier,"locked":declared_effect.locked,"replace":declared_effect.get("replace",false)}
     spec.profiles=g.RestraintValue.profiles(g.RestraintValue.from_profile(declared_effect.grade,declared_effect.tier))
-    spec.allow_links=declared_effect.get("allow_links",true)
     # Existing events promise the factory's default material variant. Do not
     # introduce equipment-domain draws while freezing an event choice.
     spec.variants={}
     for template in declared_effect.templates: spec.variants[template]=0
     var concrete=g.Application.choose(g,spec,"event:"+g.state.room,"event")
-    if concrete.is_empty() or concrete.kind not in ["install","link"]:
+    if concrete.is_empty() or concrete.kind!="install":
      issue="没有足够的合法位置安装随机拘束具。";break
     concrete.op=concrete.kind;concrete.erase("kind")
     if declared_effect.has("replace"): concrete.replace=declared_effect.replace
@@ -809,20 +808,20 @@ static func apply_effects(g, effects: Array, refs: Dictionary, emit_logs: bool=t
     if emit_logs: g._emit("event","解除了"+target.name+"的锁，装备本身保留。")
    "mana_loss":
     if g.state.mana<e.amount: return "需要足额魔力支付所示费用。"
-    g.state.mana-=e.amount
+    g.set_own_mana(g.state.mana-e.amount)
     if emit_logs: g._emit("event","支付%s魔力。" % g.number(e.amount))
    "mana_gain":
     var mana_before=g.state.mana
-    g.state.mana=minf(g.state.mana_max,g.state.mana+e.amount)
+    g.set_own_mana(minf(g.state.mana_max,g.state.mana+e.amount))
     if emit_logs: g._emit("event","恢复%s魔力，当前魔力%s/%s。" % [g.number(g.state.mana-mana_before),g.number(g.state.mana),g.number(g.state.mana_max)])
    "mana_restore_full":
     var full_mana_before=g.state.mana
-    g.state.mana=g.state.mana_max
+    g.set_own_mana(g.state.mana_max)
     if emit_logs: g._emit("event","恢复%s魔力，当前魔力%s/%s。" % [g.number(g.state.mana-full_mana_before),g.number(g.state.mana),g.number(g.state.mana_max)])
    "mana_max_loss":
     if g.state.mana_max-e.amount<g.B.MANA_MAX_FLOOR: return "需要足够的魔力上限支付永久代价。"
     g.state.mana_max-=e.amount
-    g.state.mana=minf(g.state.mana,g.state.mana_max)
+    g.set_own_mana(minf(g.state.mana,g.state.mana_max))
     if emit_logs: g._emit("event","最大魔力永久降低%s点，当前魔力%s/%s。" % [g.number(e.amount),g.number(g.state.mana),g.number(g.state.mana_max)])
    "flask_mana_gain":
     g.state.flask_mana+=e.amount
@@ -1058,7 +1057,7 @@ static func begin_item_rewards(g, rows: Array) -> String:
  g.state.room_event.stage="loot"
  g.state.reward_options=[]
  g.state.battle_item_drop=""
- g.state.battle_relic_drop=""
+ g.state.battle_relic_drop="";g.state.bonus_relic_drop=""
  g.state.boss_relic_options=[]
  g.state.reward_claimed={}
  g._apply_transition("event_item_rewards",{"phase":"reward"})

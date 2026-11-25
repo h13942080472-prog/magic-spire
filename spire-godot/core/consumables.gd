@@ -15,12 +15,12 @@ static func potion_amount(g, value: float) -> float:
  return floorf(value/2.0) if severity>4 else ceilf(value/2.0)
 
 static func description(g, type: String) -> String:
- return effect_description(type,amount(g,type),Tools.assisted(g),outside_battle(g,type))
+ return effect_description(type,amount(g,type),Tools.assisted(g),outside_battle(g,type),g.reserve_mana_value())
 
 static func outside_battle(g, type: String) -> bool:
  return Tools.TYPES.get(type,{}).get("unrestricted_outside_battle",false) and g.state.phase not in ["battle","cleared","prison_end"]
 
-static func effect_description(type: String, value: int, assisted: bool=false, noncombat: bool=false) -> String:
+static func effect_description(type: String, value: int, assisted: bool=false, noncombat: bool=false, reserve_value: int=preload("res://data/card_rules.gd").RESERVE_MANA_VALUE) -> String:
  var spec=Tools.TYPES[type]
  var text=""
  match spec.effect:
@@ -28,7 +28,7 @@ static func effect_description(type: String, value: int, assisted: bool=false, n
   "energy": text="本回合获得%d能量。" % value
   "charge": text="获得%d层蓄力。" % value
   "draw": text="抽%d张牌，最多抽到%d张手牌。" % [value,preload("res://data/balance.gd").HAND_LIMIT]
-  "reserve_mana": text="获得%d点临时魔力，优先抵扣法术和卡牌耗魔。" % (value*preload("res://data/card_rules.gd").RESERVE_MANA_VALUE)
+  "reserve_mana": text="获得%d点临时魔力，优先抵扣法术和卡牌耗魔。" % (value*reserve_value)
   "sure_cast": text="本场战斗下一次合法施法成功率100%，费用照常。"
   "slip_boost": text="选择一个部位，组内全部位置可滑脱3级紧度的拘束具，滑脱最终伤害×%d。本场战斗或整备结束时失效，同源仅生效一次。" % value
  if spec.get("unrestricted_use",false):
@@ -55,7 +55,6 @@ static func reason(g, type: String) -> String:
  if spec.effect in ["energy","draw"] and g.state.phase not in ["battle","prepare","rest","prison"]: return "进入可行动回合后才能使用。"
  if spec.effect=="mana" and g.state.mana>=g.state.mana_max: return "魔力已经达到上限。"
  if spec.effect=="draw":
-  if g.state.hand.size()>=g.B.HAND_LIMIT: return "手牌已达到10张上限。"
   if g.state.draw.is_empty() and g.state.discard.is_empty(): return "抽牌堆和弃牌堆均没有牌。"
  if spec.effect=="sure_cast":
   if g.state.phase not in g.RelicEffects.COMBAT_PHASES: return "定咒卷轴只能在战斗或特殊战斗中使用。"
@@ -64,21 +63,13 @@ static func reason(g, type: String) -> String:
 
 # 道具使用事实（道具域，批 R4 起、R5 收口）：显示事实的唯一来源（docs/spec/candidate-removal.md「接口」T5／T8）。
 static func use_facts(g, item: Dictionary) -> Array:
- var facts=[]
- var spec=Tools.TYPES[item.type]
- var targets=g.Equipment.panel_groups() if spec.get("target_scope","")=="body_group" else [{"id":"hero","name":""}]
- for target in targets:
-  var label="使用"+spec.name+(" · "+target.name if target.name!="" else "")
-  var use_args={"item_type":item.type}
-  facts.append(g._fact({"kind":"item_use","item":item.id,"target":target.id},label,{"kind":"consumables.description","args":use_args,"fallback":description_detail(g,use_args)},0,0.0,reason(g,item.type),"","item"))
- return facts
+ return [g.Cards.ItemCards.conversion(g,item)]
 
 # 非战斗可用道具的事实（道具域，批 R4 起、R5 收口）：existing＝已产出的显示事实，用于「同一道具只留
 # 一条使用点」的去重——与改动前的行扫描语义一致。
 static func noncombat_facts(g, existing: Array) -> Array:
  var facts=[]
  for item in g.state.items:
-  if not outside_battle(g,item.type): continue
   if existing.any(func(entry):return entry.payload.kind=="item_use" and entry.payload.get("item","")==item.id): continue
   facts.append_array(use_facts(g,item))
  return facts
@@ -110,21 +101,20 @@ static func validate_buffs(g, buffs: Variant) -> String:
   seen.append(key)
  return ""
 
-static func use(g, item: Dictionary, target: String="hero") -> void:
- var spec=Tools.TYPES[item.type]
- var value=amount(g,item.type)
+static func apply(g, type: String, target: String) -> void:
+ var spec=Tools.TYPES[type]
+ var value=amount(g,type)
  match spec.effect:
   "slip_boost":
-   var buff={"type":item.type,"group":target}
+   var buff={"type":type,"group":target}
    if buff not in g.state.body_buffs: g.state.body_buffs.append(buff)
    var group=g.Equipment.panel_groups().filter(func(p):return p.id==target)[0]
-   g._emit("event","在%s使用%s；剩余%d次。" % [group.name,spec.name,item.uses-1],{"body_buff":buff.duplicate()})
+   g._emit("event","在%s使用%s。" % [group.name,spec.name],{"body_buff":buff.duplicate()})
   "mana":
    var restored=minf(value,g.state.mana_max-g.state.mana)
-   g.state.mana+=restored
+   g.set_own_mana(g.state.mana+restored)
    g._emit("event","使用"+spec.name+"，恢复%s魔力。" % g.number(restored))
   "sure_cast":
    g.state.sure_cast=true
    g._emit("event","展开定咒卷轴，获得「定咒」。")
   _: g.Cards.apply_effects(g,[{"op":spec.effect,"amount":value}],{},spec.name)
- item.uses-=1

@@ -97,7 +97,7 @@ static func run(t) -> void:
  await t.capture("ui-56-save-menu.png")
  await button(t,"ContinueTower")
 
- ui.restart(42,true,"component_links");await t.frames()
+ ui.restart(42,true,"leg_pair");await t.frames()
  t.check(FileAccess.get_file_as_string(store.path("tower"))==file_before and store.read_slot("practice").ok,"SAVE UI starting practice preserves tower file")
  var practice=ui.game.export_snapshot()
  await boot(t,store);ui=t.ui

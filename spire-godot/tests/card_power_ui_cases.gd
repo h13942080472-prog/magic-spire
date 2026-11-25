@@ -4,6 +4,13 @@ const Click=preload("res://tests/target_sidebar_ui_cases.gd")
 const Interface=preload("res://tests/interface_ui_cases.gd")
 const Queries=preload("res://ui/target_queries.gd")
 
+static func select_filter(t, selector: OptionButton, id: String) -> void:
+ for index in range(selector.item_count):
+  if selector.get_item_metadata(index)==id:
+   selector.select(index);selector.item_selected.emit(index)
+   return
+ t.check(false,"DECK UI missing filter option: "+id)
+
 static func run(t) -> void:
  await preload("res://tests/lewd_magic_ui_cases.gd").run(t)
  await preload("res://tests/supple_flesh_ui_cases.gd").run(t)
@@ -33,6 +40,7 @@ static func run(t) -> void:
  await ready_to_strike(t)
  await crossed_legs(t)
  await mana_search(t)
+ await forethought(t)
  await pot_of_greed(t)
  await revised_multihit(t)
  await repeated_strain(t)
@@ -46,7 +54,6 @@ static func run(t) -> void:
  await fire_dynamics(t)
  await flame_flourish(t)
  await fire_control(t)
- await letter_opener(t)
  await binding_enthusiast(t)
  var ui=t.ui
  ui.restart(42);await t.frames()
@@ -55,7 +62,7 @@ static func run(t) -> void:
  ui.game._install_template("mouth_band","mouth",24.0,24.0,false,"fixture",3,0)
  ui.render();await t.frames()
  var face=ui.card_buttons[card.uid]
- t.check(t.visible_text(face).contains("能力 · 稀有") and face.rarity=="rare" and not face.single_face,"POWER UI shared face shows both classification axes")
+ t.check(face.get_node("CardHeader/CardClassification").text=="能力" and face._gem_count()==3 and face.rarity=="rare" and not face.single_face,"POWER UI shared face shows both classification axes")
  var body=face.get_node("CardText")
  t.check(body.position.y+body.get_combined_minimum_size().y<=face.size.y-4,"POWER UI compact text stays within hand card")
  await t.flip(card.uid)
@@ -69,10 +76,10 @@ static func run(t) -> void:
  var grid=ui.find_child("DeckGrid",true,false)
  t.check(grid.get_child_count()==1 and t.visible_text(grid).contains("火焰精通") and grid.get_child(0).drag_payload.is_empty(),"POWER UI ability drawer shows only active physical card, read-only")
  var before=ui.game.export_snapshot()
- var kinds=ui.find_child("DeckTypeFilter",true,false);kinds.select(1);kinds.item_selected.emit(1);await t.frames()
+ var kinds=ui.find_child("DeckTypeFilter",true,false);select_filter(t,kinds,"skill");await t.frames()
  t.check(grid.get_child_count()==0 and ui.game.export_snapshot()==before,"POWER UI type filter does not mutate live ability")
- kinds.select(3);kinds.item_selected.emit(3)
- var rarity=ui.find_child("DeckRarityFilter",true,false);rarity.select(4);rarity.item_selected.emit(4);await t.frames()
+ select_filter(t,kinds,"power")
+ var rarity=ui.find_child("DeckRarityFilter",true,false);select_filter(t,rarity,"rare");await t.frames()
  t.check(grid.get_child_count()==1,"POWER UI ability and rare filters combine")
  await t.close_information()
  await t.click("attack",{"type":"fireball","enemy":ui.selected_enemy})
@@ -108,10 +115,10 @@ static func run(t) -> void:
  ui.restart(42);await t.frames();ui.game._discard_end();ui.game.state.mana=40
  card=Cards.give(ui.game,"mana_invocation");ui.render();await t.frames()
  face=ui.card_buttons[card.uid]
- t.check(t.visible_text(face).contains("魔法 · 普通") and t.visible_text(face.get_node("CardMana/Mana_gain")).strip_edges()=="+20" and t.visible_text(face).contains("消耗"),"INVOCATION UI shows rarity, spell type, restoration and exhaust")
+ t.check(face.get_node("CardHeader/CardClassification").text=="魔法" and face.rarity=="common" and face._gem_count()==1 and t.visible_text(face.get_node("CardMana/Mana_gain")).strip_edges()=="+20" and t.visible_text(face).contains("消耗"),"INVOCATION UI shows rarity, spell type, restoration and exhaust")
  await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
  t.check(ui.game.state.mana==60 and ui.view.energy==2 and not ui.card_buttons.has(card.uid) and ui.game.state.exhaust.back().uid==card.uid,"INVOCATION UI actual click restores mana and exhausts the card")
- for type in ["adaptability","strong_elbow","pleasure_conversion","mana_conversion","mana_surge","mana_invocation","henshin","letter_opener","fire_control"]:
+ for type in ["adaptability","strong_elbow","pleasure_conversion","mana_conversion","mana_surge","mana_invocation","henshin","fire_control"]:
   ui.restart(42);await t.frames();ui.game._discard_end();card=Cards.give(ui.game,type)
   ui.render();await t.frames()
   for side in range(2):
@@ -138,7 +145,7 @@ static func leverage(t) -> void:
  ui.game.add_fixture("ankle",8)
  ui.render();await t.frames()
  var face=ui.card_buttons[card.uid]
- t.check(face.rarity=="common" and t.visible_text(face).contains("当前2") and t.visible_text(face).contains("普通及复合") and face.get_node("CardIllustration").texture!=null,"LEVERAGE UI shows common rarity, actual count and illustration")
+ t.check(face.rarity=="common" and t.visible_text(face).contains("当前2") and t.visible_text(face).contains("每佩戴1件拘束具，这张牌的基础挣扎伤害增加2点") and face.get_node("CardIllustration").texture!=null,"LEVERAGE UI shows common rarity, actual count and illustration")
  await t.flip(card.uid)
  t.check(t.visible_text(ui.card_buttons[card.uid]).contains("上身束缚等级＝0") and t.visible_text(ui.card_buttons[card.uid]).contains("获得1层闪避") and t.visible_text(ui.card_buttons[card.uid]).contains("蓄力1"),"LEVERAGE UI free face shows both buffs and upper requirement")
  await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
@@ -152,20 +159,39 @@ static func binding_enthusiast(t) -> void:
  var card=Cards.give(ui.game,"binding_enthusiast")
  ui.render();await t.frames()
  var face=ui.card_buttons[card.uid]
- t.check(face.rarity=="rare" and t.visible_text(face).contains("能力 · 稀有") and t.visible_text(face).contains("当前每件拘束具/性玩具：力量、灵巧＋1") and t.visible_text(face).contains("使用拘束面牌时，快感固定＋10") and face.get_node("CardIllustration").texture!=null,"BINDING ENTHUSIAST UI shows rare power, dynamic wording, fixed trigger and dedicated art")
+ t.check(face.rarity=="rare" and face.get_node("CardHeader/CardClassification").text=="能力" and face._gem_count()==3 and t.visible_text(face).contains("你每佩戴1件拘束具或性玩具，力量和灵巧各增加1点") and t.visible_text(face).contains("每成功打出1张其他牌的拘束面，固定获得10点快感") and face.get_node("CardIllustration").texture!=null,"BINDING ENTHUSIAST UI shows rare power, dynamic wording, fixed trigger and dedicated art")
  var body=face.get_node("CardText")
- t.check(is_equal_approx(face.art_bottom-6,face.size.y*2.0/3.0),"BINDING ENTHUSIAST UI uses the shared two-thirds art area")
+ var picture=face.get_node("CardIllustration")
+ t.check(picture.size.x>=face.size.x*0.92 and picture.size.y>=face.size.x*0.76,"BINDING ENTHUSIAST UI gives the long-copy hand card a large illustration")
  body.scroll_vertical=int(ceilf(body.get_node("Content").size.y));await t.frames()
  var effect=body.get_node("Content/CardEffect")
  t.check(effect.get_global_rect().end.y<=body.get_global_rect().end.y+1,"BINDING ENTHUSIAST UI complete wording remains reachable by scrolling")
  body.scroll_vertical=0
  await t.capture("ui-binding-enthusiast.png")
  await t.flip(card.uid)
- t.check(t.visible_text(ui.card_buttons[card.uid]).contains("当前每件拘束具/性玩具：力量、灵巧＋1") and t.visible_text(ui.card_buttons[card.uid]).contains("使用拘束面牌时，快感固定＋10"),"BINDING ENTHUSIAST UI matching free face keeps the complete effect")
+ t.check(t.visible_text(ui.card_buttons[card.uid]).contains("你每佩戴1件拘束具或性玩具，力量和灵巧各增加1点") and t.visible_text(ui.card_buttons[card.uid]).contains("每成功打出1张其他牌的拘束面，固定获得10点快感"),"BINDING ENTHUSIAST UI matching free face keeps the complete effect")
  await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
  t.check(ui.view.powers.size()==1 and ui.view.statuses.any(func(row):return row.id=="power_binding_enthusiast" and row.value.contains("2件")) and ui.view.statuses.any(func(row):return row.id=="strength" and row.value=="2"),"BINDING ENTHUSIAST UI activation immediately projects current count and strength")
  ui.game.add_fixture("ankle",8.0);ui.render();await t.frames()
  t.check(ui.view.statuses.any(func(row):return row.id=="power_binding_enthusiast" and row.value.contains("3件")) and ui.view.statuses.any(func(row):return row.id=="dexterity" and row.value=="3"),"BINDING ENTHUSIAST UI updates without replaying the power when equipment changes")
+
+static func forethought(t) -> void:
+ var ui=t.ui
+ for free in [false,true]:
+  ui.restart(42);ui.game._discard_end()
+  var zone="draw" if free else "discard"
+  if free: ui.game._install_template("restriction_collar","neck",1,1,true,"fixture",3)
+  var card=preload("res://tests/enchantment_cases.gd").give(ui.game,"forethought","replay");var chosen=Cards.give(ui.game,"ease")
+  var second=Cards.give(ui.game,"strain");ui.game.state.hand.erase(second);ui.game.state[zone].append(second)
+  ui.game.state.hand.erase(chosen);ui.game.state[zone].append(chosen)
+  ui.render();await t.frames()
+  if ui.card_faces.get(card.uid,false)!=free: await t.flip(card.uid)
+  var face=ui.card_buttons[card.uid]
+  t.check(t.visible_text(face).contains("从抽牌堆" if free else "从弃牌堆") and (t.visible_text(face).contains("全身无拘束")==free),"FORETHOUGHT UI shows the source and face-specific requirement")
+  await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
+  t.check(ui.view.card_chain.get("hand_source","")==zone and await t.click("chain",{"selected_uid":chosen.uid}),"FORETHOUGHT UI click a real pile entry")
+  t.check(ui.view.card_chain.get("hand_source","")==zone and await t.click("chain",{"selected_uid":second.uid}),"FORETHOUGHT UI replay offers a second real choice")
+  t.check(ui.card_buttons.has(chosen.uid) and ui.card_buttons.has(second.uid) and not ui.card_buttons.has(card.uid) and ui.view.card_chain.is_empty(),"FORETHOUGHT UI closes the chooser and shows both picked physical cards")
 
 static func mana_search(t) -> void:
  var ui=t.ui
@@ -176,14 +202,14 @@ static func mana_search(t) -> void:
  ui.render();await t.frames()
  t.check(t.visible_text(ui.card_buttons[ui.view.hand[1].uid]).contains("魔法／能力"),"SEARCH UI wildfire shows both actual tags")
  if not ui.card_faces.get(card.uid,false): await t.flip(card.uid)
- t.check(t.visible_text(ui.card_buttons[card.uid]).contains("检索魔法2") and ui.card_buttons[card.uid].rarity=="common","SEARCH UI free face has correct ordinary skill effect")
+ t.check(t.visible_text(ui.card_buttons[card.uid]).contains("抽取魔法2") and ui.card_buttons[card.uid].rarity=="common","SEARCH UI free face has correct ordinary skill effect")
  ui.game.add_fixture("eyes",2.0);ui.render();await t.frames()
  t.check(ui.game.level("arms")==0 and ui.view.hand.filter(func(v):return v.uid==card.uid)[0].availability.free.usable and t.visible_text(ui.card_buttons[card.uid]).contains("束缚等级"),"SEARCH UI head restraint alone allows free face and explains total-level gate")
  ui.game.add_fixture("upper_arm",2.0);ui.render();await t.frames()
  var projected=ui.view.hand.filter(func(v):return v.uid==card.uid)[0]
  t.check(not projected.availability.free.usable and projected.availability.bound.usable,"SEARCH UI upper-body restriction disables only free face")
  await t.flip(card.uid)
- t.check(t.visible_text(ui.card_buttons[card.uid]).contains("检索魔法1"),"SEARCH UI right click reveals usable bound face")
+ t.check(t.visible_text(ui.card_buttons[card.uid]).contains("抽取魔法1"),"SEARCH UI right click reveals usable bound face")
  await t.move_mouse(Vector2(1100,90));await t.move_mouse(t.card_point(card.uid));await t.frames()
  var tip=ui.find_child("TermExplanation",true,false)
  t.check(tip!=null and Interface.term_boxes(tip)==Interface.pinned_terms("mana_search","bound") and t.visible_text(tip).length()<65,"SEARCH UI hover keeps exactly one short box naming and defining the term: "+str(Interface.term_boxes(tip)))
@@ -193,8 +219,8 @@ static func mana_search(t) -> void:
  await Click.press(t,ui.find_child("OpenDeck",true,false));await t.frames()
  var snapshot=ui.game.export_snapshot()
  var kinds=ui.find_child("DeckTypeFilter",true,false)
- for index in [2,3]:
-  kinds.select(index);kinds.item_selected.emit(index);await t.frames()
+ for id in ["magic","power"]:
+  select_filter(t,kinds,id);await t.frames()
   t.check(t.visible_text(ui.find_child("DeckGrid",true,false)).contains("猛火下山") and ui.game.state==snapshot,"SEARCH UI magic and power filters both include dual-tag card without modifying state")
  await t.close_information()
 
@@ -242,16 +268,17 @@ static func follow_through(t) -> void:
  var next=ui.game._install_template("rope","thigh",0.1,1.0,false,"fixture",1,0,0,"mid_thigh")
  var last=ui.game.add_fixture("toes",0.1,1.0)
  var remote=ui.game.add_fixture("wrist",0.1,1.0)
+ var expected_hits=floori(ui.game.BasicAttacks.fireball_damage(ui.game))
  var card=Cards.give(ui.game,"boar_emperor_blaze")
  ui.render();await t.frames()
  if ui.card_faces.get(card.uid,false): await t.flip(card.uid)
  var face=ui.card_buttons[card.uid]
- t.check(face.rarity=="rare" and t.visible_text(face).contains("6×5") and t.visible_text(face).contains("超级顺延") and t.visible_text(face).contains("无视紧度减伤") and not t.visible_text(face).contains("同一大片区域"),"FOLLOW UI concise rare card face contains only damage and keyword")
+ t.check(face.rarity=="rare" and t.visible_text(face).contains("6×%d" % expected_hits) and t.visible_text(face).contains("超级顺延") and not t.visible_text(face).contains("无视紧度减伤") and not t.visible_text(face).contains("同一大片区域"),"FOLLOW UI concise rare card face contains only damage and keyword")
  ui.localization.set_locale("en_US");ui.render();await t.frames()
  face=ui.card_buttons[card.uid]
  var english=t.visible_text(face)
  var chinese=RegEx.new();chinese.compile(r"[\x{3400}-\x{9fff}]")
- t.check(english.contains("Struggle 6 × 5 hits") and english.contains("Full Follow-Through") and english.contains("Ignores Tightness damage reduction") and chinese.search(english)==null,"FOLLOW UI English rare bound face translates its post-keyword body as a complete sentence: "+english)
+ t.check(english.contains("Struggle 6 × %d hits" % expected_hits) and english.contains("Full Follow-Through") and not english.contains("Ignores Tightness damage reduction") and chinese.search(english)==null,"FOLLOW UI English rare bound face translates its post-keyword body as a complete sentence: "+english)
  ui.localization.set_locale("zh_CN");ui.render();await t.frames()
  face=ui.card_buttons[card.uid]
  await t.move_mouse(Vector2(1100,90));await t.move_mouse(t.card_point(card.uid));await t.frames()
@@ -267,11 +294,15 @@ static func follow_through(t) -> void:
  await t.release_target(await t.reveal_drop_target(choice.key));await t.frames()
  t.check(ui.game._equipment(target.id).is_empty() and ui.game._equipment(next.id).is_empty() and ui.game._equipment(last.id).is_empty() and ui.game._equipment(remote.id).is_empty() and ui.game.state.energy==0 and ui.game.state.card_chain.is_empty(),"FOLLOW UI actual targeted drop automatically resolves points then region and full-body fallback for one payment")
  ui.restart(42);await t.frames();ui.game._discard_end()
+ ui.game.state.energy=6
  card=Cards.give(ui.game,"boar_emperor_blaze");ui.render();await t.frames()
  if not ui.card_faces.get(card.uid,false): await t.flip(card.uid)
- t.check(t.visible_text(ui.card_buttons[card.uid]).contains("蓄力6"),"FOLLOW UI free face is concise")
+ t.check(t.visible_text(ui.card_buttons[card.uid]).contains("蓄力0"),"FOLLOW UI free face is concise")
+ await t.click("attack",{"type":"fireball","enemy":ui.selected_enemy})
+ t.check(t.visible_text(ui.card_buttons[card.uid]).contains("蓄力1"),"BLAZE UI a successful Fireball refreshes the held free face")
+ var energy=ui.game.state.energy
  await t.start_drag(card.uid,"wrist");await t.release_target();await t.frames()
- t.check(ui.game.state.charge==6 and ui.game.state.energy==0 and not ui.card_buttons.has(card.uid),"FOLLOW UI free drop adds six charge and discards once")
+ t.check(ui.game.state.charge==1 and ui.game.state.energy==energy-3 and not ui.card_buttons.has(card.uid),"BLAZE UI free drop grants the displayed charge and discards once")
 
 static func flame_flourish(t) -> void:
  var ui=t.ui
@@ -280,7 +311,7 @@ static func flame_flourish(t) -> void:
  var card=Cards.give(ui.game,"flame_flourish")
  ui.render();await t.frames()
  var face=ui.card_buttons[card.uid]
- t.check(face.rarity=="uncommon" and t.visible_text(face).contains("炫火") and t.visible_text(face).contains("火球现在可以对拘束具使用,但是伤害减半"),"FLAME UI uncommon ability shows the authored bound equipment effect")
+ t.check(face.rarity=="uncommon" and t.visible_text(face).contains("炫火") and t.visible_text(face).contains("火球术可以攻击最外层的拘束具，对其造成一半伤害"),"FLAME UI uncommon ability shows the authored bound equipment effect")
  for side in range(2):
   face=ui.card_buttons[card.uid]
   var body=face.get_node("CardText")
@@ -338,33 +369,39 @@ static func fire_dynamics(t) -> void:
  var card=Cards.give(ui.game,"fire_dynamics")
  ui.render();await t.frames()
  var face=ui.card_buttons[card.uid]
- t.check(face.rarity=="rare" and t.visible_text(face).contains("30") and face.get_node("CardCost").text=="1" and face.get_node("CardIllustration").texture!=null,"DYNAMICS UI rare card displays additive effect and illustration")
+ t.check(face.rarity=="rare" and t.visible_text(face).contains("30") and not t.visible_text(face).contains("唯一") and face.get_node("CardCost").text=="1" and face.get_node("CardIllustration").texture!=null,"DYNAMICS UI rare card displays additive effect and illustration")
  await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
  ui.game.state.pressure=75
  card=Cards.give(ui.game,"fire_dynamics");ui.render();await t.frames()
  await t.flip(card.uid)
- t.check(t.visible_text(ui.card_buttons[card.uid]).contains("全体攻击"),"DYNAMICS UI free face describes enemy area damage")
+ t.check(t.visible_text(ui.card_buttons[card.uid]).contains("全体攻击") and t.visible_text(ui.card_buttons[card.uid]).contains("唯一"),"DYNAMICS UI free face describes enemy area damage")
  await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
  var fire=Queries.find(ui.view,"attack",{"type":"fireball","enemy":ui.selected_enemy})
  t.check(fire.payload.all and fire.casting.percent=="55%" and ui.view.powers.size()==2,"DYNAMICS UI formal play projects both area targeting and increased chance")
 
 static func echo_cast(t) -> void:
  var ui=t.ui
- ui.restart(42);await t.frames();ui.game._discard_end()
+ ui.restart(42);await t.frames();ui.game._discard_end();ui.game.state.energy=8
  var card=Cards.give(ui.game,"echo_cast")
  ui.render();await t.frames()
  for free in [false,true]:
   if ui.card_faces.get(card.uid,false)!=free: await t.flip(card.uid)
   var face=ui.card_buttons[card.uid]
-  t.check(face.rarity=="uncommon" and t.visible_text(face).contains("余势复演") and t.visible_text(face).contains("火球术" if free else "双面效果各异"),"ECHO UI new name, uncommon rarity and correct face")
+  t.check(face.rarity=="uncommon" and t.visible_text(face).contains("余势复演") and t.visible_text(face).contains("魔法牌" if free else "伤害＋5"),"ECHO UI new name, uncommon rarity and correct face")
+  t.check(t.visible_text(face).contains("嘴部")==free,"ECHO UI only the free face shows mouth casting")
   var body=face.get_node("CardText")
   t.check(body.position.y+body.get_combined_minimum_size().y<=face.size.y-4,"ECHO UI text fits shared card")
  await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
- t.check(ui.view.statuses.any(func(row):return row.id=="power_echo_cast_free"),"ECHO UI click displays pending replay status")
- var enemy=ui.game._enemy(ui.selected_enemy);var hp=enemy.hp
- var damage=ui.game.BasicAttacks.fireball_damage(ui.game)
- t.check(await t.click("attack",{"type":"fireball","enemy":ui.selected_enemy}) and ui.game._enemy(ui.selected_enemy).hp==hp-2*damage and ui.game.state.mana==90,"ECHO UI one click casts twice and only pays once")
- t.check(not ui.view.statuses.any(func(row):return row.id=="power_echo_cast_free"),"ECHO UI consumed status disappears")
+ t.check(ui.view.statuses.any(func(row):return row.id=="power_echo_recharge"),"ECHO UI shows the active recharge")
+ t.check(await t.click("attack",{"type":"fireball","enemy":ui.selected_enemy}) and ui.game.BasicAttacks.usage(ui.game,"fireball").remaining==1,"ECHO UI Fireball spends one use")
+ card=Cards.give(ui.game,"echo_cast");ui.render();await t.frames()
+ if not ui.card_faces.get(card.uid,false): await t.flip(card.uid)
+ await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
+ t.check(ui.game.BasicAttacks.usage(ui.game,"fireball").remaining==1 and ui.game.Cards.buff_stacks(ui.game,"echo_recharge")==2,"ECHO UI second skill adds a layer without restoring uses")
+ t.check(await t.click("attack",{"type":"fireball","enemy":ui.selected_enemy}),"ECHO UI spend the second use")
+ card=Cards.give(ui.game,"mana_invocation");ui.render();await t.frames()
+ await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
+ t.check(ui.game.BasicAttacks.usage(ui.game,"fireball").remaining==2,"ECHO UI a played magic card recharges Fireball")
 
 static func wildfire_descent(t) -> void:
  var ui=t.ui
@@ -373,7 +410,7 @@ static func wildfire_descent(t) -> void:
  ui.render();await t.frames()
  for i in range(2):
   var face=ui.card_buttons[card.uid]
-  t.check(face.rarity=="uncommon" and t.visible_text(face.get_node("CardMana/Mana_cost")).strip_edges()=="−10" and t.visible_text(face).contains("抽牌1"),"WILDFIRE UI uncommon ability displays paid effect on either face")
+  t.check(face.rarity=="uncommon" and t.visible_text(face.get_node("CardMana/Mana_cost")).strip_edges()=="−10" and t.visible_text(face).contains("成功施放火球术，抽1张牌"),"WILDFIRE UI uncommon ability displays paid effect on either face")
   await t.move_mouse(Vector2(1100,90));await t.frames()
   await t.move_mouse(t.card_point(card.uid));await t.frames()
   var tip=ui.find_child("TermExplanation",true,false)
@@ -389,21 +426,17 @@ static func wildfire_descent(t) -> void:
 static func adaptability(t) -> void:
  var ui=t.ui
  ui.restart(42);await t.frames();ui.game._discard_end()
- var card=Cards.give(ui.game,"adaptability")
- ui.render();await t.frames()
- var face=ui.card_buttons[card.uid]
- t.check(face.rarity=="uncommon" and t.visible_text(face).contains("灵活变通"),"ADAPT UI shared card shows name and uncommon rarity")
- if not ui.card_faces.get(card.uid,false): await t.flip(card.uid)
- t.check(t.visible_text(ui.card_buttons[card.uid]).contains("获得1层魔力预备"),"ADAPT UI free face shows current reserve conversion")
- await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
- t.check(ui.game.state.powers.size()==1 and ui.game.state.temporary_mana==0,"ADAPT UI activation does not grant immediately")
- t.check(await t.click("end") and ui.game.state.temporary_mana==5,"ADAPT UI actual end-turn click grants next-turn mana")
- card=Cards.give(ui.game,"adaptability");ui.render();await t.frames()
- if ui.card_faces.get(card.uid,false): await t.flip(card.uid)
- t.check(t.visible_text(ui.card_buttons[card.uid]).contains("蓄力1"),"ADAPT UI bound face shows charge")
- await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
- var charge=ui.game.state.charge
- t.check(await t.click("end") and ui.game.state.charge==charge+1 and ui.game.state.temporary_mana==10,"ADAPT UI both faces update through real turn command")
+ ui.game.state.charge=3;ui.game.state.temporary_mana=2
+ for free in [true,false]:
+  var card=Cards.give(ui.game,"adaptability")
+  ui.render();await t.frames()
+  if ui.card_faces.get(card.uid,false)!=free: await t.flip(card.uid)
+  var face=ui.card_buttons[card.uid]
+  var expected="将全部蓄力转化为等量魔力预备" if free else "将全部魔力预备转化为等量蓄力"
+  t.check(face.rarity=="uncommon" and t.visible_text(face).contains(expected),"ADAPT UI uncommon skill displays the selected conversion")
+  await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
+  t.check(ui.game.state.charge==(0 if free else 3) and ui.game.state.temporary_mana==(17 if free else 2) and ui.game.state.discard.any(func(c):return c.uid==card.uid),"ADAPT UI actual click converts immediately and discards")
+
 
 static func fire_control(t) -> void:
  var ui=t.ui
@@ -426,27 +459,6 @@ static func fire_control(t) -> void:
  await t.flip(card.uid)
  await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
  t.check(ui.game.state.temporary_mana==10 and ui.game.state.spell_base_bonuses.fireball==1 and ui.game.state.discard.any(func(c):return c.uid==card.uid) and not ui.game.state.exhaust.any(func(c):return c.uid==card.uid),"CONTROL UI bound click grants two reserves and discards the card")
-
-static func letter_opener(t) -> void:
- var ui=t.ui
- ui.restart(42);await t.frames();ui.game._discard_end();ui.game.state.energy=10
- var card=Cards.give(ui.game,"letter_opener")
- ui.render();await t.frames()
- t.check(ui.card_buttons[card.uid].rarity=="uncommon" and t.visible_text(ui.card_buttons[card.uid]).contains("开信刀play"),"OPENER UI uncommon ability uses shared card face")
- await t.flip(card.uid)
- t.check(t.visible_text(ui.card_buttons[card.uid]).contains("每使用3张技能牌") and t.visible_text(ui.card_buttons[card.uid]).contains("全体敌人受到5伤害") and not t.visible_text(ui.card_buttons[card.uid]).contains("回合内"),"OPENER UI right-click exposes cumulative skill trigger and free damage")
- await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
- t.check(ui.game.state.powers[0].power_face=="free" and ui.game.state.energy==9,"OPENER UI selected face activates via real click")
- for i in range(2):
-  card=Cards.give(ui.game,"slip");ui.render();await t.frames()
-  if not ui.card_faces.get(card.uid,false): await t.flip(card.uid)
-  await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
- t.check(ui.game.Cards.progress_text(ui.game,"letter_opener_free")=="2／3张" and ui.view.statuses.any(func(row):return row.id=="power_letter_opener_free" and row.value.contains("2／3")),"OPENER UI status shows current skill-batch progress")
- t.check(await t.click("end") and ui.game.Cards.progress_text(ui.game,"letter_opener_free")=="2／3张","OPENER UI real end turn retains two-card progress")
- var hp=ui.game.state.enemies.map(func(enemy):return enemy.hp)
- card=Cards.give(ui.game,"pleasure_conversion");ui.render();await t.frames()
- await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
- t.check(ui.game.Cards.progress_text(ui.game,"letter_opener_free")=="0／3张" and range(hp.size()).all(func(i):return is_equal_approx(ui.game.state.enemies[i].hp,hp[i]-5)),"OPENER UI third skill next turn triggers damage and starts a new batch")
 
 static func pot_of_greed(t) -> void:
  var ui=t.ui
@@ -472,8 +484,12 @@ static func revised_preparation(t) -> void:
  for card in ui.view.hand:
   var free=card.type in ["unlock","double_unlock"]
   if ui.card_faces.get(card.uid,false)!=free: await t.flip(card.uid)
-  var expected={"brace":"挣扎4","inch":"滑脱5","unlock":"+10","double_unlock":"+5","echo_cast":"下张双面效果各异的拘束面牌"}[card.type]
+  var expected={"brace":"挣扎5","inch":"滑脱5","unlock":"+2","double_unlock":"+1","echo_cast":"火球术剩余次数为0"}[card.type]
   t.check(t.visible_text(ui.card_buttons[card.uid]).contains(expected),"REVISED UI current card value and wording: "+card.type)
+  if card.type=="inch":
+   await t.flip(card.uid)
+   var text=t.visible_text(ui.card_buttons[card.uid])
+   t.check(text.contains("抽牌1") and text.contains("1层滑溜") and not text.contains("保留"),"INCH UI free face displays draw and slippery without retention")
  ui.restart(42);await t.frames();ui.game._discard_end()
  var card=Cards.give(ui.game,"focus");ui.render();await t.frames()
  if ui.card_faces.get(card.uid,false): await t.flip(card.uid)
@@ -626,7 +642,7 @@ static func stacked_flourish(t) -> void:
   if not ui.card_faces.get(card.uid,false): await t.flip(card.uid)
   await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid);await t.frames()
  t.check(ui.game.state.powers.size()==2 and ui.game.state.energy==8 and ui.game.BasicAttacks.usage(ui.game,"fireball").limit==4,"STACK UI repeated free flourish pays and increases real limit")
- t.check(ui.view.statuses.any(func(s):return s.id=="power_flame_flourish_free" and s.value.contains("2重") and s.detail.contains("可叠加") and not s.detail.contains("2→3")),"STACK UI status shows layers and accurate repeatable description")
+ t.check(ui.view.statuses.any(func(s):return s.id=="power_flame_flourish_free" and s.value.contains("2重") and s.detail.contains("每回合火球术可用次数＋1。") and not s.detail.contains("可叠加") and not s.detail.contains("2→3")),"STACK UI status shows layers and accurate repeatable description")
 
 static func mana_circuit(t) -> void:
  var ui=t.ui
@@ -635,7 +651,7 @@ static func mana_circuit(t) -> void:
   var card=Cards.give(ui.game,"mana_circuit")
   ui.render();await t.frames()
   if not ui.card_faces.get(card.uid,false): await t.flip(card.uid)
-  t.check(t.visible_text(ui.card_buttons[card.uid]).contains("每耗魔30") and t.visible_text(ui.card_buttons[card.uid]).contains("能量＋1"),"CIRCUIT UI rare ability displays free threshold and energy reward")
+  t.check(t.visible_text(ui.card_buttons[card.uid]).contains("累计消耗30点魔力，获得" + preload("res://ui/card_energy_text.gd").ICON),"CIRCUIT UI rare ability displays free threshold and energy reward")
   await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid);await t.frames()
  t.check(ui.game.state.powers.size()==2 and ui.game.state.energy==16,"CIRCUIT UI native duplicate activations each pay two energy")
  for i in range(3):
@@ -647,7 +663,7 @@ static func mana_circuit(t) -> void:
  if not ui.card_faces.get(card.uid,false): await t.flip(card.uid)
  t.check(t.visible_text(ui.card_buttons[card.uid]).contains("需要腿部束缚等级≤0"),"CIRCUIT UI explains blocked free activation with current body rule")
  await t.flip(card.uid)
- t.check(t.visible_text(ui.card_buttons[card.uid]).contains("每耗魔20"),"CIRCUIT UI bound face displays charge threshold")
+ t.check(t.visible_text(ui.card_buttons[card.uid]).contains("累计消耗20点魔力，获得1层蓄力"),"CIRCUIT UI bound face displays charge threshold")
  await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid);await t.frames()
  t.check(ui.game.state.powers.size()==3,"CIRCUIT UI bound face remains usable despite lower-body restraints")
 
@@ -660,7 +676,7 @@ static func magic_hand(t) -> void:
   ui.render();await t.frames()
   if ui.card_faces.get(card.uid,false)!=free: await t.flip(card.uid)
   var face=ui.card_buttons[card.uid];var text=t.visible_text(face)
-  var keywords=t.visible_text(face.get_node("CardKeywords"))
+  var keywords=t.visible_text(face.get_node("CardText/Content/CardKeywords"))
   t.check(face.rarity=="uncommon" and face.get_node("CardCost").text=="1" and keywords.contains("消耗") and (face.get_node("CardText/Content/CardEffect").text.contains("下2次手部体术") if free else (face.get_node("CardText/Content/CardEffect").text=="降紧3。" and keywords.contains("超级顺延"))),"HAND UI uncommon faces separate exact effects from bottom keywords and preserve energy")
   t.check(t.visible_text(face.get_node("CardMana")).contains("20") and text.contains("嘴部"),"HAND UI both faces expose mouth casting and twenty mana")
   var before=ui.game.export_snapshot()
@@ -717,13 +733,13 @@ static func cumulative_preparations(t) -> void:
    if not ui.card_faces.get(card.uid,false): await t.flip(card.uid)
    t.check(not t.visible_text(ui.card_buttons[card.uid]).contains("唯一"),"CUMULATIVE UI repeatable card has no unique label")
    await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
-  var id="magic_hand_free" if type=="magic_hand" else "echo_cast_free"
+  var id="magic_hand_free" if type=="magic_hand" else "echo_recharge"
   var count=4 if type=="magic_hand" else 2
   t.check(ui.game.state.card_buff_uses.get(id)==count and ui.view.statuses.any(func(row):return row.id=="power_"+id and row.value.contains(str(count))),"CUMULATIVE UI displays actual accumulated uses after two clicks")
  ui.restart(42);await t.frames();ui.game._discard_end()
  var card=Cards.give(ui.game,"mana_surge");ui.render();await t.frames()
  if not ui.card_faces.get(card.uid,false): await t.flip(card.uid)
- t.check(t.visible_text(ui.card_buttons[card.uid]).contains("2层魔力预备") and ui.card_buttons[card.uid].get_node_or_null("CardMana/Mana_cost")==null and t.visible_text(ui.card_buttons[card.uid].get_node("CardMana/Mana_temporary")).strip_edges()=="+10","SURGE UI free card describes two reserve layers and shows only the temporary mana badge")
+ t.check(t.visible_text(ui.card_buttons[card.uid]).contains("2层魔力预备") and ui.card_buttons[card.uid].get_node_or_null("CardMana/Mana_cost")==null and t.visible_text(ui.card_buttons[card.uid].get_node("CardMana/Mana_temporary")).strip_edges()=="+2","SURGE UI free card describes two reserve layers and shows only the temporary mana badge")
  await t.capture("ui-surge-reserve.png")
 
 static func resonance(t) -> void:
@@ -738,16 +754,20 @@ static func resonance(t) -> void:
  t.check(ui.view.statuses.any(func(row):return row.id=="power_resonance_bound" and row.value.contains("5%")),"RESONANCE UI bound activation displays live reduction")
  var spell=Cards.give(ui.game,"rekindle");ui.render();await t.frames()
  t.check(t.visible_text(ui.card_buttons[spell.uid].get_node("CardMana/Mana_cost")).strip_edges()=="−9.5","RESONANCE UI real spell badge reflects fractional reduced payment")
- for n in range(2):
-  card=Cards.give(ui.game,"resonance");ui.render();await t.frames()
-  if not ui.card_faces.get(card.uid,false): await t.flip(card.uid)
-  t.check(ui.card_buttons[card.uid].get_node("CardCost").text=="2" and not t.visible_text(ui.card_buttons[card.uid]).contains("唯一") and t.visible_text(ui.card_buttons[card.uid]).contains("闪避1"),"RESONANCE UI free face costs two energy and grants one evasion per turn")
-  var energy_before=ui.game.state.energy
-  await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
-  t.check(ui.game.state.energy==energy_before-2,"RESONANCE UI native free play spends two energy")
+ card=Cards.give(ui.game,"resonance");ui.render();await t.frames()
+ if not ui.card_faces.get(card.uid,false): await t.flip(card.uid)
+ t.check(ui.card_buttons[card.uid].get_node("CardCost").text=="2" and not t.visible_text(ui.card_buttons[card.uid]).contains("唯一") and t.visible_text(ui.card_buttons[card.uid]).contains("获得2层闪避") and t.visible_text(ui.card_buttons[card.uid]).contains("消耗"),"RESONANCE UI free face costs two energy and displays the exhaust keyword")
+ var energy_before=ui.game.state.energy
+ await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
+ t.check(ui.game.state.energy==energy_before-2,"RESONANCE UI native free play spends two energy")
+ card=Cards.give(ui.game,"resonance");ui.render();await t.frames()
+ if not ui.card_faces.get(card.uid,false): await t.flip(card.uid)
+ energy_before=ui.game.state.energy
+ await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
+ t.check(ui.game.state.energy==energy_before-2 and ui.game.state.evasion==4 and ui.game.state.exhaust.any(func(c):return c.uid==card.uid),"RESONANCE UI repeat free face grants evasion and exhausts")
  for enemy in ui.game.state.enemies: enemy.intent.delayed=true
  ui.render();await t.frames()
- t.check(await t.click("end") and ui.game.state.evasion==2,"RESONANCE UI next turn gives two evasion from two actual plays")
+ t.check(await t.click("end") and ui.game.state.evasion==4,"RESONANCE UI next turn preserves unspent evasion")
 
 static func confluence(t) -> void:
  var ui=t.ui
@@ -756,14 +776,14 @@ static func confluence(t) -> void:
  if not ui.card_faces.get(card.uid,false): await t.flip(card.uid)
  var face=ui.card_buttons[card.uid]
  t.check(face.rarity=="common" and face.get_node("CardCost").text=="0" and t.visible_text(face).contains("技能") and t.visible_text(face.get_node("CardMana/Mana_gain")).strip_edges()=="+0","CONFLUENCE UI common zero-energy skill displays zero gain with no equipment")
- t.check(t.visible_text(face).contains("每佩戴1件拘束具，恢复2点魔力。") and t.visible_text(face).contains("当前：恢复0魔力。") and t.visible_text(face.get_node("CardKeywords")).contains("消耗"),"CONFLUENCE UI zero-gain card retains its equipment scaling rule and exhaust keyword")
+ t.check(t.visible_text(face).contains("你每佩戴1件拘束具或性玩具，恢复2点魔力。") and t.visible_text(face).contains("当前：恢复0魔力。") and t.visible_text(face.get_node("CardText/Content/CardKeywords")).contains("消耗"),"CONFLUENCE UI zero-gain card retains its equipment scaling rule and exhaust keyword")
  await t.capture("ui-confluence-description.png")
  for slot in ["eyes","ankle","thigh"]: ui.game.add_fixture(slot,8)
  ui.render();await t.frames()
  t.check(t.visible_text(ui.card_buttons[card.uid].get_node("CardMana/Mana_gain")).strip_edges()=="+6","CONFLUENCE UI mana corner updates after equipment changes")
  await t.flip(card.uid)
  t.check(t.visible_text(ui.card_buttons[card.uid]).contains("本回合力量＋1") and not ui.card_buttons[card.uid].get_node("CardMana").visible,"CONFLUENCE UI bound face shows floored strength without a false mana badge")
- t.check(t.visible_text(ui.card_buttons[card.uid]).contains("每佩戴2件拘束具，本回合获得1点力量，向下取整。"),"CONFLUENCE UI bound face keeps threshold and duration alongside current strength")
+ t.check(t.visible_text(ui.card_buttons[card.uid]).contains("你每佩戴2件拘束具或性玩具，本回合获得1点力量。"),"CONFLUENCE UI bound face keeps threshold and duration alongside current strength")
  await preload("res://tests/curse_ui_cases.gd").click_card(t,card.uid)
  t.check(ui.game.state.turn_strength==1 and ui.game.state.strength==0 and ui.view.statuses.any(func(row):return row.id=="strength" and row.value=="1" and row.detail.contains("本回合结束清除")),"CONFLUENCE UI actual bound play updates strength and expiry detail")
  card=Cards.give(ui.game,"confluence");ui.render();await t.frames()
@@ -778,11 +798,11 @@ static func reuse(t) -> void:
  var card=Cards.give(ui.game,"reuse");ui.render();await t.frames()
  if not ui.card_faces.get(card.uid,false): await t.flip(card.uid)
  var face=ui.card_buttons[card.uid]
- t.check(face.rarity=="uncommon" and face.get_node("CardCost").text=="1" and t.visible_text(face).contains("返还魔力为0") and t.visible_text(face).contains("魔路精通") and t.visible_text(face).contains("唯一") and face.ILLUSTRATIONS.has("reuse"),"REUSE UI uncommon free face shows one energy, unique, temporary conversion and artwork")
+ t.check(face.rarity=="rare" and face.get_node("CardCost").text=="1" and t.visible_text(face).contains("抽1张牌") and t.visible_text(face).contains("返还魔力为0") and t.visible_text(face).contains("魔路精通") and t.visible_text(face).contains("唯一") and face.ILLUSTRATIONS.has("reuse"),"REUSE UI rare free face shows one energy, unique, temporary conversion and artwork")
  await t.flip(card.uid)
  face=ui.card_buttons[card.uid]
  var blocked=Queries.find(ui.view,"card",{"uid":card.uid,"free":false})
- t.check(face.get_node("CardCost").text=="2" and t.visible_text(face).contains("上身束缚等级≥3") and t.visible_text(face).contains("腿部束缚等级≥3") and t.visible_text(face).contains("紧度≥2") and t.visible_text(face).contains("≥10件") and t.visible_text(face).contains("普通及复合") and not blocked.valid,"REUSE UI bound face shows two energy, tier/count upgrade and both live requirements")
+ t.check(face.get_node("CardCost").text=="3" and t.visible_text(face).contains("上身束缚等级≥3") and t.visible_text(face).contains("腿部束缚等级≥3") and t.visible_text(face).contains("紧度≥2") and t.visible_text(face).contains("至少10件") and t.visible_text(face).contains("取消次数限制") and not blocked.valid,"REUSE UI bound face shows three energy, tier/count upgrade and both live requirements")
  ui.game.add_fixture("wrist",8);ui.game.add_fixture("ankle",8);ui.render();await t.frames()
  t.check(not Queries.find(ui.view,"card",{"uid":card.uid,"free":false}).valid,"REUSE UI level-two regions still block activation")
  ui.game.add_fixture("palm",8);ui.game.add_fixture("foot",8);ui.render();await t.frames()

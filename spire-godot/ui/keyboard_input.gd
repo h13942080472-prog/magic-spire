@@ -149,9 +149,10 @@ func cycle(direction: int) -> void:
  draw_targets()
 
 func target_name(c: Dictionary) -> String:
- if c.payload.has("enemy"):
+ if c.payload.has("enemy") or c.payload.get("mode","")=="enemy":
+  var actor_id=c.payload.get("enemy",c.payload.get("target",""))
   for enemy in host.view.enemies:
-   if enemy.id==c.payload.enemy: return enemy.name
+   if enemy.id==actor_id: return enemy.name
  if c.payload.get("hand_uid","")!="" and c.payload.get("self_target",false):
   for card in host.view.hand:
    if card.uid==c.payload.hand_uid: return card.name

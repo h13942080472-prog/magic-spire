@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="360" height="280" viewBox="0 0 360 280">
+ <defs>
+  <linearGradient id="hull" x2=".34" y2="1"><stop stop-color="#dde5d7"/><stop offset=".32" stop-color="#8eabb0"/><stop offset=".58" stop-color="#526777"/><stop offset="1" stop-color="#293344"/></linearGradient>
+  <linearGradient id="bronze" x2=".2" y2="1"><stop stop-color="#ffe3a4"/><stop offset=".43" stop-color="#bc8c50"/><stop offset="1" stop-color="#664347"/></linearGradient>
+  <radialGradient id="lens" cx=".38" cy=".34" r=".72"><stop stop-color="#e9ffff"/><stop offset=".25" stop-color="#74e8ec"/><stop offset=".65" stop-color="#28859d"/><stop offset="1" stop-color="#173349"/></radialGradient>
+  <g id="impeller" stroke-linejoin="round">
+   <path d="M-55 -2 C-47 -19 43 -23 56 -3 L53 10 C39 32 -39 31 -53 11Z" fill="url(#hull)" stroke="#172130" stroke-width="3"/>
+   <ellipse rx="55" ry="22" fill="url(#bronze)" stroke="#202835" stroke-width="3"/>
+   <ellipse rx="45" ry="15" fill="#182733" stroke="#425363" stroke-width="2"/>
+   <g fill="#91a7a9" stroke="#2f4653"><path d="M0 0Q-5 -13 -28 -10L-40 -6Q-21 -9 -9 2Z"/><path d="M0 0Q26 -5 24 -12L35 -9Q31 -2 9 3Z"/><path d="M0 0Q26 1 37 8L26 12Q16 5 3 4Z"/><path d="M0 0Q-4 11 -24 12L-33 9Q-17 6 -8 1Z"/></g>
+   <ellipse rx="9" ry="5" fill="#d7c597"/><path d="M-43 13q14 8 33 8m12 0 8 -1" fill="none" stroke="#76d6d9" stroke-width="3"/>
+  </g>
+  <g id="wing">
+   <path d="M141 99 88 71 65 73 77 92 124 125Z" fill="#344555" stroke="#192333" stroke-width="4"/>
+   <path d="m138 99-47-24-12 3 51 31Z" fill="url(#hull)"/>
+   <use xlink:href="#impeller" transform="translate(76 77) rotate(-9)"/>
+   <path d="M139 130 98 117 77 128 74 142 84 154 106 148 146 156Z" fill="url(#hull)" stroke="#192333" stroke-width="4"/>
+   <path d="m105 125-16 5 4 19 14-6Z" fill="#a77e52"/><ellipse cx="83" cy="139" rx="10" ry="14" fill="#202a35" stroke="#c19e68" stroke-width="3"/>
+   <path d="M82 143c-10 15 2 35-11 51-6 8-17 11-22 5 2 14 16 16 28 4 18-18 5-40 13-55Z" fill="#845846" stroke="#362f37" stroke-width="2.5"/>
+   <path d="M84 157c-3 13 2 31-10 43" fill="none" stroke="#d7a06a" stroke-width="1.8" stroke-dasharray="4 4"/>
+   <path d="m67 197 10 5-5 9-11-5Z" fill="none" stroke="#d7be85" stroke-width="3"/>
+  </g>
+ </defs>
+ <ellipse cx="180" cy="248" rx="65" ry="9" fill="#172031" opacity=".32"/>
+ <use xlink:href="#wing"/><use xlink:href="#wing" transform="translate(360) scale(-1 1)"/>
+ <g stroke="#182333" stroke-linejoin="round">
+  <path d="m148 90-13-36 6-12 23 37m48 11 13-36-6-12-23 37" fill="url(#bronze)" stroke-width="3"/>
+  <path d="m136 139 9 42 13 15 22 5 23-5 14-16 8-42Z" fill="#344552" stroke-width="4"/>
+  <path d="M116 125 130 91 156 73 190 70 217 80 239 102 246 125 227 151 205 160 156 162 131 152Z" fill="url(#hull)" stroke-width="5"/>
+  <path d="m132 93 29-12 31-2 24 9-23 8-35 2Z" fill="#b7c6bf" stroke-width="2"/>
+  <path d="m123 121 21-18 70-5 23 17-12 24-26 14-42 2-22-10Z" fill="#1d2a38" stroke="#737f83" stroke-width="3"/>
+  <path d="m129 118 18-13 65-5 18 12-28-4-43 3Z" fill="url(#bronze)" stroke-width="2"/>
+  <circle cx="179" cy="130" r="21" fill="url(#bronze)" stroke-width="3"/><circle cx="179" cy="130" r="15" fill="url(#lens)" stroke-width="3"/>
+  <path d="m212 116 4-1-5 14-4 1Zm7-2 4-1-5 14-4 1Z" fill="#f9dea0" stroke="none"/>
+  <path d="m145 161 16 6 39-2 16-8-6 15-14 7-32 1-14-6Z" fill="url(#bronze)" stroke-width="2"/>
+  <path d="m161 182 11 4 26-2-2 11-16 7-15-7Z" fill="#161f30" stroke-width="3"/>
+ </g>
+ <g fill="none" stroke="#7cf3ea" stroke-linecap="round">
+  <path d="m159 119 3-4m32 25 4-5" stroke-width="2"/>
+  <path d="m171 194 6 2 12-2" stroke-width="3"/>
+  <path d="m174 202-11 23m24-23 11 23" opacity=".36"/>
+  <ellipse cx="180" cy="227" rx="22" ry="5" stroke-dasharray="17 5" opacity=".65"/>
+ </g>
+</svg>

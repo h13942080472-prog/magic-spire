@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dxrxjdyhhsy5x"
-path="res://.godot/imported/letter_opener.svg-d90b5399a60418a09cc8ca7c66068920.ctex"
+uid="uid://d3i1gx1r4pqci"
+path="res://.godot/imported/tape_mass.svg-0ac9add89790e6d79a2d696fb4ae87c3.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/ui/cards/letter_opener.svg"
-dest_files=["res://.godot/imported/letter_opener.svg-d90b5399a60418a09cc8ca7c66068920.ctex"]
+source_file="res://assets/ui/enemies/tape_mass.svg"
+dest_files=["res://.godot/imported/tape_mass.svg-0ac9add89790e6d79a2d696fb4ae87c3.ctex"]
 
 [params]
 

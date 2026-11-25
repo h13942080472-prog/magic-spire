@@ -26,6 +26,7 @@ static func capture_ready(state: Dictionary) -> bool:
  return state.phase=="battle" and state.get("guard_bind",{}).get("progress",0.0)>=BIND_MAXIMUM
 
 static func movement_reason(g) -> String:
+ if g.RopeArt.hogtied(g): return g.RopeArt.HOGTIE_REASON
  return "被捕缚时无法移动，先解除捕缚。" if has_bind(g) else ""
 
 static func fixed_posture(g) -> String:
@@ -45,6 +46,7 @@ static func allowed_postures(g) -> Array:
  return allowed
 
 static func posture_reason(g, destination: String) -> String:
+ if destination!="lie" and g.RopeArt.hogtied(g): return g.RopeArt.HOGTIE_REASON
  var allowed=allowed_postures(g)
  if not allowed.is_empty() and destination not in allowed: return "捕缚只允许保持%s，先解除捕缚。" % "或".join(allowed.map(func(pose):return g.B.POSE_NAMES[pose]))
  var fixed=fixed_posture(g)
@@ -55,23 +57,26 @@ static func posture_reason(g, destination: String) -> String:
 static func clear_bind(g, battle_ended: bool=false) -> void:
  # In-battle immunity must not retain a battle-only status during teardown.
  if not battle_ended and g.RopeArt.bound(g): return
+ if battle_ended:
+  g.state.combat.erase("mana_listeners")
+  g.state.combat.erase("drone_weakness")
  g.state.guard_bind={}
  for enemy in g.state.enemies:
   if kind(g,enemy)!="": enemy.guard.bind_ready=false
 
-static func apply_bind(g, enemy: Dictionary) -> void:
+static func apply_bind(g, enemy: Dictionary, restored_value: float=0.0) -> void:
  var source_kind=kind(g,enemy)
  enemy.guard.bind_ready=false
  if has_bind(g,source_kind):
   g._emit("event",enemy.name+"的同类捕缚已经生效，没有重复叠加。")
   return
  var initial=initial_value(g,enemy)
- var amount=initial*0.5 if has_bind(g) else initial
+ var amount=restored_value if restored_value>0.0 else (initial*0.5 if has_bind(g) else initial)
  if not has_bind(g): g.state.guard_bind={"progress":0.0,"sources":{}}
  g.state.guard_bind.sources[source_kind]={"enemy":enemy.id,"energy":0}
  # Enemy-first application already happens after this player turn's upkeep.
  if g.Enemies.TYPES[enemy.type].get("capture_turn_install",false): g.state.guard_bind.sources[source_kind].skip_turn_start=g.state.order=="first"
- enemy.guard.cycle_step=0
+ if source_kind!=g.Mechs.SUPPORT: enemy.guard.cycle_step=0
  var before=float(g.state.guard_bind.progress)
  g.state.guard_bind.progress=minf(BIND_MAXIMUM,before+amount)
  var fixed=fixed_posture(g)
@@ -80,8 +85,44 @@ static func apply_bind(g, enemy: Dictionary) -> void:
  fixed=fixed_posture(g)
  var pose_text="你被固定为%s。" % g.B.POSE_NAMES[fixed] if fixed!="" else ""
  g._emit("event",enemy.name+"施加捕缚，进度增加%s，现为%s/100。" % [g.number(g.state.guard_bind.progress-before),g.number(g.state.guard_bind.progress)]+pose_text,{"guard_bind":{"action":"apply","source":enemy.id,"before":before,"value":g.state.guard_bind.progress}})
- if source_kind=="iron_man": g.IronMan.apply_capture_equipment(g,enemy)
+ var previous_onset=g._capture_onset_equipment
+ g._capture_onset_equipment=true
+ if source_kind=="iron_man": g.IronMan.apply_capture_equipment(g,enemy,true)
+ if source_kind==g.Detective.TYPE:
+  g.state.guard_bind.sources[source_kind].fitted={}
+  if restored_value<=0.0: g.Detective.fit_cuffs(g,enemy,true)
+ if source_kind==g.AntiDrone.TYPE: g.AntiDrone.opening(g,enemy)
+ if source_kind==g.Mechs.SUPPORT: g.Mechs.reinforce_gag(g,enemy)
+ g._capture_onset_equipment=previous_onset
  observe(g)
+
+# Both captures register the value at installation and refund it once on escape.
+static func installed(g, piece: Dictionary) -> void:
+ if g._rope_trial or g.state.phase!="battle": return
+ var cuff=g.Detective.fitted_cuff(g,piece)
+ if g._capture_onset_equipment or not has_bind(g): return
+ if piece.has("parent_id") or piece.has("shoulder_host") or g.Equipment.lock_only(piece) or g.SpecialEquipment.is_reinforcement(piece) or (piece.has("root_id") and piece.part!="body"): return
+ for kind_id in [g.AntiDrone.TYPE,g.Detective.TYPE]:
+  var source=g.state.guard_bind.sources.get(kind_id,{})
+  if not source.has("fitted") or source.fitted.has(piece.id): continue
+  if kind_id==g.Detective.TYPE and (cuff or g.SpecialEquipment.is_special(piece)): continue
+  var value=g.RestraintValue.from_profile(piece.grade,g.equipment_tier(piece))
+  if kind_id==g.Detective.TYPE and g.Equipment.is_shackle(piece): value=g.Equipment.SHACKLE_RESTRAINT_VALUE
+  source.fitted[piece.id]=value
+  gain_bind(g,value,piece.name)
+
+static func removed(g, id: String, released: bool) -> void:
+ if g._rope_trial or g.state.phase!="battle": return
+ g.Detective.removed_cuff(g,id,released)
+ for source in g.state.guard_bind.get("sources",{}).values():
+  var fitted=source.get("fitted",{})
+  var value=int(fitted.get(id,0))
+  if fitted.erase(id) and released: damage_bind(g,value,"挣脱拘束具")
+
+static func replaced(g, result: Dictionary) -> void:
+ for id in result.removed+result.lost_links: removed(g,id,false)
+ for item in result.installed:
+  for piece in item.get("components",[item]): installed(g,piece)
 
 static func gain_bind(g, amount: float, source: String) -> void:
  if not has_bind(g) or amount<=0: return
@@ -122,6 +163,9 @@ static func energy_spent(g, amount: int, guard_effect: bool=false) -> void:
   while source.energy>=threshold:
    source.energy-=threshold
    if source_kind=="iron_man": g.IronMan.energy_trigger(g,enemy)
+   elif enemy.type==g.DroneOperator.DRONE:
+    g._enemy_operation(enemy,g.DroneOperator.tape(g,g._enemy(enemy.drone_owner),true))
+    gain_bind(g,BIND_GAIN,enemy.name)
    elif source_kind=="iron_drone": g.IronMan.drone_energy_trigger(g,enemy)
    else:
     g._enemy_operation(enemy,g.EnemyPlans.application(g.Enemies.TYPES[enemy.type].install_pool,1,2,1,false,3))
@@ -149,12 +193,18 @@ static func required_intent(g, enemy: Dictionary) -> String:
  if source_kind==g.RopeArt.MASTER: return ""
  if source_kind=="": return ""
  if capture_ready(g.state) and g.EnemyPlans.can_arrest(g,enemy): return "capture"
+ if source_kind==g.Detective.TYPE:
+  if enemy.stage==1: return "bind_apply"
+  if enemy.intent.get("kind","") in [g.Detective.PACK,g.Detective.CUFF]: return g.Detective.move_kind(enemy)
+  return ""
+ if source_kind==g.AntiDrone.TYPE: return "bind_apply" if enemy.stage==1 and not has_bind(g,source_kind) else ""
+ if source_kind==g.Mechs.SUPPORT: return "" if has_bind(g,source_kind) else "bind_apply"
  if source_kind=="iron_man":
   # Keep a still-required opening capture, including its delayed flag.
   return "bind_apply" if g.IronMan.intent_facts(enemy,g.state).kind=="bind_apply" else ""
  if source_kind=="guard" and enemy.stage==1: return "guard_sequence"
  if not has_bind(g,source_kind):
-  return "bind_apply" if enemy.guard.bind_ready or (source_kind!="guard" and enemy.stage==1) else "bind_prepare"
+  return "bind_apply" if enemy.guard.bind_ready or (source_kind!="guard" and enemy.type!=g.DroneOperator.DRONE and enemy.stage==1) else "bind_prepare"
  return ""
 
 static func observe(g) -> void:
@@ -174,16 +224,27 @@ static func observe(g) -> void:
   if enemy.gone or kind(g,enemy)=="": continue
   var expected=required_intent(g,enemy)
   var current=enemy.intent.get("kind","")
-  if (expected!="" and current!=expected) or (expected=="" and current in ["bind_prepare","bind_apply","capture"]): enemy.intent=g._plan(enemy)
+  if (expected!="" and current!=expected) or (expected=="" and current in ["bind_prepare","bind_apply","capture"]):
+   var delayed=enemy.intent.get("delayed",false)
+   enemy.intent=g._plan(enemy)
+   if enemy.type in [g.Mechs.SUPPORT,g.Detective.TYPE,g.DroneOperator.DRONE]: enemy.intent.delayed=delayed
 
 static func view(g) -> Dictionary:
  if not has_bind(g): return {}
  var descriptions=[];var names=[]
  if has_bind(g,"guard"): descriptions.append("警卫捕缚：只能躺姿→坐姿→站姿，每次切换使捕缚＋10；花能量和快感达到上限时触发警卫效果。")
- if has_bind(g,"drone"): descriptions.append("无人机捕缚：固定为站姿；每累计消耗2能量，施加1件初级2档胶带并使捕缚＋10。当前累计%d/2能量。" % g.state.guard_bind.sources.drone.energy)
+ if has_bind(g,"drone"):
+  var source=g.state.guard_bind.sources.drone
+  var drone=g._enemy(source.enemy)
+  if drone.type==g.DroneOperator.DRONE:
+   descriptions.append("无人机捕缚：固定站姿。每累计消耗2能量，追加%d件胶带，捕缚＋10。当前累计%d/2能量。" % [1+g._enemy(drone.drone_owner).drone_repairs,source.energy])
+  else: descriptions.append("无人机捕缚：固定为站姿；每累计消耗2能量，施加1件初级2档胶带并使捕缚＋10。当前累计%d/2能量。" % source.energy)
  if has_bind(g,"iron_man"): descriptions.append("铁男捕缚：只允许坐姿或躺姿；每累计消耗%d能量，触发全部主动刺激型特殊装备。当前累计%d/%d能量。" % [energy_threshold(g,"iron_man"),g.state.guard_bind.sources.iron_man.energy,energy_threshold(g,"iron_man")])
  if has_bind(g,"iron_drone"): descriptions.append("凑数型无人机捕缚：每累计消耗%d能量，施加1件初级2档胶带、捕缚＋5，遥控1件主动刺激型特殊装备并消耗1电量，再随机上锁1件拘束具。当前累计%d/%d能量。" % [energy_threshold(g,"iron_drone"),g.state.guard_bind.sources.iron_drone.energy,energy_threshold(g,"iron_drone")])
  if has_bind(g,"binding_box"): descriptions.append("拘束盒捕缚：固定为坐姿；施加后从第二个玩家回合起，每个玩家回合开始施加1件中级2档皮革拘束具，并使捕缚＋%s。" % g.number(gain_amount(g,g._enemy(g.state.guard_bind.sources.binding_box.enemy))))
+ if has_bind(g,g.Detective.TYPE): descriptions.append("手铐封锁最左手牌，脚铐封锁最右手牌。每解除一铐，捕缚－20。普通拘束具增加捕缚，挣脱时扣回。")
+ if has_bind(g,g.AntiDrone.TYPE): descriptions.append("每打出一张魔法牌，捕缚＋2；每两张追加皮革拘束具。新装备增加捕缚，挣脱时扣回。已累计%d/2张。" % g.state.guard_bind.sources[g.AntiDrone.TYPE].spells)
+ if has_bind(g,g.Mechs.SUPPORT): descriptions.append("辅助机甲捕缚：微型机甲成功施加拘束后，捕缚＋20。自第2回合起，每回合强化微型机甲的施加规格。")
  for source in g.state.guard_bind.sources.values(): names.append(g._enemy(source.enemy).name)
  var detail="被捕缚时无法移动，先解除捕缚。挣扎／滑脱牌可直接削减进度；除眼罩、口球外没有其他拘束具时伤害翻倍，环境加成为0。上身受限至少按1级计算。同种捕缚仅生效一次；新种类增加其初始值的一半。降至0全部解除，达到100后下一敌方回合执行收押。\n降紧每层固定削减8点捕缚，使用固定数值，蓄力保留。"
  if g.RopeArt.bound(g): detail="进度为当前绳索拘束值之和。不能直接解除捕缚；拆除或松解绳索可降低进度，降至0时附魔暂停。达到100后执行收押。"
@@ -195,6 +256,19 @@ static func validate(g) -> String:
  if not g.Snapshot.fields(bind,"progress:n sources:d") or g.state.phase!="battle" or bind.progress<0 or (bind.progress==0 and not bind.sources.has(g.RopeArt.MASTER)) or bind.progress>BIND_MAXIMUM or bind.sources.is_empty(): return "捕缚进度记录缺损。"
  for source_kind in bind.sources:
   var source=bind.sources[source_kind]
+  if source_kind==g.AntiDrone.TYPE:
+   if not g.Snapshot.fields(source,"enemy:s spells:i fitted:d") or not g.state.combat.get("mana_listeners",{}).has(source.enemy) or source.spells not in [0,1]: return "无人机捕缚计数有误。"
+  if source_kind in [g.Detective.TYPE,g.AntiDrone.TYPE]:
+   if not source.get("fitted") is Dictionary: return "捕缚装备记录有误。"
+   if not source.fitted.is_empty():
+    var remaining=source.fitted.duplicate()
+    for id in remaining:
+     if not id is String or not remaining[id] is int or remaining[id]<1 or remaining[id]>6: return "捕缚装备记录有误。"
+    var managed=g._enemy(source.get("enemy","")).get("detective_cuffs",{}).values() if source_kind==g.Detective.TYPE else []
+    for item in g.action_targets():
+     if source_kind==g.Detective.TYPE and (g.SpecialEquipment.is_special(item) or item.id in managed): continue
+     remaining.erase(item.id)
+    if not remaining.is_empty(): return "捕缚装备记录有误。"
   var threshold=energy_threshold(g,source_kind)
   if not g.Snapshot.fields(source,"enemy:s energy:i") or source.energy<0 or source.energy>=threshold: return "捕缚能量记录有误。"
   var enemy=g._enemy(source.enemy)

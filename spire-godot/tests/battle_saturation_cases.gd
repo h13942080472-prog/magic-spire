@@ -170,7 +170,8 @@ static func arrest_next_turn(t) -> void:
  t.check(g.state.capture.by==enemy.name and g.validate()=="","ARREST records the actual captor and valid prison result")
  g=Game.new(42);g.state.enemies.clear();g._spawn_enemies("drone_solo")
  enemy=g.state.enemies[0];exhaust(g,enemy)
- var ally=g._append_enemies([{"type":"rope","grade":1}])[0]
+ # The drone fills limb positions. The Plus still has its own legal mouth pool.
+ var ally=g._append_enemies([{"type":"binding_box_plus","grade":2}])[0]
  before=g.export_snapshot()
  t.check(g.EnemyPlans.can_affect_equipment(g,ally) and g._plan(enemy).kind!="capture","ARREST another living enemy's actual equipment space postpones arrest")
  t.check(g.state.equipment==before.equipment,"ARREST planning cannot install equipment")

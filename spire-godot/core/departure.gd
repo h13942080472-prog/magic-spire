@@ -129,15 +129,15 @@ static func execute(g, p: Dictionary) -> String:
    g.Cards.replace_permanent(g,p.uid,type)
    result="「%s」变化为「%s」。" % [g.B.CARD_NAMES[p.type],g.B.CARD_NAMES[type]]
   "uncommon","rare_card":
-   if entry.id=="rare_card": g.state.mana_max-=10;g.state.mana=minf(g.state.mana,g.state.mana_max)
+   if entry.id=="rare_card": g.state.mana_max-=10;g.set_own_mana(minf(g.state.mana,g.state.mana_max))
    g._gain_card(p.type)
    result=("魔力上限－10。\n" if entry.id=="rare_card" else "")+"获得「%s」。" % g.B.CARD_NAMES[p.type]
   "flask": g.state.flask_mana+=40
-  "mana": g.state.mana_max+=10;g.state.mana=minf(g.state.mana+10,g.state.mana_max)
+  "mana": g.state.mana_max+=10;g.set_own_mana(minf(g.state.mana+10,g.state.mana_max))
   "potion":
    d.capacity_bonus=1;g._gain_tool(entry.potion)
    result="道具容量＋1，获得「%s」。" % g.Tools.TYPES[entry.potion].name
-  "rare_relic": g.state.mana-=40
+  "rare_relic": g.set_own_mana(g.state.mana-40)
   "curse":
    g._gain_card(entry.curse);g.state.flask_mana+=100
    result="加入诅咒「%s」，魔瓶获得100点魔力。" % g.B.CARD_NAMES[entry.curse]

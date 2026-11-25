@@ -3,6 +3,7 @@ const E=preload("res://data/equipment.gd")
 const C=preload("res://data/composites.gd")
 const O=preload("res://core/equipment_offers.gd")
 const Replacement=preload("res://core/equipment_replacement.gd")
+const Enchantments=preload("res://core/equipment_enchantments.gd")
 
 # Internal installer for Game/RoomEvents. No player command, costs, readiness state
 # mutation, final-departure handling, or future intent construction belongs here.
@@ -100,12 +101,15 @@ static func _choice_bands(g, spec: Dictionary, source: String, mode: String="ful
    if mode=="first": return bands
  return bands
 
-static func execute(g, spec: Dictionary, source: String, domain: String="enemy") -> Dictionary:
+static func execute(g, spec: Dictionary, source: String, domain: String="enemy", capture_onset: bool=false) -> Dictionary:
  var issue=_spec_reason(spec)
  if issue!="": return _failure(issue)
  var result=_result()
  var attempts=0
  var requested=spec.get("count",1)
+ var extra={}
+ if requested>0 and spec.get("pool","ordinary")=="ordinary" and g.state.phase=="battle" and not g._enemy(source).is_empty():
+  extra=g.Mechs.extra_source(g)
  # Count zero is an empty batch, never an implicit unbounded generation pass.
  while attempts<requested:
   var current=spec.duplicate(true)
@@ -119,7 +123,7 @@ static func execute(g, spec: Dictionary, source: String, domain: String="enemy")
   current.ready_layers=maxi(0,int(spec.get("ready_layers",0))-result.ready_used)
   if spec.has("tiers"): current.tiers=spec.tiers.slice(attempts)
   # A dodge does not reserve a body position or consume selection randomness.
-  if g.state.evasion>0 and can_apply(g,current,source):
+  if not capture_onset and g.state.evasion>0 and can_apply(g,current,source):
    evade(g,source)
    result.evaded+=1;attempts+=1
    continue
@@ -127,7 +131,8 @@ static func execute(g, spec: Dictionary, source: String, domain: String="enemy")
   if request.is_empty():
    result.reason="没有符合来源要求的装备或安装位置。"
    break
-  var outcome=execute_concrete(g,request,source,spec.get("replace",false),current.protected_ids)
+  if spec.has("enchantment"): request.enchantment=spec.enchantment
+  var outcome=execute_concrete(g,request,source,spec.get("replace",false),current.protected_ids,false,capture_onset)
   if not outcome.ok and outcome.evaded==0:
    result.reason=outcome.reason
    break
@@ -138,6 +143,10 @@ static func execute(g, spec: Dictionary, source: String, domain: String="enemy")
   result.installed.append_array(outcome.installed)
   result.removed.append_array(outcome.removed)
   result.lost_links.append_array(outcome.lost_links)
+  if not extra.is_empty() and not outcome.installed.is_empty():
+   g.Mechs.consume_extra(g,extra)
+   extra={}
+   requested+=1
  result.count=attempts-result.evaded
  result.ok=result.count>0
  return result
@@ -145,12 +154,14 @@ static func execute(g, spec: Dictionary, source: String, domain: String="enemy")
 # A frozen request never retargets; dodge reactions may generate a separate install.
 # Replacement owns all removal,
 # link preservation and whole-group commit; the original factories own plain installs.
-static func execute_concrete(g, request: Dictionary, source: String, allow_replace: bool=false, protected_ids: Array=[], voluntary: bool=false) -> Dictionary:
+static func execute_concrete(g, request: Dictionary, source: String, allow_replace: bool=false, protected_ids: Array=[], voluntary: bool=false, capture_onset: bool=false) -> Dictionary:
+ if request.has("enchantment") and (request.enchantment!=Enchantments.TOUGH or request.get("kind","")!="install" or allow_replace): return _failure("坚韧只适用于新增的普通拘束具。")
  var requests=request.get("requests",[]) if request.get("kind","")=="application_group" else [request]
  if requests.is_empty(): return _failure("本次没有指定要安装的装备。")
  for entry in requests:
   var definition_issue=_request_reason(g,entry,false)
   if definition_issue!="": return _failure(definition_issue)
+ if request.has("enchantment") and not Enchantments.supports(request,g.state.relics): return _failure("该装备不支持附魔。")
  var placement_reason=_request_reason(g,requests[0],true,protected_ids) if requests.size()==1 else ""
  if requests.size()==1 and requests[0].get("kind","")=="special_install" and g.SpecialEquipment.is_chastity_type(requests[0].get("type","")) and placement_reason!="":
   return _failure(placement_reason)
@@ -158,7 +169,7 @@ static func execute_concrete(g, request: Dictionary, source: String, allow_repla
   if not allow_replace: return _failure("本次来源没有整组替换装备的权限。")
   var planned=_replacement_plan(g,requests,source,protected_ids)
   if not planned.get("ok",false): return _failure(planned.get("reason","这组装备无法替换现有装备。"))
-  if not voluntary and (evade(g,source) or g.Character.evade(g,requests,source)): return _evaded(requests.size())
+  if not voluntary and _intercepted(g,requests,source,capture_onset): return _evaded(requests.size())
   var committed=Replacement.execute(g,planned)
   if not committed.get("ok",false): return _failure(committed.get("reason","装备替换失败。"))
   var result=_result()
@@ -170,7 +181,7 @@ static func execute_concrete(g, request: Dictionary, source: String, allow_repla
  var p=requests[0]
  if placement_reason!="": return _failure(placement_reason)
  # Voluntary self-equipping is a card's cost, not an incoming attack to evade.
- if not voluntary and (evade(g,source) or g.Character.evade(g,requests,source)): return _evaded(1)
+ if not voluntary and _intercepted(g,requests,source,capture_onset): return _evaded(1)
  var items=[];var removed=[]
  var grade=p.get("grade",2)
  var maximum=E.maximum(grade)
@@ -178,7 +189,9 @@ static func execute_concrete(g, request: Dictionary, source: String, allow_repla
  match p.kind:
   "install":
    var item=g._install_template(p.template,p.slot,durability,maximum,p.get("locked",false),source,grade,p.get("layer",-1),p.get("variant",0),p.get("point",""))
-   if not item.is_empty(): items.append(item)
+   if not item.is_empty():
+    if p.has("enchantment"): Enchantments.attach(g,item,p.enchantment,g._enemy(source).get("name",source))
+    items.append(item)
   "assembly":
    var root=g._install_assembly(p.family,p.variant,source,grade,p.get("tier",2),_overrides(p),p.get("straps","straight"),p.get("attached_to",""))
    if not root.is_empty(): items.append(root)
@@ -187,9 +200,6 @@ static func execute_concrete(g, request: Dictionary, source: String, allow_repla
    var item=g._install_special(p.type,p.slot,p.get("tier",0))
    if not item.is_empty(): items.append(item)
    removed=old_ids.filter(func(id):return not g.state.special_equipment.any(func(current):return current.id==id))
-  "link":
-   var link=g._install_link(p.ends[0],p.ends[1],durability,source,grade,p.get("blocked_slip",[]),p.get("slots",[]),p.get("contact_points",[]))
-   if not link.is_empty(): items.append(link)
   "shoulder":
    var host=g._equipment(p.target)
    if g.Shoulders.install(g,host,p.template,grade,source): items.append_array(g.Shoulders.attached(g,host))
@@ -218,6 +228,8 @@ static func _spec_reason(spec: Dictionary) -> String:
  if not spec.get("tiers",[]) is Array or not spec.get("variants",{}) is Dictionary: return "逐件紧度或材质版本要求格式有误。"
  for value in spec.get("tiers",[]):
   if value not in [1,2,3]: return "逐件紧度必须在一至三档之间。"
+ if spec.has("enchantment"):
+  if spec.enchantment!=Enchantments.TOUGH or spec.get("pool","ordinary")!="ordinary" or spec.get("allow_links",true) or spec.get("replace",false) or not spec.get("composites",[]).is_empty(): return "坚韧只适用于新增的普通拘束具。"
  return ""
 
 static func _piece_spec(spec: Dictionary, index: int, ready_used: int) -> Dictionary:
@@ -283,7 +295,7 @@ static func _raw(g, spec: Dictionary, source: String) -> Array:
  match spec.get("pool","ordinary"):
   "ordinary":
    if templates.is_empty(): return []
-   raw=O.for_pool(g,grade,templates,locked,false,spec.get("allow_links",true))
+   raw=O.for_pool(g,grade,templates,locked,false)
    if not locked:
     # Extra shoulder pairs still require an explicit source capability.
     if spec.get("shoulders",false): raw.append_array(O.shoulders(g,grade,templates))
@@ -298,10 +310,12 @@ static func _raw(g, spec: Dictionary, source: String) -> Array:
    if locked: return []
    for type in g.SpecialEquipment.generation_pool(templates,g.state.get("chastity_locks_enabled",false)):
     if not E.Special.DESIGNS.has(type): continue
+    if spec.has("profiles") and E.Special.DESIGNS[type].grade!=grade: continue
     var slot=E.Special.DESIGNS[type].slots[0]
     raw.append({"kind":"special_install","type":type,"slot":slot,"rank":g._priority(slot)})
  var result=[]
  for request in raw:
+  if spec.has("enchantment") and (request.kind!="install" or not Enchantments.supports(request,g.state.relics)): continue
   if request.kind=="install" and spec.get("free_slots",false) and g.occupied(request.slot): continue
   if request.kind=="link":
    if spec.has("slot") and not request.slots.all(func(slot):return slot==spec.slot): continue
@@ -376,10 +390,6 @@ static func _request_reason(g, p: Dictionary, placement: bool=true, protected_id
     if issue!="": return issue
     if g.SpecialEquipment.is_chastity_type(p.type) and g.state.special_equipment.any(func(item):return item.id in protected_ids and g._chastity_displaces(p.type,item)):
      return "刚安装的装备与附属件在本批次保留。"
-  "link":
-   if p.get("locked",false): return "链接绳没有可上锁的位置。"
-   if p.get("ends",[]).size()!=2: return "链接绳需要两个真实连接位置。"
-   if placement and g._prepare_link(p.ends[0],p.ends[1],E.maximum(grade)*[0.0,0.4,0.8,1.0][tier],p.get("source",""),grade,p.get("blocked_slip",[]),p.get("slots",[]),p.get("contact_points",[])).is_empty(): return "请重新选择可连接的两个位置。"
   "shoulder":
    if p.get("locked",false): return "独立肩部附加需要以开锁状态安装。"
    if tier!=grade: return "独立肩部附加的初始紧度由其品质决定。"
@@ -445,6 +455,9 @@ static func _covering_plan(g, choices: Array, index: int, requests: Array, sourc
 
 static func _result() -> Dictionary:
  return {"ok":false,"count":0,"evaded":0,"installed":[],"removed":[],"lost_links":[],"ready_used":0,"reason":""}
+
+static func _intercepted(g, requests: Array, source: String, capture_onset: bool) -> bool:
+ return (not capture_onset and evade(g,source)) or g.Character.evade(g,requests,source)
 
 static func evade(g, source: String) -> bool:
  if g.state.evasion<=0: return false

@@ -4,7 +4,7 @@ const Cards=preload("res://tests/curse_cases.gd")
 
 static func run(t) -> void:
  var g=Game.new(42)
- for type in ["fire_mastery","fire_dynamics","practiced"]:
+ for type in ["fire_mastery","practiced"]:
   t.check(g.can_offer_card(type) and g.reward_offer([type])==[type],"UNIQUE unowned power remains obtainable "+type)
   var card=Cards.give(g,type)
   var before=g.export_snapshot()
@@ -13,7 +13,7 @@ static func run(t) -> void:
   t.check(t.action(g,"card",{"uid":card.uid,"free":false}).ok and not g.can_offer_card(type),"UNIQUE playing into powers does not restore eligibility "+type)
   g.Cards.remove_permanent(g,card.uid)
   t.check(g.can_offer_card(type) and g.reward_offer([type])==[type],"UNIQUE removing last permanent copy restores pool "+type)
- for type in ["resonance","flame_flourish","mana_circuit","magic_hand","henshin"]:
+ for type in ["fire_dynamics","resonance","finesse","flame_flourish","mana_circuit","magic_hand","henshin"]:
   Cards.give(g,type)
   t.check(g.can_offer_card(type) and g.reward_offer([type])==[type],"UNIQUE single unique face or non-power still repeats "+type)
  var first=Cards.give(g,"practiced");var second=Cards.give(g,"practiced")

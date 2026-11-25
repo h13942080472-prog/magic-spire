@@ -19,9 +19,9 @@
 | --- | --- | --- | --- |
 | 普通拘束具 | `data/equipment.gd::TEMPLATES/MATERIALS/WEAR_TEXTS` | 敌人模板池、警卫合法方案、事件配方、监狱、练习 | `Game._installation_reason`／`_install_template` |
 | 复合拘束具 | `data/composites.gd::spec/GENERATION` | 警卫／事件筛选、监狱指定组合 | `_assembly_reason`／`_install_assembly` |
-| 链接绳 | `data/links.gd`（材料方法复用 equipment） | 含绳索／皮带类的普通池、显式 `link_rope` 池、明确练习配置 | `_install_link` 与端点清理 |
+| 链接绳 | `data/links.gd`（材料方法复用 equipment） | 仅保留模板、素材与端点算法供后续复合装备设计参考 | `_install_link` 与端点清理 |
 | 性玩具装备 | `data/special_equipment.gd::TYPES/DESIGNS/RANDOM_POOLS/prison_pool` | 敌人 `special_pool`、事件 `special_install`、监狱池、练习 | `Game._install_special` 与既有解除／触发管线 |
-| 随身／已安装道具 | `data/field_tools.gd::TYPES` | 商店 `TOOLS+PRICES`、休息服务、事件、监狱发现池、练习 | `_gain_tool`、原道具候选与执行 |
+| 背包道具与道具卡 | `data/field_tools.gd::TYPES` | 商店 `TOOLS+PRICES`、休息服务、事件、监狱发现池、练习 | `_gain_tool`、`core/item_cards.gd` 与普通出牌流程 |
 | 遗物 | `data/relics.gd::TYPES/REWARDS/BOSS_POOL/shop_pool` | 初始配置；随机奖励统一经 `RelicRewards.available` 按来源筛选，供单件抽取 `offer` 与 Boss 三选一 `battle_drop` 使用 | `core/relic_effects.gd` |
 | 敌人／遭遇 | `data/enemies.gd::TYPES/ENCOUNTERS`、`data/first_floor_enemy_pools.gd::POOLS` | 塔路冻结遭遇、精英／塔顶配置、练习 | `_spawn_enemies`、`core/enemy_plans.gd`、`core/guard.gd` |
 | 事件 | `data/room_events.gd::TYPES`（由内容包登记） | 抵达事件房时从本局未出现事件中抽取 | `core/room_events.gd` |
@@ -72,7 +72,7 @@ flowchart LR
 - 链接候选统一读 `EquipmentOffers.links`：区域内纵向子部位可任意相连，跨区域只取相邻边界，股绳仅接手腕／大腿根；每对物理装备最多一条；复合按真实组件共享额度；`contact_points` 随两端保存并复核。
 - 新增普通单件可安装部位时必须同步提供 `Equipment.WEAR_TEXTS` 正文，不能退回“已装在某处”的占位句。
 - 五级只是规格最高的普通牢房：追加与替换只用已登记的高安全组合（`PRISON_SECURITY[5]`）与合法填充流程，不新增专用组合或终局配置；不得引用旧 `security/terminal` 固定架的1000耐久或零伤害倍率作为普通模板。
-- 道具逐一选择来源：商店 `data/room_services.gd::TOOLS+PRICES`、事件效果／奖励、休息服务、`core/prison.gd` 活动发现池或练习配置。传送符（折返符）有定义与使用逻辑但不进入任何随机生成池——正式新局抵达塔底时获得1张，见 `./game-design.md` §14。
+- 道具逐一选择来源：商店 `data/room_services.gd::TOOLS+PRICES`、事件效果／奖励、休息服务、`core/prison.gd` 活动发现池或练习配置。传送符是额外初始遗物，见[监狱逃离规则](prison.md)。
 - 遗物新增 hook 必须先有真实读取／触发代码（当前已消费的数值 hook：`battle_mana`、`capacity`、`preparation_turns`、`opening_draw`、`turn_draw`、`turn_energy_step`、`combat_retention_layers`、`pickup_cards` 等）；事件钩子为挣扎归零、卡牌滑脱降档、飞踢落地与实际魔力支付。断缚护腕等带额外条件的遗物由 `RelicEffects` 处理，不能只写一个看似合理的 `modifiers` 键。
 - 随机遗物来自 `REWARDS` 并排除已持有；初始余烬护符与指定事件遗物只登记 `TYPES`。当前没有每个敌人的独立掉落表，不要凭敌人模板的 `loot` 字段发物品。
 
@@ -328,5 +328,5 @@ start_node 与 nodes：每个节点的 allow_refuse / unavailable / relic_gate /
 - 相同种子与行动序列可重放；预览不消耗随机；中途保存恢复不重抽、不重复发奖或触发。
 - 复合与链接的局部解除与残留、特殊装备的逐件损伤与混合到期、瞬时与持续效果都有清理。
 - 可用／不可用原因、精确位置、耐久／紧度、费用、真实结果与教程解释完整；术语详情放教程，决策必需数值就近显示。
-- 新内容复用目标框、部位详情、状态栏、行动日志与已安装工具入口；同一物理目标跨子部位去重显示，但不合并真实实例。
+- 新内容复用目标框、部位详情、状态栏与行动日志；同一物理目标跨子部位去重显示，但不合并真实实例。
 - 新增用例登记到 `tests/test_game.gd`／`tests/ui_smoke.gd`，交叉范围登记 `tests/suite_selection.gd`；不另起测试框架。流程夹具降低生命不能冒充正常难度试玩。检查命令按受影响分类运行，见 `skills/repo-ops/SKILL.md`。

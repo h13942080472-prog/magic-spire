@@ -31,11 +31,13 @@ static func run(t) -> void:
  t.check("enemies" in Selection.resolve(names,["witch_character"],true).selected,"RUNNER witch attacks include shared multi-hit enemy barrier checks")
  for area in ["card_power","relics"]:
   t.check("enemies" in Selection.resolve(names,[area],true).selected,"RUNNER area damage sources include shared enemy barrier checks: "+area)
+ for area in Selection.CROSS_AREAS.anti_mage_drone:
+  t.check("anti_mage_drone" in Selection.resolve(names,[area],true).selected,"RUNNER anti-drone rules follow the affected boundary "+area)
  for area in Selection.CROSS_AREAS.witch_character:
   t.check("witch_character" in Selection.resolve(names,[area],true).selected,"RUNNER witch character follows its affected boundary "+area)
- for area in ["core","services","casting","card_power","persistence"]:
+ for area in ["core","services","casting","card_power","persistence","basic_attacks","wall","exploration","slip_motion"]:
   t.check("enchantments" in Selection.resolve(names,[area],true).selected,"RUNNER enchantments follow affected upstream: "+area)
- t.check(["services","card_power","card_splash","casting","architecture"].all(func(name):return name in Selection.resolve(names,["enchantments"],true).selected),"RUNNER enchantment changes include affected integration suites")
+ t.check(["services","card_power","card_splash","casting","architecture","basic_attacks","wall","exploration","slip_motion"].all(func(name):return name in Selection.resolve(names,["enchantments"],true).selected),"RUNNER enchantment changes include affected integration suites")
  var direct=Selection.resolve(names,["casting","casting"])
  t.check(direct.ok and direct.selected==["casting"] and direct.reasons.casting=="requested","RUNNER focus mode executes only the named complete suite once")
  t.check(not Selection.resolve(names,["contact"]).ok and Selection.resolve(names,["contact"],true).ok,"RUNNER synthetic areas require explicit impact expansion")

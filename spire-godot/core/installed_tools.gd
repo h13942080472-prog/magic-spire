@@ -1,4 +1,5 @@
 extends RefCounted
+const DisplayNumbers=preload("res://data/display_numbers.gd")
 
 # Card-only fixed cutting, using the existing world contact/material rules.
 static func reason(g, item: Dictionary, target: Dictionary) -> String:
@@ -25,18 +26,19 @@ static func select(g, target: Dictionary, damage_type: String, used: Array=[]) -
 static func preview(g, target: Dictionary, damage_type: String, base: Dictionary) -> Dictionary:
  if g.SpecialEquipment.is_reinforcement(target):
   return {} if base.reason!="" else select(g,target,damage_type,g.state.card_chain.get("tools_used",[]))
- if base.damage<=0 or base.reason!="" or base.immune or base.release or base.damage>=target.durability: return {}
+ if base.damage<=0 or base.reason!="" or base.immune or base.release or base.damage>=g.EquipmentEnchantments.total_durability(target): return {}
  return select(g,target,damage_type,g.state.card_chain.get("tools_used",[]))
 
 static func apply(g, target: Dictionary, bonus: Dictionary) -> String:
  if bonus.is_empty() or target.durability<=0: return ""
  var item=g._item(bonus.item)
  if item.is_empty() or reason(g,item,target)!="": return ""
- var before=target.durability
+ var before=g.EquipmentEnchantments.total_durability(target)
  g._apply_equipment_damage(target,bonus.damage,"cut")
- if target.durability>=before: return ""
+ var after=g.EquipmentEnchantments.total_durability(target)
+ if after>=before: return ""
  item.uses-=1
- g._emit("mechanical","借助%s的%s，额外削减%s耐久；%s耐久 %s → %s，工具剩余%d次。" % [bonus.mount,bonus.name,g.number(before-target.durability),g._equipment_name(target),g.number(before),g.number(target.durability),item.uses],{"tool_bonus":{"item":item.id,"target":target.id,"fixed":bonus.damage,"actual":before-target.durability,"remaining":item.uses}})
+ g._emit("mechanical","借助%s的%s，额外削减%s耐久；%s耐久 %s → %s，工具剩余%d次。" % [bonus.mount,bonus.name,g.number(before-after),g._equipment_name(target),g.number(before),g.number(after),item.uses],{"tool_bonus":{"item":item.id,"target":target.id,"fixed":bonus.damage,"actual":before-after,"remaining":item.uses}})
  return item.id
 
 static func description(g, item: Dictionary) -> String:
@@ -49,4 +51,4 @@ static func description(g, item: Dictionary) -> String:
 static func effect_description(type: String, damage: float) -> String:
  var spec=preload("res://data/field_tools.gd").TYPES[type]
  var types=spec.get("trigger_damage_types",[]).map(func(kind):return {"strain":"挣扎","slip":"滑脱"}[kind])
- return "牌造成%s伤害时触发；额外固定削减%s耐久，每张牌对本工具最多一次，触发消耗1次。魔法牌同样按实际伤害类型判断。" % ["／".join(types),(str(int(damage)) if is_equal_approx(damage,roundf(damage)) else "%.2f" % damage)]
+ return "牌造成%s伤害时触发；额外固定削减%s耐久，每张牌对本工具最多一次，触发消耗1次。魔法牌同样按实际伤害类型判断。" % ["／".join(types),DisplayNumbers.amount(damage)]

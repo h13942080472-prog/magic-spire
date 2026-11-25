@@ -36,7 +36,23 @@ static func run(t) -> void:
  t.check(ui.game.state.phase=="rest" and ui.game.state.rest_left==1,"ENCHANT UI continue starts remaining rest")
  t.check(await t.click("finish_rest") and ui.game.state.phase=="cleared","CAMPFIRE UI ending rest completes the practice")
  await card_keywords(t)
+ await assist_actions(t)
  ui.restart(42);await t.frames()
+
+static func assist_actions(t) -> void:
+ var ui=t.ui
+ ui.restart(42);ui.game._discard_end();ui.game.state.relics=[]
+ ui.game.state.energy=1;ui.game.state.mana=5;ui.game.state.wall_distance=2
+ ui.game.state.posture="sit";ui.game.add_fixture("eyes",4)
+ var card=preload("res://tests/enchantment_cases.gd").give(ui.game,"strain","assist")
+ ui.render();await t.frames()
+ var face=ui.view.hand.filter(func(entry):return entry.uid==card.uid)[0]
+ t.check(face.face_mana.free.any(func(entry):return entry.kind=="cost" and entry.amount==5) and t.visible_text(ui.card_buttons[card.uid]).contains("助力"),"ENCHANT UI assist shows the surcharge and its keyword on a skill")
+ await Interaction.start(t,card.uid);await t.release_target()
+ t.check(ui.view.energy==0 and ui.view.mana==0 and ui.view.statuses.any(func(row):return row.id=="power_enchantment_assist"),"ENCHANT UI playing assist pays once and shows the turn buff")
+ await t.click("posture",{"dest":"stand","wall":false})
+ await t.click("wall_move",{"direction":"toward"})
+ t.check(ui.view.posture=="stand" and ui.game.wall_contact() and ui.view.energy==0,"ENCHANT UI both movement controls refresh and work after assist")
 
 static func card_keywords(t) -> void:
  var ui=t.ui

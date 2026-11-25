@@ -70,12 +70,12 @@ static func run(t) -> void:
  await t.capture("ui-37-prison-cell.png")
  await collect(t)
  t.check(ui.view.prison.remaining==0 and "vent" in ui.view.prison.found and ui.view.items.size()==2,"PRISON UI exploration creates only two tools and vent")
- t.check(await t.click("end"),"PRISON UI replenish energy before changing posture and installing")
- t.check(await t.click("posture",{"dest":"sit","wall":false}),"PRISON UI sit before mounting hand tool")
- var item=ui.view.items.filter(func(i):return i.name=="尖锐的小石片")[0].id
- ui.show_items=true;ui.selected_item=item;ui.render();await t.frames()
- t.check(await t.click("item_install",{"item":item,"mount":"foot_wall"}),"PRISON UI discovered tool installs through same item action")
- ui.show_items=false;ui.render();await t.frames()
+ t.check(await t.click("end"),"PRISON UI replenish energy before changing posture")
+ t.check(await t.click("posture",{"dest":"sit","wall":false}),"PRISON UI sit before using the item drawer")
+ var item=ui.view.items.filter(func(i):return i.type=="shard")[0].id
+ await Click.press(t,"OpenItems")
+ t.check(await t.click("item_use",{"item":item}),"PRISON UI discovered tool enters the hand")
+ await t.close_information()
  var n=0
  while ui.view.phase=="prison" and n<20:
   t.check(await t.click("end"),"PRISON UI countdown progresses to patrol")
@@ -87,10 +87,10 @@ static func run(t) -> void:
  t.check(patrol_portrait!=null and patrol_portrait.texture==ui.Arena.Art.GUARD_PORTRAITS.guard_purple and patrol_event!=null and patrol_speech==null and t.visible_text(patrol_event).contains("例行巡视") and not t.visible_text(patrol_event).contains("魅魔警卫"),"PRISON UI patrol uses the purple guard inside its event page without a floating dialogue bubble")
  t.check(not t.visible_text(ui.layout).contains("仅可检查或反抗") and not t.visible_text(ui.layout).contains("处罚一次性执行"),"PRISON UI patrol omits repeated procedure explanations")
  t.check(await t.click("prison",{"action":"inspect"}),"PRISON UI reveal actual check result")
- t.check(t.visible_text(ui.layout).contains("一件也没少") and t.visible_text(ui.layout).contains("还敢在牢房里藏工具") and not t.visible_text(ui.layout).contains("清单齐全"),"PRISON UI mounted-tool finding uses concise in-world wording inside the event page")
+ t.check(t.visible_text(ui.layout).contains("一件也没少") and not t.visible_text(ui.layout).contains("还敢在牢房里藏工具") and not t.visible_text(ui.layout).contains("清单齐全"),"PRISON UI routine check uses concise in-world wording inside the event page")
  await t.capture("ui-38-prison-inspection.png")
  var mana_before=ui.view.mana
- t.check(await t.click("prison",{"action":"accept"}) and ui.view.items.size()==1 and ui.view.prison.checks==1 and ui.view.mana==maxf(0,mana_before-ui.game.B.OVERLOAD_MANA),"PRISON UI check removes installed tool, milks once and increments check once")
+ t.check(await t.click("prison",{"action":"accept"}) and ui.view.items.size()==1 and ui.view.prison.checks==1 and ui.view.mana==maxf(0,mana_before-ui.game.B.OVERLOAD_MANA),"PRISON UI check retains carried items, milks once and increments check once")
  t.check(ui.view.prison.narrative.contains("量杯") and t.visible_text(ui.layout).contains("精液"),"PRISON UI accepted patrol shows the authored hand-milking scene")
  t.check(await t.click("prison",{"action":"resume"}) and ui.view.prison.left==16,"PRISON UI resumes fresh patrol interval")
  Spatial.at_site(ui.game,"vent");ui.render();await t.frames()
@@ -154,17 +154,13 @@ static func run(t) -> void:
  await enter(t)
  await collect(t)
  t.check(not ui.view.items.any(func(i):return i.name=="传送符"),"SEAL UI no active generation")
- ui.game._gain_tool("return_seal") # Deferred/existing inventory fixture only.
  # This is the successful-use branch; actual intake can now restrict the fingers.
  for equipment in ui.game.equipment_at("fingers"): equipment.durability=0
  ui.game._cleanup()
  ui.render();await t.frames()
- var seal=ui.view.items.filter(func(i):return i.name=="传送符")[0]
- ui.show_items=true;ui.selected_item=seal.id;ui.render();await t.frames()
- var use=Queries.find(ui.view,"item",{"kind":"item_use","item":seal.id,"target":"hero"})
- var use_button=ui.candidate_buttons.get(use.key)
- t.check(use_button!=null and not use_button.disabled and use_button.text=="使用","SEAL UI exposes the formal direct-use button")
- t.check(use_button!=null and use.cost==0 and use.mana==0 and use_button.tooltip_text.contains("能量与魔力费用为0") and use_button.tooltip_text.contains("手指或脚趾"),"SEAL UI explains zero-cost use and actual body conditions")
+ var seal=ui.find_child("RelicShortcut_return_seal",true,false)
+ var use=Queries.find(ui.view,"relic",{"kind":"relic_discharge","relic":"return_seal"})
+ t.check(seal!=null and use.valid and use.cost==0 and use.mana==0,"SEAL UI charged relic supports free escape")
  await t.capture("ui-64-return-seal.png")
  var seal_mana=ui.view.mana
  var prison_end_restore=0.0
@@ -172,8 +168,10 @@ static func run(t) -> void:
   for relic in ui.game.state.relics: prison_end_restore+=float(ui.game.Relics.TYPES[relic].modifiers.get("low_mana_end_restore",0.0))
  for relic in ui.game.state.relics: prison_end_restore+=float(ui.game.Relics.TYPES[relic].modifiers.get("battle_mana",0.0))
  var expected_seal_mana=minf(ui.view.mana_max,seal_mana+prison_end_restore)
- t.check(await t.click("item_use",{"item":seal.id,"target":"hero"}) and ui.view.phase=="map" and ui.view.room_name=="出发点" and ui.view.mana==expected_seal_mana,"SEAL UI actual item button leaves the cell and preserves the established low-mana prison-end relic hook")
- t.check(not ui.view.items.any(func(i):return i.id==seal.id),"SEAL UI consumed card disappears")
+ var seal_point=seal.get_global_rect().get_center();await t.move_mouse(seal_point)
+ await t.mouse_button(seal_point,MOUSE_BUTTON_RIGHT,true);await t.mouse_button(seal_point,MOUSE_BUTTON_RIGHT,false);await t.frames()
+ t.check( ui.view.phase=="map" and ui.view.room_name=="出发点" and ui.view.mana==expected_seal_mana,"SEAL UI actual relic input leaves the cell and preserves the established low-mana prison-end relic hook")
+ t.check(ui.game.RelicEffects.counter(ui.game,"return_seal").value==0,"SEAL UI consumed card disappears")
  await enter(t,5)
  t.check(ui.view.phase=="prison" and ui.view.prison.left==8 and not ui.view.display_facts.is_empty(),"TERMINAL UI five opens the ordinary cell with the shortest patrol and live actions")
  t.check(t.visible_text(ui.layout).contains("巡视剩余 8 回合") and not t.visible_text(ui.layout).contains("本次逃脱失败") and not t.visible_text(ui.layout).contains("高安全监室"),"TERMINAL UI five shows the cell screen without the removed ending")

@@ -75,7 +75,7 @@ static func ease_preparation(t) -> void:
  g._install_template("mouth_band","mouth",24.0,24.0,false,"fixture",3,0)
  var card=t.hand_card(g,"ease");var c=t.find_action(g,"card",{"uid":card.uid,"free":true})
  var before=g.export_snapshot();var face=g.get_view().hand.filter(func(row):return row.uid==card.uid)[0]
- t.check(c.valid and c.cost==1 and c.mana==0 and face.free.contains("2") and face.face_mana.free.any(func(badge):return badge.kind=="temporary" and badge.text.contains("10")),"EASE two-stack preparation and ten-point badge come from the same definition")
+ t.check(c.valid and c.cost==1 and c.mana==0 and face.free.contains("2") and face.face_mana.free.any(func(badge):return badge.kind=="temporary" and badge.amount==2 and badge.text=="+2"),"EASE two reserve layers and their badge come from the same definition")
  t.check(not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"EASE stale preparation leaves all state unchanged")
  t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.temporary_mana==27.5 and g.state.mana==100 and g.state.energy==before.energy-1 and g.state.rng==before.rng,"EASE two stacks add ten uncapped temporary points without a mouth roll")
  t.check(g.state.discard.any(func(row):return row.uid==card.uid),"EASE preparation still discards normally")

@@ -4,11 +4,8 @@ const Real=preload("res://core/game.gd")
 const Prison=preload("res://tests/prison_cases.gd")
 const Rewards=preload("res://tests/reward_cases.gd")
 
-static func exercise(t,g,label: String,mounted: bool=false) -> void:
+static func exercise(t,g,label: String) -> void:
  g._gain_tool("saw");var item=g.state.items.back()
- if mounted:
-  item.mount="hand_wall"
-  if g.state.room=="prison": item.prison_position=g.Prison.Space.attachment_position(g)
  g._gain_tool("mana_potion");var other=g.state.items.back().duplicate(true)
  var before=g.export_snapshot()
  var choices=g.command_facts().filter(func(c):return c.payload.kind=="item_discard" and c.payload.item==item.id)
@@ -35,7 +32,7 @@ static func run(t) -> void:
  var destination=destinations[0]
  t.check(g.dispatch(g.command(destination.payload,g.state.version),g.state.version).ok,"DISCARD setup real travel")
  exercise(t,g,"travel")
- g=Game.new(42);exercise(t,g,"battle",true)
+ g=Game.new(42);exercise(t,g,"battle")
  g=Rewards.setup();exercise(t,g,"preparation")
  g=Real.new(42);g.state.room="rest";g._start_rest()
  exercise(t,g,"rest choice")
@@ -50,7 +47,7 @@ static func run(t) -> void:
  for enemy in g.state.enemies: enemy.gone=true
  g._finish_battle();exercise(t,g,"reward")
  g=Prison.intake(t);Prison.clear_fixture(g)
- exercise(t,g,"prison",true)
+ exercise(t,g,"prison")
  g.state.prison.left=1;t.check(t.action(g,"end").ok,"DISCARD setup actual inspection")
  exercise(t,g,"inspection")
  g=Game.new(42);g.Pressure.gain(g,100,"test")

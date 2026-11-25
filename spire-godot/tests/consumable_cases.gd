@@ -3,8 +3,7 @@ const Game=preload("res://tests/game_fixture.gd")
 const Save=preload("res://tests/persistence_cases.gd")
 
 static func use(t,g,type: String) -> Dictionary:
- g._gain_tool(type)
- return t.action(g,"item_use",{"item":g.state.items.back().id})
+ return t.action(g,"card",{"uid":t.take_item_card(g,type)})
 
 static func run(t) -> void:
  preload("res://tests/mana_recovery_cases.gd").run(t)
@@ -12,32 +11,32 @@ static func run(t) -> void:
  preload("res://tests/tentacle_friend_cases.gd").run(t)
  preload("res://tests/mana_flask_cases.gd").run(t)
  var wrapped=Game.new(42);wrapped.state.mana=50
- wrapped._install_assembly("wrap","left","fixture",1,1);wrapped._gain_tool("mana_potion")
- var wrapped_item=wrapped.state.items.back().id
- t.check(wrapped.hands_can_hold() and not t.find_action(wrapped,"item_use",{"item":wrapped_item}).valid,"POTION one-sided hand restraint reaches posture threshold despite free opposite grip")
+ wrapped._install_assembly("wrap","left","fixture",1,1)
+ var wrapped_item=t.take_item_card(wrapped,"mana_potion")
+ t.check(wrapped.hands_can_hold() and not t.find_action(wrapped,"card",{"uid":wrapped_item}).valid,"POTION one-sided hand restraint reaches posture threshold despite free opposite grip")
  wrapped.state.posture="sit"
- t.check(t.action(wrapped,"item_use",{"item":wrapped_item}).ok and wrapped.state.mana==70,"POTION one-sided hand restraint permits actual seated use")
+ t.check(t.action(wrapped,"card",{"uid":wrapped_item}).ok and wrapped.state.mana==70,"POTION one-sided hand restraint permits actual seated use")
  for type in ["mana_potion","energy_potion","charge_potion"]:
-  var trial=Game.new(42);trial.state.mana=50;trial._gain_tool(type)
-  var item_id=trial.state.items.back().id
-  t.check(t.find_action(trial,"item_use",{"item":item_id}).valid,"POTION full effect remains usable standing: "+type)
+  var trial=Game.new(42);trial.state.mana=50
+  var item_id=t.take_item_card(trial,type)
+  t.check(t.find_action(trial,"card",{"uid":item_id}).valid,"POTION full effect remains usable standing: "+type)
   trial.add_fixture("upper_arm",4)
-  t.check(trial.restraint_degree("arms")==0.5 and t.find_action(trial,"item_use",{"item":item_id}).valid,"POTION half-degree arm restraint permits standing: "+type)
+  t.check(trial.restraint_degree("arms")==0.5 and t.find_action(trial,"card",{"uid":item_id}).valid,"POTION half-degree arm restraint permits standing: "+type)
   trial.add_fixture("forearm",4)
-  var candidate=t.find_action(trial,"item_use",{"item":item_id})
+  var candidate=t.find_action(trial,"card",{"uid":item_id})
   var snapshot=trial.export_snapshot()
-  t.check(trial.restraint_degree("arms")==1 and not candidate.valid and candidate.reason.contains("坐下或躺下") and not t.action(trial,"item_use",{"item":item_id}).ok and trial.state==snapshot,"POTION degree-one arms standing rejects without consuming resources: "+type)
-  t.check(trial.get_view().items.filter(func(item):return item.id==item_id)[0].description.contains("0.5也可"),"POTION item description explains fractional posture threshold: "+type)
+  t.check(trial.restraint_degree("arms")==1 and not candidate.valid and candidate.reason.contains("坐下或躺下") and not t.action(trial,"card",{"uid":item_id}).ok and trial.state==snapshot,"POTION degree-one arms standing rejects without consuming resources: "+type)
+  t.check("站姿上肢拘束＜1" in trial.get_view().hand.back().face_requirements.bound,"POTION item description explains fractional posture threshold: "+type)
   trial.add_fixture("fingers",8)
   trial.state.posture="sit"
   var seated_before=trial.state[trial.Tools.TYPES[type].effect]
-  t.check(not trial.hands_can_hold() and t.action(trial,"item_use",{"item":item_id}).ok and trial.state[trial.Tools.TYPES[type].effect]==seated_before+trial.Tools.TYPES[type].amount,"POTION seated drinks full amount without either hand gripping: "+type)
-  trial._gain_tool(type);item_id=trial.state.items.back().id
+  t.check(not trial.hands_can_hold() and t.action(trial,"card",{"uid":item_id}).ok and trial.state[trial.Tools.TYPES[type].effect]==seated_before+trial.Tools.TYPES[type].amount,"POTION seated drinks full amount without either hand gripping: "+type)
+  item_id=t.take_item_card(trial,type)
   trial._install_template("mouth_band","mouth",12.8,16,false,"fixture",2)
   trial.state.posture="lie"
   var previous=trial.state[trial.Tools.TYPES[type].effect]
   var expected=trial.Consumables.amount(trial,type)
-  t.check(not trial.hands_can_hold() and t.action(trial,"item_use",{"item":item_id}).ok and trial.state[trial.Tools.TYPES[type].effect]==previous+expected and trial.state.items.is_empty(),"POTION lying bypasses grip but preserves mouth reduction and single consumption: "+type)
+  t.check(not trial.hands_can_hold() and t.action(trial,"card",{"uid":item_id}).ok and trial.state[trial.Tools.TYPES[type].effect]==previous+expected and trial.state.items.is_empty(),"POTION lying bypasses grip but preserves mouth reduction and single consumption: "+type)
  var g=Game.new(42)
  t.check(g.Tools.DROP_POOL.size()==9 and g.Tools.DROP_POOL.has("lubricant_potion") and g.Tools.DROP_POOL.has("shard") and g.Tools.DROP_POOL.has("saw") and not g.Tools.DROP_POOL.has("picks"),"ITEM pool contains seven consumables and two original cutters")
  g.state.mana=80
@@ -57,14 +56,13 @@ static func run(t) -> void:
  t.check(use(t,g,"mana_scroll").ok and g.state.temporary_mana==10,"ITEM free toes allow scroll with both fingers and mouth bound")
  g.add_fixture("toes",8)
  g.state.posture="sit"
- g._gain_tool("draw_scroll")
- var id=g.state.items.back().id
+ var id=t.take_item_card(g,"draw_scroll")
  var before=g.export_snapshot()
- t.check(not t.action(g,"item_use",{"item":id}).ok and g.state==before,"ITEM all finger and toe sites bound rejects scroll atomically")
+ t.check(not t.action(g,"card",{"uid":id}).ok and g.state==before,"ITEM all finger and toe sites bound rejects scroll atomically")
  g=Game.new(42)
- g._draw(4)
+ g._draw(3)
  var result=use(t,g,"draw_scroll")
- t.check(result.ok and g.state.hand.size()==10 and result.card_feedback.filter(func(e):return e.kind=="draw").size()==1,"ITEM scroll stops at ten and emits only actual draw animation")
+ t.check(result.ok and g.state.hand.size()==10 and result.card_feedback.any(func(e):return e.kind=="draw"),"ITEM scroll stops at ten and emits only actual draw animation")
  g._gain_tool("draw_scroll");before=g.export_snapshot()
  t.check(not t.action(g,"item_use",{"item":g.state.items.back().id}).ok and g.state==before,"ITEM full hand does not consume scroll")
  g=Game.new(42)

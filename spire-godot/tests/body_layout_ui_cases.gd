@@ -36,19 +36,24 @@ static func run(t) -> void:
  t.check(ui.game.export_snapshot()==before and t.visible_text(ui.find_child("EquipmentDetails",true,false)).contains("眼罩"),"BODY head details show actual equipment without action")
  var cards=ui.find_child("EquipmentDetails",true,false).find_children("EquipmentCard_*","PanelContainer",true,false)
  t.check(cards.size()==2 and cards[0].get_parent() is GridContainer and cards[0].get_parent().columns==1,"BODY masks use one readable vertical layer sequence")
+ var outer=ui._body_at("eyes").sections[0].equipment[0]
+ var meter=ui.body_buttons.eyes.get_node("BodyDurability")
+ t.check(is_equal_approx(meter.value,outer.durability) and is_equal_approx(meter.max_value,outer.maximum) and meter.mouse_filter==Control.MOUSE_FILTER_IGNORE,"BODY sidebar meter reflects the outer equipment without intercepting clicks")
+ var art=cards[0].find_child("EquipmentArtwork",true,false)
+ t.check(art!=null and art.size.x>=96 and art.stretch_mode==TextureRect.STRETCH_KEEP_ASPECT_CENTERED,"BODY artwork leads the compact tile at its original aspect ratio")
  var first_rect=cards[0].get_global_rect()
  var second_rect=cards[1].get_global_rect()
  t.check(first_rect.end.y<=second_rect.position.y and is_equal_approx(first_rect.position.x,second_rect.position.x),"BODY layer rows follow vertically without overlap")
  var toggle=cards[0].find_child("EquipmentCardDetailsToggle",true,false)
  t.check(cards.all(func(card):return card.find_child("EquipmentActions",true,false).get_child_count()==0),"BODY collapsed equipment does not build hidden action trees")
  await Pointer.press(t,toggle)
- t.check(toggle.text.contains("收起") and cards[0].find_child("EquipmentActions",true,false).visible and ui.game.export_snapshot()==before,"BODY expanding equipment reveals methods without state changes")
+ t.check(toggle.tooltip_text.contains("收起") and cards[0].find_child("EquipmentActions",true,false).visible and ui.game.export_snapshot()==before,"BODY expanding equipment reveals methods without state changes")
  var action_panel=cards[0].find_child("EquipmentActions",true,false)
  var retained_children=action_panel.get_children()
  toggle.pressed.emit();toggle.pressed.emit();await t.frames()
  t.check(action_panel.get_children()==retained_children and ui.game.export_snapshot()==before,"BODY reopening details reuses their controls without duplicating actions or spending resources")
  await Pointer.press(t,toggle)
- t.check(toggle.text.contains("查看") and not t.visible_text(cards[0]).contains("视觉受阻") and ui.game.export_snapshot()==before,"BODY closing card details stays local and preserves gameplay")
+ t.check(toggle.tooltip_text.contains("查看") and not t.visible_text(cards[0]).contains("视觉受阻") and ui.game.export_snapshot()==before,"BODY closing card details stays local and preserves gameplay")
  await t.capture("ui-84-body-equipment-details.png")
  var uid=ui.view.hand.filter(func(c):return c.type=="slip")[0].uid
  await t.start_drag(uid,"eyes")
@@ -61,7 +66,7 @@ static func run(t) -> void:
  var detail=ui.find_child("EquipmentDetails",true,false)
  cards=detail.find_children("EquipmentCard_*","PanelContainer",true,false)
  t.check(cards.size()==1 and t.visible_text(cards[0]).contains("左手掌、右手掌"),"BODY shared jacket appears once with both palm locations")
- t.check(cards[0].size.x>300 and cards[0].get_parent().columns==1,"BODY single card uses available width instead of leaving an empty column")
+ t.check(cards[0].size.x>265 and detail.size.x<=340 and cards[0].get_parent().columns==1,"BODY single card uses available width instead of leaving an empty column")
  t.check(cards[0].find_child("EquipmentActions",true,false).visible,"BODY shared physical equipment opens actions once despite covering several subslots")
  await t.capture("ui-109-compact-jacket-card.png")
  ui.game=preload("res://tests/game_fixture.gd").new(42)
@@ -81,6 +86,11 @@ static func run(t) -> void:
  await portrait_resize(t)
  await applied_regions(t)
  await portrait_zoom(t)
+ if "ui-compact-glove-art.png" in t.screenshots:
+  await t.start_practice("StartShortGlovePractice")
+  await t.inspect_body("upper_arm")
+  await t.move_mouse(Vector2(1080,82))
+  await capture_panel(t,"ui-compact-glove-art.png")
 
 static func portrait_resize(t) -> void:
  var ui=t.ui
@@ -259,7 +269,7 @@ static func adaptive_regions(t) -> void:
  ui.selected_slot="region_upper";ui.show_body=true;ui.render();await t.frames()
  var severity=ui.view.body_regions.filter(func(region):return region.id=="region_upper")[0].severity
  t.check(severity.value==ui.game.restraint_degree("arms") and severity.value==0.5,"REGIONS severity preserves authoritative fractional degree instead of rounded level")
- t.check(t.visible_text(ui.find_child("RegionSeverity",true,false)).contains("0.50 / 4"),"REGIONS current degree appears beside its visible meter")
+ t.check(t.visible_text(ui.find_child("RegionSeverity",true,false)).contains("0.5 / 4"),"REGIONS current degree appears beside its visible meter")
  t.check(ui.view.body_regions.filter(func(region):return region.id in ["region_head","region_intimate"]).all(func(region):return region.severity.is_empty()),"REGIONS no invented overall degree for head or special equipment")
  await Pointer.press(t,ui.body_buttons.region_intimate)
  await Pointer.press(t,ui.body_buttons.upper_arm)

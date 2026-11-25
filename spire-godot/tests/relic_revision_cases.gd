@@ -2,6 +2,7 @@ extends RefCounted
 const Game=preload("res://tests/game_fixture.gd")
 
 static func run(t) -> void:
+ preload("res://tests/emoji_relic_cases.gd").run(t)
  preload("res://tests/lewd_relic_cases.gd").run(t)
  preload("res://tests/lucidity_necklace_cases.gd").run(t)
  preload("res://tests/edging_seal_cases.gd").run(t)
@@ -136,38 +137,51 @@ static func spicy_rice_noodles(t) -> void:
  t.check(g.state.logs.filter(func(log):return log.data.get("relic_trigger",{}).get("id","")==id).size()==opening_logs,"NOODLES inspection resume does not repeat opening feedback")
 
 static func kings_gift(t) -> void:
- var id="kings_gift_revised"
+ for role in ["original","witch"]:
+  var g=Game.new(42,false,"equipment",true,false,25,false,false,role)
+  g.state.relics=["kings_gift_revised"];g._start_battle()
+  var type=g.Character.card_id(g,"royal_gift")
+  var gifts=g.state.hand.filter(func(card):return card.type==type)
+  t.check(gifts.size()==1 and g.Character.relic_allowed(g,"kings_gift_revised"),"KING both characters receive one opening card")
+  if gifts.is_empty(): continue
+  var card=gifts[0]
+  for turn in [1,3,4,6,7,10,40]:
+   g.state.combat.turn=turn
+   var value={1:1,3:1,4:3,6:3,7:6,10:6,40:6}[turn]
+   t.check(g.live_card_text(type,card.uid).bound.contains("抽%d张牌" % value),"KING card displays three-turn growth capped at six")
+  var prev=g.export_snapshot()
+  t.check(t.action(g,"card",{"uid":card.uid,"free":true}).ok and g.state.energy==prev.energy+6 and g.state.temporary_mana==prev.temporary_mana+30,"KING upgraded gift grants energy and reserve once")
+  t.check(g.state.exhaust.any(func(c):return c.uid==card.uid) and g.Cards.power_attribute_modifier(g,"dexterity")==6 and g.state.hand.size()==mini(g.B.HAND_LIMIT,prev.hand.size()-1+6),"KING gift exhausts, draws and grants combat dexterity")
+  if role=="witch":
+   t.check(g.state.witch_charges.mind==prev.witch_charges.mind+6 and g.state.witch_focus==prev.witch_focus+6 and g.state.charge==prev.charge,"KING witch converts power and charge to mental preparation and focus")
+  else: t.check(g.state.charge==prev.charge+6 and g.Cards.power_attribute_modifier(g,"strength")==6,"KING original gains charge and combat strength")
+  g.RelicEffects.end_combat(g)
+  t.check(g.state.deck.all(func(c):return c.uid!=card.uid) and g.Cards.power_attribute_modifier(g,"dexterity")==0,"KING temporary reward and attributes expire together")
  var g=Game.new(42)
- var excluded=g.Relics.REWARDS.filter(func(key):return key!=id)
- t.check(preload("res://tests/rolling_log_cases.gd").offer_tier(g,"rare",excluded)==id,"KING rare relic is in real reward pool")
- g.state.relics=[id];g.state.round=6;g.state.enemies=[]
- g._append_enemies([{"type":"rope","grade":1,"hp":200},{"type":"drone","grade":1,"hp":200}])
- for e in g.state.enemies: e.intent=g._plan(e);e.intent.delayed=true
- t.check(t.action(g,"end").ok and g.state.round==7 and g.state.enemies.all(func(e):return e.hp==200),"KING sixth ending does not fire; seventh turn has begun")
- g.state.strength=10;g.state.charge=3;g.state.card_buffs=["henshin_free"]
- var before=g.export_snapshot();var shown=g.get_view()
- t.check(g.state==before and shown.relics.filter(func(row):return row.id==id)[0].counter.value==7,"KING countdown projects current round without firing")
- t.check(t.action(g,"end").ok and g.state.enemies.all(func(e):return e.hp==123) and g.state.charge==3,"KING seventh ending deals fixed 77 to ordinary and mechanical enemies without consuming charge or doubling")
- t.check(g.RelicEffects.used(g,id) and g.RelicEffects.counter(g,id).text=="✓","KING once-per-battle marker and displayed completion agree")
- t.check(t.action(g,"end").ok and g.state.enemies.all(func(e):return e.hp==123),"KING later endings do not repeat damage")
- # Killing the original team completes rewards before any surviving enemy phase.
- g=Game.new(42);g.state.relics=[id];g.state.round=7;g.state.enemies=[]
- g._append_enemies([{"type":"belt","grade":1},{"type":"drone","grade":1}])
- var end=t.find_action(g,"end");var version=g.state.version;var rewards=g.state.reward_count
- t.check(g.dispatch(g.command(end.payload,version),version).ok and g.state.phase=="reward" and g.state.enemies.all(func(e):return e.gone) and g.state.reward_count==rewards+1,"KING full-team defeat immediately awards one battle completion")
- before=g.export_snapshot()
- t.check(not g.dispatch(g.command(end.payload,version),version).ok and g.state==before,"KING stale ending cannot repeat damage or rewards")
+ g.state.relics=["fire_torch","flame_mark","hotpot_base","flint_lighter","fireball_pamphlet"]
+ g.state.enemies[0].hp=200;g.state.enemies[0].max_hp=200
+ for id in g.state.relics:
+  t.check(id in g.Relics.REWARDS and not g.Character.relic_allowed(g,id,"witch"),"FIRE relic is original-only in shared reward pool: "+id)
+ var preview=t.find_action(g,"attack",{"type":"fireball","enemy":g.state.enemies[0].id})
+ var before=g.export_snapshot()
+ t.check(not g.dispatch(g.command(preview.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"FIRE stale cast preserves opener, bonus and resources")
+ var base=g.B.FIREBALL_ASSISTED
+ for i in range(5):
+  var c=t.find_action(g,"attack",{"type":"fireball","enemy":g.state.enemies[0].id})
+  var damage=(base+2+(5 if i<3 else 0))/5.0
+  t.check(c.valid and is_equal_approx(c.mana,0 if i==0 else 1.2) and is_equal_approx(c.payload.damage,damage),"FIRE combined relic preview applies final fifth after base modifiers")
+  var hp=g.state.enemies[0].hp
+  t.check(t.action(g,"attack",{"type":"fireball","enemy":g.state.enemies[0].id}).ok and is_equal_approx(hp-g.state.enemies[0].hp,damage),"FIRE committed cast matches preview")
+ t.check(g.BasicAttacks.usage(g,"fireball").remaining==0,"FIRE five casts exhaust fixed limit")
+ var twin=preload("res://tests/persistence_cases.gd").roundtrip(t,g,"fire opening casts")
+ if twin!=null:
+  t.check(twin.state.combat.fireballs_cast==5,"FIRE save retains encounter cast count")
+  var invalid=twin.export_snapshot();invalid.combat.fireballs_cast=-1
+  t.check(not twin.restore_snapshot(invalid).ok and twin.state.combat.fireballs_cast==5,"FIRE invalid saved cast count is rejected without mutation")
+ g.Cards.grant_buff(g,"flame_flourish_free")
+ t.check(g.BasicAttacks.usage(g,"fireball").limit==5,"FIRE fixed limit overrides extra uses")
  g._start_battle()
- t.check(g.state.round==1 and not g.RelicEffects.used(g,id) and g.RelicEffects.counter(g,id).value==1,"KING new battle resets the existing round and trigger scope")
- # Both threshold and death splits use ordinary enemy handling; newborns are outside the volley.
- for kind in ["rope_mass_solo","rope_heap_solo"]:
-  g=Game.new(42,true,kind);g.state.relics=[id];g.state.round=7
-  var parent=g.state.enemies[0]
-  t.check(t.action(g,"end").ok and g._enemy(parent.id).gone and g.state.phase=="battle","KING damage resolves normal split in "+kind)
-  var children=g.state.enemies.filter(func(e):return e.get("spawned_from","")==parent.id)
-  t.check(children.size()==(2 if kind=="rope_mass_solo" else 3) and children.all(func(e):return e.hp==e.max_hp and e.spawned_round==7 and e.acted_round==7),"KING new split enemies keep inherited health and skip birth-round action")
- g=Game.new(42,true,"equipment");g.state.relics=[id];g.state.round=7
- t.check(t.action(g,"end").ok and not g.RelicEffects.used(g,id) and g.RelicEffects.counter(g,id).value==0,"KING rest does not consume a battle-only trigger")
+ t.check(g.BasicAttacks.fireball_mana(g)==0 and g.state.combat.get("fireballs_cast",0)==0,"FIRE next battle renews opening charges")
 
 static func marble(t) -> void:
  var g=Game.new(42)
@@ -377,8 +391,10 @@ static func combat(t) -> void:
   var before=g.state.energy
   g.RelicEffects.mana_lost(g,15)
   g.RelicEffects.end_turn(g);g._discard_end();g._begin_player_turn()
-  g.RelicEffects.mana_lost(g,45)
-  t.check(g.state.energy==before+3+2 and g.state.combat.mana_spent==0,"RELIC mana spending remainder crosses turns and supports multiple thresholds "+phase)
+  t.check(g.state.combat.mana_spent==0,"RELIC partial earring progress resets on turn start "+phase)
+  g.RelicEffects.mana_lost(g,60)
+  g.RelicEffects.mana_lost(g,30)
+  t.check(g.state.energy==before+3+1 and g.RelicEffects.counter(g,"mana_earring").text=="✓","RELIC earring pays only once across single and repeated large payments "+phase)
   g.RelicEffects.end_combat(g)
   var after=g.state.mana
   g.RelicEffects.end_combat(g)
@@ -468,10 +484,10 @@ static func lifecycle(t) -> void:
  t.action(g,"prison",{"action":"inspect"});t.action(g,"prison",{"action":"accept"});t.action(g,"prison",{"action":"resume"})
  t.check(g.state.phase=="prison" and g.state.combat.serial==serial and g.state.energy==5 and g.state.mana==10,"RELIC inspection resume neither reopens session nor loses saved energy, while the accepted inspection keeps its scripted twenty-mana loss")
  g.state.mana=140;g.state.mana_max=156
- g._gain_tool("mana_potion")
  # Clear only the potion's operator obstruction in this focused resource fixture.
  g.state.equipment=[];g.state.composites=[];g.state.links=[];g.state.special_equipment=[];g._cleanup()
- t.check(t.action(g,"item_use",{"item":g.state.items.back().id}).ok and g.state.mana==156,"RELIC ordinary mana restoration obeys enlarged cap")
+ var potion=t.take_item_card(g,"mana_potion")
+ t.check(t.action(g,"card",{"uid":potion}).ok and g.state.mana==156,"RELIC ordinary mana restoration obeys enlarged cap")
 
 static func drops(t) -> void:
  var g=Game.new(77)

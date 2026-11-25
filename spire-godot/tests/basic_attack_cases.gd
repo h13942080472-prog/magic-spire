@@ -86,7 +86,10 @@ static func zero_energy_fireball(t) -> void:
  g=Game.new(42)
  t.check(preload("res://tests/card_expansion_cases.gd").cast(t,g,"flame_flourish",false).ok,"FIREBALL enable equipment casting through actual ability")
  var restraint=g.add_fixture("thigh",60.0,60.0,true);g.state.energy=1
+ var toy=g._install_special("shaft_ring_low","special_2_a",1)
  c=t.find_action(g,"attack",{"target":restraint.id});before=g.export_snapshot()
+ var invalid_payload=c.payload.duplicate(true);invalid_payload.target=toy.id
+ t.check(not g.equipment_spell_facts().any(func(row):return row.payload.target==toy.id) and not g.dispatch(g.command(invalid_payload,g.state.version),g.state.version).ok and g.state==before,"FIREBALL toy is absent from offers and direct submission cannot spend resources or damage it")
  t.check(c.valid and c.cost==1 and g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.energy==0 and g.state.mana==before.mana-c.mana and g._equipment(restraint.id).durability==60.0-c.payload.damage and attack(t,g,"fireball",0).cost==0,"FIREBALL equipment first cast pays once and shares enemy first-use state")
 
 static func ordinary_kicks(t) -> void:
@@ -230,6 +233,8 @@ static func body_damage_scaling(t) -> void:
     var g=Game.new(42)
     if form[0]=="heavy":
      t.check(preload("res://tests/curse_cases.gd").play(t,g,"hannya_1",true).ok,"BODY SCALING base bonus comes from an actual Hannya play")
+    if not all_charge:
+     g.state.charge=2;preload("res://tests/charge_cases.gd").unlock_single(g)
     g.state.energy=3;g.state.strength=2;g.state.turn_strength=1;g.state.charge=2;g.state.charge_all=all_charge
     g.state.enemies[0].hp=500;g.state.enemies[0].max_hp=500
     for slot in arms[severity]: g.add_fixture(slot,4)
