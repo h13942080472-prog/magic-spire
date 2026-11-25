@@ -38,6 +38,14 @@ static func harness(served: Dictionary, prefs: String="") -> Dictionary:
 static func size_text() -> String:
  return "%.1f" % (float(Cases.SIZE)/1048576.0)
 
+# The running build's version comes from the production reader (Check.current_version), and the
+# "newer" version is derived from it by appending one more segment: UpdateManifest.compare
+# ranks a present segment above a missing one, so the result is always newer, whatever the
+# build number is. A literal would stop being an update the day the project version is bumped
+# upstream, and the notice cases would fail without any product defect.
+static func newer_version() -> String:
+ return Check.current_version()+".1"
+
 static func signed(version: String, other_signature: bool=false) -> Dictionary:
  var pair=Cases.keypair()
  var body=Cases.bytes_of(Cases.document(version))
@@ -91,7 +99,7 @@ static func open_options(t, ui) -> void:
 # ---- 主页提示 -------------------------------------------------------------------------
 
 static func startup_offer_renders_notice(t) -> void:
- var served=signed("0.18.4")
+ var served=signed(newer_version())
  var options=harness(served)
  var ui=await boot(t,options)
  t.check(not ui.update_check.auto_allowed(),"UPDATE startup_offer_renders_notice: a scripted harness never auto-checks, so suites stay offline")
@@ -103,7 +111,7 @@ static func startup_offer_renders_notice(t) -> void:
  t.check(notice!=null and notice.is_visible_in_tree(),"UPDATE startup_offer_renders_notice: a verified newer version shows the home notice")
  if notice==null: return
  var text=t.visible_text(notice)
- t.check(text.contains("0.18.4") and text.contains(size_text()),"UPDATE startup_offer_renders_notice: the notice names the version and the rounded size: "+text)
+ t.check(text.contains(newer_version()) and text.contains(size_text()),"UPDATE startup_offer_renders_notice: the notice names the version and the rounded size: "+text)
  var title=notice.get_child(0).get_child(0)
  t.check(title!=null and title.get_theme_color("font_color")==Palette.GOLD,"UPDATE startup_offer_renders_notice: the notice title is styled from the shared palette")
  var download=ui.find_child("HomeUpdateDownload",true,false)
@@ -129,7 +137,7 @@ static func startup_offline_is_silent(t) -> void:
  t.check(ui.find_child("GameHome",true,false)!=null and ui.find_child("HomeContinue",true,false)!=null,"UPDATE startup_offline_is_silent: the home page stays interactive")
 
 static func startup_bad_signature_is_silent(t) -> void:
- var served=signed("0.18.4",true)
+ var served=signed(newer_version(),true)
  var options=harness(served)
  var ui=await boot(t,options)
  ui.update_check.check()
@@ -142,7 +150,7 @@ static func startup_bad_signature_is_silent(t) -> void:
 
 static func toggle_off_skips_startup(t) -> void:
  var prefs=Cases.prefs_path()
- var served=signed("0.18.4")
+ var served=signed(newer_version())
  var options=harness(served,prefs)
  var ui=await boot(t,options)
  # The harness keeps main's save persistence off; the settings store is the only writer and
@@ -165,7 +173,7 @@ static func toggle_off_skips_startup(t) -> void:
  await open_options(t,again)
  # A fresh manifest needs its own key: the stand-in answers from the same signed document and
  # an old table would reject the new signature.
- var latest=signed(Cases.CURRENT)
+ var latest=signed(Check.current_version())
  options["response"]=latest
  options["keys"]=latest.keys
  again.update_check.keys=latest.keys
@@ -226,7 +234,7 @@ static func transport_failures_are_silent(t) -> void:
 # is ignored -- no request, no checked; the in-flight check emits exactly one checked when
 # it completes, and the offer it publishes is the one the first call started.
 static func check_in_flight_ignores_second_call(t) -> void:
- var served=signed("0.18.4")
+ var served=signed(newer_version())
  var options=harness(served)
  var ui=await boot(t,options)
  # boot already installed the stand-in that answers; keep it for the resume instead of
@@ -247,7 +255,7 @@ static func check_in_flight_ignores_second_call(t) -> void:
  await t.frames()
  t.check(options.calls.size()==2,"UPDATE check_in_flight_ignores_second_call: the in-flight check still reads the signature after the ignored call: "+str(options.calls))
  t.check(emitted.size()==1,"UPDATE check_in_flight_ignores_second_call: the finished check emits checked exactly once: "+str(emitted.size()))
- t.check(not ui.update_check.busy and String(ui.update_check.offer.get("version",""))=="0.18.4","UPDATE check_in_flight_ignores_second_call: exactly one offer comes out of the completed check: "+str(ui.update_check.offer))
+ t.check(not ui.update_check.busy and String(ui.update_check.offer.get("version",""))==newer_version(),"UPDATE check_in_flight_ignores_second_call: exactly one offer comes out of the completed check: "+str(ui.update_check.offer))
  t.check(ui.find_child("HomeUpdateNotice",true,false)!=null,"UPDATE check_in_flight_ignores_second_call: the completed check still updates the home notice")
 
 # An empty [update] manifest_url is not a usable target. The startup gate refuses it and
