@@ -5203,3 +5203,13 @@ Godot 4.7.2 专项 66 项断言通过。两个部位各承受两段「浑身解�
 - 规则回归共 59 类，通过 43 类，失败 16 类。桌面 UI 已通过 27 类，失败 22 类。按发布要求停止其余回归。尚未完成的 UI 分类为 persistence。
 - 规则未通过的分类为 rope_master、card_splash、consumables、architecture、event_flow、exploration、slip_motion、runner、wall、special_equipment、services、rewards、core、equipment、composites、pressure。
 - 桌面 UI 未通过的分类为 encyclopedia、display、basic_attacks、exploration、hand_assist、casting、wall、baseline、enemy_feedback、services、body_layout、targeting、interface、normal_play、enemies、equipment_complete、pressure、impact_feedback、guard、events、consumables、rewards。
+
+## 2026-11-26｜扫描源码文本换行归一：合入上游后的 PR 前回归
+
+- 域：`spire-godot` 规则 59 套件＋界面 50 套件，对照父侧 `e4fde8d` 的逐套件基线；本分支独有改动为扫描源码文本的换行归一（`tests/source_text.gd`、`tests/state_reader_scan.gd`、`tests/check_index.gd`、`tests/runner_cases.gd`、两个生成物、`tests/mutations.json` 与 spec）。验收 HEAD `c2a80fd`，工作树干净，`origin/main` 为 `e4fde8d`。
+- 全量命令：`tools/check.ps1 -Suite all -UI -UISuite all -KeepGoing -TimeoutSeconds 3600`，运行号 `20261125T154340759-64132`，退出码 1。文档检查 PASS。规则相位在 exploration 的 SCRIPT ERROR 后提前收尾（与父侧同位置），只产出 30 个 `SUITE RESULT` 行，收尾 `FAIL: 68/127520 assertions; 70 engine errors`（父侧 69／71）；界面相位未启动，界面全量内的截断位置未验证。
+- 补跑：79 个套件逐个独立运行（规则 29 个 `-Suite <名>`、界面 50 个 `-UIOnly -UISuite <名>`），各有 1 条 `SUITE RESULT`。
+- 规则 59：PASS 43，父侧既有红 16（与父侧同名同数）。界面 50：PASS 27（含 trader 重跑），父侧既有红 23。39 个 FAIL/FAIL 套件均无父侧没有的 `ERROR:`／`SCRIPT ERROR` 行（前 120 字去重）；runner 少 2 行、architecture 少 1 行，可由本分支重生成的冻结索引与状态读者表解释。无「父 FAIL、本 PASS」套件。
+- trader 偶发：界面 trader 首跑 FAIL（运行号 `20261125T163902384-66104`，首行 `ERROR: MENU native click opens secondary actions`，随后 `SCRIPT ERROR: Invalid access to property or key 'pressed' on a base object of type 'null instance'.`）；同树同命令重跑 2 次均 PASS、UI PASS: 38 assertions（`20261125T174831080-44052`、`20261125T174945998-44052`）。判定为偶发、非本分支引入：本分支改动文件不在 trader 界面套件加载路径上，产品代码与 `tests/ui_smoke.gd` 同 `e4fde8d` 逐字相同；根因未定位。
+- 敏感性：`tools/check-mutation.ps1 -Check` 四条登记突变均变红并逐字节还原——`source_text_folds_crlf_pairs`（sha256 `8138B4D2368B`；运行目录前缀 `20261125T175024`）、`source_text_keeps_lone_cr`（`20261125T175128107-44052`，`8138B4D2368B`）、`state_reader_reads_through_one_entry`（`20261125T175200854-44052`，`FFB82C91FF96`）、`check_index_reads_through_one_entry`（`20261125T175237453-44052`，`2397C10B0E8F`）。
+- 未跑项：界面全量相位（未启动）；trader 首跑红的根因；安卓真机与打包。日志在 `spire-godot/build/checks/<运行号>`。
