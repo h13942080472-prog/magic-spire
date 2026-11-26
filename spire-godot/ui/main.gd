@@ -4004,6 +4004,9 @@ func modal_region() -> Control:
  return null
 
 func _notification(what: int) -> void:
+ # The check node is created in the field initializer, before the tree; a host freed without ever
+ # entering the tree would orphan it, so the creator releases it (docs/spec/update-check.md).
+ if what==NOTIFICATION_PREDELETE and is_instance_valid(update_check) and update_check.get_parent()==null: update_check.free()
  if what==NOTIFICATION_WM_GO_BACK_REQUEST and _takeover_locked(): return
  if what==NOTIFICATION_DRAG_BEGIN: _begin_target_drag.call_deferred()
  if what==NOTIFICATION_WM_GO_BACK_REQUEST:

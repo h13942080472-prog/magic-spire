@@ -70,7 +70,7 @@ var update_check_enabled: bool           # 出厂 true
 func set_update_check(enabled: bool) -> void   # 保存键 update/check_on_start
 
 # 主页与设置页（ui/main.gd 持有，ui/home_screen.gd 只调用）
-var update_check                          # 场景进入树之前创建，探针可在 _ready 前装 transport
+var update_check                          # 场景进入树之前创建，探针可在 _ready 前装 transport；宿主在入树前被释放时一并释放
 var open_url: Callable                    # 唯一跳转入口；探针替换为记录器
 func _home_update_notice() -> void        # 节点 HomeUpdateNotice／HomeUpdateDownload／HomeUpdateMirror
 func _open_update_url(url: String) -> void # 只接受 https://，默认 OS.shell_open
