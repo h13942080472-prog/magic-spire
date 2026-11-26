@@ -201,7 +201,7 @@ func _debug_crash_point(stage: String) -> bool:
  _debug_dead=_debug_commits==int(debug_crash.get("commit",0)) and stage==String(debug_crash.get("at",""))
  return _debug_dead
 
-# D23b legacy directory import (docs/spec/save-fixed-points.md「旧目录导入」): copy the legacy
+# Legacy directory import (docs/spec/save-fixed-points.md「旧目录导入」): copy the legacy
 # slot files byte for byte. Each source file is validated with unpack() first, and every accepted
 # copy goes through commit_file like write_game (without the backup rotation: adopt_legacy only runs
 # while the target holds no slot file), so a partial copy can never replace a primary file and the

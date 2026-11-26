@@ -3361,7 +3361,7 @@ static func present_demand_recorder(t) -> void:
  ui.game_factory=preload("res://tests/game_fixture.gd")
  ui.restart(42);await t.frames(2)
 
-# A341 H1 (docs/spec/save-fixed-points.md legacy import section): one display-settings.cfg read by initialize()
+# Display-settings import parity (docs/spec/save-fixed-points.md legacy import section): one display-settings.cfg read by initialize()
 # and imported by import_from() yields the same value for every key save() writes. Legal values are kept
 # (clamped to a range end or closed by another key where the rules say so); illegal values and missing keys
 # fall back to the same value on both sides. The importing owner first runs initialize() against a missing

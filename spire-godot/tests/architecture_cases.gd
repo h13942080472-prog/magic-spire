@@ -6802,8 +6802,8 @@ static func mutation_evidence_is_total(t) -> void:
  var unknown=declared_gaps.filter(func(name):return name not in universe)
  t.check(silent.is_empty() and both.is_empty() and unknown.is_empty(),"MT mutation_evidence_is_total: each judgment is either evidenced or named in known_gaps: silent="+str(silent)+" both="+str(both)+" unknown="+str(unknown))
 
-# D23a（A279，docs/spec/packaging.md「用户数据目录」）：固定目录由 project.godot 的 [application]
-# 三行声明（两行目录名 + 一行 .editor 覆盖），名字不带版本号；`.editor` 特性标签覆盖给工具与开发运行 -dev 名字。运行时代码只允许 D23b 的
+# 固定用户目录（docs/spec/packaging.md「用户数据目录」）：固定目录由 project.godot 的 [application]
+# 三行声明（两行目录名 + 一行 .editor 覆盖），名字不带版本号；`.editor` 特性标签覆盖给工具与开发运行 -dev 名字。运行时代码只允许
 # 旧目录导入器提到 app_userdata 父目录，其余模块不得自行拼用户目录；Android 的目录仍由包名决定。
 const USERDIR_NAME="Godot/app_userdata/紧缚尖塔"
 const USERDIR_NAME_DEV="Godot/app_userdata/紧缚尖塔-dev"
@@ -6860,7 +6860,7 @@ static func user_dir_name_is_version_free(t) -> void:
    if source_text(relative).contains("app_userdata"): inherited.append(relative)
  t.check(inherited.is_empty(),"USERDIR user_dir_name_is_version_free: only the pinned legacy importer names the app_userdata parent: "+str(inherited))
 
-# USERDIR-1 的两条按名突变锚（A293）：tests/mutations.json 的键必须是本套件的判据函数名
+# USERDIR-1 的两条按名突变锚：tests/mutations.json 的键必须是本套件的判据函数名
 # （mutation_evidence_is_total 的幽灵检查），而一条判据只挂一条突变，所以「带版本号」与「末尾句点」
 # 各自再声明为一条具名判据，让各自的目标突变有唯一 expect；断言体共用 userdir_declared_violations。
 static func userdir_declarations_are_version_free(t) -> void:
@@ -6894,8 +6894,8 @@ static func package_probe_uses_appdata_sandbox(t) -> void:
  t.check(missing.is_empty(),"USERDIR package_probe_uses_appdata_sandbox: both package probes point the child APPDATA at <check directory>/appdata: "+str(missing))
  t.check(late.is_empty(),"USERDIR package_probe_uses_appdata_sandbox: the probe sandbox is assigned before the child process starts: "+str(late))
 
-# D23b（A302，docs/spec/save-fixed-points.md「旧目录导入」）：旧目录只读——打开旧路径只用
-# FileAccess.READ；模块唯一的写是迁移标记，且 legacy-import.json 只有这个模块命名。A317 F8 起标记也走
+# 旧目录导入（docs/spec/save-fixed-points.md「旧目录导入」）：旧目录只读——打开旧路径只用
+# FileAccess.READ；模块唯一的写是迁移标记，且 legacy-import.json 只有这个模块命名。标记也走
 # store 的原子提交：模块自己不以写方式打开任何文件，唯一一次 commit_file 的目标是 marker。
 static func legacy_import_opens_legacy_read_only(t) -> void:
  var source=source_text("ui/legacy_import.gd")
@@ -6918,8 +6918,8 @@ static func legacy_import_opens_legacy_read_only(t) -> void:
    if source_text(path.trim_prefix("res://")).contains("legacy-import"): owners.append(path.trim_prefix("res://"))
  t.check(owners==["ui/legacy_import.gd"],"ARCH legacy_import_opens_legacy_read_only: legacy-import.json is named only by ui/legacy_import.gd: "+str(owners))
 
-# D23b（tmp/io-d23/dependencies.md D23b 行）：user://saves 的写入只允许 core/save_store.gd 一处；
-# 另一处非存档写只碰自己的常量（反馈草稿）。迁移标记自 A317 F8 起经 core/save_store.gd::commit_file 提交，
+# 旧目录导入：user://saves 的写入只允许 core/save_store.gd 一处；
+# 另一处非存档写只碰自己的常量（反馈草稿）。迁移标记经 core/save_store.gd::commit_file 提交，
 # ui/legacy_import.gd 不再有写点。
 const SAVES_WRITE_EXEMPT={"ui/feedback_report.gd":"DRAFT"}
 
@@ -6939,7 +6939,7 @@ static func saves_single_writer(t) -> void:
   if not String(hit.text).contains(token): stray.append(file+"::"+String(hit.function)+" "+String(hit.text))
  t.check(stray.is_empty(),"ARCH saves_single_writer: the exempted writers touch only their own declared target: "+str(stray))
 
-# D23b（docs/spec/save-fixed-points.md「旧目录导入」）：ui/main.gd 只在 _ready 里接一次线，且接线在
+# 旧目录导入（docs/spec/save-fixed-points.md「旧目录导入」）：ui/main.gd 只在 _ready 里接一次线，且接线在
 # _restore_startup 之前；关闸判断在 run_once 的最前面，先于任何 user 路径解析。
 static func legacy_import_is_wired_once(t) -> void:
  var source=source_text("ui/main.gd")
@@ -6957,7 +6957,7 @@ static func legacy_import_is_wired_once(t) -> void:
  var enabled=source_func_body_code("res://ui/legacy_import.gd","enabled")
  t.check(enabled.contains("persistence_enabled") and enabled.contains("desktop"),"ARCH legacy_import_is_wired_once: the gate requires persistence and a desktop build: "+enabled.strip_edges())
 
-# D23b 返工（A317 F7＋F8，docs/spec/save-fixed-points.md「旧目录导入」）：`.tmp` → 回读 → 改名 在运行时代码里
+# 旧目录导入（docs/spec/save-fixed-points.md「旧目录导入」）：`.tmp` → 回读 → 改名 在运行时代码里
 # 只有 core/save_store.gd::commit_file 一份；write_game 与 adopt_legacy 都经它提交，迁移标记由
 # legacy_import_opens_legacy_read_only 钉住同一入口。注释不算（逐行去掉 # 之后再数）。
 static func atomic_commit_is_single(t) -> void:
@@ -6974,7 +6974,7 @@ static func atomic_commit_is_single(t) -> void:
   if not source_func_body_code("res://core/save_store.gd",name).contains("commit_file("): bypass.append(name)
  t.check(bypass.is_empty(),"ARCH atomic_commit_is_single: write_game and adopt_legacy commit through commit_file: missing="+str(bypass))
 
-# D23b 返工（A317 F3）：崩溃注入点只在 debug 构建生效——core/save_store.gd 只在 _debug_crash_point 里读
+# 崩溃注入点只在 debug 构建生效——core/save_store.gd 只在 _debug_crash_point 里读
 # debug_crash，该函数第一句就以 OS.is_debug_build() 短路，运行时其他源码不提 debug_crash；发行包里注入点
 # 因此不可达（AGENTS「额外诊断与重复一致性断言走 debug 通路」）。
 static func commit_crash_injection_is_debug_only(t) -> void:

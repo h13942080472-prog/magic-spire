@@ -28,7 +28,7 @@ func initialize(enabled: bool) -> void:
  if bindings.heavy==[KEY_X] and bindings.kick==[KEY_V]:
   bindings.heavy=[KEY_V];bindings.kick=[KEY_X];save()
 
-# D23b legacy import (docs/spec/save-fixed-points.md「旧目录导入」): read another path through the same
+# Legacy import (docs/spec/save-fixed-points.md「旧目录导入」): read another path through the same
 # reader as initialize() (_read_bindings below), then write this module's own path through save(). The old
 # heavy/kick pair stays as read and is migrated by initialize() on the next launch.
 func import_from(source: String) -> bool:
@@ -37,7 +37,7 @@ func import_from(source: String) -> bool:
  save()
  return error==""
 
-# The single reader of a key-bindings file, shared by initialize() and import_from() (A341 H1): the whole
+# The single reader of a key-bindings file, shared by initialize() and import_from(): the whole
 # table is taken only when every action has its slot count of positive, distinct, non-Escape key codes,
 # and hold_end is read with it. Otherwise nothing changes and it returns false, as it does when the file
 # does not load.

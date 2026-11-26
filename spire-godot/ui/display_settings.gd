@@ -107,7 +107,7 @@ func initialize(target: Window, persist: bool=true) -> void:
  if resolution not in choices(): resolution=choices().back()
  apply()
 
-# D23b legacy import (docs/spec/save-fixed-points.md「旧目录导入」): read another path through the same
+# Legacy import (docs/spec/save-fixed-points.md「旧目录导入」): read another path through the same
 # reader as initialize() (_read_settings below: every key save() writes, with the same shapes and ranges),
 # then write this module's own path through save(). A value the reader rejects keeps what this owner held
 # without that key (a fresh instance: the default). display/mode and display/resolution are imported too,
@@ -120,7 +120,7 @@ func import_from(source: String) -> bool:
  save()
  return save_error==""
 
-# The single reader of a display-settings file, shared by initialize() and import_from() (A341 H1): every
+# The single reader of a display-settings file, shared by initialize() and import_from(): every
 # key save() writes, each with its accepted shape and range, in this one place. A missing or rejected key
 # keeps what this owner held before the read: the reset defaults right after initialize() (mode and
 # resolution: the window's), or a fresh instance's defaults. Returns false, touching nothing, when the file

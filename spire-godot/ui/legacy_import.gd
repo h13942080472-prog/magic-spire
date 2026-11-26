@@ -1,6 +1,6 @@
 extends RefCounted
 
-# D23b legacy directory import (docs/spec/save-fixed-points.md「旧目录导入」).
+# Legacy directory import (docs/spec/save-fixed-points.md「旧目录导入」).
 # This is the only runtime module that opens the old install's directory. It reads the old
 # saves through the caller's SaveStore (ui never preloads core), copies both slots with
 # SaveStore.adopt_legacy, hands each settings file to its owner module, and only then commits

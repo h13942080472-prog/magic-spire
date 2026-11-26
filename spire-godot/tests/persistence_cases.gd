@@ -5,7 +5,7 @@ const Store=preload("res://core/save_store.gd")
 const Guard=preload("res://core/guard.gd")
 const EventCases=preload("res://tests/event_cases.gd")
 const ExitCases=preload("res://tests/demo_exit_cases.gd")
-# D23b：旧目录导入器与两个设置属主模块；夹具父目录/目标/标记全部走参数。导入器在实现前不存在，
+# 旧目录导入：导入器与两个设置属主模块；夹具父目录/目标/标记全部走参数。导入器在实现前不存在，
 # 所以由 legacy_module()（文件末尾）惰性取用，不用 preload。
 const DisplaySettings=preload("res://ui/display_settings.gd")
 const KeyBindings=preload("res://ui/key_bindings.gd")
@@ -18,7 +18,7 @@ class LegacyImportHost extends RefCounted:
  var display_settings=null
  var keyboard_input=null
 
-# LEGACY-16（A317 F1）的宿主替身：run_once 解引用的全部字段都在，store 与两个设置属主都指向
+# LEGACY-16 的宿主替身：run_once 解引用的全部字段都在，store 与两个设置属主都指向
 # res://build/ 下的夹具，用来证明生产入口的路径只从注入的 store 推导。
 class LegacyKeyboardStub extends RefCounted:
  var settings=null
@@ -38,7 +38,7 @@ class WatchStore extends "res://core/save_store.gd":
   writes+=1
   return super.write_game(game,replace_incompatible,map_drawings)
 
-# Readback fault for save_commit_failures_keep_the_previous_save (A341 H2): only reads of a .tmp are refused.
+# Readback fault for save_commit_failures_keep_the_previous_save: only reads of a .tmp are refused.
 # write_game hands commit_file the readback read_file(temp).ok, so the commit sequence stays the real one and
 # only its readback step disagrees with what was written.
 class ReadbackFailStore extends "res://core/save_store.gd":
@@ -759,7 +759,7 @@ static func save_and_random_untouched(t) -> void:
   var refused=g.dispatch(g.command(blocked[0].payload,g.state.version),g.state.version)
   t.check(not refused.ok and store.writes==refused_before,"G9 save_and_random_untouched: a refused command writes nothing")
 
-# D23a（A279，docs/spec/packaging.md「用户数据目录」）：运行时目录由 project.godot 的固定名决定，
+# 固定用户目录（docs/spec/packaging.md「用户数据目录」）：运行时目录由 project.godot 的固定名决定，
 # 与 application/config/name 无关；Windows 上它的父目录是 APPDATA 环境变量，成品探针据此把子进程
 # 隔离到检查目录。实测（Godot 4.7.2，`--headless --script`）：editor 特性标签为真，运行时目录因此是
 # `.editor` 覆盖的 -dev 名字；本条钉「声明存在」与「运行时目录等于按特性标签解析出的名字」。
@@ -1005,12 +1005,12 @@ static func run(t) -> void:
  t.check(store.write_game(Game.new(42),true).ok and store.read_slot("tower").ok,"SAVE explicit new run can replace incompatible primary")
 
 # ---------------------------------------------------------------------------
-# D23b 旧目录导入（docs/spec/save-fixed-points.md「旧目录导入」）。夹具父目录、目标目录与标记都由
+# 旧目录导入（docs/spec/save-fixed-points.md「旧目录导入」）。夹具父目录、目标目录与标记都由
 # 参数传进 ui/legacy_import.gd；测试只在 res://build/ 下造旧目录，从不读写真实 user://。
 static func legacy_root(label: String) -> String:
  return "res://build/d23b-"+label+"-"+str(Time.get_ticks_usec())
 
-# 实现前（C1）模块还不存在：判据先红在「模块存在且可加载」这一句，其余断言在实现后全跑；
+# 实现前模块还不存在：判据先红在「模块存在且可加载」这一句，其余断言在实现后全跑；
 # 这样套件不会因为一个缺失的 preload 整体加载失败，红证据按判据逐条具名。
 static func legacy_module():
  if not ResourceLoader.exists("res://ui/legacy_import.gd"): return null
@@ -1047,7 +1047,7 @@ static func legacy_saves(directory: String, slot: String, writes: int) -> void:
  var g=Game.new(42,slot=="practice")
  for index in range(writes): store.write_game(g)
 
-# A317 F2：属主 save() 写的每个键都离开默认值（固定立绘除外：它为真会把锁池三项关回默认，二者只能
+# 属主 save() 写的每个键都离开默认值（固定立绘除外：它为真会把锁池三项关回默认，二者只能
 # 留一组；固定立绘由 legacy_display_import_follows_initialize_domains 单测），import_from 漏掉的键就不会
 # 碰巧读回相等。LEGACY-1 按整份文件比对。
 static func legacy_settings(directory: String) -> void:
@@ -1153,7 +1153,7 @@ static func legacy_source_is_the_newest_directory_with_a_readable_save(t) -> voi
  var result=module.run(parent,target,marker,Store.new(target.path_join("saves")))
  t.check(String(result.get("source",""))==LEGACY_NAME_PREFIX+"0.17.1","LEGACY legacy_source_is_the_newest_directory_with_a_readable_save: the source is the newest directory that holds a readable save, not the highest version name or the dev directory: "+str(result.get("source","")))
  t.check(legacy_same_file(source.path_join("saves").path_join("tower.json"),target.path_join("saves").path_join("tower.json")) and legacy_same_file(source.path_join("saves").path_join("tower.json.bak"),target.path_join("saves").path_join("tower.json.bak")),"LEGACY legacy_source_is_the_newest_directory_with_a_readable_save: the two copied save files stay byte identical to the legacy ones")
- # A317 F2: both settings files read back key for key equal to the legacy files (every key the owner
+ # Both settings files read back key for key equal to the legacy files (every key the owner
  # writes, display/mode and display/resolution included), and the fixture provably left the defaults.
  var legacy_display=legacy_cfg_values(source.path_join("display-settings.cfg"))
  var display_diff=legacy_cfg_diff(legacy_display,legacy_cfg_values(target.path_join("display-settings.cfg")))
@@ -1328,7 +1328,7 @@ static func legacy_interrupted_copy_converges(t) -> void:
  t.check(not FileAccess.file_exists(target.path_join("display-settings.cfg")),"LEGACY legacy_interrupted_copy_converges: the interrupted import writes no settings file afterwards")
 
 # ---------------------------------------------------------------------------
-# D23b 加固（A311，tmp/io-d23/d23bhard-brief.md 任务 1–3）。以下判据只经 ui/legacy_import.gd 的公开入口
+# 旧目录导入的边界与崩溃判据。以下判据只经 ui/legacy_import.gd 的公开入口
 # （find_source／run）与既有 SaveStore 入口观察；夹具全部在 res://build/ 下现造，不读写真实 user://，
 # 也不使用玩家存档。
 
@@ -1400,7 +1400,7 @@ static func legacy_matrix_expect(cell: Dictionary) -> Dictionary:
  if String(cell.saves) in ["valid","mixed"]: return {"code":"copied","copied":["saves/tower.json"],"skipped":[]}
  return {"code":"none","copied":[],"skipped":[]}
 
-# 任务 1：目录组合穷举。每格核结果码、是否运行、copied／skipped、标记内容、旧目录三元组不变，
+# 目录组合穷举。每格核结果码、是否运行、copied／skipped、标记内容、旧目录三元组不变，
 # 以及目标里除标记以外的文件在「不复制」格前后相等。
 static func legacy_directory_matrix_matches_the_plan(t) -> void:
  var ready=legacy_ready(t,"legacy_directory_matrix_matches_the_plan","legacy-matrix")
@@ -1417,7 +1417,7 @@ static func legacy_directory_matrix_matches_the_plan(t) -> void:
   var target=cell_root.path_join("target")
   var marker=target.path_join(LEGACY_MARKER_NAME)
   legacy_dir(target)
-  # A330 CC-D23-3: the parent is always a readable directory, so dirs=0 is the none verdict of a readable
+  # The parent is always a readable directory, so dirs=0 is the none verdict of a readable
   # parent without candidates; a parent that cannot be opened is not a verdict (LEGACY-19).
   legacy_dir(parent)
   # 三个有效候选的 mtime 必须有先后，否则「取最新」不可判；只给这一格付秒级等待，其他格不依赖顺序。
@@ -1461,7 +1461,7 @@ static func legacy_directory_matrix_matches_the_plan(t) -> void:
   else:
    t.check(legacy_tree_without(target,LEGACY_MARKER_NAME)==target_before,"LEGACY legacy_directory_matrix_matches_the_plan "+name+": nothing in the target changes when the plan copies nothing")
 
-# 崩溃点经真实写入路径注入（A317 F3）：core/save_store.gd::commit_file 的 debug-only 注入点 debug_crash 在
+# 崩溃点经真实写入路径注入：core/save_store.gd::commit_file 的 debug-only 注入点 debug_crash 在
 # 第 k 次提交的指定步骤停下，此后这只 store 不再写任何文件，等同进程在那一刻退出。设置文件由属主经
 # ConfigFile 写出、不经该提交序列，注入点停不住它们，所以崩溃后的残留只断言 saves/ 与标记两处。
 static func legacy_saves_listing(saves: String) -> Array:
@@ -1469,7 +1469,7 @@ static func legacy_saves_listing(saves: String) -> Array:
  names.sort()
  return names
 
-# 任务 2 崩溃点 1：第一次提交在 `.tmp` 写完、改名之前被杀（标记因此未写）。再次启动（新 store、未布防）时
+# 崩溃点 1：第一次提交在 `.tmp` 写完、改名之前被杀（标记因此未写）。再次启动（新 store、未布防）时
 # 目标仍视为空，复制重试并收敛到完整复制；.tmp 被提交的档替换，不残留。
 static func legacy_crash_after_temp_write_converges(t) -> void:
  var ready=legacy_ready(t,"legacy_crash_after_temp_write_converges","legacy-crash-temp")
@@ -1497,7 +1497,7 @@ static func legacy_crash_after_temp_write_converges(t) -> void:
  t.check(Store.new(target.path_join("saves")).read_slot("tower").ok,"LEGACY legacy_crash_after_temp_write_converges: the recovered slot reads through the formal entry")
  t.check(legacy_triples(parent)==legacy_before,"LEGACY legacy_crash_after_temp_write_converges: the legacy directories keep their (path,size,sha256) triples")
 
-# 任务 2 崩溃点 2：复制到一半被杀（标记未写）——第 1 份档落地后、第 2 份档落地后、以及标记自己的提交在
+# 崩溃点 2：复制到一半被杀（标记未写）——第 1 份档落地后、第 2 份档落地后、以及标记自己的提交在
 # `.tmp` 写完时。再次启动按 target_not_empty 收敛：已落地的档不重复覆盖（字节与 mtime 都不变），仍能经
 # read_slot 读出，标记登记 target_not_empty，残留的标记 .tmp 被这次提交替换。
 static func legacy_crash_midway_before_marker_converges(t) -> void:
@@ -1533,7 +1533,7 @@ static func legacy_crash_midway_before_marker_converges(t) -> void:
   t.check(Store.new(target.path_join("saves")).read_slot("tower").ok,"LEGACY legacy_crash_midway_before_marker_converges "+name+": the file copied before the interruption still reads through the formal slot entry")
   t.check(legacy_triples(parent)==legacy_before,"LEGACY legacy_crash_midway_before_marker_converges "+name+": the legacy directories keep their (path,size,sha256) triples")
 
-# 任务 3 选源边界 1（A317 CC-D23-2′／F10）：两个候选的主档 mtime 相同时，依次比已读出存档的 saved_at、
+# 选源边界 1：两个候选的主档 mtime 相同时，依次比已读出存档的 saved_at、
 # snapshot.save_revision，最后按目录名降序。每组构造具体的平手候选并断言契约指定的那一个；前两组两种朝向
 # 都测，所以「只看目录名」与「按目录枚举顺序取第一个」都会在某个朝向上选错。
 static func legacy_source_tie_is_deterministic(t) -> void:
@@ -1595,7 +1595,7 @@ static func legacy_tie_parent(base: String, rows: Array, snapshot: Dictionary) -
   if times.all(func(time):return time==times[0]): return parent
  return ""
 
-# 任务 3 选源边界 2：名字形如 紧缚尖塔demo v* 但没有 saves/（或 saves/ 为空、只有非存档文件）的目录
+# 选源边界 2：名字形如 紧缚尖塔demo v* 但没有 saves/（或 saves/ 为空、只有非存档文件）的目录
 # 不是候选；有可读档的目录照样被选中。
 static func legacy_source_ignores_directories_without_saves(t) -> void:
  var ready=legacy_ready(t,"legacy_source_ignores_directories_without_saves","legacy-nosaves")
@@ -1625,7 +1625,7 @@ static func legacy_source_ignores_directories_without_saves(t) -> void:
  t.check(String(second.get("source",""))==LEGACY_NAME_PREFIX+"0.16" and legacy_same_file(readable.path_join("saves").path_join("tower.json"),second_target.path_join("saves").path_join("tower.json")),"LEGACY legacy_source_ignores_directories_without_saves: the only directory with a readable save is the source regardless of the other names: "+str(second))
  t.check(legacy_triples(parent)==with_readable,"LEGACY legacy_source_ignores_directories_without_saves: the second run also leaves the legacy triples untouched")
 
-# 任务 3 选源边界 3：紧缚尖塔-dev 与新目录自身（紧缚尖塔）都不参与选源，即使它们的存档更新。
+# 选源边界 3：紧缚尖塔-dev 与新目录自身（紧缚尖塔）都不参与选源，即使它们的存档更新。
 static func legacy_source_never_picks_dev_or_target_name(t) -> void:
  var ready=legacy_ready(t,"legacy_source_never_picks_dev_or_target_name","legacy-dev-self")
  if ready.is_empty(): return
@@ -1657,7 +1657,7 @@ static func legacy_source_never_picks_dev_or_target_name(t) -> void:
  t.check(String(none.get("code",""))=="none" and legacy_marker(empty_marker).get("copied",[]).is_empty(),"LEGACY legacy_source_never_picks_dev_or_target_name: a dev or new-name directory alone is never a source: "+str(none))
  t.check(legacy_triples(only)==only_before,"LEGACY legacy_source_never_picks_dev_or_target_name: the dev and new-name directories stay untouched")
 
-# 任务 3 选源边界 4：名字里有非 ASCII 字符或多余空格的旧目录仍按前缀匹配，来源名与复制字节逐字保真；
+# 选源边界 4：名字里有非 ASCII 字符或多余空格的旧目录仍按前缀匹配，来源名与复制字节逐字保真；
 # 前缀内部多一个空格就不再匹配（前缀是精确的 紧缚尖塔demo v）。
 static func legacy_source_accepts_non_ascii_and_spaced_names(t) -> void:
  var ready=legacy_ready(t,"legacy_source_accepts_non_ascii_and_spaced_names","legacy-names")
@@ -1689,7 +1689,7 @@ static func legacy_source_accepts_non_ascii_and_spaced_names(t) -> void:
   t.check(legacy_triples(parent)==legacy_before,"LEGACY legacy_source_accepts_non_ascii_and_spaced_names ["+name+"]: the legacy directories keep their (path,size,sha256) triples")
 
 # ---------------------------------------------------------------------------
-# D23b 返工（协调者 A317，tmp/io-d23/d23bfix-brief.md）。夹具仍只在 res://build/ 下现造；真实 user:// 只比较
+# 旧目录导入的路径与失败判据。夹具仍只在 res://build/ 下现造；真实 user:// 只比较
 # 标记的存在与 mtime，不读内容。
 
 # 真实 user:// 标记的「存在＋mtime」指纹。
@@ -1698,7 +1698,7 @@ static func legacy_user_marker() -> String:
  if not FileAccess.file_exists(path): return "absent"
  return "mtime="+str(FileAccess.get_modified_time(path))
 
-# LEGACY-16（A317 F1）：生产入口 run_once 的目标目录、标记与选源父目录一律从宿主注入的 store 的存档目录
+# LEGACY-16：生产入口 run_once 的目标目录、标记与选源父目录一律从宿主注入的 store 的存档目录
 # 推导（目标＝存档目录的上一级，父目录＝目标的上一级）。store 指向 res://build/... 时，标记与复制都留在
 # build 下，真实 user:// 的标记既不出现也不改变。
 static func legacy_run_once_derives_paths_from_the_injected_store(t) -> void:
@@ -1728,7 +1728,7 @@ static func legacy_run_once_derives_paths_from_the_injected_store(t) -> void:
  t.check(legacy_user_marker()==user_before,"LEGACY legacy_run_once_derives_paths_from_the_injected_store: the real user:// marker neither appears nor changes: before="+user_before+" after="+legacy_user_marker())
  t.check(legacy_triples(source)==legacy_before,"LEGACY legacy_run_once_derives_paths_from_the_injected_store: the legacy directory keeps its (path,size,sha256) triples")
 
-# LEGACY-17（A317 F2）：DisplaySettings.import_from 对窗口模式与分辨率按 initialize() 的取值域读入——合法值
+# LEGACY-17：DisplaySettings.import_from 对窗口模式与分辨率按 initialize() 的取值域读入——合法值
 # 照收（含 choices() 收得下的非预设分辨率），越界或类型不符保持属主没读这一键时的取值（新实例即默认），
 # 大于最大一档的分辨率按 initialize() 收到最后一档；固定立绘为真时锁池仍被关掉。
 static func legacy_display_import_follows_initialize_domains(t) -> void:
@@ -1757,7 +1757,7 @@ static func legacy_display_import_follows_initialize_domains(t) -> void:
    if not values.has(key) or values[key]!=row.expect[key]: wrong.append(String(key)+"="+str(values.get(key)))
   t.check(imported and wrong.is_empty(),"LEGACY legacy_display_import_follows_initialize_domains ["+String(row.name)+"]: the imported file holds initialize()'s verdict for every listed key: "+str(wrong))
 
-# LEGACY-18（A317 F4）：写入失败（skipped 出现 write）不落终结标记，下一次启动重试。审查探针 S3：目标的
+# LEGACY-18：写入失败（skipped 出现 write）不落终结标记，下一次启动重试。一种情形：目标的
 # saves 是普通文件，存档目录建不起来；挡路的文件移走后，下一次启动完成导入并写标记。
 static func legacy_write_failure_keeps_the_import_retryable(t) -> void:
  var ready=legacy_ready(t,"legacy_write_failure_keeps_the_import_retryable","legacy-write-failure")
@@ -1784,7 +1784,7 @@ static func legacy_write_failure_keeps_the_import_retryable(t) -> void:
  var third=module.run(parent,target,marker,Store.new(blocker))
  t.check(String(third.get("code",""))=="copied" and legacy_marker(marker).get("copied",[])==["saves/tower.json","saves/tower.json.bak","display-settings.cfg","key-bindings.cfg"] and legacy_same_file(source.path_join("saves").path_join("tower.json"),target.path_join("saves").path_join("tower.json")),"LEGACY legacy_write_failure_keeps_the_import_retryable: once the blocker is gone the retry completes the import and writes the marker: "+str(third))
 
-# LEGACY-19 (A330 CC-D23-3): a scanned parent that cannot be opened (DirAccess.open returns null) is an IO
+# LEGACY-19: a scanned parent that cannot be opened (DirAccess.open returns null) is an IO
 # failure, not the none verdict. The run ends unfinished (ok=false, code=scan), writes no terminal marker and
 # lands nothing in the target, so the next start scans again. Two unopenable parents: a missing path, and a
 # plain file where the directory should be. Once the parent opens, the next start decides as usual: a
@@ -1820,7 +1820,7 @@ static func legacy_scan_failure_keeps_the_import_retryable(t) -> void:
   else:
    t.check(String(second.get("code",""))=="none" and int(listed.get("schema",0))==1 and listed.get("copied",[]).is_empty(),"LEGACY legacy_scan_failure_keeps_the_import_retryable"+label+": once the parent opens without a candidate, the next start closes the import as none: "+str(second))
 
-# LEGACY-20 (A341 H2): every atomic commit the import asks for can fail without closing it. A save whose .tmp
+# LEGACY-20: every atomic commit the import asks for can fail without closing it. A save whose .tmp
 # cannot be opened (a directory holds the .tmp name) or that cannot be renamed into place (a directory holds the
 # save name) ends the run as write; the marker's own .tmp or rename failing ends it as marker with ok=false. No
 # terminal marker exists after the failed run. Once the obstacle is gone the next start converges by the
@@ -1860,7 +1860,7 @@ static func legacy_commit_failures_keep_the_import_retryable(t) -> void:
   t.check(legacy_saves_listing(target.path_join("saves"))==["tower.json"] and not FileAccess.file_exists(marker+".tmp"),"LEGACY legacy_commit_failures_keep_the_import_retryable"+label+": the retry replaces every leftover temp: "+str(legacy_saves_listing(target.path_join("saves"))))
   t.check(legacy_triples(parent)==legacy_before,"LEGACY legacy_commit_failures_keep_the_import_retryable"+label+": the legacy directories keep their (path,size,sha256) triples")
 
-# A341 H2 (docs/spec/save-fixed-points.md legacy import section, single atomic write): each failing step of
+# Single atomic write (docs/spec/save-fixed-points.md legacy import section): each failing step of
 # core/save_store.gd::commit_file, reached through the real write_game: the .tmp cannot be opened (a directory
 # holds its name), the .tmp does not read back (ReadbackFailStore), the .bak cannot be replaced (read-only .bak)
 # and the primary cannot be replaced (read-only primary). Each row: write_game returns that step's text; the

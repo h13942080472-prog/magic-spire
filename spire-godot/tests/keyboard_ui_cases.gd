@@ -47,7 +47,7 @@ static func quick_region_keys(t) -> void:
  input.settings.defaults();input.held_keys.clear();input.clear()
  ui.restart(42);await t.frames()
 
-# A341 H1 (docs/spec/save-fixed-points.md legacy import section): one key-bindings.cfg read by initialize() and
+# Key-bindings import parity (docs/spec/save-fixed-points.md legacy import section): one key-bindings.cfg read by initialize() and
 # imported by import_from() leaves both owners with the same table and hold setting. A legal table is taken
 # whole; a reused, Escape, missing-slot, non-integer or non-positive key, a missing action, a table of the
 # wrong type or a missing section leaves both on the defaults they held before the read. The old heavy/kick

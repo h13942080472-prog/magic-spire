@@ -82,7 +82,7 @@ state.initial_seed: int    # = _init 的 run_seed；state.seed 仍由 _restart_t
 
 ## 旧目录导入（一次性复制）
 
-D23a 之后用户目录是固定名；旧版本各自带版本号的目录**仍在同一父目录下**。`ui/legacy_import.gd` 在首次
+采用固定用户目录后，用户目录是固定名；旧版本各自带版本号的目录**仍在同一父目录下**。`ui/legacy_import.gd` 在首次
 启动把它们复制一次进新目录，旧目录只读：**不删除、不改名、不覆盖任何字节**。
 
 - 路径来源（`ui/legacy_import.gd::run_once`）：目标目录、标记与选源父目录一律从宿主注入的存档 store
