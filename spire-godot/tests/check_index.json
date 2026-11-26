@@ -32,7 +32,7 @@
     },
     "spire-godot/tests/architecture_cases.gd": {
       "owner": "rule:architecture",
-      "signals": 16
+      "signals": 17
     },
     "spire-godot/tests/axe_amulet_cases.gd": {
       "owner": "rule:relics",
@@ -983,7 +983,7 @@
       "signals": 2
     }
   },
-  "digest": "0807730404cc9b50899b5f10a58532871eac5229c72c62e954ba3f47f61edf8f",
+  "digest": "dacaff83702aaaba2a5494f4b92a390ec97f18f429693758cfe4742d140421ef",
   "domain_words": {
     "ANTI DRONE": [],
     "ART": [
@@ -2055,7 +2055,7 @@
       ]
     }
   },
-  "generated_from": "7bb8745f080960b8b4ae76f457b1c11947c8e1aa19976a2c811eac71d4c45ba8",
+  "generated_from": "8479a92842ec68990079449427b40a8461b08ceddf3743634799fcc64dbc7189",
   "registries": {
     "rule": [
       "drone_operator",
@@ -2179,11 +2179,11 @@
     "domains": 71,
     "domains_declared": 71,
     "excluded": 15,
-    "inputs": 402,
+    "inputs": 404,
     "rule_suites": 59,
-    "source_files": 154,
-    "sources_with_edges": 149,
-    "suite_edges": 597,
+    "source_files": 155,
+    "sources_with_edges": 150,
+    "suite_edges": 598,
     "suites_with_edges": 106,
     "ui_suites": 50,
     "widen": 1
@@ -2249,6 +2249,9 @@
         "preload"
       ],
       "spire-godot/core/room_events.gd": [
+        "preload"
+      ],
+      "spire-godot/core/route_history.gd": [
         "preload"
       ],
       "spire-godot/core/save_store.gd": [

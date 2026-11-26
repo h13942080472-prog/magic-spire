@@ -365,6 +365,8 @@ static func check(s: Dictionary, g) -> String:
   if reference is int or reference is float:
    if not typed(s[key],"n") or (reference is int and not s[key] is int): return "基础数值类型有误。"
   elif typeof(s[key])!=typeof(reference): return "进度记录类型有误。"
+ for record in s.route_history:
+  if not fields(record,"enter:s cycle:i generation:i region:s seed:i boss:s security:i nodes:i floor:i"): return "塔路历史记录损坏。"
  var marked=s.combat.get("vulnerable",{}) if s.combat is Dictionary else {}
  if not marked is Dictionary: return "脆弱状态记录损坏。"
  for id in marked:

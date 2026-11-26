@@ -77,6 +77,7 @@
         "room_event",
         "rooms",
         "round",
+        "route_history",
         "save_slot",
         "security",
         "special_equipment",
@@ -115,11 +116,11 @@
     }
   },
   "generated_from": {
-    "cells": 1430,
-    "fields": 122,
-    "files": 154,
-    "inputs_sha256": "0da463a077f577634371101ca18ac238dc12d56b37cd09c90d1b3814f9194f8b",
-    "sites": 2370,
+    "cells": 1442,
+    "fields": 123,
+    "files": 155,
+    "inputs_sha256": "71a1fe57014c7f84846c99c156a791ae0ba92fe265dc9f9b574fe0cf040e58ca",
+    "sites": 2382,
     "ui_reads": 0,
     "whole_state": 67
   },
@@ -2563,6 +2564,32 @@
     },
     "core/rope_master.gd::unavailable": {
       "special_equipment": 1
+    },
+    "core/route_history.gd::_close": {
+      "completed_rooms": 1
+    },
+    "core/route_history.gd::_entry": {
+      "demo_cycle": 1,
+      "map_region": 1,
+      "room_encounters": 1,
+      "security": 1,
+      "seed": 1,
+      "tower_generation": 1
+    },
+    "core/route_history.gd::_floors": {
+      "rooms": 1
+    },
+    "core/route_history.gd::_last": {
+      "route_history": 1
+    },
+    "core/route_history.gd::_serving_sentence": {
+      "prison": 1
+    },
+    "core/route_history.gd::open": {
+      "route_history": 1
+    },
+    "core/route_history.gd::reason": {
+      "demo_cycle": 1
     },
     "core/save_store.gd::fixed_point_text": {
       "save_slot": 1
