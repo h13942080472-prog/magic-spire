@@ -215,6 +215,7 @@ F（K5 接线）实现面＝UI 节→组声明、共享精确开合、失败退�
 - **单元级惰性的证据面（E 批）**：E 批没有计数判据断言「未被点名的单元生产者不被调用」（计数判据属 D 批的
   `BATCH_TABLE`／`BATCH_ATTACK_WALK`／`BATCH_CARD_ROWS`）；单元选择由 `core/command_registry.gd::fact_units_in_scope`
   的文本事实（组 ∩ 闭包 ＋ `input` 前置）与行面判据间接保证，无直接计数证据。
+- 历史快照对照使用 `e4fde8d` 的字段集合。计算摘要时仅移除后来新增的 `route_history`，塔路记录的完整值与存档往返由 `tests/persistence_cases.gd::route_history_roundtrip` 核对。
 - **冻结域**：有效排除集只留 `tests/architecture_cases.gd::R3_VIEW_MASK`；历史 PRE（A 批常量摘要、E 批 26 cell）仍在 `tests/frozen-baselines.json` 原位不改，该文件只新增（2026-11-21 重冻批链节 C 的 PRE 与锚）。F 对 E／T 入口的 cell 字段增量为零；`tests/architecture_cases.gd::baseline_diff_is_declared` 只重放链节 C（两段声明 `E_DECLARED_DIFF`／`E_DECLARED_DIFF_UPSTREAM` 的并集，双向声明与逆向自证），E 批历史 26 个 record 差异的自证降为 `docs/record/verification.md` 原条目。独立审查应核对历史 PRE 未被替换为 POST，并核对链节 C 的 PRE：五个 R5 面与移动的 snapshot／rng＝重冻前（69cf2f1）字面值；被移动的非摘要记录路径（rows_payloads／logs／reject_invalid／submit_keys）＝a6fb649 提交树上的值，`73f7363` 段新增携带的路径＝`a27dfb9` 树实测值（产品 `69cf2f1`，与 `R1_BASELINE` 字面一致），均由 `<record>` 自证约束。锚 blob 自检不替代语义逆向证明。
 - **core 节名泄漏扫描的扫描面残差（修复批 G7）**：`tests/architecture_cases.gd::demand_declarations_are_total`
   的 core 文本扫描面＝15 节中可机械扫描的 11 个（`header`／`actions`／`resources`／`notice`／`page`／`show_log`／

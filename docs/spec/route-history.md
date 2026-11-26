@@ -16,7 +16,7 @@
   `route` 列、`_apply_transition` 的唯一追加点、`restore_snapshot` 的唯一回填点）。
 - 非目标：不改存档格式与 `Snapshot.REVISION`；不把地图、走过的节点、进入时的版本或时间／随机值
   放进 state（归档所需的 `run.segments` 属后续塔路归档切片的信封内容，不在本片）；不改 `_restart_tower`
-  的签名；不改 `core/prison.gd`、`core/demo_exit.gd`、`core/snapshot.gd`。
+  的签名；不改 `core/prison.gd`、`core/demo_exit.gd`。
 
 ## 接口
 
@@ -62,8 +62,7 @@ core/route_history.gd::backfill(s: Dictionary) -> Array   # 旧档回填为单�
   的口径不同：那里把当前所在房间也计入 `floor`，当前房间比最高已完成房间更深时两者给出不同的层数。
 - **回填**：`core/game.gd::restore_snapshot` 在 `initial_seed` 回填之后、`Snapshot.check` 之前，对
   **载入副本**补一条 `enter="unknown"` 记录（`nodes`／`floor` 留 `-1`，等下一次真正关闭时补齐）。
-  读不写盘；调用方字典与文件字节都不变。`Snapshot.check` 零改动：通用逐字段循环要求该字段存在且为
-  `Array`；元素级容错由后续切片的读取方用 `get` 加默认值负责（后续的归档摘要与历史面板切片）。
+  读不写盘；调用方字典与文件字节都不变。`Snapshot.check` 验证数组及每条记录的九个必填字段类型。记录损坏时拒绝载入，保留当前游戏。
 - **不升 `Snapshot.REVISION`**：加性字段不升版（依据 `docs/spec/save-fixed-points.md`）。
   同种子、同指令串复现同一段历史：记录不含时间、版本、外部标识或随机值，也不消费任何随机域。
 - **新档被旧版本读取**：本字段引入之前的版本打开其后写的档时，`Snapshot.check` 不拒绝多出的键，
@@ -110,7 +109,7 @@ core/route_history.gd::backfill(s: Dictionary) -> Array   # 旧档回填为单�
 | `route_history_cycle_capture_release`（`cycle` 之后在新一代塔路被捕服刑，`enter=="release"`） | `tests/persistence_cases.gd`（`persistence`） |
 | `route_history_switch_matrix`（15 格切换矩阵：条数与 `enter`／`cycle`／`generation`／`region`／`boss`） | `tests/persistence_cases.gd`（`persistence`） |
 | `route_history_single_writer`（唯一写入者、唯一调用点、追加在 `not continuation` 块内、无别名写） | `tests/architecture_cases.gd`（`architecture`） |
-| `route_history_references_are_pinned`（引用白名单：`core`／`data`／`ui` 里引用 `route_history` 的位置只允许 owner 模块与 `core/game.gd` 的三行） | `tests/architecture_cases.gd`（`architecture`） |
+| `route_history_references_are_pinned`（引用白名单：`core`／`data`／`ui` 里引用 `route_history` 的位置只允许 owner 模块、`core/game.gd` 的三行及 `core/snapshot.gd::check`） | `tests/architecture_cases.gd`（`architecture`） |
 | `route_switch_declared`（带 `route` 的 kind 恰为三个） | `tests/architecture_cases.gd`（`architecture`） |
 | `route_reason_branches_declared`（`cycle` 分支先于 `prison` 分支） | `tests/architecture_cases.gd`（`architecture`） |
 | `route_reason_called_only_by_open`（`reason` 只由 `open` 调用，`_serving_sentence` 只由 `reason` 调用；`core`／`data`／`ui` 里经 `RouteHistory` 句柄调用这两个函数，或给句柄起别名，都判红） | `tests/architecture_cases.gd`（`architecture`） |
@@ -128,5 +127,5 @@ core/route_history.gd::backfill(s: Dictionary) -> Array   # 旧档回填为单�
   `before==after` 指纹（`source_changed` 不算通过）。
 - 依赖约束：`core/game.gd → core/route_history.gd` 为本片新增的唯一依赖边；`core/route_history.gd`
   不 preload 其它模块，也不引用 `update/`。允许改动面＝`core/route_history.gd`（新）、
-  `core/game.gd`（上述四处）、`tests/persistence_cases.gd`、`tests/architecture_cases.gd`、
+  `core/game.gd`（上述四处）、`core/snapshot.gd::check`（读档校验）、`tests/persistence_cases.gd`、`tests/architecture_cases.gd`、
   `tests/mutations.json`；生成物只经唯一写者重冻。

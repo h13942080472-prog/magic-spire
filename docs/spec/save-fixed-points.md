@@ -77,7 +77,7 @@ state.route_history: Array   # 塔路历史：每条 {enter,cycle,generation,reg
 ```
 
 - 加性字段**不升** `Snapshot.REVISION`（升版会把既有玩家存档判为不兼容）；`Snapshot.check` 的
-  通用逐字段循环已要求该字段存在且类型一致，`core/snapshot.gd` 零改动。
+  通用逐字段循环要求字段存在且类型一致，塔路历史还逐条校验记录字段类型。
 - 缺 `initial_seed` 的旧档按当时的 `state.seed` 回填；缺 `route_history` 的旧档回填为一条
   `enter="unknown"` 记录，`nodes`／`floor` 留 `-1`，等下一次真正关闭该路线时补齐。回填只发生在
   载入副本上，不改调用方字典、不写盘、不改玩家文件。

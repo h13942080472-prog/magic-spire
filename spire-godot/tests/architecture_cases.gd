@@ -2447,7 +2447,10 @@ static func r1_record(g, phase: String, count: int) -> Dictionary:
   out["submit_checkpoint"]=str(result.get("checkpoint",""))
  out["post_phase"]=str(g.state.phase)
  out["post_version"]=str(g.state.version)
- out["snapshot"]=r1_digest(JSON.stringify(g.export_snapshot()))
+ # The e4fde8d baseline predates route history. Persistence tests compare the full record.
+ var snapshot=g.export_snapshot()
+ snapshot.erase("route_history")
+ out["snapshot"]=r1_digest(JSON.stringify(snapshot))
  out["rng"]=r1_digest(JSON.stringify(g.state.rng))
  out["rng_total"]=str(g.state.rng.values().reduce(func(a,b):return int(a)+int(b),0))
  out["logs"]=str(g.state.logs.size())
@@ -6987,7 +6990,7 @@ const ROUTE_HISTORY_ALIAS_PATTERN="^\\s*(?:var\\s+)?([A-Za-z_][A-Za-z0-9_]*)\\s*
 # The registered sites outside the owner module, each pinned by its anchor text: every runtime
 # line in core/data/ui that names route_history (the field, or the owner module path in the
 # game.gd preload) must be one of them. The owner module is allowed wholesale as the single writer.
-const ROUTE_HISTORY_REFERENCE_SITES=["core/game.gd::<file>","core/game.gd::_init","core/game.gd::restore_snapshot"]
+const ROUTE_HISTORY_REFERENCE_SITES=["core/game.gd::<file>","core/game.gd::_init","core/game.gd::restore_snapshot","core/snapshot.gd::check"]
 const ROUTE_HISTORY_REFERENCE_ANCHORS={"<file>":"preload(\"res://core/route_history.gd\")","_init":"\"route_history\":[]","restore_snapshot":"candidate.route_history=RouteHistory.backfill(candidate)"}
 
 static func route_history_write_sites() -> Array:
@@ -7025,7 +7028,7 @@ static func route_history_reference_violations() -> Array:
 
 static func route_history_references_are_pinned(t) -> void:
  var violations=route_history_reference_violations()
- t.check(violations.is_empty(),"ROUTEHIST route_history_references_are_pinned: every route_history reference lives in the owner module or the three registered game.gd sites: "+str(violations))
+ t.check(violations.is_empty(),"ROUTEHIST route_history_references_are_pinned: every route_history reference lives in the owner module, the registered game.gd sites or snapshot validation: "+str(violations))
  var game=route_history_reference_sites().filter(func(hit):return String(hit.file)=="core/game.gd")
  t.check(game.size()==3,"ROUTEHIST route_history_references_are_pinned: game.gd names route_history exactly three times: "+str(game.size()))
  for hit in game:

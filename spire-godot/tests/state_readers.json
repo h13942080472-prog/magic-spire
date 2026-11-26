@@ -77,6 +77,7 @@
         "room_event",
         "rooms",
         "round",
+        "route_history",
         "save_slot",
         "security",
         "special_equipment",
@@ -118,7 +119,7 @@
     "cells": 1442,
     "fields": 123,
     "files": 154,
-    "inputs_sha256": "20121454fc4af96b9fd4907241931bcab40b6df37f9fb81b358f74aa13cace91",
+    "inputs_sha256": "f55c043a9bea1df732821462f491066aa75e6ccfd86ec723e0e17a529cb1fe7b",
     "sites": 2382,
     "ui_reads": 0,
     "whole_state": 67

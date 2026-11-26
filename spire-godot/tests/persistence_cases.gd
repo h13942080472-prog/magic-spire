@@ -1050,6 +1050,19 @@ static func route_history_pre_revision_backfill(t) -> void:
  t.check(route_history_of(twin).size()==1 and String(route_record(twin,0).get("enter",""))==ROUTE_UNKNOWN,"ROUTEHIST-11 the migration backfills one unattributed record")
  t.check(twin.state.save_revision==CoreGame.Snapshot.REVISION,"ROUTEHIST-11 loading writes only the shared current revision")
 
+static func route_history_rejects_damaged_records(t) -> void:
+ var live=CoreGame.new(7)
+ var before=live.export_snapshot()
+ var saved=CoreGame.new(42).export_snapshot()
+ var record=saved.route_history.back()
+ for damaged in [null, {}, {"seed":[]}, record.merged({"cycle":[]},true)]:
+  saved.route_history=[record,damaged]
+  var input=saved.duplicate(true)
+  var result=live.restore_snapshot(saved)
+  t.check(not result.ok and result.get("error","")=="无法继续这份存档：塔路历史记录损坏。" and live.export_snapshot()==before and saved==input,"ROUTEHIST malformed history rejects before replacing live state")
+ saved.route_history=[null,record]
+ t.check(not live.restore_snapshot(saved).ok and live.export_snapshot()==before,"ROUTEHIST malformed closed records also reject atomically")
+
 static func route_history_roundtrip(t) -> void:
  var g=CoreGame.new(42)
  var history=route_history_of(g).duplicate(true)
@@ -1193,6 +1206,7 @@ static func route_history_cases(t) -> void:
  route_history_rejected_switch_rolls_back(t)
  route_history_legacy_backfills(t)
  route_history_pre_revision_backfill(t)
+ route_history_rejects_damaged_records(t)
  route_history_roundtrip(t)
  route_history_switch_matrix(t)
 
