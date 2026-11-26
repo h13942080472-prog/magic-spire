@@ -37,7 +37,7 @@
 判据名＝测试里的具名 check（断言标签 `UPDATE <name>:`／`DEP <name>:` 的 `<name>`，也是该 check 的函数名）。
 表与 `tests/update_cases.gd`、`tests/update_ui_cases.gd`、`tests/architecture_cases.gd` 的 update 具名 check
 **双向相等**：一条判据一行，一行只点名一个检查；漏行、多行、改名或幽灵条目都要同批改表。
-本版共 45 条（规则 28、窗口 8、架构 9），按 `tests/<file>.gd::<name>` 逐名核对。
+本版共 46 条（规则 28、窗口 9、架构 9），按 `tests/<file>.gd::<name>` 逐名核对。
 
 | 判据 | 执行它的检查 |
 | --- | --- |
@@ -77,6 +77,7 @@
 | 超时／404／302 各只一次请求、静默、无弹窗、不重试 | `tests/update_ui_cases.gd::transport_failures_are_silent`（窗口分类 `update`） |
 | 检查进行中重复调用 `check()` 被忽略（不发请求、不另发 `checked`）；在途那次完成时只发一次 `checked` | `tests/update_ui_cases.gd::check_in_flight_ignores_second_call`（窗口分类 `update`） |
 | `manifest_url` 为空串时自动检查与「立即检查」都不发请求、不显示提示 | `tests/update_ui_cases.gd::empty_manifest_url_sends_no_request`（窗口分类 `update`） |
+| 宿主在入树前被释放时一并释放未入树的 `update_check`；入树宿主的检查节点有父节点 | `tests/update_ui_cases.gd::host_free_releases_unparented_check`（窗口分类 `update`） |
 | `spire-godot/update/` 不引用 `ui`／`core`／`data`／`tests`；只有 `spire-godot/update/update_check.gd` 发 HTTP | `tests/architecture_cases.gd::update_module_is_a_leaf`（规则分类 `architecture`） |
 | 版本比较只有 `spire-godot/update/update_manifest.gd::compare`／`evaluate`／`_revoked` | `tests/architecture_cases.gd::update_compare_single_entry`（规则分类 `architecture`） |
 | 清单解析只有 `spire-godot/update/update_manifest.gd::_document` | `tests/architecture_cases.gd::update_document_single_entry`（规则分类 `architecture`） |

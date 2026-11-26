@@ -849,6 +849,13 @@
       "replace": " if false:\n  _finish(Manifest.none(\"url\"));return",
       "suite": "update",
       "execution": "ui"
+    },
+    "host_free_releases_unparented_check": {
+      "file": "ui/main.gd",
+      "find": " if what==NOTIFICATION_PREDELETE and is_instance_valid(update_check) and update_check.get_parent()==null: update_check.free()",
+      "replace": " if false and is_instance_valid(update_check) and update_check.get_parent()==null: update_check.free()",
+      "suite": "update",
+      "execution": "ui"
     }
   }
 }

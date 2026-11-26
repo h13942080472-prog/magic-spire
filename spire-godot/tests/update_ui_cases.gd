@@ -23,6 +23,7 @@ static func run(t) -> void:
  await transport_failures_are_silent(t)
  await check_in_flight_ignores_second_call(t)
  await empty_manifest_url_sends_no_request(t)
+ await host_free_releases_unparented_check(t)
 
 # ---- fixtures -------------------------------------------------------------------------
 
@@ -278,3 +279,17 @@ static func empty_manifest_url_sends_no_request(t) -> void:
  t.check(ui.find_child("HomeUpdateNotice",true,false)==null,"UPDATE empty_manifest_url_sends_no_request: an empty manifest_url shows no home notice")
  t.check(ui.find_child("UpdateCheckStatus",true,false)==null,"UPDATE empty_manifest_url_sends_no_request: an empty manifest_url shows no settings status text")
  ProjectSettings.set_setting("update/manifest_url",previous)
+
+# docs/spec/update-check.md: the check node is created before the scene enters the tree, so a
+# host freed without ever entering it must release the node itself (ui/main.gd::_notification,
+# NOTIFICATION_PREDELETE); otherwise it leaks and only shows as an engine exit error.
+# The nearest counter-example is a booted host: its check is parented, so the scene tree owns it
+# and the PREDELETE branch must not free it a second time.
+static func host_free_releases_unparented_check(t) -> void:
+ var host=load("res://ui/main.gd").new()
+ var check_ref=weakref(host.update_check)
+ t.check(check_ref.get_ref()!=null and host.update_check.get_parent()==null,"UPDATE host_free_releases_unparented_check: a host that never entered the tree owns an unparented update check")
+ host.free()
+ t.check(check_ref.get_ref()==null,"UPDATE host_free_releases_unparented_check: freeing a host before the tree must release its unparented update check")
+ var booted=await boot(t,harness({}))
+ t.check(booted.update_check.get_parent()!=null,"UPDATE host_free_releases_unparented_check: a booted host's update check is parented, so the scene tree releases it")
