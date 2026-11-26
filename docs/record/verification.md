@@ -5203,3 +5203,13 @@ Godot 4.7.2 专项 66 项断言通过。两个部位各承受两段「浑身解�
 - 规则回归共 59 类，通过 43 类，失败 16 类。桌面 UI 已通过 27 类，失败 22 类。按发布要求停止其余回归。尚未完成的 UI 分类为 persistence。
 - 规则未通过的分类为 rope_master、card_splash、consumables、architecture、event_flow、exploration、slip_motion、runner、wall、special_equipment、services、rewards、core、equipment、composites、pressure。
 - 桌面 UI 未通过的分类为 encyclopedia、display、basic_attacks、exploration、hand_assist、casting、wall、baseline、enemy_feedback、services、body_layout、targeting、interface、normal_play、enemies、equipment_complete、pressure、impact_feedback、guard、events、consumables、rewards。
+
+## 2026-11-26｜启动时更新检查的 PR 前完整回归
+
+- 域：`spire-godot/` 规则 60 类（含新增 `update`）与界面 51 类（含新增 `update`），逐类对照父侧 `e4fde8d` 的逐类基线；加上本批新增的 45 条登记突变。验收源码为已提交的隔离树，HEAD `b5037e0`，开工与收尾 `git status --porcelain` 均 0 行、`git diff --quiet` 退出码 0。
+- 全量命令 `check.ps1 -Suite all -UI -UISuite all -KeepGoing -TimeoutSeconds 3600`：运行号 `20261126T015251558-46976`，退出码 1，361 秒，文档门禁 `DOCS RESULT: PASS`。规则相位在 `exploration` 的 SCRIPT ERROR 之后提前收尾，共 31 个结果行，其后 29 个规则类无结果行；界面相位未启动。截断位置与父侧基线一致。
+- 补跑：规则 29 类（运行号 `20261126T015952783-53772` 至 `20261126T020958280-53772`）、界面 51 类（`20261126T021142013-64016` 至 `20261126T030422198-64016` 共 50 类，另有 `baseline` 的 `20261126T033350822-47472`），均为独立前台运行，每类有自己的 `SUITE RESULT` 行，无超时。
+- 规则 60 类：通过 43 类；父侧既有红 16 类，红行集合与父侧逐行比对，新增红行 0；新增套件 `update` 通过（108 项断言）。界面 51 类：通过 27 类；父侧既有红 23 类，新增红行 0；新增套件 `update` 通过（76 项断言）。界面 `trader` 首跑通过，未出现点击时序偶发。
+- 父侧红行在本分支消失 3 条，均由生成物重生成解释：`architecture` 的 `STATEREAD state_read_sites_are_pinned`（`tests/state_readers.json` 重生成），`runner` 的 `RUNNER index_matches_regeneration` 与 `RUNNER index_regeneration_is_the_only_writer`（`tests/check_index.json` 重冻）；两个生成物都在本分支改动面内。
+- 敏感性：本分支相对 `e4fde8d` 新增的 45 条登记突变逐条 `tools/check-mutation.ps1 -Check <名>`（串行），45 条均 `RED exit-red=True restored=True`，每条逐字节还原自证通过；全部结束后工作树无改动。
+- 未跑：公开验收（真实发布地址、正式签名）未做，本轮不碰网络发布面；Android 真机验收未做。红套件均为父侧既有红，未在本分支修复，也不作为通过证据。
