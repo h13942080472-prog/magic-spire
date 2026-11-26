@@ -39,10 +39,11 @@ static func size_text() -> String:
  return "%.1f" % (float(Cases.SIZE)/1048576.0)
 
 # The running build's version comes from the production reader (Check.current_version), and the
-# "newer" version is derived from it by appending one more segment: UpdateManifest.compare
-# ranks a present segment above a missing one, so the result is always newer, whatever the
-# build number is. A literal would stop being an update the day the project version is bumped
-# upstream, and the notice cases would fail without any product defect.
+# "newer" version is derived from it by appending a ".1" segment: UpdateManifest.compare treats
+# a missing segment as numeric 0, so the extra non-zero numeric segment always ranks higher,
+# whatever the build number is, including a text last segment such as "0.18.3.fix". A literal
+# would stop being an update the day the project version is bumped upstream, and the notice
+# cases would fail without any product defect.
 static func newer_version() -> String:
  return Check.current_version()+".1"
 
