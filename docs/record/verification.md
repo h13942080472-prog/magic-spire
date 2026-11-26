@@ -5203,3 +5203,13 @@ Godot 4.7.2 专项 66 项断言通过。两个部位各承受两段「浑身解�
 - 规则回归共 59 类，通过 43 类，失败 16 类。桌面 UI 已通过 27 类，失败 22 类。按发布要求停止其余回归。尚未完成的 UI 分类为 persistence。
 - 规则未通过的分类为 rope_master、card_splash、consumables、architecture、event_flow、exploration、slip_motion、runner、wall、special_equipment、services、rewards、core、equipment、composites、pressure。
 - 桌面 UI 未通过的分类为 encyclopedia、display、basic_attacks、exploration、hand_assist、casting、wall、baseline、enemy_feedback、services、body_layout、targeting、interface、normal_play、enemies、equipment_complete、pressure、impact_feedback、guard、events、consumables、rewards。
+
+## 2026-11-26｜塔路历史 PR 前完整回归
+
+- 域：`spire-godot/` 塔路历史（每段塔路的进入原因与收尾）的分支回归；验收 HEAD `d0524d1`，对照父侧 `e4fde8d` 的逐套件基线。规则 59 个、界面 50 个套件。
+- 全量命令 `tools/check.ps1 -Suite all -UI -UISuite all -KeepGoing -TimeoutSeconds 3600`：运行号 `20261126T033638846-27952`，退出码 1，用时 571 秒。截断：规则相位在 `exploration` 的 SCRIPT ERROR 后收尾，只有 30 个规则套件有结果行；界面相位未启动。
+- 补跑：规则 29 个、界面 50 个，逐个独立运行（`-Suite <名>`／`-UIOnly -UISuite <名>`，`-TimeoutSeconds 1800`），每个都有自己的结果行。
+- 结果：规则 PASS 43、父侧既有红 16；界面 PASS 27、父侧既有红 23。109 个套件结果与父侧逐一相同；本分支没有父侧没有的 ERROR／SCRIPT ERROR 行（前 120 字去重）。`persistence` 规则套件 PASS（1611 断言，父侧 1062，含新增塔路历史用例）。
+- 父侧红行消失：`architecture` 的 `STATEREAD state_read_sites_are_pinned`（读者表由唯一写者重生成）；`runner` 的 `index_matches_regeneration` 与 `index_regeneration_is_the_only_writer`（生成物随合并重生成）。界面 `trader` 首跑即 PASS。
+- 敏感性：本分支新增 9 条登记突变（`route_history_single_writer`、`route_switch_declared`、`route_reason_branches_declared`、`route_history_second_capture_release`、`route_reason_called_only_by_open`、`route_legacy_backfill_is_pinned`、`route_history_no_version`、`route_history_switch_matrix`、`route_history_references_are_pinned`）逐条串行实跑，均 `RED exit-red=True restored=True`，逐字节还原并核对工作树未变。
+- 未跑：`-UISuite all` 全量未能完整执行（界面相位未启动，界面由 50 次单套件运行覆盖）；未做打包、安卓真机或公开发布验收。
