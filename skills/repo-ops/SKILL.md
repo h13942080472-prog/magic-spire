@@ -97,8 +97,8 @@ git worktree list
 
 ## 更新签名私钥保管
 
-- 私钥**必须加密存放**（openssl 口令或 DPAPI，依维护者裁定），并另做一份离线备份；只放维护者本机的仓外目录，
-  现行位置是 `C:/1/Private/keys/spire-update/`（维护者 2026-11-22 落定，取代此前约定的 `G:/CodexData/keys/spire-update/`）。
+- 私钥**必须加密存放**（openssl 口令或 DPAPI，依维护者裁定），并另做一份离线备份；只放维护者本机的仓外目录；
+  具体路径只由维护者本人记录，不写进仓库、提交信息或 agent 的工作文件，下文命令一律以 `<私钥目录>` 占位。
   私钥实际是否已加密、备份是否到位，由维护者本人确认；agent 不核对，也不在任何地方声称私钥已加密。
   私钥不进仓库、日志、CI、云端秘密变量或任何 agent 的工作目录。仓库只放公钥
   （`spire-godot/update/update_keys.gd::KEYS`）。
