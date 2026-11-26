@@ -681,6 +681,30 @@
       "find": " return _answer(written,true,code if written else \"marker\",source,copied,skipped)",
       "replace": " return _answer(true,true,code,source,copied,skipped)",
       "suite": "persistence"
+    },
+    "legacy_leaves_every_legacy_byte_untouched": {
+      "file": "ui/legacy_import.gd",
+      "find": " var source_root=String(found.path)",
+      "replace": " var source_root=String(found.path)\n var _stray=FileAccess.open(source_root.path_join(\"stray.txt\"),FileAccess.WRITE)\n if _stray!=null: _stray.close()",
+      "suite": "persistence"
+    },
+    "legacy_skips_invalid_saves_and_keeps_the_rest": {
+      "file": "ui/legacy_import.gd",
+      "find": "\"code\":String(row.get(\"code\",\"invalid\"))",
+      "replace": "\"code\":\"copied\"",
+      "suite": "persistence"
+    },
+    "legacy_stays_off_without_persistence_or_desktop": {
+      "file": "ui/legacy_import.gd",
+      "find": " return persistence_enabled and desktop",
+      "replace": " return false",
+      "suite": "persistence"
+    },
+    "legacy_interrupted_copy_converges": {
+      "file": "ui/legacy_import.gd",
+      "find": "  if store.has_files(String(slot)): return true",
+      "replace": "  if store.has_files(String(slot)) and String(slot)==\"practice\": return true",
+      "suite": "persistence"
     }
   }
 }
