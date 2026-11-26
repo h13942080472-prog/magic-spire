@@ -105,7 +105,7 @@ core/route_history.gd::backfill(s: Dictionary) -> Array   # 旧档回填为单�
 
 | 判据 | 落点（分类） |
 | --- | --- |
-| `ROUTEHIST-1`～`ROUTEHIST-12`（正例、最近反例、四种切换、去重、确定性、原子性、旧档与迁移回填、不升版） | `tests/persistence_cases.gd`（`persistence`） |
+| `ROUTEHIST-1`～`ROUTEHIST-12`（正例、最近反例、四种切换、去重、确定性、原子性、旧档与迁移回填且回填不改存档修订号、往返一致） | `tests/persistence_cases.gd`（`persistence`） |
 | `route_history_second_capture_release`（越狱路线在出口守卫战再次被收押后服刑，`enter=="release"`） | `tests/persistence_cases.gd`（`persistence`） |
 | `route_history_cycle_capture_release`（`cycle` 之后在新一代塔路被捕服刑，`enter=="release"`） | `tests/persistence_cases.gd`（`persistence`） |
 | `route_history_switch_matrix`（15 格切换矩阵：条数与 `enter`／`cycle`／`generation`／`region`／`boss`） | `tests/persistence_cases.gd`（`persistence`） |
