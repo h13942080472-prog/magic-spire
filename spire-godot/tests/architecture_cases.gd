@@ -1231,6 +1231,13 @@ static func run(t) -> void:
  var settled=g.export_snapshot()
  g._cleanup()
  t.check(g.export_snapshot()==settled,"ARCH cleanup reaches a fixed point without repeated events")
+ route_history_single_writer(t)
+ route_history_references_are_pinned(t)
+ route_switch_declared(t)
+ route_reason_branches_declared(t)
+ route_reason_called_only_by_open(t)
+ route_legacy_backfill_is_pinned(t)
+ route_history_no_version(t)
 
 static func tool_registry_boundary(t) -> void:
  var catalog=preload("res://data/field_tools.gd")
@@ -2215,32 +2222,32 @@ static func copy_candidate_detail_on_demand(t) -> void:
 # 不一致以复算值为准并记录，不得改基线迁就实现。
 const R1_RECORD_PATHS=["composites","energy","equipment","first_turn","first_turn_locked","first_turn_name","fixture","flask_mana","hand","items","links","logs","mana","mana_max","order","overloaded","phase","pieces","pieces_ok","post_phase","post_version","posture","pressure","reject_forged","reject_invalid","reject_stale","relics","rng","rng_total","round","rows","rows_labels","rows_payloads","rows_valid","rows_verdicts","snapshot","special","submit_checkpoint","submit_error","submit_keys","submit_kind","submit_ok","takeover_automated","takeover_blocked","takeover_reason","takeover_step","temporary_mana","tick","validate","validate_after","version","view","view_available","view_candidates","view_card_texts","view_hand","wall","wall_distance"]
 const R1_BASELINE={
- "battle:0":{"rows_verdicts":"aedcb0675b24df473a98c3a28bc3f6bf","view":"f40ab34c6bca484c276364892c0561e1","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"3be5dc45ec07b61690681faf06edd849","rng":"69fe2877535b0ddfe95879adcd14cdff","record":"16127b9ab6e5a976fa557e722adbeab4"},
- "battle:12":{"rows_verdicts":"ab4ece314aa036180ea32a705ed34226","view":"2f24f5b5a20edfeea42f09610e9fc2cb","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"c7b88242b8ba3611a5d09ce33bead959","rng":"69fe2877535b0ddfe95879adcd14cdff","record":"74e1aa14d69f27d7a0ddebe2f9e76496"},
- "battle:26":{"rows_verdicts":"d80309647df35bef7c86728c26ca19f9","view":"fd85092b195a8ca5fccf71b52edef276","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"07d0cbf0effe193f53bdc6ec017d5a5f","rng":"1ffe4fa2490ef1b5801a9be4d5179a86","record":"22d4201ddaf1e807ede5cc9c1055fc13"},
- "battle:44":{"rows_verdicts":"279b0a0a462ed16cd1bd788ee5a8f3b8","view":"acfb943a7453d9f25544377e4e5efccf","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"794b6db532fadb6182696a45026271fc","rng":"2ca204b40493eae8d1bcadd47154f364","record":"638bc2d08c601245ac16f7b88aae787e"},
- "event:0":{"rows_verdicts":"f9d94b13926d4c2d9baaf1f685a4aa84","view":"fda761dc8558525830858f8353130b8a","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"魔瓶中没有魔力。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"6941a4d704f61d440f9396731c702673","rng":"6b6206a8bd7b425112c7c27da18cb61d","record":"d34b2844f6ee65f09dbbb093c06b3746"},
- "event:12":{"rows_verdicts":"f9d94b13926d4c2d9baaf1f685a4aa84","view":"f8be00fe6579c23c59deb1819e059193","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"魔瓶中没有魔力。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"48c70955de62dbdbe7a1f88d4837338d","rng":"6b6206a8bd7b425112c7c27da18cb61d","record":"32f02ac38446c212f02a9838eea67c56"},
- "event:26":{"rows_verdicts":"f9d94b13926d4c2d9baaf1f685a4aa84","view":"e4ec077ca048e394f281798705aaadf7","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"魔瓶中没有魔力。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"b33a156316591c3f6101056cdd4b7233","rng":"6b6206a8bd7b425112c7c27da18cb61d","record":"ffa20fc918c7f448319a49e91028b38a"},
- "event:44":{"rows_verdicts":"f9d94b13926d4c2d9baaf1f685a4aa84","view":"2df49f7ff9977701d6caa9b87b18d016","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"魔瓶中没有魔力。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"ae47e07c5a43643445e5cc35979c265c","rng":"6b6206a8bd7b425112c7c27da18cb61d","record":"2b2306c02ec83bafaaf21d643d043f37"},
- "prepare:0":{"rows_verdicts":"f3fffd5305b9d3882a7aab7fac4b396d","view":"b04553a3051d7c17d079c61705152acd","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"4fa1aed31afb5b15e68b3b8560f9a8d6","rng":"72f017d8c1a02a0462125f9f95b1234c","record":"9daeb8fd51a7baa6022510c3940eb1d4"},
- "prepare:12":{"rows_verdicts":"4d73f39f03b388c679978d7858e655b0","view":"776d14bb68301527e513f3b113f7574e","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"d4d51b44474e4112743fec3f75b68490","rng":"72f017d8c1a02a0462125f9f95b1234c","record":"d0b66dd5736aa87e04800eb892a75d44"},
- "prepare:26":{"rows_verdicts":"7d5172a58e1d157d12f858bf076c4555","view":"7fc74ecf66ea0b03ee6ef56d89c61d45","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"ac79ad945997d2be6911626e0a7af398","rng":"6466fd9d067695dfae7e509914f46446","record":"19af8460542440aa9daf85810012dfe2"},
- "prepare:44":{"rows_verdicts":"f4cd97a736dfeb28659f1a39fe37be16","view":"75eaa97b00bad2eba8683d36760c5606","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"301d505530d6bb304fd9ccec23f99f0f","rng":"ee7475a559e2df34597d8af1a5faf748","record":"3a3306f254ba8ecbc89ed1df4959c90a"},
- "prison:0":{"rows_verdicts":"dad9bd2cbe21b0962de7bc47c490287f","view":"682cc4c3be2baf1e423e184a47a8202b","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"243652b42d36a11b64a10806cc045956","rng":"c2ac01a230cee954c7f8af2f9320abd5","record":"56e1c4f7e3bd34642d9275f13a566629"},
- "prison:12":{"rows_verdicts":"9e1405cbec45c720cae6fc3ecc883ef7","view":"433a9b89c0e5ea2bdedd48d28ef472fa","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"站姿与躺姿之间需先经过坐姿。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"459628f527d12c367a827b19f27f03ba","rng":"c2ac01a230cee954c7f8af2f9320abd5","record":"c499bb613311c32e08be76affb5c92ae"},
- "prison:26":{"rows_verdicts":"9c28aac2d94f44ae9f848a0d386e9b3b","view":"649b085814a6478e5bb16816db90d183","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"站姿与躺姿之间需先经过坐姿。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"d53f72b58f580160887a72cc1ced3bd9","rng":"c2ac01a230cee954c7f8af2f9320abd5","record":"d812c759711e3c5c185d7e174cf7ea60"},
- "prison:44":{"rows_verdicts":"baf64cc9644fe759ebdf8d8115e3dcc5","view":"11b46e6be1dadb832d4d60a64fe5c420","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"站姿与躺姿之间需先经过坐姿。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"2dfc3408c3ae6554634760160e31d1d8","rng":"c2ac01a230cee954c7f8af2f9320abd5","record":"98bbb26eae5eb1ccfab0b12b20f0f521"},
- "rest:0":{"rows_verdicts":"10adfad99c876ae2c41ef8bb672ab87d","view":"e6343a15027daabccb0b88cd609b24af","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"06d9621d27e89b558e5302c62738bba7","rng":"696657cdcc914fe3b6ce575b02d4a695","record":"b122e6783d6903ca6d37b3c93cf21609"},
- "rest:12":{"rows_verdicts":"d130f92fbba25c6f8dca35f7f9112cf3","view":"ee9a33f39a28178c9eb15db3e089b737","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"15d4c0c5f7f9f325c3b6497a41e31bbb","rng":"696657cdcc914fe3b6ce575b02d4a695","record":"d64b444e352471ac9dac5fe97078860b"},
- "rest:26":{"rows_verdicts":"152227659247381af3fe41aeee7d8ab6","view":"fbf1773fa2d292dccee41dcb74a25326","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"7a3cdf6e13641854d5080096106499d1","rng":"1d20f6070f294fadc1355c7c231c0b82","record":"7b4586dffe44e1e353bee3b6cebff6e5"},
- "rest:44":{"rows_verdicts":"4e249f0c5cbe016cdfb6bb1fd1688494","view":"619cc695890d18a531a5d3dfa3080032","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"c1d37cbf00cce35e2ed83c2df3b075d6","rng":"89896d136942b5f3cd60897741ce77c8","record":"3609c6dc39c4c8c0aa66589a484a1a76"},
- "shop:0":{"rows_verdicts":"1ecdd866c95dcbcb0c5d8a5ee9140abf","view":"940ab425952944b7678757b7a496bf0d","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"需要20魔瓶魔力，当前只有0。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"7c895914d49611530754388f21cb7ba2","rng":"69fe2877535b0ddfe95879adcd14cdff","record":"578383355a79606b7b8ba20a3c27cd56"},
- "shop:12":{"rows_verdicts":"333f9a3ab9b7bb09839d51ae8769c7f4","view":"e1f8a873c4e68ea6e12295cfa3949d84","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"需要20魔瓶魔力，当前只有0。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"f3511dfe416a54c4427b64e1f9ffe891","rng":"69fe2877535b0ddfe95879adcd14cdff","record":"8566ff61020b53c9e68dacfb94d56d2f"},
- "shop:26":{"rows_verdicts":"fff70a1e263c15804273295bdb1a6421","view":"774e2162ff44ccc35a9ffbed381425db","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"需要20魔瓶魔力，当前只有0。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"d772baf528476018b5ff7e61359d081e","rng":"69fe2877535b0ddfe95879adcd14cdff","record":"2fc647ff1086ea3b084fa04aaa24f6b6"},
- "shop:44":{"rows_verdicts":"c3db8cff9e34afefd64dc5c68772076f","view":"7a91e679e37270f829807b29341f00c1","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"需要20魔瓶魔力，当前只有0。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"c1ed09ae0c65d0f7a9428436069d78a3","rng":"69fe2877535b0ddfe95879adcd14cdff","record":"9872ca3dfdb8cfcda3dea4e7e91dd1f7"},
- "takeover:0":{"rows_verdicts":"8b88015972a0cb75906b9f82708ff9d9","view":"ac82b09ee0f2d09cbaf6af0681cfbeb9","first_turn":"1145a045952e2ed3581845b472d18e4c","takeover_blocked":"79","reject_invalid":"豆包接管中","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"df10e42ed0a5025904819f7305927378","rng":"40b94bbe37133bccfba7f40817336145","record":"b8667b9c010c2f63f30d41822f6dad5e"},
- "takeover:12":{"rows_verdicts":"10af2bc0810bcd45acc17a3ee7bc5bdb","view":"cfb86e34755a5cba0cf0257a58413acd","first_turn":"78e416224ca7952eaab23886199830ab","takeover_blocked":"91","reject_invalid":"豆包接管中","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"3588a272324b5f9b7253b0cabf28cb13","rng":"40b94bbe37133bccfba7f40817336145","record":"eeab5ffe0658d190d5eaec674e1cc425"},
+ "battle:0":{"rows_verdicts":"aedcb0675b24df473a98c3a28bc3f6bf","view":"f40ab34c6bca484c276364892c0561e1","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"84c69094943c23997879d9b04336bbcb","rng":"63b15a1d44ec139ea6e481df6f43b5e5","record":"16127b9ab6e5a976fa557e722adbeab4"},
+ "battle:12":{"rows_verdicts":"ab4ece314aa036180ea32a705ed34226","view":"2f24f5b5a20edfeea42f09610e9fc2cb","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"0201b0a9759d62a64bf9ef58cad039f0","rng":"63b15a1d44ec139ea6e481df6f43b5e5","record":"74e1aa14d69f27d7a0ddebe2f9e76496"},
+ "battle:26":{"rows_verdicts":"d80309647df35bef7c86728c26ca19f9","view":"fd85092b195a8ca5fccf71b52edef276","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"c552019dfd98ddca2a43ab3731a42b05","rng":"0d457c205c59add96afa7977977224aa","record":"22d4201ddaf1e807ede5cc9c1055fc13"},
+ "battle:44":{"rows_verdicts":"279b0a0a462ed16cd1bd788ee5a8f3b8","view":"acfb943a7453d9f25544377e4e5efccf","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"6d2c0c996f17aec267d5ffb71a39313e","rng":"3d25c41ef96e3313fc5c686f2197946a","record":"638bc2d08c601245ac16f7b88aae787e"},
+ "event:0":{"rows_verdicts":"f9d94b13926d4c2d9baaf1f685a4aa84","view":"fda761dc8558525830858f8353130b8a","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"魔瓶中没有魔力。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"b2356735009edbb04f3a4567cced972a","rng":"aa803456f2180193ebdac2db34cdd8e3","record":"d34b2844f6ee65f09dbbb093c06b3746"},
+ "event:12":{"rows_verdicts":"f9d94b13926d4c2d9baaf1f685a4aa84","view":"f8be00fe6579c23c59deb1819e059193","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"魔瓶中没有魔力。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"fa197c82b602372914e413919eea30bb","rng":"aa803456f2180193ebdac2db34cdd8e3","record":"32f02ac38446c212f02a9838eea67c56"},
+ "event:26":{"rows_verdicts":"f9d94b13926d4c2d9baaf1f685a4aa84","view":"e4ec077ca048e394f281798705aaadf7","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"魔瓶中没有魔力。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"e0ef4bb5c307026fca7e035bc6dd2044","rng":"aa803456f2180193ebdac2db34cdd8e3","record":"ffa20fc918c7f448319a49e91028b38a"},
+ "event:44":{"rows_verdicts":"f9d94b13926d4c2d9baaf1f685a4aa84","view":"2df49f7ff9977701d6caa9b87b18d016","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"魔瓶中没有魔力。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"a3fea1448a67f7843bf7690e11055625","rng":"aa803456f2180193ebdac2db34cdd8e3","record":"2b2306c02ec83bafaaf21d643d043f37"},
+ "prepare:0":{"rows_verdicts":"f3fffd5305b9d3882a7aab7fac4b396d","view":"b04553a3051d7c17d079c61705152acd","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"ad99bcf20fff2b8ca05f962e8be7de8c","rng":"9cbc4cd673da74aef534fd6ce55790ea","record":"9daeb8fd51a7baa6022510c3940eb1d4"},
+ "prepare:12":{"rows_verdicts":"4d73f39f03b388c679978d7858e655b0","view":"776d14bb68301527e513f3b113f7574e","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"b3ac4b0ca29d8acdc56f371fbf7c35a6","rng":"9cbc4cd673da74aef534fd6ce55790ea","record":"d0b66dd5736aa87e04800eb892a75d44"},
+ "prepare:26":{"rows_verdicts":"7d5172a58e1d157d12f858bf076c4555","view":"7fc74ecf66ea0b03ee6ef56d89c61d45","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"b2a104efd0632c805d67f4eddeda9f77","rng":"5624406472f66952364f7bb0167f1dab","record":"19af8460542440aa9daf85810012dfe2"},
+ "prepare:44":{"rows_verdicts":"f4cd97a736dfeb28659f1a39fe37be16","view":"75eaa97b00bad2eba8683d36760c5606","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"f2ab180e7fbd9c8e39678bfa2db2eb9e","rng":"e7ab18a285c42a56f6bf49f89dfc26a1","record":"3a3306f254ba8ecbc89ed1df4959c90a"},
+ "prison:0":{"rows_verdicts":"dad9bd2cbe21b0962de7bc47c490287f","view":"682cc4c3be2baf1e423e184a47a8202b","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"bd859b987e8f860d32162c94d52556c3","rng":"5af2bd501990abab9e87f9c355b6876e","record":"56e1c4f7e3bd34642d9275f13a566629"},
+ "prison:12":{"rows_verdicts":"9e1405cbec45c720cae6fc3ecc883ef7","view":"433a9b89c0e5ea2bdedd48d28ef472fa","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"站姿与躺姿之间需先经过坐姿。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"399d9b5d8b1d25fc4baa70373d807e44","rng":"5af2bd501990abab9e87f9c355b6876e","record":"c499bb613311c32e08be76affb5c92ae"},
+ "prison:26":{"rows_verdicts":"9c28aac2d94f44ae9f848a0d386e9b3b","view":"649b085814a6478e5bb16816db90d183","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"站姿与躺姿之间需先经过坐姿。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"071445c1de7e8ff981daedb61c345020","rng":"5af2bd501990abab9e87f9c355b6876e","record":"d812c759711e3c5c185d7e174cf7ea60"},
+ "prison:44":{"rows_verdicts":"baf64cc9644fe759ebdf8d8115e3dcc5","view":"11b46e6be1dadb832d4d60a64fe5c420","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"站姿与躺姿之间需先经过坐姿。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"d53445464b7f2d6f2e69de1513267855","rng":"5af2bd501990abab9e87f9c355b6876e","record":"98bbb26eae5eb1ccfab0b12b20f0f521"},
+ "rest:0":{"rows_verdicts":"10adfad99c876ae2c41ef8bb672ab87d","view":"e6343a15027daabccb0b88cd609b24af","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"28b90435d763a58205da0c2564b575e5","rng":"0680503dee0efff3fcf391b94e3c298c","record":"b122e6783d6903ca6d37b3c93cf21609"},
+ "rest:12":{"rows_verdicts":"d130f92fbba25c6f8dca35f7f9112cf3","view":"ee9a33f39a28178c9eb15db3e089b737","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"457d4ef69ec94869ff996209be93dce9","rng":"0680503dee0efff3fcf391b94e3c298c","record":"d64b444e352471ac9dac5fe97078860b"},
+ "rest:26":{"rows_verdicts":"152227659247381af3fe41aeee7d8ab6","view":"fbf1773fa2d292dccee41dcb74a25326","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"3ff69375f0111e00d9ee5f9a448eaeb6","rng":"d0cac11adee3c12e1fa09c78e5a6ccfc","record":"7b4586dffe44e1e353bee3b6cebff6e5"},
+ "rest:44":{"rows_verdicts":"4e249f0c5cbe016cdfb6bb1fd1688494","view":"619cc695890d18a531a5d3dfa3080032","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"已经贴墙。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"c89fb6144d98fb1b99f59afd2c91310b","rng":"f39331b55312d596240511f80e3b9a36","record":"3609c6dc39c4c8c0aa66589a484a1a76"},
+ "shop:0":{"rows_verdicts":"1ecdd866c95dcbcb0c5d8a5ee9140abf","view":"940ab425952944b7678757b7a496bf0d","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"需要20魔瓶魔力，当前只有0。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"ba7f7eb13c224169f2af402efcf51dd0","rng":"63b15a1d44ec139ea6e481df6f43b5e5","record":"578383355a79606b7b8ba20a3c27cd56"},
+ "shop:12":{"rows_verdicts":"333f9a3ab9b7bb09839d51ae8769c7f4","view":"e1f8a873c4e68ea6e12295cfa3949d84","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"需要20魔瓶魔力，当前只有0。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"ded8d5b23e865d4553d7b161a5006627","rng":"63b15a1d44ec139ea6e481df6f43b5e5","record":"8566ff61020b53c9e68dacfb94d56d2f"},
+ "shop:26":{"rows_verdicts":"fff70a1e263c15804273295bdb1a6421","view":"774e2162ff44ccc35a9ffbed381425db","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"需要20魔瓶魔力，当前只有0。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"c92ab132b7407a210d659ff894c14054","rng":"63b15a1d44ec139ea6e481df6f43b5e5","record":"2fc647ff1086ea3b084fa04aaa24f6b6"},
+ "shop:44":{"rows_verdicts":"c3db8cff9e34afefd64dc5c68772076f","view":"7a91e679e37270f829807b29341f00c1","first_turn":"44136fa355b3678a1146ad16f7e8649e","takeover_blocked":"0","reject_invalid":"需要20魔瓶魔力，当前只有0。","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"87b780a0c296446483b2df340d62edba","rng":"63b15a1d44ec139ea6e481df6f43b5e5","record":"9872ca3dfdb8cfcda3dea4e7e91dd1f7"},
+ "takeover:0":{"rows_verdicts":"8b88015972a0cb75906b9f82708ff9d9","view":"ac82b09ee0f2d09cbaf6af0681cfbeb9","first_turn":"1145a045952e2ed3581845b472d18e4c","takeover_blocked":"79","reject_invalid":"豆包接管中","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"059048bba67d2b00a6cf98ebe6a87c4f","rng":"962273425b8fa5fd7f37eb7c56e8ffae","record":"b8667b9c010c2f63f30d41822f6dad5e"},
+ "takeover:12":{"rows_verdicts":"10af2bc0810bcd45acc17a3ee7bc5bdb","view":"cfb86e34755a5cba0cf0257a58413acd","first_turn":"78e416224ca7952eaab23886199830ab","takeover_blocked":"91","reject_invalid":"豆包接管中","reject_stale":"状态已更新，请重新选择行动。","submit_error":"","snapshot":"b2b25c9999f023d2761f13a7add80abf","rng":"962273425b8fa5fd7f37eb7c56e8ffae","record":"eeab5ffe0658d190d5eaec674e1cc425"},
 }
 # R1 不删除任何记录键（候选行／view.display_facts／提交身份 id 的删除在批 R5 才发生，届时 mask 显式声明）。
 const R1_MASK=[]
@@ -2276,8 +2283,27 @@ const R5_FIRST_TURN={"takeover:0":"8bf0e226191edacd337b525691d9e36a","takeover:1
 # submit_keys（成功结果键面摘要）与由其派生的 <record> 摘要随之变化；本批只重算这两个面，mask 不变
 # （R5_VIEW_MASK／R5_RECORD_MASK／R5_RECORD_ADDED 原值），其余记录字段与 G6 其余断言逐字不变。
 # 差异只来自该键的自证在 docs/record/verification.md：旧键面复算摘要与旧冻结值逐 cell 相等。
-const R5_BASELINE={"battle:0":{"facts_text":"ac39ae864b6c5be2953f41bf47a1a5f0","facts_verdicts":"e16b774323b27feb0e1ec4a2de711bef","record":"a91a38c0efbb91657d53f80e4612dc58","view":"98491d612f1a34d0a2c7624612655ab3","view_display_facts":"88"},"battle:12":{"facts_text":"4ff202e54cc276992613cfa15dd4483d","facts_verdicts":"fc4651ba295f7c196efa42ca3504093d","record":"534c04ff0b14b4b0b625910ad5b0bac8","view":"d5dacaf06675cc544c1b14d13a7fdda9","view_display_facts":"100"},"battle:26":{"facts_text":"6563e2f5d257f4d404fbbb84b14d4b76","facts_verdicts":"861fd22798a16f77cf6351cde3011d60","record":"ba0f2abc0e0da39fe7c0b6fe2fbdcea0","view":"ca211857952a5a4e6692be61c21531bc","view_display_facts":"184"},"battle:44":{"facts_text":"e1e9ae1c2ea1bf1cca274561d4c2e833","facts_verdicts":"8b73a596d24eadb28bcc9f4ed2b80c7c","record":"eb91794005dbc248a21d510d5c840009","view":"10f9aa4599f499e20755ed61bb282dfb","view_display_facts":"292"},"event:0":{"facts_text":"cfea8c6499b002900cc399479c98fbc7","facts_verdicts":"301c30de8e315e52e768df1a8bc52564","record":"bf7222442366073db6d1322a470d6f18","view":"541595ca13f5e73ca9de0f2b64f3ce46","view_display_facts":"3"},"event:12":{"facts_text":"cfea8c6499b002900cc399479c98fbc7","facts_verdicts":"301c30de8e315e52e768df1a8bc52564","record":"7206323fff489063319a2e71bafd78c6","view":"3fc2ab7b618ab92a94d4b251eb9135da","view_display_facts":"3"},"event:26":{"facts_text":"cfea8c6499b002900cc399479c98fbc7","facts_verdicts":"301c30de8e315e52e768df1a8bc52564","record":"9229033847caec6f3fa2ab219b6624ba","view":"3f64d8883f83cae0aa864c885fc71ad0","view_display_facts":"3"},"event:44":{"facts_text":"cfea8c6499b002900cc399479c98fbc7","facts_verdicts":"301c30de8e315e52e768df1a8bc52564","record":"86f69fcd04331a3b7855b521f264e6db","view":"6c2356440bcd43f4a82510528dc173a1","view_display_facts":"3"},"prepare:0":{"facts_text":"f7104838af279e342ab5aed44cb20a57","facts_verdicts":"0f60a5032db2d92fd89a88272f10dc1f","record":"f2bfd8369e45f7fdf00b8f6316ad3901","view":"0a1924ba193cacb79a01ecbc05800bc1","view_display_facts":"72"},"prepare:12":{"facts_text":"8d4a1d3d5424b2652da0e42a5a7cab74","facts_verdicts":"330ac05bfcc503da1d5c2f5c58e28ef4","record":"1953df20705b0aa21c07d824bd125d1d","view":"19a684ffdeded96a26a50558885c8eca","view_display_facts":"84"},"prepare:26":{"facts_text":"31db9e6906e9e6edc2df544f6c58a495","facts_verdicts":"af704235553476a09ee81bd9a2b4faca","record":"d59596d73b375820ea8bbddd1ee8e58b","view":"a8208d05993dea9ac36e7fad8ecdeef7","view_display_facts":"168"},"prepare:44":{"facts_text":"6fd1ccecf8d6b337985d1e7065034e63","facts_verdicts":"5088345798f3561021d5322f9eb91a77","record":"c8e44c7aef7dcfc131918289ff0b832d","view":"daf76ace88fec073a7743db2de0f3d7c","view_display_facts":"276"},"prison:0":{"facts_text":"063d3fb839831b1a5e2dfade29050cf7","facts_verdicts":"dd8c0a7b5470dbe8df9b7e872539ccd1","record":"40f93706363b0b70f5303be1f82817c9","view":"61a5029d16c6913146698a3dd5bf48a5","view_display_facts":"79"},"prison:12":{"facts_text":"9d598659ba79454d46cf7796096b2727","facts_verdicts":"b321f1b18a82fb524db374cc81f0b877","record":"f33e1202e045a8992ee6ac548aeea802","view":"d3d8296745b0d9a375f7bd6caab592fb","view_display_facts":"88"},"prison:26":{"facts_text":"c25701787eae5067e2254bf2afa85448","facts_verdicts":"2bfa1bada5517a2857df809a2eb0d550","record":"e4e33732a3f16ac528b7b5075b48d6d4","view":"71034fb99f96a73b64544341b2fa8a3c","view_display_facts":"172"},"prison:44":{"facts_text":"ee32f17b1ee01a503c778db400fc26df","facts_verdicts":"f951eb35e09671769be056a22bac31a0","record":"d42326ffbea435fbc02988b4ae268677","view":"dc82941a16fbd013239bbfe38b81d451","view_display_facts":"280"},"rest:0":{"facts_text":"e0e212f3475e1f9dcd244fe2564fdbd9","facts_verdicts":"ec4343c1370f8acfe92526873650aa36","record":"cf063a5569eed7c62617ab47db08adf0","view":"a9d1770b00e77d7d37107effe368b4c3","view_display_facts":"78"},"rest:12":{"facts_text":"a952cbe4b46679882ae30ee8e00cbbfc","facts_verdicts":"5bb8fcea01ee73d4c5be74d960430e7d","record":"575c7c657fe4fc364095f72a05d2410f","view":"0f3e2db33facaf7d0cac349c8b68035f","view_display_facts":"126"},"rest:26":{"facts_text":"299c00b335e6a86c74c5017c32985a07","facts_verdicts":"3796be82638559efd08c14f35a4b24f7","record":"4c5d644fcbc39554d639aeb67d550a16","view":"cab287418335d07b0d6b03abe199242a","view_display_facts":"252"},"rest:44":{"facts_text":"e1e4b83a24971f84477b9c1e0d59a6b1","facts_verdicts":"a7e66ae91adfbda41a18d60d9b71e9c3","record":"0e6d12f15caf1e0f3b3b731f762ea461","view":"6a518514aef15bea1585bac114284bec","view_display_facts":"414"},"shop:0":{"facts_text":"608cfefe469084cd7a5322122eccff44","facts_verdicts":"b35ecaa120573ce7221efb885cdce1de","record":"0f41d8836cb1ba7ada61e9b53877cd67","view":"5933d35bb57aaf0743e7f1b8a7b5bdfa","view_display_facts":"49"},"shop:12":{"facts_text":"c7e231624b76db3e4caa04bc8df79e4d","facts_verdicts":"898b1cbf0d1f2c82f95564aae9b204d9","record":"fc76295ecfd61df0f454194ce8ae8ab5","view":"cabc92f5d7f563aaef710bad1ee4f4ca","view_display_facts":"73"},"shop:26":{"facts_text":"4e4f209ed0c13bf3eb6d050e628f9e30","facts_verdicts":"9dd6c6caf8d3ee28bab06f2815f5777d","record":"08d4e4d38cd5c0dd085edb1a4de6d21e","view":"dfda2802902de5f0c5a952a32c383ebb","view_display_facts":"101"},"shop:44":{"facts_text":"1cb65cb87d85ca843d8d94f7f318bacd","facts_verdicts":"45f3c9972f3720db6475312a9d28ad5b","record":"129a55371c9d28996e8375cce7c91f7e","view":"ab7e905c2af157a9d85cb1c6559b796a","view_display_facts":"137"},"takeover:0":{"facts_text":"c75421de9b2720481ea31d8002e23e26","facts_verdicts":"9fa43250337736f6c5d7b90df6fc0899","record":"f441cc05a72a355be4dd1a5965c1b602","view":"10892969a87b17ecf070b09c3bbecfd0","view_display_facts":"80"},"takeover:12":{"facts_text":"975d3c9922d0af94cc4848181df82ddb","facts_verdicts":"322274a2e387906c10f7a2deade40792","record":"9ad58a8aedf0b8c95f7fea1c7275c77b","view":"c6ecc09c5dbc07cc14523e51b7795090","view_display_facts":"92"}}
+# 2026-11-21 human-approved re-freeze, link C (the human ruling on the E_DECLARED_DIFF attribution groups A-F and
+# on the two prefix states flag:equipment_spell and flag:relic_rows came once the prepare rng cause
+# was proved, and that cause became the group E reason in E_DECLARED_DIFF): only the moved faces were
+# recomputed, on the committed tree 69cf2f1 (HEAD=69cf2f1, dirty=0) -- R5_BASELINE facts_text x26, facts_verdicts
+# x18, view x26, record x26; R1_BASELINE snapshot x18 and rng x4; PREFIX_BRANCH_TABLE_BASELINE two states. Every
+# other field, R5_FIRST_TURN, R3_VIEW_KEYS_BASE and the masks are byte-identical. All moves first appear in
+# c8882cc; no later commit moves any of the 59 record paths. Self-proof: baseline_diff_is_declared (link C: PRE
+# in tests/frozen-baselines.json::baseline_pre_cells_c, anchored to 69cf2f1 of this file).
+# Link C, upstream segment: POST is now the product of e4fde8d (73f7363 is the first commit that moves the rest).
+# R5_BASELINE (facts_text x22, facts_verdicts x22, view x26, view_display_facts x16, record x26) and R1_BASELINE
+# (snapshot x26, rng x26) were re-read on that product; the moved faces are declared field by field in
+# E_DECLARED_DIFF_UPSTREAM. R5_FIRST_TURN, R3_VIEW_KEYS_BASE, every mask, submit_keys and the other R1_BASELINE
+# fields did not move.
+const R5_BASELINE={"battle:0":{"facts_text":"2cad3cf99c71d35d57276700dc62456c","facts_verdicts":"3b700b6c2a5687a72e8f27f698388932","record":"257d6b45c54f713073f5f5c7e680f2df","view":"ab3755735d0fbe8fd8148206f5e4a974","view_display_facts":"78"},"battle:12":{"facts_text":"a67ad72ab45b9f86d6f0bb14785e54ef","facts_verdicts":"d50dc45c6ab6d79dd82b6dc90248fb17","record":"c9e13d385e2bf38d8d5f77776735d041","view":"67caa57c25c604ab3512cf3412ac4a58","view_display_facts":"90"},"battle:26":{"facts_text":"a4e4900c82cbcd6176799459e3744e4c","facts_verdicts":"46d30822accbbc941bf5a754f5d84961","record":"d2916a0ac8b97364ce2325a0c3621437","view":"de53d2be45e7c65b96adb3631f27b7c1","view_display_facts":"160"},"battle:44":{"facts_text":"76cff456ff20655522606a992ba89053","facts_verdicts":"fcb70396beb013188972355def365879","record":"c267223ab31af8c297216dedf6b87a8a","view":"b5a82ebcbe0aed23a1df9e201abcec88","view_display_facts":"250"},"event:0":{"facts_text":"5860c09b436ab1dd964cd159bfe4f3dd","facts_verdicts":"301c30de8e315e52e768df1a8bc52564","record":"978d12ce9364eb4badeaefb6d179288d","view":"1a3d1829325296d7e8a100b902edcc6e","view_display_facts":"3"},"event:12":{"facts_text":"5860c09b436ab1dd964cd159bfe4f3dd","facts_verdicts":"301c30de8e315e52e768df1a8bc52564","record":"a32f154a68808fb83bab5328d32e25b3","view":"df38fc498395f0a96740c0bc42190b59","view_display_facts":"3"},"event:26":{"facts_text":"5860c09b436ab1dd964cd159bfe4f3dd","facts_verdicts":"301c30de8e315e52e768df1a8bc52564","record":"3c3a20ce6eaf9a7ce26455eeacc4fccf","view":"e27e8891011cb2c7a9bc9620b06e34d9","view_display_facts":"3"},"event:44":{"facts_text":"5860c09b436ab1dd964cd159bfe4f3dd","facts_verdicts":"301c30de8e315e52e768df1a8bc52564","record":"2fedafccc77b9f3102d316460518c12c","view":"2b1de833e5fba0505d10c26b9bbc0084","view_display_facts":"3"},"prepare:0":{"facts_text":"5921a9b5ca7ec4b4a91798a2b6b9b472","facts_verdicts":"2df4ad815ff0e7c5249fc0416c098769","record":"f2bd5995cbc6fd9f6c4285892b0b5d83","view":"cde230440d16e5df377cf7cc7732b4ac","view_display_facts":"72"},"prepare:12":{"facts_text":"504f636e0c3daafafdb2d2b2627c5b5e","facts_verdicts":"b049da74cb5fd9246f824b93206c8b0f","record":"f1735054723e81fae41fdde8d194ce81","view":"b6e3eb68d687979471d41561da5d66ca","view_display_facts":"84"},"prepare:26":{"facts_text":"be72d44c82732f4be68ac96972209a8c","facts_verdicts":"089202debffe147c1c41ff7d981b47a0","record":"4cfc8582faf785f158bb6fb52dc19833","view":"9849c7d600bfd7602d691aade295b0d1","view_display_facts":"168"},"prepare:44":{"facts_text":"a0448613eb825f5cb8fc86b68ed53096","facts_verdicts":"650c863ef396e4e7eb09cf5f269611bf","record":"c338c478c5e7f23224231059ffc3ffd3","view":"5e89690b3240e2b00f7dfea2c355d1df","view_display_facts":"276"},"prison:0":{"facts_text":"a49d3ac1f9869c1a04f10f66aa7f9d62","facts_verdicts":"8ac15492e082a0b2fd11ae6b3b425971","record":"83534d41ccd71f3765d180d4226db32a","view":"745f4ba525c48f40da9285093a4b0679","view_display_facts":"80"},"prison:12":{"facts_text":"c11bac92ca0a97ea3c56963fd2e16cdb","facts_verdicts":"f7aca2475daf16c996a6524fec6d009c","record":"0c29839a40cce861eaea875bffb88b24","view":"07fc5042a0cc764f9f3dec4f41260f67","view_display_facts":"89"},"prison:26":{"facts_text":"7af559540fbecc3724a89d00cb34fa9c","facts_verdicts":"861d114d7af66b4cc8e5944085af50b8","record":"75129f782f878c9c89ef0d58dde5c579","view":"71114bfe989f87fb23da4f2ad8384005","view_display_facts":"173"},"prison:44":{"facts_text":"b93bd0eaebeff170eeaf2f9ecfd3409f","facts_verdicts":"808c6abca4a4f8ce503d1e608920fc04","record":"1018f644b94cc4717f1a1b7b5ae5b611","view":"1cac7f1d3965ae8692bdc9a17fb1a747","view_display_facts":"281"},"rest:0":{"facts_text":"393686ad906ff50024b4721af16bbad3","facts_verdicts":"5b73e5d237da5a225336348b5ecb004d","record":"06ed0c8674ecddeeca5b89ac50ff08fa","view":"e36756d65a207ecf04fd2831168e399f","view_display_facts":"64"},"rest:12":{"facts_text":"b7a1c00ab4d6c77cf080f4e96f8a3ff8","facts_verdicts":"eddf76f865bdb481f455a12a03a9f659","record":"cb3f6f59927928956fe0469df9479503","view":"4067506e473440b871b68887f094a1ce","view_display_facts":"88"},"rest:26":{"facts_text":"2237f1df160a09d6111b5cef83d12ed1","facts_verdicts":"2d7ddd65889b54344745bdf0a4739447","record":"ee070850a37acae2aeda88822e61e843","view":"f27f8e313d53eacf2c59736fd0f9fbd0","view_display_facts":"172"},"rest:44":{"facts_text":"5e1476cda54a4efd7d8fbefec7a13d46","facts_verdicts":"20464e46d0de0b11fb5ca3382a4aef1a","record":"bc8b5437aa7102ec73ee8db36120099a","view":"de64909975a05b07a574e10a07d31de3","view_display_facts":"280"},"shop:0":{"facts_text":"398b08ec5976ad486e675a6d7927ad71","facts_verdicts":"9f93307cbf205e036439a7d8c807587b","record":"ab3295996a385aff12779b1f4d99e28a","view":"1095f343d6139b58bb190a9d781a2861","view_display_facts":"51"},"shop:12":{"facts_text":"30c7e01c58893d6600a45abc92e20271","facts_verdicts":"1dc52416253640a7144ca33f60b53e68","record":"7956644c3cbe3a4ac6c1289f4d464b56","view":"e26174af2a3690f050d37942685674b2","view_display_facts":"75"},"shop:26":{"facts_text":"1f79b0f78ab0675bc4f08345949f9fc0","facts_verdicts":"b7f74da4f8de01c323ecfabbfb8c0940","record":"9bb8a5aefd80bf2bd8fe8e5b065d312b","view":"ddc48775495f46f2e86a1fbab2ad6c47","view_display_facts":"103"},"shop:44":{"facts_text":"12230ad3fec71cddf1f5fc5a3f65728f","facts_verdicts":"13311cd463e000b5e7ca5d6794682c50","record":"673b6047c3c4b2aa229ebd85f82d7ca1","view":"86edfa6537149f432ef0e158ca36fc56","view_display_facts":"139"},"takeover:0":{"facts_text":"caa67923fb21847c3358b489d3228540","facts_verdicts":"06225b5acbf1d464349618bcfc8d7ae3","record":"acb56cd8bbcff1f4733d20a463400664","view":"dd717e2e0602bc08fc5f08c1ed1e5027","view_display_facts":"80"},"takeover:12":{"facts_text":"5811212df91552de7b1cb044ccbc4212","facts_verdicts":"cbf31fadaf906d3a1540bf6dcd1cc52e","record":"153def82c92cbe2f15c2f91a0569928a","view":"f7f598d4477dfafe427556db46a95e7b","view_display_facts":"92"}}
 const R3_VIEW_KEYS_BASE=["action_log","arms","battle_item_drop","battle_relic_drop","battle_rewards","bodies","body_coverage","body_groups","body_regions","candidates","capacity","capture","card_chain","card_costs","card_instances","card_texts","carried_items","casting","character_id","climax","composite_portrait_layers","content_status","deck_cards","deck_count","demo_cycle","demo_exit","demo_finished","discard_cards","discard_count","draw_cards","draw_count","encounter","end_turn_locked","enemies","energy","energy_max","equipment_fireball_unlocked","equipment_portrait_layers","first_turn_control","guard_bind","hand","has_restraint_level","hook_contact","hook_environment_name","hook_location","hook_uses","initial_seed","items","journey","legs","logs","mana","mana_flask","mana_max","map_name","map_region","movement","npc_speech","order","pending_retain","phase","phase_caption","pose_name","posture","powers","practice","practice_description","practice_focus","practice_hint","practice_kind","practice_options","preparation_turns","prepare_left","pressure","prison","relics","rest_left","retain_left","reward_count","reward_destination","reward_panel","reward_title","room_event","room_name","rooms_completed","round","route","run_header","security","seed","shop","speech","statuses","summary","temporary_mana","tower_generation","tower_start_pending","travel_log","travel_turns","version","wall","wall_position","wall_text"]
+# View keys the projection carries beyond R3_VIEW_KEYS_BASE and the R3 view mask: key -> reason. This is the one
+# declaration behind both behavior_baseline_equivalence (G6, the added-key set) and default_projection_is_unchanged
+# (F6, the cumulative and incremental key faces); R3_VIEW_MASK and R3_VIEW_KEYS_BASE stay frozen byte for byte.
+# hogtie_recovery is the single entry: core/game_view.gd::build adds it in 73f7363 (group H of
+# E_DECLARED_DIFF_UPSTREAM); every other base key keeps its name.
+const E_VIEW_KEYS_ADDED={"hogtie_recovery":"core/game_view.gd::build adds the hogtie_recovery projection key (73f7363)"}
 
 const R1_TAKEOVER_COUNTS=[0,12]
 const R1_COUNTS=[0,12,26,44]
@@ -2430,7 +2456,10 @@ static func r1_record(g, phase: String, count: int) -> Dictionary:
   out["submit_checkpoint"]=str(result.get("checkpoint",""))
  out["post_phase"]=str(g.state.phase)
  out["post_version"]=str(g.state.version)
- out["snapshot"]=r1_digest(JSON.stringify(g.export_snapshot()))
+ # The e4fde8d baseline predates route history. Persistence tests compare the full record.
+ var snapshot=g.export_snapshot()
+ snapshot.erase("route_history")
+ out["snapshot"]=r1_digest(JSON.stringify(snapshot))
  out["rng"]=r1_digest(JSON.stringify(g.state.rng))
  out["rng_total"]=str(g.state.rng.values().reduce(func(a,b):return int(a)+int(b),0))
  out["logs"]=str(g.state.logs.size())
@@ -2524,6 +2553,7 @@ static func behavior_baseline_equivalence(t) -> void:
    key_problems.append(key+" kept="+str(kept.size())+" frozen="+str(key_base.size())+" missing="+str(key_base.filter(func(name):return not name in view_keys).slice(0,3)))
   added.sort()
   var declared_mask=["display_facts","display_fact_scope"]
+  declared_mask.append_array(E_VIEW_KEYS_ADDED.keys())
   declared_mask.sort()
   if added!=declared_mask: mask_problems.append(key+" added="+str(added)+" declared="+str(declared_mask))
   if not removed.is_empty(): removed_problems.append(key+" removed="+str(removed))
@@ -3412,37 +3442,94 @@ const E_SUBMIT_KEYS=["ok","version","resource_feedback","card_feedback","music_f
 # 战斗相位词表（测试内字面期望）：guarded 过载态＝state.overloaded ∧ phase ∈ 本表（core/game.gd::dispatch 的
 # overloaded 必须与它同值——这条期望不取自实现）。
 const E_COMBAT_PHASES=["battle","prepare","rest","prison"]
-# C-E-7 的声明差异集（G-2 第 2 步；逐 cell 逐字段一条原因）：原因只有一类——已声明的新增键 ⇒ submit_keys
-# （＝result.keys() 摘要）变更 ⇒ 由它派生的 <record> 摘要随之变更。表外任何差异＝红（尤其 view／facts_text／
-# view_display_facts 任一移动）。
-const E_SUBMIT_KEYS_REASON="已声明的新增键：dispatch 成功结果追加 phase／overloaded（K7；C-E-6）及提交音效收据 sound_feedback ⇒ submit_keys 变更 ⇒ 派生 <record> 变更"
+# K4 declaration table: link -> cell -> field -> reason. Link C (the 2026-11-21 human-approved re-freeze) is the
+# only replayed link; the E-batch link is history -- its self-proof stays in the docs/record/verification.md
+# E entries.
+# Fields are the PRE-carried faces of tests/frozen-baselines.json::baseline_pre_cells_c: the five R5 faces plus
+# every record path that moves. Link C has two segments: E_DECLARED_DIFF["C"] holds the groups A-F of the
+# 2026-11-21 re-freeze, every one traced to c8882cc; E_DECLARED_DIFF_UPSTREAM (after this table) holds the groups
+# G-L that first appear in 73f7363 (POST is the product of e4fde8d).
+const BASELINE_DIFF_LINK="C"
+const C_COPY_REASON="A 文案（c8882cc 前端文案精简）：行的 reason／detail／risk 文本改写，行数、键、顺序、valid、费用、魔力不变 ⇒ facts_text／facts_verdicts 摘要变更（只改 detail 的格 facts_verdicts 不动）"
+const C_PREVIEW_REASON="B 皮革伤害预览（c8882cc）：行载荷 preview 新增 material_factor（皮革1.5），damage／scaled_damage／environment_true 随之改变 ⇒ rows_payloads 摘要变更"
+const C_SUBMIT_KEYS_REASON="C 成功结果键面（c8882cc）：dispatch 成功结果新增提交音效收据 sound_feedback（E_SUBMIT_KEYS 同批补入）⇒ submit_keys（＝result.keys() 摘要）变更；PRE＝E_SUBMIT_KEYS 去掉 sound_feedback 的摘要"
+const C_VIEW_REASON="D 投影（c8882cc 内容与文案刷新）：view 键集合不变，区段取值变化（含施法失败只返还自身魔力并向下取整的文本）⇒ view 摘要变更"
+const C_STATE_REASON="E 快照与随机（c8882cc）：快照 logs／summary／enemies／rooms 区段随文案与内容变化；prepare 四格另因敌方拘束等级档位——data/enemies.gd 为 rope／belt／tape／cable_tie 设 departure_restraint_value=5，core/enemy_plans.gd::application 据此带 profiles（data/restraint_value.gd::profiles(5) 两档，离场施加不经弱怪1级过滤），第4回合两次离场施加在 core/equipment_application.gd::choose 由1档变2档（enemy 各多抽1次），选中件改变使 _freeze_variant（equipment）与 core/torso_binding.gd::refresh（binding）各少抽1次：随机总数不变、分配变化，并少3条躯干固缚／肩带日志 ⇒ snapshot／rng／logs 变更"
+const C_PRISON_COPY_REASON="F 监狱拒绝文案（c8882cc；R1_BASELINE 三行 reject_invalid 同批已重冻）：只经 <record> 移动"
+const C_RECORD_REASON="派生：本格声明的记录路径移动 ⇒ <record>（59 条记录路径排序拼接的摘要）变更"
 const E_DECLARED_DIFF={
- "battle:0":{"record":E_SUBMIT_KEYS_REASON},
- "battle:12":{"record":E_SUBMIT_KEYS_REASON},
- "battle:26":{"record":E_SUBMIT_KEYS_REASON},
- "battle:44":{"record":E_SUBMIT_KEYS_REASON},
- "prepare:0":{"record":E_SUBMIT_KEYS_REASON},
- "prepare:12":{"record":E_SUBMIT_KEYS_REASON},
- "prepare:26":{"record":E_SUBMIT_KEYS_REASON},
- "prepare:44":{"record":E_SUBMIT_KEYS_REASON},
- "rest:0":{"record":E_SUBMIT_KEYS_REASON},
- "rest:12":{"record":E_SUBMIT_KEYS_REASON},
- "rest:26":{"record":E_SUBMIT_KEYS_REASON},
- "rest:44":{"record":E_SUBMIT_KEYS_REASON},
- "shop:0":{"record":E_SUBMIT_KEYS_REASON},
- "shop:12":{"record":E_SUBMIT_KEYS_REASON},
- "shop:26":{"record":E_SUBMIT_KEYS_REASON},
- "shop:44":{"record":E_SUBMIT_KEYS_REASON},
- "event:0":{"record":E_SUBMIT_KEYS_REASON},
- "event:12":{"record":E_SUBMIT_KEYS_REASON},
- "event:26":{"record":E_SUBMIT_KEYS_REASON},
- "event:44":{"record":E_SUBMIT_KEYS_REASON},
- "prison:0":{"record":E_SUBMIT_KEYS_REASON},
- "prison:12":{"record":E_SUBMIT_KEYS_REASON},
- "prison:26":{"record":E_SUBMIT_KEYS_REASON},
- "prison:44":{"record":E_SUBMIT_KEYS_REASON},
- "takeover:0":{"record":E_SUBMIT_KEYS_REASON},
- "takeover:12":{"record":E_SUBMIT_KEYS_REASON},
+ "C":{
+  "battle:0":{"facts_text":C_COPY_REASON,"facts_verdicts":C_COPY_REASON,"record":C_RECORD_REASON,"snapshot":C_STATE_REASON,"submit_keys":C_SUBMIT_KEYS_REASON,"view":C_VIEW_REASON},
+  "battle:12":{"facts_text":C_COPY_REASON,"facts_verdicts":C_COPY_REASON,"record":C_RECORD_REASON,"rows_payloads":C_PREVIEW_REASON,"snapshot":C_STATE_REASON,"submit_keys":C_SUBMIT_KEYS_REASON,"view":C_VIEW_REASON},
+  "battle:26":{"facts_text":C_COPY_REASON,"facts_verdicts":C_COPY_REASON,"record":C_RECORD_REASON,"rows_payloads":C_PREVIEW_REASON,"snapshot":C_STATE_REASON,"submit_keys":C_SUBMIT_KEYS_REASON,"view":C_VIEW_REASON},
+  "battle:44":{"facts_text":C_COPY_REASON,"facts_verdicts":C_COPY_REASON,"record":C_RECORD_REASON,"rows_payloads":C_PREVIEW_REASON,"snapshot":C_STATE_REASON,"submit_keys":C_SUBMIT_KEYS_REASON,"view":C_VIEW_REASON},
+  "prepare:0":{"facts_text":C_COPY_REASON,"facts_verdicts":C_COPY_REASON,"logs":C_STATE_REASON,"record":C_RECORD_REASON,"rng":C_STATE_REASON,"snapshot":C_STATE_REASON,"submit_keys":C_SUBMIT_KEYS_REASON,"view":C_VIEW_REASON},
+  "prepare:12":{"facts_text":C_COPY_REASON,"facts_verdicts":C_COPY_REASON,"logs":C_STATE_REASON,"record":C_RECORD_REASON,"rng":C_STATE_REASON,"rows_payloads":C_PREVIEW_REASON,"snapshot":C_STATE_REASON,"submit_keys":C_SUBMIT_KEYS_REASON,"view":C_VIEW_REASON},
+  "prepare:26":{"facts_text":C_COPY_REASON,"facts_verdicts":C_COPY_REASON,"logs":C_STATE_REASON,"record":C_RECORD_REASON,"rng":C_STATE_REASON,"rows_payloads":C_PREVIEW_REASON,"snapshot":C_STATE_REASON,"submit_keys":C_SUBMIT_KEYS_REASON,"view":C_VIEW_REASON},
+  "prepare:44":{"facts_text":C_COPY_REASON,"facts_verdicts":C_COPY_REASON,"logs":C_STATE_REASON,"record":C_RECORD_REASON,"rng":C_STATE_REASON,"rows_payloads":C_PREVIEW_REASON,"snapshot":C_STATE_REASON,"submit_keys":C_SUBMIT_KEYS_REASON,"view":C_VIEW_REASON},
+  "rest:0":{"facts_text":C_COPY_REASON,"facts_verdicts":C_COPY_REASON,"record":C_RECORD_REASON,"snapshot":C_STATE_REASON,"submit_keys":C_SUBMIT_KEYS_REASON,"view":C_VIEW_REASON},
+  "rest:12":{"facts_text":C_COPY_REASON,"facts_verdicts":C_COPY_REASON,"record":C_RECORD_REASON,"rows_payloads":C_PREVIEW_REASON,"snapshot":C_STATE_REASON,"submit_keys":C_SUBMIT_KEYS_REASON,"view":C_VIEW_REASON},
+  "rest:26":{"facts_text":C_COPY_REASON,"facts_verdicts":C_COPY_REASON,"record":C_RECORD_REASON,"rows_payloads":C_PREVIEW_REASON,"snapshot":C_STATE_REASON,"submit_keys":C_SUBMIT_KEYS_REASON,"view":C_VIEW_REASON},
+  "rest:44":{"facts_text":C_COPY_REASON,"facts_verdicts":C_COPY_REASON,"record":C_RECORD_REASON,"rows_payloads":C_PREVIEW_REASON,"snapshot":C_STATE_REASON,"submit_keys":C_SUBMIT_KEYS_REASON,"view":C_VIEW_REASON},
+  "shop:0":{"facts_text":C_COPY_REASON,"record":C_RECORD_REASON,"submit_keys":C_SUBMIT_KEYS_REASON,"view":C_VIEW_REASON},
+  "shop:12":{"facts_text":C_COPY_REASON,"record":C_RECORD_REASON,"submit_keys":C_SUBMIT_KEYS_REASON,"view":C_VIEW_REASON},
+  "shop:26":{"facts_text":C_COPY_REASON,"record":C_RECORD_REASON,"submit_keys":C_SUBMIT_KEYS_REASON,"view":C_VIEW_REASON},
+  "shop:44":{"facts_text":C_COPY_REASON,"record":C_RECORD_REASON,"submit_keys":C_SUBMIT_KEYS_REASON,"view":C_VIEW_REASON},
+  "event:0":{"facts_text":C_COPY_REASON,"record":C_RECORD_REASON,"snapshot":C_STATE_REASON,"submit_keys":C_SUBMIT_KEYS_REASON,"view":C_VIEW_REASON},
+  "event:12":{"facts_text":C_COPY_REASON,"record":C_RECORD_REASON,"snapshot":C_STATE_REASON,"submit_keys":C_SUBMIT_KEYS_REASON,"view":C_VIEW_REASON},
+  "event:26":{"facts_text":C_COPY_REASON,"record":C_RECORD_REASON,"snapshot":C_STATE_REASON,"submit_keys":C_SUBMIT_KEYS_REASON,"view":C_VIEW_REASON},
+  "event:44":{"facts_text":C_COPY_REASON,"record":C_RECORD_REASON,"snapshot":C_STATE_REASON,"submit_keys":C_SUBMIT_KEYS_REASON,"view":C_VIEW_REASON},
+  "prison:0":{"facts_text":C_COPY_REASON,"facts_verdicts":C_COPY_REASON,"record":C_RECORD_REASON,"submit_keys":C_SUBMIT_KEYS_REASON,"view":C_VIEW_REASON},
+  "prison:12":{"facts_text":C_COPY_REASON,"facts_verdicts":C_COPY_REASON,"record":C_RECORD_REASON,"reject_invalid":C_PRISON_COPY_REASON,"rows_payloads":C_PREVIEW_REASON,"submit_keys":C_SUBMIT_KEYS_REASON,"view":C_VIEW_REASON},
+  "prison:26":{"facts_text":C_COPY_REASON,"facts_verdicts":C_COPY_REASON,"record":C_RECORD_REASON,"reject_invalid":C_PRISON_COPY_REASON,"rows_payloads":C_PREVIEW_REASON,"submit_keys":C_SUBMIT_KEYS_REASON,"view":C_VIEW_REASON},
+  "prison:44":{"facts_text":C_COPY_REASON,"facts_verdicts":C_COPY_REASON,"record":C_RECORD_REASON,"reject_invalid":C_PRISON_COPY_REASON,"rows_payloads":C_PREVIEW_REASON,"submit_keys":C_SUBMIT_KEYS_REASON,"view":C_VIEW_REASON},
+  "takeover:0":{"facts_text":C_COPY_REASON,"facts_verdicts":C_COPY_REASON,"record":C_RECORD_REASON,"snapshot":C_STATE_REASON,"submit_keys":C_SUBMIT_KEYS_REASON,"view":C_VIEW_REASON},
+  "takeover:12":{"facts_text":C_COPY_REASON,"facts_verdicts":C_COPY_REASON,"record":C_RECORD_REASON,"rows_payloads":C_PREVIEW_REASON,"snapshot":C_STATE_REASON,"submit_keys":C_SUBMIT_KEYS_REASON,"view":C_VIEW_REASON},
+ },
+}
+# Link C, upstream segment (the 73f7363 release merged by e4fde8d). One reason constant per measured cause; a field
+# moved by several causes joins their constants. The causes below cover every measured move of this segment; the
+# attribution of snapshot, view and the stock label text is the coarsest the measurements support (see each text).
+const C_JOIN="；同时："
+const C_START_REASON="G 起始遗物与起始牌组（73f7363）：core/game.gd::_init 以 RelicEffects.gain 取得 return_seal（取代 _gain_tool），起始牌组新增 dual_chant ⇒ relics／logs 各 +1；牌堆多一张使 core/game.gd::_shuffle 每次洗牌多一次抽取（_start_practice 与 _reset_piles 各洗一次，监狱与接管格洗两次故 +2）⇒ rng／rng_total；快照与投影含遗物与牌组 ⇒ snapshot／view；手牌含 dual_chant ⇒ view_available／view_card_texts 与 card 行；商店 core/room_services.gd::facts 逐牌出移除行（每格 +2 行）；监狱相位 core/relic_effects.gd::facts 新增 return_seal 使用行。投影刷新、快照结构、文案参数三类原因与测量相容、未单独隔离"
+const C_HOGTIE_REASON="H 新增投影键（73f7363）：core/game_view.gd::build 新增 hogtie_recovery（E_VIEW_KEYS_ADDED 声明）⇒ view 摘要变更。投影刷新、快照结构、文案参数三类原因与测量相容、未单独隔离"
+const C_CHARGE_REASON="I 蓄力切换门控（73f7363）：core/game.gd::can_switch_charge() 要求 finesse_bound——_status_toggle_facts 的 status_toggle 行门控由 state.charge>0 改为 can_switch_charge()（行消失），charge_uses_all() 使蓄力层全数计入 charge_bonus（CHARGE_BONUS 未变，attack 行 damage 例 4.4→5.6）⇒ 带蓄力层的战斗态行与载荷变更；战斗格伤害变化的确切范围以本表与实测逐格逐字段相等为准"
+const C_ITEM_REASON="J 道具卡牌化（73f7363）：core/consumables.gd::use_facts → core/item_cards.gd::conversion，core/game.gd::item_action_facts／_item_use_kind_facts 取代已删的 _item_action_kind_facts，core/consumables.gd::noncombat_facts 去掉 outside_battle 门控 ⇒ 休息格的道具行改变（行数、键、载荷）"
+const C_ENCHANT_REASON="K 附魔目录（73f7363）：data/card_enchantments.gd::TYPES 中 nimble 改名 nimble_common 并新增稀有 nimble、assault、assist ⇒ 休息服务 enchant 行的键与载荷改变"
+const C_STOCK_REASON="L 商店库存候选内容更新（73f7363）：来源集 data/card_rules.gd::REWARDS、data/relics.gd（含 shop_pool）与道具说明文本，经 core/room_services.gd::_restock ⇒ 购买行 label／detail 改变（cost／valid 与 payload 不变）；未逐项隔离"
+const U_VIEW=C_HOGTIE_REASON+C_JOIN+C_START_REASON
+const U_COMBAT_ROWS=C_START_REASON+C_JOIN+C_CHARGE_REASON
+const U_REST_ROWS=C_START_REASON+C_JOIN+C_ITEM_REASON+C_JOIN+C_ENCHANT_REASON
+const U_SHOP_TEXT=C_START_REASON+C_JOIN+C_STOCK_REASON
+# cell -> field -> reason, for the moves that first appear in 73f7363. Merged with E_DECLARED_DIFF["C"] by
+# baseline_diff_is_declared: a field is declared when either segment names it, and every declared field must move.
+const E_DECLARED_DIFF_UPSTREAM={
+  "battle:0":{"facts_text":U_COMBAT_ROWS,"facts_verdicts":U_COMBAT_ROWS,"logs":C_START_REASON,"relics":C_START_REASON,"rng":C_START_REASON,"rng_total":C_START_REASON,"rows":U_COMBAT_ROWS,"rows_labels":U_COMBAT_ROWS,"rows_payloads":U_COMBAT_ROWS,"rows_valid":U_COMBAT_ROWS,"snapshot":C_START_REASON,"view":U_VIEW,"view_available":C_START_REASON,"view_display_facts":U_COMBAT_ROWS},
+  "battle:12":{"facts_text":U_COMBAT_ROWS,"facts_verdicts":U_COMBAT_ROWS,"logs":C_START_REASON,"relics":C_START_REASON,"rng":C_START_REASON,"rng_total":C_START_REASON,"rows":U_COMBAT_ROWS,"rows_labels":U_COMBAT_ROWS,"rows_payloads":U_COMBAT_ROWS,"rows_valid":U_COMBAT_ROWS,"snapshot":C_START_REASON,"view":U_VIEW,"view_available":C_START_REASON,"view_display_facts":U_COMBAT_ROWS},
+  "battle:26":{"facts_text":U_COMBAT_ROWS,"facts_verdicts":U_COMBAT_ROWS,"logs":C_START_REASON,"relics":C_START_REASON,"rng":C_START_REASON,"rng_total":C_START_REASON,"rows":U_COMBAT_ROWS,"rows_labels":U_COMBAT_ROWS,"rows_payloads":U_COMBAT_ROWS,"rows_valid":U_COMBAT_ROWS,"snapshot":C_START_REASON,"view":U_VIEW,"view_available":C_START_REASON,"view_display_facts":U_COMBAT_ROWS},
+  "battle:44":{"facts_text":U_COMBAT_ROWS,"facts_verdicts":U_COMBAT_ROWS,"logs":C_START_REASON,"relics":C_START_REASON,"rng":C_START_REASON,"rng_total":C_START_REASON,"rows":U_COMBAT_ROWS,"rows_labels":U_COMBAT_ROWS,"rows_payloads":U_COMBAT_ROWS,"rows_valid":U_COMBAT_ROWS,"snapshot":C_START_REASON,"view":U_VIEW,"view_available":C_START_REASON,"view_display_facts":U_COMBAT_ROWS},
+  "prepare:0":{"facts_text":U_COMBAT_ROWS,"facts_verdicts":U_COMBAT_ROWS,"logs":C_START_REASON,"relics":C_START_REASON,"rng":C_START_REASON,"rng_total":C_START_REASON,"rows_payloads":U_COMBAT_ROWS,"snapshot":C_START_REASON,"view":U_VIEW,"view_available":C_START_REASON,"view_card_texts":C_START_REASON},
+  "prepare:12":{"facts_text":U_COMBAT_ROWS,"facts_verdicts":U_COMBAT_ROWS,"logs":C_START_REASON,"relics":C_START_REASON,"rng":C_START_REASON,"rng_total":C_START_REASON,"rows_payloads":U_COMBAT_ROWS,"snapshot":C_START_REASON,"view":U_VIEW,"view_available":C_START_REASON,"view_card_texts":C_START_REASON},
+  "prepare:26":{"facts_text":U_COMBAT_ROWS,"facts_verdicts":U_COMBAT_ROWS,"logs":C_START_REASON,"relics":C_START_REASON,"rng":C_START_REASON,"rng_total":C_START_REASON,"rows_payloads":U_COMBAT_ROWS,"snapshot":C_START_REASON,"view":U_VIEW,"view_available":C_START_REASON,"view_card_texts":C_START_REASON},
+  "prepare:44":{"facts_text":U_COMBAT_ROWS,"facts_verdicts":U_COMBAT_ROWS,"logs":C_START_REASON,"relics":C_START_REASON,"rng":C_START_REASON,"rng_total":C_START_REASON,"rows_payloads":U_COMBAT_ROWS,"snapshot":C_START_REASON,"view":U_VIEW,"view_available":C_START_REASON,"view_card_texts":C_START_REASON},
+  "rest:0":{"facts_text":U_REST_ROWS,"facts_verdicts":U_REST_ROWS,"logs":C_START_REASON,"relics":C_START_REASON,"rng":C_START_REASON,"rng_total":C_START_REASON,"rows":U_REST_ROWS,"rows_labels":U_REST_ROWS,"rows_payloads":U_REST_ROWS,"rows_valid":U_REST_ROWS,"snapshot":C_START_REASON,"view":U_VIEW,"view_available":C_START_REASON,"view_display_facts":U_REST_ROWS},
+  "rest:12":{"facts_text":U_REST_ROWS,"facts_verdicts":U_REST_ROWS,"logs":C_START_REASON,"relics":C_START_REASON,"rng":C_START_REASON,"rng_total":C_START_REASON,"rows":U_REST_ROWS,"rows_labels":U_REST_ROWS,"rows_payloads":U_REST_ROWS,"rows_valid":U_REST_ROWS,"snapshot":C_START_REASON,"view":U_VIEW,"view_available":C_START_REASON,"view_display_facts":U_REST_ROWS},
+  "rest:26":{"facts_text":U_REST_ROWS,"facts_verdicts":U_REST_ROWS,"logs":C_START_REASON,"relics":C_START_REASON,"rng":C_START_REASON,"rng_total":C_START_REASON,"rows":U_REST_ROWS,"rows_labels":U_REST_ROWS,"rows_payloads":U_REST_ROWS,"rows_valid":U_REST_ROWS,"snapshot":C_START_REASON,"view":U_VIEW,"view_available":C_START_REASON,"view_display_facts":U_REST_ROWS},
+  "rest:44":{"facts_text":U_REST_ROWS,"facts_verdicts":U_REST_ROWS,"logs":C_START_REASON,"relics":C_START_REASON,"rng":C_START_REASON,"rng_total":C_START_REASON,"rows":U_REST_ROWS,"rows_labels":U_REST_ROWS,"rows_payloads":U_REST_ROWS,"rows_valid":U_REST_ROWS,"snapshot":C_START_REASON,"view":U_VIEW,"view_available":C_START_REASON,"view_display_facts":U_REST_ROWS},
+  "shop:0":{"facts_text":U_SHOP_TEXT,"facts_verdicts":C_START_REASON,"logs":C_START_REASON,"relics":C_START_REASON,"rng":C_START_REASON,"rng_total":C_START_REASON,"rows":C_START_REASON,"rows_labels":U_SHOP_TEXT,"rows_payloads":C_START_REASON,"rows_valid":C_START_REASON,"snapshot":C_START_REASON,"view":U_VIEW,"view_display_facts":C_START_REASON},
+  "shop:12":{"facts_text":U_SHOP_TEXT,"facts_verdicts":C_START_REASON,"logs":C_START_REASON,"relics":C_START_REASON,"rng":C_START_REASON,"rng_total":C_START_REASON,"rows":C_START_REASON,"rows_labels":U_SHOP_TEXT,"rows_payloads":C_START_REASON,"rows_valid":C_START_REASON,"snapshot":C_START_REASON,"view":U_VIEW,"view_display_facts":C_START_REASON},
+  "shop:26":{"facts_text":U_SHOP_TEXT,"facts_verdicts":C_START_REASON,"logs":C_START_REASON,"relics":C_START_REASON,"rng":C_START_REASON,"rng_total":C_START_REASON,"rows":C_START_REASON,"rows_labels":U_SHOP_TEXT,"rows_payloads":C_START_REASON,"rows_valid":C_START_REASON,"snapshot":C_START_REASON,"view":U_VIEW,"view_display_facts":C_START_REASON},
+  "shop:44":{"facts_text":U_SHOP_TEXT,"facts_verdicts":C_START_REASON,"logs":C_START_REASON,"relics":C_START_REASON,"rng":C_START_REASON,"rng_total":C_START_REASON,"rows":C_START_REASON,"rows_labels":U_SHOP_TEXT,"rows_payloads":C_START_REASON,"rows_valid":C_START_REASON,"snapshot":C_START_REASON,"view":U_VIEW,"view_display_facts":C_START_REASON},
+  "event:0":{"logs":C_START_REASON,"relics":C_START_REASON,"rng":C_START_REASON,"rng_total":C_START_REASON,"snapshot":C_START_REASON,"view":U_VIEW},
+  "event:12":{"logs":C_START_REASON,"relics":C_START_REASON,"rng":C_START_REASON,"rng_total":C_START_REASON,"snapshot":C_START_REASON,"view":U_VIEW},
+  "event:26":{"logs":C_START_REASON,"relics":C_START_REASON,"rng":C_START_REASON,"rng_total":C_START_REASON,"snapshot":C_START_REASON,"view":U_VIEW},
+  "event:44":{"logs":C_START_REASON,"relics":C_START_REASON,"rng":C_START_REASON,"rng_total":C_START_REASON,"snapshot":C_START_REASON,"view":U_VIEW},
+  "prison:0":{"facts_text":C_START_REASON,"facts_verdicts":C_START_REASON,"logs":C_START_REASON,"relics":C_START_REASON,"rng":C_START_REASON,"rng_total":C_START_REASON,"rows":C_START_REASON,"rows_labels":C_START_REASON,"rows_payloads":C_START_REASON,"rows_valid":C_START_REASON,"snapshot":C_START_REASON,"view":U_VIEW,"view_available":C_START_REASON,"view_display_facts":C_START_REASON},
+  "prison:12":{"facts_text":C_START_REASON,"facts_verdicts":C_START_REASON,"logs":C_START_REASON,"relics":C_START_REASON,"rng":C_START_REASON,"rng_total":C_START_REASON,"rows":C_START_REASON,"rows_labels":C_START_REASON,"rows_payloads":C_START_REASON,"rows_valid":C_START_REASON,"snapshot":C_START_REASON,"view":U_VIEW,"view_available":C_START_REASON,"view_display_facts":C_START_REASON},
+  "prison:26":{"facts_text":C_START_REASON,"facts_verdicts":C_START_REASON,"logs":C_START_REASON,"relics":C_START_REASON,"rng":C_START_REASON,"rng_total":C_START_REASON,"rows":C_START_REASON,"rows_labels":C_START_REASON,"rows_payloads":C_START_REASON,"rows_valid":C_START_REASON,"snapshot":C_START_REASON,"view":U_VIEW,"view_available":C_START_REASON,"view_display_facts":C_START_REASON},
+  "prison:44":{"facts_text":C_START_REASON,"facts_verdicts":C_START_REASON,"logs":C_START_REASON,"relics":C_START_REASON,"rng":C_START_REASON,"rng_total":C_START_REASON,"rows":C_START_REASON,"rows_labels":C_START_REASON,"rows_payloads":C_START_REASON,"rows_valid":C_START_REASON,"snapshot":C_START_REASON,"view":U_VIEW,"view_available":C_START_REASON,"view_display_facts":C_START_REASON},
+  "takeover:0":{"facts_text":U_COMBAT_ROWS,"facts_verdicts":U_COMBAT_ROWS,"logs":C_START_REASON,"relics":C_START_REASON,"rng":C_START_REASON,"rng_total":C_START_REASON,"rows_payloads":U_COMBAT_ROWS,"snapshot":C_START_REASON,"view":U_VIEW,"view_available":C_START_REASON},
+  "takeover:12":{"facts_text":U_COMBAT_ROWS,"facts_verdicts":U_COMBAT_ROWS,"logs":C_START_REASON,"relics":C_START_REASON,"rng":C_START_REASON,"rng_total":C_START_REASON,"rows_payloads":U_COMBAT_ROWS,"snapshot":C_START_REASON,"view":U_VIEW,"view_available":C_START_REASON},
 }
 
 # 期望闭包（由测试内字面表推导，不取自被测闭包实现）：demand ∪ 投影承接组，排序去重。
@@ -3525,6 +3612,10 @@ static func default_projection_is_unchanged(t) -> void:
  pre_keys.append("display_facts")
  var entry_keys=pre_keys.duplicate()
  entry_keys.append("display_fact_scope")
+ entry_keys.append_array(E_VIEW_KEYS_ADDED.keys())
+ var expected_added=["display_fact_scope"]
+ expected_added.append_array(E_VIEW_KEYS_ADDED.keys())
+ expected_added.sort()
  var compared=0
  for cell in r1_cells():
   var key="%s:%d" % [cell[0],cell[1]]
@@ -3535,15 +3626,16 @@ static func default_projection_is_unchanged(t) -> void:
   if not plain.has("display_fact_scope"): scope_missing.append(key)
   var keys=plain.keys()
   var cumulative_added=keys.filter(func(name):return name not in pre_keys)
+  cumulative_added.sort()
   var cumulative_removed=pre_keys.filter(func(name):return name not in keys)
   var incremental_added=keys.filter(func(name):return name not in entry_keys)
   var incremental_removed=entry_keys.filter(func(name):return name not in keys)
-  if cumulative_added!=["display_fact_scope"] or not cumulative_removed.is_empty() or not incremental_added.is_empty() or not incremental_removed.is_empty():
+  if cumulative_added!=expected_added or not cumulative_removed.is_empty() or not incremental_added.is_empty() or not incremental_removed.is_empty():
    key_problems.append(key+" cumulative="+str(cumulative_added)+"/"+str(cumulative_removed)+" F-entry="+str(incremental_added)+"/"+str(incremental_removed))
   compared+=1
  t.check(problems.is_empty(),"K4 default_projection_is_unchanged: the no-argument projection equals the explicit full-group projection byte for byte: "+str(problems.slice(0,3)))
  t.check(scope_missing.is_empty() and compared==r1_cells().size(),"K4 default_projection_is_unchanged: every frozen cell carries the one new view key display_fact_scope: "+str(scope_missing))
- t.check(key_problems.is_empty(),"F6 default_projection_is_unchanged: cumulative added=[display_fact_scope]/removed=[] and F relative to 32ca5bb added=[]/removed=[] from independent literal key faces: "+str(key_problems.slice(0,3)))
+ t.check(key_problems.is_empty(),"F6 default_projection_is_unchanged: cumulative added=[display_fact_scope]+E_VIEW_KEYS_ADDED/removed=[] and F relative to 32ca5bb added=[]/removed=[] from independent literal key faces: "+str(key_problems.slice(0,3)))
  var params=source_func_params("res://core/game.gd","get_view")
  t.check(params==["demand"],"K4 default_projection_is_unchanged: core/game.gd::get_view takes exactly one demand parameter (default [] = full group; UI demand values are pinned by the F call-site check): "+str(params))
  print("E DEFAULT PROJECTION cells=%d" % compared)
@@ -3741,56 +3833,76 @@ static func submit_result_scalars_are_pinned(t) -> void:
  t.check(submits>=3 and key_problems.is_empty() and value_problems.is_empty(),"K4 submit_result_scalars_are_pinned: every sampled submit carries both scalars with the declared values: submits="+str(submits)+" keys="+str(key_problems.slice(0,2))+" values="+str(value_problems.slice(0,2)))
  print("E SUBMIT SCALARS submits=%d" % submits)
 
-# C-E-7（gherkin E-7；acceptance.md §1 E 段；G-2 五步程序）：同批重冻——submit_keys（＝result.keys() 摘要）与
-# 派生 <record> 两个字段面 × 26 cell 的差异 ⊆ 声明且声明 ⊆ 差异（双向；差异漏进 view／facts_text／
-# facts_verdicts／view_display_facts 即红——它们不在声明里）；自证＝前值可由后值按声明反推（把 post 记录里
-# submit_keys 一行的值换回旧键面摘要后重算，逐 cell 等于前值）；前值来自外部锚定文件 tests/frozen-baselines.json。
+# Link C (gherkin E-7 procedure; the only replayed link): the declared diff of the 2026-11-21 human-approved
+# re-freeze, replayed against the current values. The declaration is the merge of the two segments
+# E_DECLARED_DIFF["C"] (c8882cc) and E_DECLARED_DIFF_UPSTREAM (73f7363).
+# PRE = tests/frozen-baselines.json::baseline_pre_cells_c, anchored to the 69cf2f1 test file;
+# POST = r1_record now. Two-way: every moved PRE-carried face is declared and every declaration moved. Self-proof:
+# the declared record paths take their PRE value back and the recomputed <record> digest equals PRE.record cell by
+# cell, so an undeclared move among the 59 paths or a wrong carried PRE value is red. The submit key face is tied
+# to its reason both ways (POST == E_SUBMIT_KEYS, PRE == E_SUBMIT_KEYS minus the declared sound_feedback).
 static func baseline_diff_is_declared(t) -> void:
- var pre_cells=frozen_baselines().get("baseline_pre_cells",{})
- t.check(pre_cells is Dictionary and not (pre_cells as Dictionary).is_empty(),"K4 baseline_diff_is_declared: the pre-batch cell face lives in the external file "+FROZEN_BASELINES_JSON)
- var pre_face=String(S5_SUBMIT_KEYS_AFTER_DIGEST)
- var post_face=r1_digest(JSON.stringify(E_SUBMIT_KEYS))
- t.check(r1_digest(JSON.stringify(S5_SUBMIT_KEYS_AFTER))==pre_face,"K4 baseline_diff_is_declared: the pre-batch submit key face still hashes to the frozen S5 digest")
- t.check(post_face!=pre_face,"K4 baseline_diff_is_declared: the two key faces differ (the rebaseline is real, not a copied value)")
- var diff={}
+ var link=BASELINE_DIFF_LINK
+ var pre_key="baseline_pre_cells_"+link.to_lower()
+ var frozen=frozen_baselines()
+ var pre_cells=frozen.get(pre_key,{})
+ var anchor_table=frozen.get("anchor",{})
+ t.check(pre_cells is Dictionary and (pre_cells as Dictionary).size()==r1_cells().size(),"K4 baseline_diff_is_declared: the link "+link+" PRE face lives in the external file "+FROZEN_BASELINES_JSON+" and covers every frozen cell")
+ t.check(anchor_table is Dictionary and (anchor_table as Dictionary).has(pre_key),"K4 baseline_diff_is_declared: the link "+link+" PRE is anchored to a commit blob in "+FROZEN_BASELINES_JSON)
+ t.check(E_DECLARED_DIFF.keys()==[link],"K4 baseline_diff_is_declared: the declaration table holds exactly the replayed link "+link+" have="+str(E_DECLARED_DIFF.keys()))
+ if not pre_cells is Dictionary: return
+ var declared_cells={}
+ for segment in [E_DECLARED_DIFF.get(link,{}),E_DECLARED_DIFF_UPSTREAM]:
+  for cell_key in segment:
+   if not declared_cells.has(cell_key): declared_cells[cell_key]={}
+   for field in segment[cell_key]: declared_cells[cell_key][field]=segment[cell_key][field]
+ var post_keys=r1_digest(JSON.stringify(E_SUBMIT_KEYS))
+ var pre_keys=r1_digest(JSON.stringify(E_SUBMIT_KEYS.filter(func(name):return name!="sound_feedback")))
+ t.check(post_keys!=pre_keys,"K4 baseline_diff_is_declared: the declared submit key addition is real (the two key faces differ)")
+ var moved_by_cell={}
  var self_proof=[]
  var problems=[]
  for cell in r1_cells():
   var key="%s:%d" % [cell[0],cell[1]]
   var record=r1_record(r1_build(cell[0],cell[1]),cell[0],cell[1])
+  var record_digest=r1_record_digest(record)
   var pre=pre_cells.get(key,{})
-  if pre.is_empty():
+  if not pre is Dictionary or pre.is_empty():
    problems.append(key+": no frozen pre face")
    continue
+  var declared_fields=declared_cells.get(key,{})
+  var moved={}
+  for field in pre:
+   var post=record_digest if field=="record" else str(record.get(field,"<missing>"))
+   if post!=String(pre[field]): moved[field]=true
+  moved_by_cell[key]=moved
   var paths=record.keys()
   paths.sort()
   var lines=[]
   for path in paths:
    var value=str(record[path])
-   if path=="submit_keys" and value!="<none>": value=pre_face
+   if declared_fields.has(path):
+    if pre.has(path): value=String(pre[path])
+    else: problems.append(key+"."+str(path)+": a declared path carries no PRE value")
    lines.append(str(path)+"="+value)
-  if r1_digest("\n".join(lines))!=String(pre.get("record","")): self_proof.append(key+": the pre <record> is not derivable from the post one")
-  if str(record["submit_keys"])!=post_face: problems.append(key+": the submit key face digest is not the declared one have="+str(record["submit_keys"]))
-  var moved={}
-  var post_face_values={"facts_text":str(record["facts_text"]),"facts_verdicts":str(record["facts_verdicts"]),"record":r1_record_digest(record),"view":str(record["view"]),"view_display_facts":str(record["view_display_facts"])}
-  for field in post_face_values:
-   if String(post_face_values[field])!=String(pre.get(field,"")): moved[field]=E_SUBMIT_KEYS_REASON
-  diff[key]=moved
+  if r1_digest("\n".join(lines))!=String(pre.get("record","")): self_proof.append(key+": the PRE <record> is not derivable from the POST record by the declared paths")
+  if str(record["submit_keys"])!="<none>" and str(record["submit_keys"])!=post_keys: problems.append(key+": the POST submit key face is not the E_SUBMIT_KEYS digest have="+str(record["submit_keys"]))
+  if pre.has("submit_keys") and String(pre["submit_keys"])!=pre_keys: problems.append(key+": the PRE submit key face is not E_SUBMIT_KEYS minus sound_feedback have="+String(pre["submit_keys"]))
  var undeclared=[]
  var missing_move=[]
  var moved_cells=0
- for key in diff:
-  for field in diff[key]:
-   if not (E_DECLARED_DIFF.has(key) and E_DECLARED_DIFF[key].has(field)): undeclared.append(key+"."+field)
-  if not diff[key].is_empty(): moved_cells+=1
- for key in E_DECLARED_DIFF:
-  for field in E_DECLARED_DIFF[key]:
-   if not (diff.has(key) and diff[key].has(field)): missing_move.append(key+"."+field)
- t.check(problems.is_empty() and self_proof.is_empty(),"K4 baseline_diff_is_declared: the two field faces move exactly as declared and the pre face is derivable from the post face: "+str(problems.slice(0,3))+" "+str(self_proof.slice(0,3)))
- t.check(undeclared.is_empty(),"K4 baseline_diff_is_declared: every moved cell field is declared (a move outside submit_keys／<record> is red): "+str(undeclared.slice(0,4)))
+ for key in moved_by_cell:
+  for field in moved_by_cell[key]:
+   if not (declared_cells.has(key) and declared_cells[key].has(field)): undeclared.append(key+"."+field)
+  if not moved_by_cell[key].is_empty(): moved_cells+=1
+ for key in declared_cells:
+  for field in declared_cells[key]:
+   if not (moved_by_cell.has(key) and moved_by_cell[key].has(field)): missing_move.append(key+"."+field)
+ t.check(problems.is_empty() and self_proof.is_empty(),"K4 baseline_diff_is_declared: the declared paths move from their PRE values and the PRE <record> is derivable from the POST record: "+str(problems.slice(0,3))+" "+str(self_proof.slice(0,3)))
+ t.check(undeclared.is_empty(),"K4 baseline_diff_is_declared: every moved cell field is declared (a move outside link "+link+" is red): "+str(undeclared.slice(0,4)))
  t.check(missing_move.is_empty(),"K4 baseline_diff_is_declared: every declared move happened (a declaration without a move is red): "+str(missing_move.slice(0,4)))
- t.check(E_DECLARED_DIFF.size()==r1_cells().size() and moved_cells==E_DECLARED_DIFF.size(),"K4 baseline_diff_is_declared: the declaration covers the frozen cells one by one have="+str(E_DECLARED_DIFF.size())+" moved="+str(moved_cells))
- print("E BASELINE DIFF declared=%d moved=%d" % [E_DECLARED_DIFF.size(),moved_cells])
+ t.check(declared_cells.size()==r1_cells().size() and moved_cells==declared_cells.size(),"K4 baseline_diff_is_declared: the declaration covers the frozen cells one by one have="+str(declared_cells.size())+" moved="+str(moved_cells))
+ print("BASELINE DIFF link=%s declared_cells=%d moved_cells=%d" % [link,declared_cells.size(),moved_cells])
 
 # ==== F 批（K5 接线；plan §3 F 行；acceptance.md §1 F 段与 §4 F 命令清单）====
 # 顺序（acceptance.md §5 第 5 条）：C-F-1／2／3／8／9 先绿，才进 C-F-6（契约文本与 mask）；C-F-7 常驻、期望零移动。
@@ -4824,77 +4936,92 @@ static func point_query_builds_no_table(t) -> void:
  print("POINT QUERY NO TABLE fixtures=%d rows=%d distinct_answered=%d rebased_covered=%d phase_unit_exempt=%s takeover_builds=1" % [fixtures.size(),rows_seen,compared,covered.size(),str(exempt_hits.keys())])
 
 # Freeze branch identity, command shape, availability, and presentation reasons.
-# The 2026-10-30 copy refresh compares all 63 states with the pre-change source;
-# only reason/detail strings differ. Evidence is recorded in docs/record/verification.md.
-const PREFIX_BRANCH_TABLE_SOURCE_SHA256="D802A3D062F23BA915943AF75AA0524CD434E443FA72E27747F095D9BAFB5EC9"
+# Link C, upstream segment: all 63 faces were recomputed on the committed tree e4fde8d (the product of 73f7363).
+# 51 states moved against the 69cf2f1 faces and 12 (every domain_blocked sweep) did not. The moves are the item rows
+# (item_use in all 51 states, item_retrieve in 11, item_install in 1: core/item_cards.gd::conversion with
+# core/game.gd::item_action_facts), the status_toggle row gated by core/game.gd::can_switch_charge (gone in 27 states),
+# the card rows of the new starting hand (9 states) and the rekeyed enchant rows of flag:rest_card
+# (data/card_enchantments.gd::TYPES). The source sha256 is taken over the raw blob bytes of
+# e4fde8d:spire-godot/core/game.gd (`git show` output, LF as committed), the source that reproduces all 63 frozen faces.
+const PREFIX_BRANCH_TABLE_SOURCE_SHA256="3FB399A1D6366E897906FD64EF0E2D5169D130ED5F442C66CA18EC1E420950E7"
 # 状态数（字面）：branch_sweep_states() 与下表都必须恰为这个数——「删一态＋同步删基线」在此红。
 const PREFIX_BRANCH_TABLE_STATE_COUNT=63
 const PREFIX_BRANCH_TABLE_BASELINE={
- "sweep:departure|plain":["departure","8","0a2f9d0dde945abd70b6d831f6e00ea0"],
- "sweep:departure|relic_bundle":["relic_bundle","9","db85dae4e279769ca6bbe9a1daa3a82d"],
- "sweep:departure|departure":["departure","8","0a2f9d0dde945abd70b6d831f6e00ea0"],
- "sweep:departure|domain_blocked":["departure","8","0a2f9d0dde945abd70b6d831f6e00ea0"],
- "sweep:rest_choice|plain":["rest_choice","8","89575a0a85aae62335e2c9e104ce3c12"],
- "sweep:rest_choice|relic_bundle":["relic_bundle","9","db85dae4e279769ca6bbe9a1daa3a82d"],
- "sweep:rest_choice|departure":["rest_choice","8","89575a0a85aae62335e2c9e104ce3c12"],
+ "sweep:departure|plain":["departure","9","41a26e82c77d2dceca8b36de6ff8f477"],
+ "sweep:departure|relic_bundle":["relic_bundle","10","7196bca0a9f94e03cf2ab93b5cd1340a"],
+ "sweep:departure|departure":["departure","9","41a26e82c77d2dceca8b36de6ff8f477"],
+ "sweep:departure|domain_blocked":["departure","9","41a26e82c77d2dceca8b36de6ff8f477"],
+ "sweep:rest_choice|plain":["rest_choice","8","3d9a58c33bed6eaeafafc89407b899b8"],
+ "sweep:rest_choice|relic_bundle":["relic_bundle","10","7196bca0a9f94e03cf2ab93b5cd1340a"],
+ "sweep:rest_choice|departure":["rest_choice","8","3d9a58c33bed6eaeafafc89407b899b8"],
  "sweep:rest_choice|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
- "sweep:reward|plain":["reward","7","14c4306fcbef8a2e93b2ed5bf401432d"],
- "sweep:reward|relic_bundle":["relic_bundle","9","db85dae4e279769ca6bbe9a1daa3a82d"],
- "sweep:reward|departure":["reward","7","14c4306fcbef8a2e93b2ed5bf401432d"],
+ "sweep:reward|plain":["reward","7","3ab6bb4c61ce95df3ebde25963b44307"],
+ "sweep:reward|relic_bundle":["relic_bundle","10","7196bca0a9f94e03cf2ab93b5cd1340a"],
+ "sweep:reward|departure":["reward","7","3ab6bb4c61ce95df3ebde25963b44307"],
  "sweep:reward|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
- "sweep:map|plain":["map","8","a507c6c80ccbb62052b1371922fb8f1e"],
- "sweep:map|relic_bundle":["relic_bundle","9","db85dae4e279769ca6bbe9a1daa3a82d"],
- "sweep:map|departure":["map","8","a507c6c80ccbb62052b1371922fb8f1e"],
+ "sweep:map|plain":["map","8","0d1b497f78fbb47fb5cb246e93ee5905"],
+ "sweep:map|relic_bundle":["relic_bundle","10","7196bca0a9f94e03cf2ab93b5cd1340a"],
+ "sweep:map|departure":["map","8","0d1b497f78fbb47fb5cb246e93ee5905"],
  "sweep:map|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
- "sweep:travel|plain":["travel","7","9ad5d6e7271d424ddecc846ba5807c91"],
- "sweep:travel|relic_bundle":["relic_bundle","9","db85dae4e279769ca6bbe9a1daa3a82d"],
- "sweep:travel|departure":["travel","7","9ad5d6e7271d424ddecc846ba5807c91"],
+ "sweep:travel|plain":["travel","7","e68e2ef62adfc5a3026fefafc3013651"],
+ "sweep:travel|relic_bundle":["relic_bundle","10","7196bca0a9f94e03cf2ab93b5cd1340a"],
+ "sweep:travel|departure":["travel","7","e68e2ef62adfc5a3026fefafc3013651"],
  "sweep:travel|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
- "sweep:cleared|plain":["cleared","2","d87610942815b24e6660de917451defe"],
- "sweep:cleared|relic_bundle":["relic_bundle","7","e09edecb14b88418e58a6d14523ac0b8"],
- "sweep:cleared|departure":["cleared","2","d87610942815b24e6660de917451defe"],
+ "sweep:cleared|plain":["cleared","4","74b913991735e4fc37d0a3e0704ab014"],
+ "sweep:cleared|relic_bundle":["relic_bundle","9","0101ca01ae8442ce5301284a8419b5bb"],
+ "sweep:cleared|departure":["cleared","4","74b913991735e4fc37d0a3e0704ab014"],
  "sweep:cleared|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
- "sweep:pack|plain":["pack","10","98237f175a56ee564dfff2cf1d9ad562"],
- "sweep:pack|relic_bundle":["relic_bundle","9","db85dae4e279769ca6bbe9a1daa3a82d"],
- "sweep:pack|departure":["pack","10","98237f175a56ee564dfff2cf1d9ad562"],
+ "sweep:pack|plain":["pack","9","f0cbe267e6ccd863bbef7b3d493e761c"],
+ "sweep:pack|relic_bundle":["relic_bundle","10","7196bca0a9f94e03cf2ab93b5cd1340a"],
+ "sweep:pack|departure":["pack","9","f0cbe267e6ccd863bbef7b3d493e761c"],
  "sweep:pack|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
- "sweep:prison_end|plain":["prison_end","2","d87610942815b24e6660de917451defe"],
- "sweep:prison_end|relic_bundle":["relic_bundle","7","e09edecb14b88418e58a6d14523ac0b8"],
- "sweep:prison_end|departure":["prison_end","2","d87610942815b24e6660de917451defe"],
+ "sweep:prison_end|plain":["prison_end","4","74b913991735e4fc37d0a3e0704ab014"],
+ "sweep:prison_end|relic_bundle":["relic_bundle","9","0101ca01ae8442ce5301284a8419b5bb"],
+ "sweep:prison_end|departure":["prison_end","4","74b913991735e4fc37d0a3e0704ab014"],
  "sweep:prison_end|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
- "sweep:captured|plain":["captured_inspection","7","25b29176db3b31f05af7311596afc648"],
- "sweep:captured|relic_bundle":["relic_bundle","9","db85dae4e279769ca6bbe9a1daa3a82d"],
- "sweep:captured|departure":["captured_inspection","7","25b29176db3b31f05af7311596afc648"],
+ "sweep:captured|plain":["captured_inspection","7","3d277d3c148eced43ffab5098ff6e065"],
+ "sweep:captured|relic_bundle":["relic_bundle","10","7196bca0a9f94e03cf2ab93b5cd1340a"],
+ "sweep:captured|departure":["captured_inspection","7","3d277d3c148eced43ffab5098ff6e065"],
  "sweep:captured|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
- "sweep:inspection|plain":["captured_inspection","8","c170407313358f9de4c81f218f34267c"],
- "sweep:inspection|relic_bundle":["relic_bundle","9","db85dae4e279769ca6bbe9a1daa3a82d"],
- "sweep:inspection|departure":["captured_inspection","8","c170407313358f9de4c81f218f34267c"],
+ "sweep:inspection|plain":["captured_inspection","8","e400c7a09d9983a439f4b7051845a654"],
+ "sweep:inspection|relic_bundle":["relic_bundle","10","7196bca0a9f94e03cf2ab93b5cd1340a"],
+ "sweep:inspection|departure":["captured_inspection","8","e400c7a09d9983a439f4b7051845a654"],
  "sweep:inspection|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
- "sweep:battle|plain":["action_tail","93","eda2a09ed3f0f6bc7af0e4d1188fa9ec"],
- "sweep:battle|relic_bundle":["relic_bundle","8","609bfddb170311c1bb37d8b7048e22ac"],
- "sweep:battle|departure":["action_tail","93","eda2a09ed3f0f6bc7af0e4d1188fa9ec"],
+ "sweep:battle|plain":["action_tail","82","5703444dd25a326267df82fd98fe018c"],
+ "sweep:battle|relic_bundle":["relic_bundle","10","7196bca0a9f94e03cf2ab93b5cd1340a"],
+ "sweep:battle|departure":["action_tail","82","5703444dd25a326267df82fd98fe018c"],
  "sweep:battle|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
- "sweep:prepare|plain":["action_tail","77","833631fa6c50ad5e7c4581502aca2f31"],
- "sweep:prepare|relic_bundle":["relic_bundle","9","db85dae4e279769ca6bbe9a1daa3a82d"],
- "sweep:prepare|departure":["action_tail","77","833631fa6c50ad5e7c4581502aca2f31"],
+ "sweep:prepare|plain":["action_tail","66","107fd7a51b9d7437a7565df443894c4a"],
+ "sweep:prepare|relic_bundle":["relic_bundle","10","7196bca0a9f94e03cf2ab93b5cd1340a"],
+ "sweep:prepare|departure":["action_tail","66","107fd7a51b9d7437a7565df443894c4a"],
  "sweep:prepare|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
- "sweep:rest|plain":["action_tail","77","e3601a017e9673a1a2703b1a3dca969b"],
- "sweep:rest|relic_bundle":["relic_bundle","9","db85dae4e279769ca6bbe9a1daa3a82d"],
- "sweep:rest|departure":["action_tail","77","e3601a017e9673a1a2703b1a3dca969b"],
+ "sweep:rest|plain":["action_tail","66","e949b0641fe2701016b4cb97205120ba"],
+ "sweep:rest|relic_bundle":["relic_bundle","10","7196bca0a9f94e03cf2ab93b5cd1340a"],
+ "sweep:rest|departure":["action_tail","66","e949b0641fe2701016b4cb97205120ba"],
  "sweep:rest|domain_blocked":["domain_blocked","0","4f53cda18c2baa0c0354bb5f9a3ecbe5"],
- "flag:overload_climax":["overload_climax","6","63ef64aa6bfbda1da4da1baeb6a906da"],
- "flag:pending_retain":["pending_retain","12","690c89746a256c4edb8faec68cc3a51e"],
- "flag:equipment_spell":["action_tail","117","7de0ef3efb871b5c522be14be87f4dc9"],
- "flag:hook":["action_tail","83","9af4265cf8bad6ad92717e0a7697aa43"],
- "flag:demo_exit":["cleared","4","0df86713c77f877b4564e49107737275"],
- "flag:card_chain":["card_chain","7","682afed1b5f48406d4122b3d0218375a"],
- # The 11 original rows are preserved; this fixture adds 30 card/affix pairs and two refresh payments.
- "flag:rest_card":["rest_choice","43","b1ce12d2620026b620e9b9c2a36c1e91"],
- "flag:reward_skip":["reward","9","c5658346f0bba2c8e302c725e3f2ebb1"],
- "flag:relic_rows":["action_tail","107","3472cae8c38b097967241beb9c2aba38"],
- "flag:relic_bundle_equipped":["relic_bundle","8","e7dccde4536f9d304e05b8c58ef03857"],
- "flag:departure_equipped":["departure","8","0a2f9d0dde945abd70b6d831f6e00ea0"],
+ "flag:overload_climax":["overload_climax","8","91fe4fe40da6bea66211947686d2c924"],
+ "flag:pending_retain":["pending_retain","13","94ea2deeeb5a14953f6ba77ff935c6a5"],
+ "flag:equipment_spell":["action_tail","106","55ee451295c918501446995e1286c4fc"],
+ "flag:hook":["action_tail","68","1e7a49eb2465d3eca373d0a6651e50fe"],
+ "flag:demo_exit":["cleared","6","c3015e145a6b2ad38c58820afc2cb755"],
+ "flag:card_chain":["card_chain","8","59dfa83bf61872ab6c4343dd66eff644"],
+ # The original non-enchant rows keep their face except the excluded kinds (REST_CARD_ORIGINAL_EXCLUDED_KINDS); this fixture adds 32 enchant rows: 30 card/affix pairs and two refresh payments.
+ "flag:rest_card":["rest_choice","45","4f1ea9e7f23f6eff3eff7e6121e5750b"],
+ "flag:reward_skip":["reward","9","e3579b72d805e7e9b561145d738155ca"],
+ "flag:relic_rows":["action_tail","96","5288ea9613632d2c1b23b283d89efc8f"],
+ "flag:relic_bundle_equipped":["relic_bundle","10","5dec1b970aeee8c9d7e27092d91d5896"],
+ "flag:departure_equipped":["departure","9","41a26e82c77d2dceca8b36de6ff8f477"],
 }
+
+# flag:rest_card original rows: the rest-choice rows that are not enchant rows keep their pre-service face
+# (key, valid, reason, group, payload). The filter drops only what the 73f7363 upstream legitimately moved: enchant (the
+# catalog was rekeyed), item_use (consumables became cards, so item rows are rekeyed and regrouped with a hand target)
+# and status_toggle (the charge toggle row is gated by can_switch_charge). item_discard is deliberately NOT excluded:
+# the discard rows stay inside the frozen face. What it still guards: the nine remaining rows keep byte-identical
+# key, validity, reason, group and payload against the frozen digest, so any later change to them is red.
+const REST_CARD_ORIGINAL_EXCLUDED_KINDS=["enchant","item_use","status_toggle"]
+const REST_CARD_ORIGINAL_ROW_COUNT=9
+const REST_CARD_ORIGINAL_DIGEST="518dd090bbc9c27b7eefbe33ccdbf1df"
 
 static func prefix_branch_table_face(g) -> String:
  var rows=g.command_facts()
@@ -4916,9 +5043,9 @@ static func prefix_branch_tables_are_frozen(t) -> void:
   var rows=g.command_facts()
   var have=[g._phase_branch(),str(rows.size()),prefix_branch_table_face(g)]
   if label=="flag:rest_card":
-   var original=rows.filter(func(row):return row.payload.kind!="enchant")
+   var original=rows.filter(func(row):return String(row.payload.kind) not in REST_CARD_ORIGINAL_EXCLUDED_KINDS)
    var digest=r1_digest(JSON.stringify(original.map(func(row):return [String(row.get("key","")),bool(row.get("valid",false)),String(row.get("reason","")),String(row.get("group","")),row.get("payload",{})])))
-   t.check(original.size()==11 and digest=="91a85d569516914243cea1d080feee90","ENCHANT original rest-choice rows preserve their pre-service frozen face")
+   t.check(original.size()==REST_CARD_ORIGINAL_ROW_COUNT and digest==REST_CARD_ORIGINAL_DIGEST,"ENCHANT original rest-choice rows preserve their pre-service frozen face")
   var want=PREFIX_BRANCH_TABLE_BASELINE[label]
   compared+=1
   if JSON.stringify(have)!=JSON.stringify(want): moved.append(label+" have="+JSON.stringify(have)+" want="+JSON.stringify(want))
@@ -7069,3 +7196,125 @@ static func frozen_anchor_files_match_git(t) -> void:
  t.check(mismatches.is_empty(),"FB frozen_anchor_files_match_git: every anchor blob hash equals its declared sha256 (git unavailable, object missing and hash mismatch all fail closed): "+str(mismatches))
  print("FROZEN ANCHORS: %d anchor(s) recomputed from git blobs, %d matched" % [anchors.size(),anchors.size()-mismatches.size()])
 
+# ==== 塔路历史（docs/spec/save-fixed-points.md「加性字段与只读入口」）====
+# state.route_history 的唯一写入者是 core/route_history.gd；直接写面只有 _init 字面与
+# restore_snapshot 的单行回填，追加只由 TRANSITIONS 的 route 列在 _apply_transition 的
+# not-continuation 块里派生。以下检查读源码文本与声明表，不依赖运行期计数器。
+const ROUTE_HISTORY_FILE="core/route_history.gd"
+# The suite loads the owner module so the check index has a real case-file edge to it
+# (tests/check_index.gd counts `preload` targets); the judgments below still read source text.
+const RouteHistoryModule=preload("res://core/route_history.gd")
+
+# Write shape outside the owner module: a field assignment, a chained element assignment
+# (state.route_history[i][k]=…), or a mutating call on the field name.
+const ROUTE_HISTORY_WRITE_PATTERN="(?<![A-Za-z0-9_])route_history\\s*(?:\\[[^\\]]*\\]\\s*)*(?:=(?!=)|\\.(?:append|push_back|insert|erase|clear|remove_at)\\s*\\()"
+# A local name bound to the field is a write path by another name; only the owner module may
+# hold one. Catch the binding itself, which is what a later history.append(…) would rely on.
+const ROUTE_HISTORY_ALIAS_PATTERN="^\\s*(?:var\\s+)?([A-Za-z_][A-Za-z0-9_]*)\\s*(?::[^=\\n]*)?=\\s*[^#\\n]*route_history"
+# The registered sites outside the owner module, each pinned by its anchor text: every runtime
+# line in core/data/ui that names route_history (the field, or the owner module path in the
+# game.gd preload) must be one of them. The owner module is allowed wholesale as the single writer.
+const ROUTE_HISTORY_REFERENCE_SITES=["core/game.gd::<file>","core/game.gd::_init","core/game.gd::restore_snapshot","core/snapshot.gd::check"]
+const ROUTE_HISTORY_REFERENCE_ANCHORS={"<file>":"preload(\"res://core/route_history.gd\")","_init":"\"route_history\":[]","restore_snapshot":"candidate.route_history=RouteHistory.backfill(candidate)"}
+
+static func route_history_write_sites() -> Array:
+ return source_write_sites(["res://core","res://data","res://ui"],ROUTE_HISTORY_WRITE_PATTERN)
+
+static func route_history_single_writer(t) -> void:
+ var writes=write_site_names(route_history_write_sites())
+ t.check(writes==["core/game.gd::restore_snapshot"],"ROUTEHIST route_history_single_writer: the only direct field write outside the owner module is the restore_snapshot backfill: "+str(writes))
+ var aliases=route_history_alias_sites()
+ t.check(aliases.is_empty(),"ROUTEHIST route_history_single_writer: no module binds a local alias of route_history outside the owner: "+str(aliases))
+ var opens=write_site_names(source_write_sites(["res://core","res://data","res://ui"],"(?<![A-Za-z0-9_])RouteHistory\\.open\\s*\\("))
+ t.check(opens==["core/game.gd::_apply_transition"],"ROUTEHIST route_history_single_writer: RouteHistory.open has exactly one call site inside _apply_transition: "+str(opens))
+ var expected="if not continuation:\n  _transition_log.append(kind)\n  if bool(spec.get(\"route\",false)): RouteHistory.open(self,kind)\n _transition_written="
+ t.check(game_function_body("_apply_transition").replace("\r","").contains(expected),"ROUTEHIST route_history_single_writer: the append is the second statement of the not-continuation block")
+ var text=source_text(ROUTE_HISTORY_FILE)
+ t.check(text.contains("func open(") and text.contains("func reason(") and text.contains("func backfill("),"ROUTEHIST route_history_single_writer: the owner module declares the three contracted entry points")
+ t.check(source_text("core/game.gd").contains("\"route_history\":[]"),"ROUTEHIST route_history_single_writer: the _init literal still creates the field once")
+
+# A whitelist of the sites above rather than a list of write shapes, so an alias, a
+# chained element write or an unregistered read is red even when no write pattern matches it.
+static func route_history_reference_sites() -> Array:
+ return source_write_sites(["res://core","res://data","res://ui"],"(?<![A-Za-z0-9_])route_history\\b")
+
+static func route_history_alias_sites() -> Array:
+ var sites=source_write_sites(["res://core","res://data","res://ui"],ROUTE_HISTORY_ALIAS_PATTERN)
+ return sites.filter(func(hit):return String(hit.file)!=ROUTE_HISTORY_FILE).map(func(hit):return String(hit.file)+"::"+String(hit.function)+":"+str(hit.line))
+
+static func route_history_reference_violations() -> Array:
+ var out=[]
+ for hit in route_history_reference_sites():
+  var name=String(hit.file)+"::"+String(hit.function)
+  if String(hit.file)==ROUTE_HISTORY_FILE or name in ROUTE_HISTORY_REFERENCE_SITES: continue
+  out.append(name+":"+str(hit.line))
+ return out
+
+static func route_history_references_are_pinned(t) -> void:
+ var violations=route_history_reference_violations()
+ t.check(violations.is_empty(),"ROUTEHIST route_history_references_are_pinned: every route_history reference lives in the owner module, the registered game.gd sites or snapshot validation: "+str(violations))
+ var game=route_history_reference_sites().filter(func(hit):return String(hit.file)=="core/game.gd")
+ t.check(game.size()==3,"ROUTEHIST route_history_references_are_pinned: game.gd names route_history exactly three times: "+str(game.size()))
+ for hit in game:
+  var function=String(hit.function)
+  var anchor=String(ROUTE_HISTORY_REFERENCE_ANCHORS.get(function,""))
+  t.check(anchor!="" and String(hit.text).contains(anchor),"ROUTEHIST route_history_references_are_pinned: the "+function+" reference keeps its registered line: "+String(hit.text))
+
+static func route_switch_declared(t) -> void:
+ var flagged=[]
+ for kind in GameCore.TRANSITIONS:
+  if bool(GameCore.TRANSITIONS[kind].get("route",false)): flagged.append(String(kind))
+ flagged.sort()
+ t.check(flagged==["prison_escape","setup_init","tower_restart"],"ROUTEHIST route_switch_declared: exactly the three route-opening kinds carry the flag: "+str(flagged))
+
+static func route_reason_branches_declared(t) -> void:
+ var body=source_func_body_code("res://core/route_history.gd","reason")
+ var cycle=body.find("return ENTER_CYCLE")
+ var gate=body.find("return ENTER_GATE_EXIT")
+ t.check(cycle>=0 and gate>cycle,"ROUTEHIST route_reason_branches_declared: the cycle branch is decided before the prison gate branch")
+ t.check(body.find("demo_cycle")>=0 and body.find("region")>=0,"ROUTEHIST route_reason_branches_declared: the reason reads the cycle and the previous region")
+ t.check(body.find("return ENTER_START")>=0 and body.find("return ENTER_ESCAPE")>=0,"ROUTEHIST route_reason_branches_declared: setup and escape keep their own reasons")
+
+# The entry reason has one path, open -> reason -> _serving_sentence, all inside the
+# owner module. A call through the module handle (RouteHistory.reason(...) or g.RouteHistory.reason(...))
+# names no route_history token, so the reference whitelist above cannot see it: this scan reads
+# the handle form in core/data/ui and the bare form inside the owner module. The handle is bound
+# once (the game.gd preload) and is only ever followed by a member, so no alias hides a call.
+static func route_reason_called_only_by_open(t) -> void:
+ var roots=["res://core","res://data","res://ui"]
+ var reasons=source_write_sites(roots,"(?<![A-Za-z0-9_])RouteHistory\\s*\\.\\s*reason\\b")
+ reasons.append_array(declaration_text(source_write_sites(roots,"(?<![A-Za-z0-9_.])reason\\s*\\(").filter(func(hit):return String(hit.file)==ROUTE_HISTORY_FILE),"func reason("))
+ t.check(reasons.size()==1 and write_site_names(reasons)==[ROUTE_HISTORY_FILE+"::open"],"ROUTEHIST route_reason_called_only_by_open: reason has one call, inside open, and none through the RouteHistory handle: "+str(reasons.map(func(hit):return verdict_site(hit))))
+ var serving=source_write_sites(roots,"(?<![A-Za-z0-9_])_serving_sentence\\b")
+ var owned=[ROUTE_HISTORY_FILE+"::_serving_sentence",ROUTE_HISTORY_FILE+"::reason"]
+ owned.sort()
+ t.check(serving.size()==2 and write_site_names(serving)==owned,"ROUTEHIST route_reason_called_only_by_open: _serving_sentence is named only by its declaration and the one call inside reason: "+str(serving.map(func(hit):return verdict_site(hit))))
+ var handles=source_write_sites(roots,"(?<![A-Za-z0-9_])RouteHistory\\b(?!\\s*\\.)")
+ t.check(handles.size()==1 and write_site_names(handles)==["core/game.gd::<file>"],"ROUTEHIST route_reason_called_only_by_open: the RouteHistory handle is bound once, by the game.gd preload, and never taken as a value: "+str(handles.map(func(hit):return verdict_site(hit))))
+
+static func route_legacy_backfill_is_pinned(t) -> void:
+ var body=game_function_body("restore_snapshot")
+ var seed_line=body.find("if not candidate.has(\"initial_seed\")")
+ var route_line=body.find("if not candidate.has(\"route_history\"): candidate.route_history=RouteHistory.backfill(candidate)")
+ var check_line=body.find("Snapshot.check(candidate,self)")
+ t.check(seed_line>=0 and route_line>seed_line and check_line>route_line,"ROUTEHIST route_legacy_backfill_is_pinned: the backfill follows the run-identity backfill and precedes the shared field check")
+ t.check(route_line>=0 and body.count("RouteHistory.backfill(")==1,"ROUTEHIST route_legacy_backfill_is_pinned: restore_snapshot writes the backfill once")
+
+static func route_history_no_version(t) -> void:
+ var text=source_text(ROUTE_HISTORY_FILE)
+ var banned=[]
+ for token in ["Time.","version","randi","Crypto","ProjectSettings"]:
+  if text.contains(token): banned.append(token)
+ t.check(not text.is_empty() and banned.is_empty(),"ROUTEHIST route_history_no_version: the owner module carries no time, revision, randomness or settings token: "+str(banned))
+ var declared=[]
+ var regex=RegEx.new()
+ if regex.compile("const KEYS=\\[([^\\]]+)\\]")==OK:
+  var found=regex.search(text)
+  if found!=null:
+   for part in found.get_string(1).split(","):
+    declared.append(String(part).strip_edges().trim_prefix("\"").trim_suffix("\""))
+ declared.sort()
+ t.check(declared==["boss","cycle","enter","floor","generation","nodes","region","security","seed"],"ROUTEHIST route_history_no_version: the declared key set carries no time or revision key: "+str(declared))
+ var compiled=RouteHistoryModule.KEYS.duplicate()
+ compiled.sort()
+ t.check(compiled==declared,"ROUTEHIST route_history_no_version: the compiled key constant equals the declared source text: "+str(compiled))

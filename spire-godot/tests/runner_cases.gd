@@ -6,6 +6,10 @@ const IndexEdges=preload("res://tests/check_index_edges.gd")
 static func run(t) -> void:
  ownership(t)
  index(t)
+ source_text_folds_crlf_pairs(t)
+ source_text_keeps_lone_cr(t)
+ state_reader_reads_through_one_entry(t)
+ check_index_reads_through_one_entry(t)
  t.check(Selection.stage("home_persistence").begins_with("deferred") and Selection.stage("normal_play").begins_with("milestone"),"RUNNER deferred saves and long playthroughs remain explicitly scheduled")
  for name in ["card_power","card_expansion","relics"]:
   t.check(Selection.resolve(t.SUITES.keys(),[name]).selected==[name],"RUNNER current feature has its own complete scope "+name)
@@ -218,6 +222,170 @@ static func index_route_examples_are_pinned(t) -> void:
  t.check(Index.suites_for(["spire-godot/ui/command_routes.gd"]).ui==["display"],"RUNNER index_route_examples_are_pinned: the DISPLAY domain resolves ui/command_routes.gd")
  t.check(Index.suites_for(["spire-godot/ui/first_turn_presenter.gd"]).ui==["card_power","status"],"RUNNER index_route_examples_are_pinned: the CONTROL domain resolves ui/first_turn_presenter.gd")
  t.check(Index.suites_for(["spire-godot/ui/run_review.gd"]).ui==["casting","route"],"RUNNER index_route_examples_are_pinned: the ROUTE domain resolves ui/run_review.gd")
+
+# ------------------------------------------------- scanned source text (newline normalization)
+# docs/spec/check-routing.md §4「扫描输入」and docs/spec/state-readers.md「真源与唯一写者」: both
+# frozen fingerprints hash the normalized text and both scans read the same normalized text, so
+# one commit gives one value on an LF, a CRLF or a mixed checkout.
+# source_text_folds_crlf_pairs and source_text_keeps_lone_cr pin the leaf on inputs they write
+# themselves, so their RED never depends on this checkout's line endings;
+# state_reader_reads_through_one_entry and check_index_reads_through_one_entry pin that the two
+# scan modules read through it instead of the raw text primitive.
+const SOURCE_TEXT_LEAF_PATH="res://tests/source_text.gd"
+# The only places allowed to digest with .sha256_text(): the canonical serialization or one of
+# the two join forms. A scanned source text is only hashed through
+# tests/source_text.gd::normalized_text_sha256.
+const DERIVED_DIGEST_RECEIVERS=['canonical(body)','",".join(normalized)','"\\n".join(lines)']
+# Raw text primitives a scan module may keep, and only on the frozen table: a frozen JSON body
+# does not depend on line endings, so it never goes through the leaf.
+const FROZEN_READ_CALLS=["FileAccess.get_file_as_string(","get_as_text(","FileAccess.open("]
+
+# The leaf is loaded by path instead of preload, so a missing or unparsable leaf is a named RED
+# of its judgments instead of a runner-wide script error (tools/check-mutation.ps1 reads a
+# script error as "not a judgment RED"). One guard, so both callers report the same defect.
+static func _require_leaf(t, judgment: String):
+ var text=""
+ if FileAccess.file_exists(SOURCE_TEXT_LEAF_PATH): text=FileAccess.get_file_as_string(SOURCE_TEXT_LEAF_PATH)
+ var leaf=null if text=="" else load(SOURCE_TEXT_LEAF_PATH)
+ var ready=leaf!=null and text.contains("static func normalized_text(") and text.contains("static func normalized_text_sha256(")
+ t.check(ready,"RUNNER "+judgment+": "+SOURCE_TEXT_LEAF_PATH+" is loadable with normalized_text and normalized_text_sha256")
+ return leaf if ready else null
+
+# source_text_folds_crlf_pairs: the leaf folds CRLF pairs onto LF, so one logical text written
+# with LF, with CRLF and with both line endings in the same file reads as one text and one digest
+# (one judgement line per input domain). The digest truth is the LF text's own digest, so the RED
+# does not depend on the checkout's line endings.
+static func source_text_folds_crlf_pairs(t) -> void:
+ var leaf=_require_leaf(t,"source_text_folds_crlf_pairs")
+ if leaf==null: return
+ var folder=_probe_folder()
+ var lf="alpha\nbeta\ngamma\n"
+ var empty_digest="".sha256_text()
+ var paths={"lf":folder.path_join("lf.txt"),"crlf":folder.path_join("crlf.txt"),"mixed":folder.path_join("mixed.txt"),
+  "bom_lf":folder.path_join("bom-lf.txt"),"bom_crlf":folder.path_join("bom-crlf.txt"),"empty":folder.path_join("empty.txt"),
+  "noeol_lf":folder.path_join("noeol-lf.txt"),"noeol_crlf":folder.path_join("noeol-crlf.txt")}
+ _write_probe_text(paths.lf,lf)
+ _write_probe_text(paths.crlf,"alpha\r\nbeta\r\ngamma\r\n")
+ _write_probe_text(paths.mixed,"alpha\r\nbeta\ngamma\r\n")
+ _write_probe_text(paths.bom_lf,"\ufeff"+lf)
+ _write_probe_text(paths.bom_crlf,"\ufeff"+"alpha\r\nbeta\r\ngamma\r\n")
+ _write_probe_text(paths.empty,"")
+ _write_probe_text(paths.noeol_lf,"alpha\nbeta")
+ _write_probe_text(paths.noeol_crlf,"alpha\r\nbeta")
+ # LF / CRLF / mixed rows. Equality with the LF text is the pairwise-agreement assertion and the
+ # external digest truth at once.
+ for domain in ["lf","crlf","mixed"]:
+  var path=String(paths[domain])
+  var text=String(leaf.normalized_text(path))
+  t.check(text==lf and not text.contains("\r\n") and String(leaf.normalized_text_sha256(path))==lf.sha256_text(),"RUNNER source_text_folds_crlf_pairs: the "+domain+" input folds to the LF text and the LF digest")
+ # BOM row: a byte-order mark is not a line ending, and the read primitive (not this leaf) decides
+ # its fate. Godot 4.7.2 drops a UTF-8 BOM, so both variants must read as the LF text with
+ # has_bom==false; pinning that current engine behavior is what lets this row redden for a reader
+ # that keeps the mark. The current input face has no BOM file.
+ var bom_lf=String(leaf.normalized_text(paths.bom_lf))
+ var bom_crlf=String(leaf.normalized_text(paths.bom_crlf))
+ t.check(bom_lf==lf and bom_crlf==lf,"RUNNER source_text_folds_crlf_pairs: the BOM plus LF input and the BOM plus CRLF input read as the LF text with no BOM left")
+ # Empty-file and no-trailing-newline rows.
+ t.check(String(leaf.normalized_text(paths.empty))=="" and String(leaf.normalized_text_sha256(paths.empty))==empty_digest,"RUNNER source_text_folds_crlf_pairs: the empty input folds to the empty text and the empty digest")
+ var noeol_lf=String(leaf.normalized_text(paths.noeol_lf))
+ t.check(noeol_lf=="alpha\nbeta" and String(leaf.normalized_text(paths.noeol_crlf))==noeol_lf,"RUNNER source_text_folds_crlf_pairs: the no-trailing-newline input folds to the LF text in both line endings")
+ # An absent path is what a caller sees when a scanned file disappears: "" and the empty digest.
+ var absent=folder.path_join("absent.txt")
+ t.check(String(leaf.normalized_text(absent))=="" and String(leaf.normalized_text_sha256(absent))==empty_digest,"RUNNER source_text_folds_crlf_pairs: an absent file reads as the empty text and the empty digest")
+ for path in paths.values(): DirAccess.remove_absolute(String(path))
+ DirAccess.remove_absolute(folder)
+
+# source_text_keeps_lone_cr: only CRLF pairs are folded. A lone CR (a byte no checkout conversion
+# touches) stays, and the CRLF pair in the same text still folds.
+static func source_text_keeps_lone_cr(t) -> void:
+ var leaf=_require_leaf(t,"source_text_keeps_lone_cr")
+ if leaf==null: return
+ var folder=_probe_folder()
+ var path=folder.path_join("lone-cr.txt")
+ _write_probe_text(path,"alpha\rbeta\r\ngamma")
+ var text=String(leaf.normalized_text(path))
+ t.check(text=="alpha\rbeta\ngamma","RUNNER source_text_keeps_lone_cr: a lone CR stays while the CRLF pair in the same text folds: "+text.c_escape())
+ DirAccess.remove_absolute(path)
+ DirAccess.remove_absolute(folder)
+
+# state_reader_reads_through_one_entry: the state-reader scan reads every scanned text through the
+# leaf, and only the frozen table is still opened with a raw primitive. The two raw reads in this
+# section (_require_leaf, _code_text) are judgment self-checks, not fingerprint inputs: a scanned
+# source text still reaches a frozen fingerprint only through the leaf.
+static func state_reader_reads_through_one_entry(t) -> void:
+ var relative="tests/state_reader_scan.gd"
+ var code=_code_text(relative)
+ t.check(not code.is_empty(),"RUNNER state_reader_reads_through_one_entry: "+relative+" is readable")
+ var raw=_raw_read_sites(relative,code)
+ t.check(raw.is_empty(),"RUNNER state_reader_reads_through_one_entry: only the frozen table is read with a raw text primitive: "+str(raw))
+ var digests=_raw_digest_sites(relative,code)
+ t.check(digests.is_empty(),"RUNNER state_reader_reads_through_one_entry: a scanned text is only hashed through normalized_text_sha256: "+str(digests))
+
+# check_index_reads_through_one_entry: the same contract for the index derivation, plus its input
+# face -- the leaf is one of the hashed inputs, so changing the normalization rule re-freezes the
+# index.
+static func check_index_reads_through_one_entry(t) -> void:
+ var relative="tests/check_index.gd"
+ var code=_code_text(relative)
+ t.check(not code.is_empty(),"RUNNER check_index_reads_through_one_entry: "+relative+" is readable")
+ var raw=_raw_read_sites(relative,code)
+ t.check(raw.is_empty(),"RUNNER check_index_reads_through_one_entry: only the frozen index is read with a raw text primitive: "+str(raw))
+ var digests=_raw_digest_sites(relative,code)
+ t.check(digests.is_empty(),"RUNNER check_index_reads_through_one_entry: a scanned text is only hashed through normalized_text_sha256: "+str(digests))
+ var declaration=RegEx.new()
+ declaration.compile("(?m)^const SOURCE_TEXT_LEAF=\"res://tests/source_text\\.gd\"\\s*$")
+ var inputs_line=""
+ for line in code.split("\n"):
+  if String(line).strip_edges().begins_with("var inputs="): inputs_line=String(line)
+ t.check(declaration.search(code)!=null and inputs_line.contains("SOURCE_TEXT_LEAF"),"RUNNER check_index_reads_through_one_entry: _scan hashes "+SOURCE_TEXT_LEAF_PATH+" as one of its inputs")
+
+# The two scanned modules with comment lines removed, so a sentence about the API in a comment
+# never counts as a call site (the shape the existing *_single_entry judgments use).
+static func _code_text(relative: String) -> String:
+ var text=FileAccess.get_file_as_string("res://"+relative)
+ var code=""
+ for line in text.split("\n"): code+=String(line).strip_edges(false,true).split("#")[0]+"\n"
+ return code
+
+# Lines that still call a raw text primitive on something other than the frozen file. The call is
+# only legal as `<primitive>FROZEN_PATH)`, so removing exactly those leaves the offenders.
+static func _raw_read_sites(relative: String, code: String) -> Array:
+ var out=[]
+ var lines=code.split("\n")
+ for index in range(lines.size()):
+  var line=String(lines[index])
+  var rest=line
+  for primitive in FROZEN_READ_CALLS: rest=String(rest).replace(String(primitive)+"FROZEN_PATH)", "")
+  var offender=false
+  for primitive in FROZEN_READ_CALLS:
+   if rest.contains(String(primitive)): offender=true
+  if offender: out.append(relative+":"+str(index+1)+" "+line.strip_edges())
+ return out
+
+# Lines that digest something outside the declared receivers: a scanned text reaching
+# .sha256_text() directly is red even when the checkout is LF (where the value would not move).
+static func _raw_digest_sites(relative: String, code: String) -> Array:
+ var out=[]
+ var lines=code.split("\n")
+ for index in range(lines.size()):
+  var line=String(lines[index])
+  if not line.contains(".sha256_text("): continue
+  var rest=line
+  for receiver in DERIVED_DIGEST_RECEIVERS: rest=String(rest).replace(String(receiver)+".sha256_text(", "")
+  if rest.contains(".sha256_text("): out.append(relative+":"+str(index+1)+" "+line.strip_edges())
+ return out
+
+# One probe folder for both leaf judgments: the path and its creation exist once.
+static func _probe_folder() -> String:
+ var folder="res://build/source-text-%d" % OS.get_process_id()
+ DirAccess.make_dir_recursive_absolute(folder)
+ return folder
+
+static func _write_probe_text(path: String, text: String) -> void:
+ var handle=FileAccess.open(path,FileAccess.WRITE)
+ if handle==null: return
+ handle.store_string(text)
+ handle.close()
 
 static func _index_target_exists(target: String) -> bool:
  return FileAccess.file_exists("res://"+target.trim_prefix("spire-godot/"))

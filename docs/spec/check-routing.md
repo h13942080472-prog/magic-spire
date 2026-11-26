@@ -44,7 +44,10 @@
 - **唯一派生实现**：`tests/check_index.gd::derive()`（顶部注释写抽取规则）。生成器 `tools/build_check_index.gd`、零漂移门 `tools/check-index.ps1`、自检 `tests/runner_cases.gd`、计划宿主 `tests/route_plan.gd` 共用它。
 - **冻结物**：`tests/check_index.json`（schema 1，**生成物，永不手改**；在 `tests/` 内、源码指纹面内）。主表 `suite_files` ＝ `套件 → {源文件 → [信号]}`；另载 `case_files`／`domains`／`blind`／`domain_words`／`registries`／`stats`／`generated_from`／`digest`。
 - **判据只读**：检查流程永不自动重写冻结物；`-Write` 是唯一写入口，判定用 `--verify`（缺省，退出码 0／1）。
-- **扫描输入（`generated_from` 的覆盖面）**：`tests/test_game.gd`、`tests/ui_smoke.gd`、`tests/check_index.gd`、`tests/check_index_edges.gd`、全部 `*_cases.gd` 用例文件、`core|data|ui` 下全部 `.gd`。**任一输入文本变化（含注释）都要在同一提交里 `-Write` 重冻**；忘记重冻会被 `runner` 的 `index_matches_regeneration`／`index_regeneration_is_the_only_writer` 打红（默认快速门禁含 `runner`，属有意的 fail-closed）。`generated_from` 按工作区字节计算（含行尾），`-Write` 要与门禁在同一检出处执行。
+- **扫描输入（`generated_from` 的覆盖面）**：`tests/test_game.gd`、`tests/ui_smoke.gd`、`tests/check_index.gd`、`tests/check_index_edges.gd`、`tests/source_text.gd`（归一规则本身，改它即改派生）、全部 `*_cases.gd` 用例文件、`core|data|ui` 下全部 `.gd`。**任一输入文本变化（含注释）都要在同一提交里 `-Write` 重冻**；忘记重冻会被 `runner` 的 `index_matches_regeneration`／`index_regeneration_is_the_only_writer` 打红（默认快速门禁含 `runner`，属有意的 fail-closed）。
+- **输入文本先归一**：读取被扫描的源码文本时统一经 `tests/source_text.gd::normalized_text`（只把 CRLF 对折成 LF，与 git `core.autocrlf` 同一条规则；孤立的 `\r` 原样保留。BOM 由读原语处理，Godot 4.7.2 会剥掉 UTF-8 BOM；当前输入面没有 BOM 文件）。逐文件取哈希经 `normalized_text_sha256`，扫描也吃同一段归一文本。因此 `generated_from` 与冻结值只由文本内容决定，与检出的行尾（LF／CRLF／混合）无关：同一提交在两种检出上算出同一值，`-Write` 不再需要与门禁同处一个检出。
+- **判据自检读不是指纹输入**：`tests/runner_cases.gd::_require_leaf`（读叶文本以确认可加载、两个函数在场）与 `tests/runner_cases.gd::_code_text`（读两个扫描模块的源文本，剥注释后做文本扫描）是判据自检读，不进任何指纹；被扫描源码进入冻结指纹仍只经上一条的叶。
+- **冻结物冲突不手合**：`tests/check_index.json` 的合并冲突一律用 `tools/check-index.ps1 -Write` 重生成后以零漂移校验收尾；手改值会被 `index_regeneration_is_the_only_writer` 打红。
 - 抽取规则（`preload`／`symbol`／`symbol_ui`／`domain`、归属、`static func` 不入索引）写在 `tests/check_index.gd` 顶部；改规则＝派生变化，必须重冻并说明旧规则看不见什么。
 
 ## 5. 判据与探针

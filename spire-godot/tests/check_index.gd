@@ -26,9 +26,15 @@ extends RefCounted
 #    written with JSON.stringify(body, "  ", true) so its key order is stable.
 #  * inputs are all scanned texts, so a comment edit in core|data|ui or tests also
 #    invalidates the frozen index until -Write (docs/spec/check-routing.md §3.3).
-# Size: derive (scan/compare) and suites_for (route/render) share this module; the slice
-# allowed no third tests/ file, and the responsibility boundary is the whole index
-# pipeline, not a line count (docs/spec/check-routing-dependencies.md).
+#  * every scanned text is read through tests/source_text.gd::normalized_text, which folds CRLF
+#    pairs to LF: a frozen digest then equals the digest of the git blob and no longer depends on
+#    the checkout's line endings; the leaf's own text is one of the hashed inputs
+#    (docs/spec/check-routing.md §4).
+# Size: derive (scan/compare) and suites_for (route/render) share this module; the
+# responsibility boundary is the whole index pipeline, not a line count. The one scanned-text
+# primitive lives in the leaf tests/source_text.gd (docs/spec/check-routing-dependencies.md).
+const SourceText=preload("res://tests/source_text.gd")
+const SOURCE_TEXT_LEAF="res://tests/source_text.gd"
 const Edges=preload("res://tests/check_index_edges.gd")
 const FROZEN_PATH="res://tests/check_index.json"
 const MODULE="spire-godot/"
@@ -304,7 +310,7 @@ static func _scan() -> Dictionary:
  var word_suites={}
  for case_path in case_paths:
   var key=_key(case_path)
-  var text=FileAccess.get_file_as_string(case_path)
+  var text=SourceText.normalized_text(case_path)
   var owner=String(owners.get(case_path,""))
   var signals=_signals(text,declarations)
   case_files[key]={"owner":owner,"signals":signals.size()}
@@ -349,10 +355,10 @@ static func _scan() -> Dictionary:
  for suite in suite_files.keys(): edges+=suite_files[suite].size()
  var domain_words={}
  for word in used.keys(): domain_words[word]=_sorted(word_suites.get(word,{}).keys())
- var inputs=HOSTS+["res://tests/check_index_edges.gd","res://tests/check_index.gd"]+case_paths+sources
+ var inputs=HOSTS+["res://tests/check_index_edges.gd","res://tests/check_index.gd",SOURCE_TEXT_LEAF]+case_paths+sources
  inputs.sort()
  var lines=[]
- for path in inputs: lines.append(_key(path)+":"+FileAccess.get_file_as_string(path).sha256_text())
+ for path in inputs: lines.append(_key(path)+":"+SourceText.normalized_text_sha256(path))
  var stats={"rule_suites":registries.rule.size(),"ui_suites":registries.ui.size(),
   "suite_edges":edges,"suites_with_edges":suite_files.size(),"case_files":case_files.size(),
   "source_files":sources.size(),"sources_with_edges":covered.size(),"blind":blind.size(),
@@ -364,7 +370,7 @@ static func _scan() -> Dictionary:
 
 static func _registries() -> Dictionary:
  var out={}
- var texts={"rule":FileAccess.get_file_as_string(HOSTS[0]),"ui":FileAccess.get_file_as_string(HOSTS[1])}
+ var texts={"rule":SourceText.normalized_text(HOSTS[0]),"ui":SourceText.normalized_text(HOSTS[1])}
  for kind in OWN_KINDS:
   var registry={}
   var marker="const SUITES=" if kind=="rule" else "const UI_MODULES="
@@ -401,7 +407,7 @@ static func _owners() -> Dictionary:
 static func _visit(path: String, owner: String, owners: Dictionary, re: RegEx) -> void:
  if path=="" or owners.has(path): return
  owners[path]=owner
- for match in re.search_all(FileAccess.get_file_as_string(path)):
+ for match in re.search_all(SourceText.normalized_text(path)):
   _visit(match.get_string(1),owner,owners,re)
 
 static func _case_paths() -> Array:
@@ -433,7 +439,7 @@ static func _declarations(sources: Array) -> Dictionary:
  # the start of the whole file.
  re.compile("(?m)^func ([a-z_][a-z0-9_]*)\\(")
  for path in sources:
-  for match in re.search_all(FileAccess.get_file_as_string(path)):
+  for match in re.search_all(SourceText.normalized_text(path)):
    var member=match.get_string(1)
    if not out.has(member): out[member]={}
    out[member][_key(path)]=true
@@ -472,7 +478,7 @@ static func _domain_words(text: String) -> Dictionary:
 
 static func _milestone() -> Array:
  var out=[]
- var text=FileAccess.get_file_as_string(SUITE_SELECTION)
+ var text=SourceText.normalized_text(SUITE_SELECTION)
  var re=RegEx.new()
  re.compile("(?m)^const LONG_RUNS=\\[([^\\]]*)\\]")
  var line=re.search(text)
@@ -488,7 +494,7 @@ static func _milestone_set() -> Dictionary:
 
 static func _cross_areas() -> Dictionary:
  var out={}
- var text=FileAccess.get_file_as_string(SUITE_SELECTION)
+ var text=SourceText.normalized_text(SUITE_SELECTION)
  if text.find("const CROSS_AREAS=")==-1: return out
  var body=text.split("const CROSS_AREAS=",true,1)[1].split("}")[0]
  var re=RegEx.new()

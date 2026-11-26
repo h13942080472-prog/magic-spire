@@ -10,8 +10,10 @@ extends RefCounted
 # 不计读、复合写计一读、子字段写计父字段读；注释按第一个 `#` 截断；整字典形态（core|data）进
 # whole_state：pass／duplicate／iterate／has／get_variable。登记表＝`_init` 字面键＋core|data|ui
 # 的后续写键＋`state.get("X", …)` 名；别名接收者与模式串调用点各成一表。
-# generated_from.inputs_sha256 覆盖 core|ui|data 全部 `.gd` 文本：任何文本变化都让判据红，必须
-# 同批重生成（fail-closed）。
+# generated_from.inputs_sha256 覆盖 core|ui|data 全部 `.gd` 的归一文本（经 tests/source_text.gd
+# 把 CRLF 对折成 LF，指纹因此与检出的行尾无关）：任何文本变化都让判据红，必须同批重生成
+# （fail-closed）。
+const SourceText=preload("res://tests/source_text.gd")
 const FROZEN_PATH="res://tests/state_readers.json"
 const SCHEMA=1
 const ALL_DIRS=["core","data","ui"]
@@ -379,7 +381,7 @@ static func _init_literal_keys(text: String) -> Array:
 
 static func _inputs_sha256() -> String:
  var lines=[]
- for rel in _rel_files(ALL_DIRS): lines.append(rel+":"+_source_text(rel).sha256_text())
+ for rel in _rel_files(ALL_DIRS): lines.append(rel+":"+SourceText.normalized_text_sha256("res://"+rel))
  return "\n".join(lines).sha256_text()
 
 static func _rel_files(dirs: Array) -> Array:
@@ -400,7 +402,7 @@ static var _text_cache={}
 
 static func _source_text(rel: String) -> String:
  if _text_cache.has(rel): return String(_text_cache[rel])
- var text=FileAccess.get_file_as_string("res://"+rel)
+ var text=SourceText.normalized_text("res://"+rel)
  _text_cache[rel]=text
  return text
 

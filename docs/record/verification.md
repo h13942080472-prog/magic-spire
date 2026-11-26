@@ -5204,6 +5204,43 @@ Godot 4.7.2 专项 66 项断言通过。两个部位各承受两段「浑身解�
 - 规则未通过的分类为 rope_master、card_splash、consumables、architecture、event_flow、exploration、slip_motion、runner、wall、special_equipment、services、rewards、core、equipment、composites、pressure。
 - 桌面 UI 未通过的分类为 encyclopedia、display、basic_attacks、exploration、hand_assist、casting、wall、baseline、enemy_feedback、services、body_layout、targeting、interface、normal_play、enemies、equipment_complete、pressure、impact_feedback、guard、events、consumables、rewards。
 
+## 2026-11-26｜扫描源码文本换行归一：合入上游后的 PR 前回归
+
+- 域：`spire-godot` 规则 59 套件＋界面 50 套件，对照父侧 `e4fde8d` 的逐套件基线；本分支独有改动为扫描源码文本的换行归一（`tests/source_text.gd`、`tests/state_reader_scan.gd`、`tests/check_index.gd`、`tests/runner_cases.gd`、两个生成物、`tests/mutations.json` 与 spec）。验收 HEAD `c2a80fd`，工作树干净，`origin/main` 为 `e4fde8d`。
+- 全量命令：`tools/check.ps1 -Suite all -UI -UISuite all -KeepGoing -TimeoutSeconds 3600`，运行号 `20261125T154340759-64132`，退出码 1。文档检查 PASS。规则相位在 exploration 的 SCRIPT ERROR 后提前收尾（与父侧同位置），只产出 30 个 `SUITE RESULT` 行，收尾 `FAIL: 68/127520 assertions; 70 engine errors`（父侧 69／71）；界面相位未启动，界面全量内的截断位置未验证。
+- 补跑：79 个套件逐个独立运行（规则 29 个 `-Suite <名>`、界面 50 个 `-UIOnly -UISuite <名>`），各有 1 条 `SUITE RESULT`。
+- 规则 59：PASS 43，父侧既有红 16（与父侧同名同数）。界面 50：PASS 27（含 trader 重跑），父侧既有红 23。39 个 FAIL/FAIL 套件均无父侧没有的 `ERROR:`／`SCRIPT ERROR` 行（前 120 字去重）；runner 少 2 行、architecture 少 1 行，可由本分支重生成的冻结索引与状态读者表解释。无「父 FAIL、本 PASS」套件。
+- trader 偶发：界面 trader 首跑 FAIL（运行号 `20261125T163902384-66104`，首行 `ERROR: MENU native click opens secondary actions`，随后 `SCRIPT ERROR: Invalid access to property or key 'pressed' on a base object of type 'null instance'.`）；同树同命令重跑 2 次均 PASS、UI PASS: 38 assertions（`20261125T174831080-44052`、`20261125T174945998-44052`）。判定为偶发、非本分支引入：本分支改动文件不在 trader 界面套件加载路径上，产品代码与 `tests/ui_smoke.gd` 同 `e4fde8d` 逐字相同；根因未定位。
+- 敏感性：`tools/check-mutation.ps1 -Check` 四条登记突变均变红并逐字节还原——`source_text_folds_crlf_pairs`（sha256 `8138B4D2368B`；运行目录前缀 `20261125T175024`）、`source_text_keeps_lone_cr`（`20261125T175128107-44052`，`8138B4D2368B`）、`state_reader_reads_through_one_entry`（`20261125T175200854-44052`，`FFB82C91FF96`）、`check_index_reads_through_one_entry`（`20261125T175237453-44052`，`2397C10B0E8F`）。
+- 未跑项：界面全量相位（未启动）；trader 首跑红的根因；安卓真机与打包。日志在 `spire-godot/build/checks/<运行号>`。
+
+## 2026-11-26｜冻结基线以 e4fde8d 重做后的 PR 前回归
+
+- 域：`spire-godot` 规则 59 + 界面 50 套件，对照父侧 e4fde8d 逐套件；工作树 `worker/baseline`，验收 HEAD `d6944f0`；改动面为 `tests/architecture_cases.gd`、`tests/frozen-baselines.json`、`tests/check_index.json`、`tests/state_readers.json` 与 `docs/spec/fact-table-dependencies.md`。
+- 全量命令 `tools/check.ps1 -Suite all -UI -UISuite all -KeepGoing -TimeoutSeconds 3600`，运行号 `20261125T204339053-36708`，退出码 1。规则相位 30 个套件有结果行，在 `exploration` 的 SCRIPT ERROR 后提前收尾（与父侧同位置）；界面相位未启动。其余 79 个套件（规则 29、界面 50）逐个独立补跑，各有一条结果行。
+- 汇总：规则 PASS 43／父侧既有红 16；界面 PASS 27／父侧既有红 23；父 PASS 本分支 FAIL 为 0，父 FAIL 本分支 PASS 为 0；39 个两侧均红的套件逐行对照，本分支没有父侧没有的新增红行。
+- 消失的红行：`architecture` 13 行（`baseline_diff_is_declared`×2、`behavior_baseline_equivalence`×2、命令事实计数快照×5、`default_projection_is_unchanged`、`prefix_branch_tables_are_frozen`、ENCHANT 冻结面、`state_read_sites_are_pinned`），均为冻结基线改以 e4fde8d 为终点并重新生成状态读取表后的预期消失；`runner` 2 行（`index_matches_regeneration`、`index_regeneration_is_the_only_writer`），原因是冻结索引的 `generated_from` 漂移，合并后重生成 `tests/check_index.json` 一致。
+- 日志含 `BASELINE DIFF link=C declared_cells=26 moved_cells=26` 与 `PREFIX BRANCH TABLES FROZEN states=63 moved=0`。
+- 敏感性（`tools/check-mutation.ps1 -Check <名>`，逐条串行）：`baseline_diff_is_declared`、`behavior_baseline_equivalence`、`prefix_branch_tables_are_frozen`、`frozen_anchor_files_match_git` 四条均变红且逐字节还原；`default_projection_is_unchanged`（运行目录 `20261125T215844051-55176`，子运行 `20261125T215844660-22444`）：F6 判据行变红，但键改名使同套件另一消费者 `e_profile_matrix` 读取该键抛运行时错误，工具判 `FAILED exit-red=False`（已还原）。在父侧 e4fde8d 复核结果相同（变异运行目录 `20261125T222316079-48264`，子运行 `20261125T222317078-53028`，同为 `FAILED exit-red=False`，两侧均为 90 条同文 SCRIPT ERROR，仅 `architecture_cases.gd` 行号随版本不同），属既有突变设计，非本次改动引入。
+- 仅验证桌面源码；未打包，未做安卓真机验收。
+
+## 2026-11-26｜塔路历史 PR 前完整回归
+
+- 域：`spire-godot/` 塔路历史（每段塔路的进入原因与收尾）的分支回归；验收 HEAD `d0524d1`，对照父侧 `e4fde8d` 的逐套件基线。规则 59 个、界面 50 个套件。
+- 全量命令 `tools/check.ps1 -Suite all -UI -UISuite all -KeepGoing -TimeoutSeconds 3600`：运行号 `20261126T033638846-27952`，退出码 1，用时 571 秒。截断：规则相位在 `exploration` 的 SCRIPT ERROR 后收尾，只有 30 个规则套件有结果行；界面相位未启动。
+- 补跑：规则 29 个、界面 50 个，逐个独立运行（`-Suite <名>`／`-UIOnly -UISuite <名>`，`-TimeoutSeconds 1800`），每个都有自己的结果行。
+- 结果：规则 PASS 43、父侧既有红 16；界面 PASS 27、父侧既有红 23。109 个套件结果与父侧逐一相同；本分支没有父侧没有的 ERROR／SCRIPT ERROR 行（前 120 字去重）。`persistence` 规则套件 PASS（1611 断言，父侧 1062，含新增塔路历史用例）。
+- 父侧红行消失：`architecture` 的 `STATEREAD state_read_sites_are_pinned`（读者表由唯一写者重生成）；`runner` 的 `index_matches_regeneration` 与 `index_regeneration_is_the_only_writer`（生成物随合并重生成）。界面 `trader` 首跑即 PASS。
+- 敏感性：本分支新增 9 条登记突变（`route_history_single_writer`、`route_switch_declared`、`route_reason_branches_declared`、`route_history_second_capture_release`、`route_reason_called_only_by_open`、`route_legacy_backfill_is_pinned`、`route_history_no_version`、`route_history_switch_matrix`、`route_history_references_are_pinned`）逐条串行实跑，均 `RED exit-red=True restored=True`，逐字节还原并核对工作树未变。
+- 未跑：`-UISuite all` 全量未能完整执行（界面相位未启动，界面由 50 次单套件运行覆盖）；未做打包、安卓真机或公开发布验收。
+
+## 2026-11-26｜PR #17、#18、#19 集成验证
+
+- 集成源码 `b959075`。三个 PR 的突变条目均按分支登记保留。测试索引和状态读者表通过各自的生成工具重建，#18 的冻结基线文件与分支逐字节相同。
+- 坏档探针在合并树 `7dcf00a` 载入含 `route_history: [null]` 的快照后替换了当前状态；修复后相同输入被拒绝，当前状态保持一致。独立审查已复核坏档拒绝路径、负例和历史快照摘要的字段范围。
+- Godot 4.7.2，运行号 `20261126T123421405-45292`，受检源码前后指纹相同。文档门禁通过。规则分类 persistence（1616 条断言）、prison（1436 条）和 tower_progression（306 条）通过。架构基线的 26 格差异与声明一致，63 个状态的分支命令表无漂移。
+- 五类合计 118996 条断言，architecture 和 runner 仍有 39 条失败，总退出码 1。与 v0.18.4 的同分类日志对照，归一化源码行号后没有新增错误；被替换的 13 条架构及 2 条运行器旧错误行不再出现。本轮未重跑全量规则与 UI。
+
 ## 2026-11-26｜启动时更新检查的 PR 前完整回归
 
 - 域：`spire-godot/` 规则 60 类（含新增 `update`）与界面 51 类（含新增 `update`），逐类对照父侧 `e4fde8d` 的逐类基线；加上本批新增的 45 条登记突变。验收源码为已提交的隔离树，HEAD `b5037e0`，开工与收尾 `git status --porcelain` 均 0 行、`git diff --quiet` 退出码 0。
