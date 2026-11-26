@@ -32,27 +32,30 @@
 | 契约文档 | `docs/spec/state-readers.md`、`docs/spec/state-readers-dependencies.md` | 本文件与现行契约 |
 
 禁止（零改动）：`core/**`、`ui/**`、`data/**`、`content/**`、`assets/**`、`tests/frozen-baselines.json`、
-`tests/check_index.gd`／`tests/check_index_edges.gd`／`tests/runner_cases.gd`／`tests/suite_selection.gd`、
-`tools/check.ps1`、`tests/mutations.json` 的既有条目与 `known_gaps`；`tests/check_index.json` 只允许被
-`tools/check-index.ps1 -Write` 覆盖。
+`tests/check_index_edges.gd`／`tests/suite_selection.gd`、`tools/check.ps1`、`tests/mutations.json` 的既有条目与
+`known_gaps`；`tests/check_index.json` 只允许被 `tools/check-index.ps1 -Write` 覆盖。
 
 ## 依赖方向（本片允许的边）
 
-- `tests/architecture_cases.gd` → `tests/state_reader_scan.gd` → `FileAccess`（只读源码文本）。
+- `tests/architecture_cases.gd` → `tests/state_reader_scan.gd` → `tests/source_text.gd` → `FileAccess`
+  （`tests/state_reader_scan.gd` 自身只用 `FileAccess` 读冻结物 `FROZEN_PATH`）；叶不 preload 产品码、
+  测试夹具或本模块。
 - `tools/build_state_readers.gd` → `tests/state_reader_scan.gd`。
 - 禁止：`tests/state_reader_scan.gd` 引 `core/`／`ui/`／`data/`／测试夹具（它只读文本，不 preload 产品码）；
   产品码引 `tests/`；`tests/architecture_cases.gd` 出现第二套 state 扫描实现（三条判据只消费同一派生模块，
   不自行枚举源码）。
-- 扫描原语边界：本模块自带最小枚举与读文本原语（`tests/state_reader_scan.gd::_rel_files`／`_source_text`），
-  与 `tests/architecture_cases.gd::script_files`／`source_text` 同形但不共用——本模块要被
-  `tools/build_state_readers.gd` 独立 headless 加载（架构判据文件不进这条通路），而本片的允许边只有
-  `tests/architecture_cases.gd` → 本模块，反向引用成环；抽第三个共享文件又超出本片允许文件面。
-  故该重复按最小原语保留（枚举＋读文本，不含任何扫描语义）。
+- 扫描原语边界：被扫描的源码文本的读取收口在 `tests/source_text.gd`（`normalized_text`／`normalized_text_sha256`，
+  只把 CRLF 对折成 LF）；`tests/state_reader_scan.gd` 只保留最小枚举原语 `_rel_files` 与单次运行内的文本缓存
+  `_source_text`，不再自带读文本原语。`tests/check_index.gd` 的扫描与逐文件哈希、
+  `tests/runner_cases.gd::source_text_folds_crlf_pairs`／`tests/runner_cases.gd::source_text_keeps_lone_cr`
+  共用同一读入口（边见 `docs/spec/check-routing-dependencies.md`）：归一规则一处声明，扫描与哈希
+  吃同一段归一文本。`tests/architecture_cases.gd::source_text` 仍是架构判据侧的独立小原语（不在本片允许面内，
+  本批未改）。
 
 ## 行数线
 
 - `tests/state_readers.json` 不设行数线（生成物，评审靠判据打印行与统计）；`tests/architecture_cases.gd` 净增 83 行（限 220）。
-- `tests/state_reader_scan.gd` 450 行：**协调者已裁接受（2026-10-14，P5 派工记录）**，计划行数线 ≤ 320 是规划者的
+- `tests/state_reader_scan.gd` 452 行：**协调者已裁接受（2026-10-14，P5 派工记录）**，计划行数线 ≤ 320 是规划者的
   规模估计，不是本仓的硬约束（先例：`tests/check_index.gd` 534 行同为单职责的派生／判据模块）。接受理由：
   本模块职责单一（全片唯一扫描实现：派生＋冻结物形状＋失败面），超出估计的部分＝`failure_face` 的静态调用闭包
   （函数体索引、常量前缀／`g.`／`self.` 调用边、闭包遍历、逐 kind 种子），它是 G-SR-7 的判据落点与套件内

@@ -493,6 +493,30 @@
       "find": " \"_refresh_drawer_section\":[\"_drawer_presentation_key\",\"_drawer_key_hit\",\"_menu_drawer\",\"_items_drawer\"],\n \"_menu_drawer\":[],\n",
       "replace": " \"_refresh_drawer_section\":[\"_drawer_presentation_key\",\"_drawer_key_hit\",\"_items_drawer\"],\n",
       "suite": "architecture"
+    },
+    "source_text_folds_crlf_pairs": {
+      "file": "tests/source_text.gd",
+      "find": ".replace(\"\\r\\n\",\"\\n\")",
+      "replace": "",
+      "suite": "runner"
+    },
+    "source_text_keeps_lone_cr": {
+      "file": "tests/source_text.gd",
+      "find": ".replace(\"\\r\\n\",\"\\n\")",
+      "replace": ".replace(\"\\r\\n\",\"\")",
+      "suite": "runner"
+    },
+    "state_reader_reads_through_one_entry": {
+      "file": "tests/state_reader_scan.gd",
+      "find": " var text=SourceText.normalized_text(\"res://\"+rel)",
+      "replace": " var text=FileAccess.get_file_as_string(\"res://\"+rel)",
+      "suite": "runner"
+    },
+    "check_index_reads_through_one_entry": {
+      "file": "tests/check_index.gd",
+      "find": "for path in inputs: lines.append(_key(path)+\":\"+SourceText.normalized_text_sha256(path))",
+      "replace": "for path in inputs: lines.append(_key(path)+\":\"+FileAccess.get_file_as_string(path).sha256_text())",
+      "suite": "runner"
     }
   }
 }

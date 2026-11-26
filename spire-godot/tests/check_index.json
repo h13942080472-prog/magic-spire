@@ -982,7 +982,7 @@
       "signals": 2
     }
   },
-  "digest": "8d4b851416333ffd16c8f92781257e60872fa1950a8dc8316023314307ca79d9",
+  "digest": "6a2e1329aefd090e6602258bccaac23b090db643e2e0d5f945dbfb27c220726d",
   "domain_words": {
     "ANTI DRONE": [],
     "ART": [
@@ -2054,7 +2054,7 @@
       ]
     }
   },
-  "generated_from": "3d3308a49f418fa541f3160a3afa2edad10b7b77157f15bc0fd0812e8f2e2c4f",
+  "generated_from": "b5da2c4a840834923890f157fb66a036a290ed43ac619b60aba59d9efb98a78e",
   "registries": {
     "rule": [
       "drone_operator",
@@ -2178,7 +2178,7 @@
     "domains": 71,
     "domains_declared": 71,
     "excluded": 15,
-    "inputs": 401,
+    "inputs": 402,
     "rule_suites": 59,
     "source_files": 153,
     "sources_with_edges": 149,
