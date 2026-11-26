@@ -5233,3 +5233,10 @@ Godot 4.7.2 专项 66 项断言通过。两个部位各承受两段「浑身解�
 - 父侧红行消失：`architecture` 的 `STATEREAD state_read_sites_are_pinned`（读者表由唯一写者重生成）；`runner` 的 `index_matches_regeneration` 与 `index_regeneration_is_the_only_writer`（生成物随合并重生成）。界面 `trader` 首跑即 PASS。
 - 敏感性：本分支新增 9 条登记突变（`route_history_single_writer`、`route_switch_declared`、`route_reason_branches_declared`、`route_history_second_capture_release`、`route_reason_called_only_by_open`、`route_legacy_backfill_is_pinned`、`route_history_no_version`、`route_history_switch_matrix`、`route_history_references_are_pinned`）逐条串行实跑，均 `RED exit-red=True restored=True`，逐字节还原并核对工作树未变。
 - 未跑：`-UISuite all` 全量未能完整执行（界面相位未启动，界面由 50 次单套件运行覆盖）；未做打包、安卓真机或公开发布验收。
+
+## 2026-11-26｜PR #17、#18、#19 集成验证
+
+- 集成源码 `b959075`。三个 PR 的突变条目均按分支登记保留。测试索引和状态读者表通过各自的生成工具重建，#18 的冻结基线文件与分支逐字节相同。
+- 坏档探针在合并树 `7dcf00a` 载入含 `route_history: [null]` 的快照后替换了当前状态；修复后相同输入被拒绝，当前状态保持一致。独立审查已复核坏档拒绝路径、负例和历史快照摘要的字段范围。
+- Godot 4.7.2，运行号 `20261126T123421405-45292`，受检源码前后指纹相同。文档门禁通过。规则分类 persistence（1616 条断言）、prison（1436 条）和 tower_progression（306 条）通过。架构基线的 26 格差异与声明一致，63 个状态的分支命令表无漂移。
+- 五类合计 118996 条断言，architecture 和 runner 仍有 39 条失败，总退出码 1。与 v0.18.4 的同分类日志对照，归一化源码行号后没有新增错误；被替换的 13 条架构及 2 条运行器旧错误行不再出现。本轮未重跑全量规则与 UI。
