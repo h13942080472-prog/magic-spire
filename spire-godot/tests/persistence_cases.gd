@@ -1008,7 +1008,7 @@ static func run(t) -> void:
 # 旧目录导入（docs/spec/save-fixed-points.md「旧目录导入」）。夹具父目录、目标目录与标记都由
 # 参数传进 ui/legacy_import.gd；测试只在 res://build/ 下造旧目录，从不读写真实 user://。
 static func legacy_root(label: String) -> String:
- return "res://build/d23b-"+label+"-"+str(Time.get_ticks_usec())
+ return "res://build/legacy-import-"+label+"-"+str(Time.get_ticks_usec())
 
 # 实现前模块还不存在：判据先红在「模块存在且可加载」这一句，其余断言在实现后全跑；
 # 这样套件不会因为一个缺失的 preload 整体加载失败，红证据按判据逐条具名。
