@@ -149,16 +149,8 @@ static func skin_cases(t) -> void:
    twin=Save.roundtrip(t,g,"leather elite before final split")
    Save.step_both(t,g,twin,"end")
    t.check(g.state.enemies.slice(1).map(func(e):return e.type)==["belt_mass","belt","belt"] and g.state.enemies.slice(1).map(func(e):return e.max_hp)==[48.0,24.0,24.0],"SKIN automatic split preserves material and inherited health")
-   t.check(active(g).is_empty() and g.state.links.all(func(e):return e.template=="link_rope") and g.state.equipment.all(func(e):return e.template in g.Enemies.TYPES.belt.install_pool) and g.validate()=="","SKIN six-stage leather source preserves actual material and valid physical links")
-   # Filling vacant points can consume every batch location before a link is drawn.
-   # Check the leather pool's real link capability without requiring that random outcome.
-   var links=g.EquipmentOffers.for_pool(g,2,g.Enemies.TYPES.belt.install_pool).filter(func(o):return o.kind=="link")
-   t.check(not links.is_empty(),"SKIN leather source still supplies legal links after its full-body pass")
-   if not links.is_empty():
-    var request=links[0].duplicate(true);request.grade=2;request.tier=3
-    var count=g.state.links.size()
-    var linked=g.Application.execute_concrete(g,request,id)
-    t.check(linked.ok and g.state.links.size()==count+1 and g.state.equipment.all(func(e):return e.template in g.Enemies.TYPES.belt.install_pool) and g.validate()=="","SKIN inherited leather link commits through the shared factory without ordinary rope pieces")
+   t.check(active(g).is_empty() and g.state.links.is_empty() and g.state.equipment.all(func(e):return e.template in g.Enemies.TYPES.belt.install_pool) and g.validate()=="","SKIN six-stage leather source preserves actual material and valid physical links")
+
   else:
    Save.step_both(t,g,twin,"end")
    t.check(g.state.equipment.size()==1 and g.state.equipment[0].grade+g.equipment_tier(g.state.equipment[0])==4 and g.state.equipment[0].template in g.Enemies.TYPES.belt.install_pool,"SKIN leather mass uses frozen value-four material pool")

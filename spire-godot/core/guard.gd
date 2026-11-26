@@ -90,7 +90,7 @@ static func execute(g, e: Dictionary, intent: Dictionary) -> void:
 static func capture(g, captor: Dictionary) -> void:
  if g.state.phase!="battle": return
  Bind.clear_bind(g,true)
- g.state.security=mini(5,g.state.security+1)
+ g.Prison.raise_security(g)
  g.state.prison={}
  var retained=g.equipment_targets().map(func(e):return e.id)
  var retained_special=g.state.special_equipment.map(func(e):return e.id)
@@ -122,22 +122,13 @@ static func capture(g, captor: Dictionary) -> void:
   g.state.rooms.append({"id":"prison","name":"监狱接收室","kind":"prison","wall":"rough","next":[],"floor":-1,"lane":0.5})
  g._apply_transition("battle_end_captured",{"room":"prison"});g.state.wall="rough";g.state.wall_distance=0
  g.Pressure.cleanup(g)
- var spec=g.Prison.equipment_spec(g,0)
  var intake=g.Prison.intake_equipment(g)
  var added=intake.added
  var special_added=intake.special_added
- var links=[]
- for i in range(mini(3,g.state.security)):
-  var pool=g.EquipmentOffers.links(g,spec.grade)
-  if pool.is_empty(): break
-  var pair=pool[g._random_index("equipment",pool.size())]
-  var rope=g._install_link(pair.ends[0],pair.ends[1],E.maximum(spec.grade)*[0.0,0.4,0.8,1.0][spec.tier],"prison",spec.grade,[],pair.slots,pair.contact_points)
-  if not rope.is_empty(): links.append(rope.id)
- var installed_links=g.state.links.filter(func(link):return link.id in links)
  var climax=g.Prison.intake_climax(g)
- var scene=g.Prison.intake_scene(g,intake,installed_links,climax)
- g.state.capture={"by":captor.name,"security":g.state.security,"retained":retained,"added":added,"links":links,"retained_special":retained_special,"special_added":special_added,"special_baseline":g.state.special_equipment.map(func(e):return e.id),"confiscated":confiscated,"baseline":g.equipment_targets().map(func(e):return e.id),"intake_scene":scene}
- g._emit("event","收押完成：警戒度%d；没收道具%d件；新增拘束具%d件、连接绳%d条、性玩具%d件；榨取%s魔力。" % [g.state.security,confiscated,added.size(),links.size(),special_added.size(),g.number(climax.mana_lost)]+(" 已戴上限制项圈。" if intake.collar_added else ""),{"prison_intake":intake,"prison_intake_climax":climax})
+ var scene=g.Prison.intake_scene(g,intake,climax)
+ g.state.capture={"by":captor.name,"security":g.state.security,"retained":retained,"added":added,"links":[],"retained_special":retained_special,"special_added":special_added,"special_baseline":g.state.special_equipment.map(func(e):return e.id),"confiscated":confiscated,"baseline":g.equipment_targets().map(func(e):return e.id),"intake_scene":scene}
+ g._emit("event","收押完成：警戒度%d；没收道具%d件；新增拘束具%d件、性玩具%d件；榨取%s魔力。" % [g.state.security,confiscated,added.size(),special_added.size(),g.number(climax.mana_lost)]+(" 已戴上限制项圈。" if intake.collar_added else ""),{"prison_intake":intake,"prison_intake_climax":climax})
 
  g.RelicEffects._mana_hook(g,"prison_entry_mana","进入监狱")
 

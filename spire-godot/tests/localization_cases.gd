@@ -1,6 +1,14 @@
 extends RefCounted
 const Localizer=preload("res://ui/localization.gd")
 
+static func equipment_card_previews(t, l, expected: Array) -> void:
+ var balance=preload("res://data/balance.gd")
+ for index in range(2):
+  var id=["confluence","binding_power"][index]
+  var info=balance.card_info(id,null,null,false,6)
+  for side in [1,2]:
+   t.check(l.display(info[side])==expected[index][side-1],"LOCALE equipment card formula and live result: "+id+" "+str(side)+" "+l.locale)
+
 static func source() -> Dictionary:
  return {"schema_version":1,"locale":"zh_CN","messages":{
   "test.line":{"text":"{name}：剩余{count}次（{name}）","context":"参数边界测试"},
@@ -145,8 +153,22 @@ static func run(t) -> void:
  locale_legacy_catalog_matches_current_sources(t)
  bundled_font(t)
  var l=Localizer.new()
+ t.check(l.log_display("耐久12.345 → 8.00；成功率0.01%；×1.25；v0.18.3")=="耐久12.3 → 8；成功率<0.1%；×125%；v0.18.3","LOCALE old log precision is display-only and preserves dotted identifiers")
+ var numbers=preload("res://data/display_numbers.gd")
+ t.check(numbers.probability(0)=="0%" and numbers.probability(0.0001)=="<0.1%" and numbers.probability(0.9999)==">99.9%" and numbers.probability(1)=="100%","LOCALE probability bounds distinguish possible, impossible and guaranteed")
  t.check(l.diagnostics().is_empty() and l.locale=="zh_CN","LOCALE shipped resources load locally and default to Chinese: "+str(l.diagnostics()))
  t.check(l.coverage("zh_CN").total>0 and l.coverage("en_US").missing==0 and l.coverage("ja_JP").missing==0,"LOCALE English and Japanese are complete for registered IDs")
+ var loop_game=preload("res://core/game.gd").new(42)
+ loop_game.state.demo_cycle=2
+ preload("res://tests/demo_exit_cases.gd").exit_fixture(loop_game)
+ var continuation=t.find_action(loop_game,"demo_continue").detail
+ t.action(loop_game,"demo_continue")
+ for locale in ["en_US","ja_JP"]:
+  l.set_locale(locale)
+  var intro="Restart in Act I. Lap 2, base HP ×2." if locale=="en_US" else "新しい周回は第1幕から。第2周、基礎HP×2。"
+  var preview=l.display(continuation)
+  var receipt=l.log_display(loop_game.state.logs.back().text)
+  t.check(preview.begins_with(intro) and receipt.begins_with(intro) and preview.contains("40") and not preview.contains("保留卡组") and not receipt.contains("魔力已补满"),"LOCALE real loop preview and receipt translate both the act and recovery: "+locale)
  t.check(l.set_locale("en_US") and l.text("ui.home.title","紧缚尖塔")=="Bound Spire","LOCALE registered English copy resolves through its semantic ID")
  var practice_health=RegEx.new();practice_health.compile("(\\d+)生命")
  var chinese=RegEx.new();chinese.compile("[\\x{3400}-\\x{9fff}]")
@@ -193,10 +215,20 @@ static func run(t) -> void:
  t.check(l.display("每佩戴3件拘束具，恢复1点魔力。\n当前：恢复4魔力。")=="For every 3 restraints worn, restore 1 Mana.\nCurrent: restore 4 Mana.","LOCALE changed card text preserves the actual multiline resource preview")
  t.check(l.display("肘击与近身短打伤害×0.8（含力量和蓄力）；三级起无法使用这两种攻击。")=="Elbow Strike and Close Strike damage x0.8, including Strength and Charge. Both attacks are unavailable at level 3 or higher.","LOCALE physical damage copy includes strength and charge in body restriction multiplier")
  t.check(l.display("每佩戴1件拘束具，恢复2点魔力。\n当前：恢复6魔力。")=="For every 1 restraints worn, restore 2 Mana.\nCurrent: restore 6 Mana." and l.display("每佩戴1件拘束具，恢复2魔力，至多恢复至上限。")=="For every 1 restraints worn, restore 2 Mana, up to the maximum.","LOCALE confluence doubled mana rule and preview preserve actual values")
+ t.check(l.display("无人机操作员")=="Drone Operator" and l.display("胶带齐射 · 3件胶带，捕缚＋10 · 追加2件玩具")=="Tape Volley · 3 tapes, +10 Capture · Add 2 toys","LOCALE repaired drone name and upgraded volley translate as complete messages")
+ equipment_card_previews(t,l,[
+  ["For every 2 equipped restraints or sex toys, gain 1 Strength this turn.\nCurrent: gain 3 Strength this turn.", "Count equipped restraints and sex toys. For every 1, restore 2 Mana.\nCurrent: restore 12 Mana. Exhaust."],
+  ["For every 2 equipped restraints or sex toys, gain 1 temporary Strength until the end of your next turn.\nCurrent: gain 3 Strength. Exhaust.", "For every 4 equipped restraints or sex toys, gain 1 Charge.\nCurrent: gain 1 Charge. Exhaust."]
+ ])
  t.check(l.display("魔路精通")=="Mana Circuit Mastery" and l.display("0费剩余2次")=="Zero-cost triggers remaining: 2","LOCALE mastery name and live quota translate")
  t.check(l.display("两面互斥：本场已启用「魔路精通」。").contains("Mutually exclusive"),"LOCALE mutual exclusion explains unavailable face")
  t.check(l.set_locale("ja_JP") and l.text("ui.home.title","紧缚尖塔")=="緊縛の尖塔","LOCALE registered Japanese copy resolves through its semantic ID")
  t.check(l.display("好了，带着这副样子进去吧❤").contains("格好") and l.display("好了，带着这副样子进去吧❤").contains("❤"),"LOCALE Japanese dialogue keeps the instruction instead of collapsing to punctuation")
+ t.check(l.display("无人机操作员")=="ドローン操縦士" and l.display("胶带齐射 · 3件胶带，捕缚＋10 · 追加2件玩具")=="テープ斉射 · テープ3個、捕縛＋10 · 玩具を2個追加","LOCALE repaired drone name and upgraded volley translate as complete messages")
+ equipment_card_previews(t,l,[
+  ["装着中の拘束具と性玩具の合計2個につき、このターン筋力を1得る。\n現在：このターンの筋力＋3。", "装着中の拘束具と性玩具の合計1個につき、魔力を2回復する。\n現在：魔力を12回復する。廃棄。"],
+  ["装着中の拘束具と性玩具の合計2個につき、次の自分のターン終了まで一時的に筋力を1得る。\n現在：筋力＋3。廃棄。", "装着中の拘束具と性玩具の合計4個につき、蓄力を1層得る。\n現在：蓄力を1層得る。廃棄。"]
+ ])
  t.check(l.display("抽取2，失去20快感。").contains("2") and l.display("抽取2，失去20快感。").contains("20") and l.display("抽取2，失去20快感。").contains("快感"),"LOCALE Japanese card result keeps draw, loss and pleasure values")
  t.check(l.display("删牌服务 · %s魔力" % 12).contains("カード削除") and l.display("删牌服务 · %s魔力" % 12).contains("12"),"LOCALE Japanese dynamic service label keeps its action and price")
  t.check(l.display("正在提交，请稍候…").length()>8 and l.display("正在提交，请稍候…").contains("待"),"LOCALE Japanese pending message keeps its instruction instead of collapsing to an ellipsis")
@@ -235,16 +267,16 @@ static func run(t) -> void:
  t.check(l.display("快感跨战保留；可通过深呼吸降低")=="快感は戦闘をまたいで保持され、深呼吸で減少させられる","LOCALE Japanese pleasure summary preserves both cross-battle retention and deep-breath reduction")
  var pleasure_rule=l.display("快感达到%s：损失%s魔力，结束当前行动，下回合能量－%d。快感跨战保留，能量惩罚在场次结束时清空。滑精时免除高潮的即时魔力损失，后续两回合开始时各损失%s魔力。\n深呼吸：每回合最多2次，%d能量，基础快感－%s，下回合能量＋%d。嘴部拘束的等级＋紧度总值为2／3／4／5／6时，快感降低量衰减20%%／40%%／60%%／80%%／100%%；多件取最高总值。高级、紧度3档时无法使用。成功使用仍获得完整的下回合能量。" % [100,20,1,10,1,15,1])
  t.check(pleasure_rule.contains("戦闘をまたいで保持") and pleasure_rule.contains("エネルギーペナルティは持ち越さない") and pleasure_rule.contains("深呼吸") and pleasure_rule.contains("減衰"),"LOCALE Japanese pleasure rules preserve cross-battle state, energy scope and deep-breath scaling")
- var temporary_payment=l.display("本次耗魔全部由临时魔力支付时，施法失败获得1能量，返还魔力为0。0费牌每回合最多触发2次。两面互斥。唯一。")
- t.check(temporary_payment.contains("一時魔力") and temporary_payment.contains("返還は0") and temporary_payment.contains("エネルギーを1") and temporary_payment.contains("最大2回") and temporary_payment.contains("排他的"),"LOCALE Japanese temporary-mana rule preserves payment, failure, energy, quota and exclusivity")
+ var temporary_payment=l.display("耗魔全部由魔力预备抵扣时，抽1张牌。若施法失败，获得1能量，返还魔力为0。0费牌每回合最多以此获得2次能量。两面互斥。唯一。")
+ t.check(temporary_payment.contains("魔力準備") and temporary_payment.contains("返還は0") and temporary_payment.contains("エネルギーを1") and temporary_payment.contains("最大2回") and temporary_payment.contains("排他的"),"LOCALE Japanese temporary-mana rule preserves payment, failure, energy, quota and exclusivity")
  var formation_refresh=l.display("两面可同时生效。打出当回合立即获得次数，下回合刷新。0费牌也消耗次数。严密度仅在打出布阵时检查。")
  t.check(formation_refresh.contains("同時") and formation_refresh.contains("直ちに") and formation_refresh.contains("次のターンに更新") and formation_refresh.contains("コスト0") and formation_refresh.contains("布陣"),"LOCALE Japanese formation rule preserves immediate uses, refresh timing, zero-cost consumption and check timing")
  var ritual_growth=l.display("首回合启动仪式，之后每回合施加数量持续增长，尽快击破法阵。")
  t.check(ritual_growth.contains("第1ターン") and ritual_growth.contains("毎ターン") and ritual_growth.contains("増加") and ritual_growth.contains("魔法陣を破壊"),"LOCALE Japanese ritual rule preserves start, growth and destruction objective")
  var echo_fireball=l.display("下一次火球术每层免费额外施放一次，使用次数保留；只作用原目标，目标失效则跳过。每次施法各自判定成功率。")
  t.check(echo_fireball.contains("1層につき1回") and echo_fireball.contains("使用回数を消費しない") and echo_fireball.contains("元の対象") and echo_fireball.contains("スキップ") and echo_fireball.contains("各発動ごと"),"LOCALE Japanese echo fireball rule preserves free casts, original target, invalid-target skip and independent checks")
- var card_chain=l.display("每成功打出另一张牌，本回合施法成功率额外＋3个百分点。回合开始清零。唯一。")
- t.check(card_chain.contains("1枚使用するたび") and card_chain.contains("＋3") and card_chain.contains("ターン開始時に0") and card_chain.contains("唯一"),"LOCALE Japanese card-chain rule preserves per-card accumulation and turn reset")
+ var card_chain=l.display("每成功打出另一张牌，本回合施法成功率额外＋8%。回合开始清零。唯一。")
+ t.check(card_chain.contains("1枚使用するたび") and card_chain.contains("＋8") and card_chain.contains("ターン開始時に0") and card_chain.contains("唯一"),"LOCALE Japanese card-chain rule preserves per-card accumulation and turn reset")
  t.check(l.display("分裂时的生命记录有误")=="分裂時のHP記録が不正","LOCALE Japanese split-state error cannot become a divorce message")
  t.check(l.display("唯一。")=="唯一。" and l.display("电量剩余%d回合。" % 4)=="バッテリー残量：あと4ターン。","LOCALE Japanese short keyword and battery countdown remain complete phrases")
  t.check(l.display("沿已选路线前进，手牌与资源保持当前值；本段剩余%d回合。" % 3).ends_with("残り3ターン。"),"LOCALE Japanese route countdown keeps the remaining-turn value")
@@ -257,16 +289,16 @@ static func run(t) -> void:
  t.check(enemy_sequence.contains("第11行動で収監") and enemy_sequence.contains("体術を使用できない") and enemy_sequence.contains("ファイアボールとカード魔法には影響しない"),"LOCALE Japanese enemy sequence preserves the eleventh-action arrest and physical-skill-only disable")
  var guard_capture=l.display("开场会束住手腕、口部和脚踝，再准备并施加50/100的捕缚。无法新增或合法替换时，改为加固该处1次；紧度3且可上锁时，上锁并恢复满耐久。用挣扎或滑脱牌削减捕缚；达到100后，警卫下一次行动会收押你。")
  t.check(guard_capture.contains("もがく") and guard_capture.contains("抜け出し") and guard_capture.contains("100に達すると") and guard_capture.contains("次の行動で収監"),"LOCALE Japanese guard summary preserves release-card actions, capture threshold and next-action imprisonment")
- var membership=l.display("商店限定。购买会员卡仅可使用自身魔力。持有后，商店全部商品、删牌及解除拘束服务五折；其他交易仍可使用自身魔力或魔瓶付款。")
- t.check(membership.contains("自身の魔力だけ") and membership.contains("半額") and not membership.contains("5倍") and membership.contains("魔瓶"),"LOCALE Japanese membership card preserves its payment restriction and half-price services")
+ var membership=l.display(preload("res://data/relics.gd").TYPES.membership_card.detail)
+ t.check(membership.contains("自身の魔力のみ") and membership.contains("半額") and membership.contains("カード削除") and membership.contains("拘束解除"),"LOCALE Japanese membership card preserves its payment restriction and half-price services")
  var capture_rules=l.display("被捕缚时无法移动，先解除捕缚。挣扎／滑脱牌可直接削减进度；除眼罩、口球外没有其他拘束具时伤害翻倍，环境加成为0。上身受限至少按1级计算。同种捕缚仅生效一次；新种类增加其初始值的一半。降至0全部解除，达到100后下一敌方回合执行收押。\n降紧每层固定削减8点捕缚，使用固定数值，蓄力保留。")
  t.check(capture_rules.contains("カードで進度を減らし") and capture_rules.contains("別種追加は初期進度の半分") and capture_rules.contains("固定8減少"),"LOCALE Japanese capture glossary preserves direct reduction, added half progress and fixed loosening value")
  var binding_echo=l.display("下一张成功打出的双面效果各异的拘束面牌，每层额外释放一次。免费复放，只作用原目标，目标失效则跳过。")
  t.check(binding_echo.contains("1層につき1回追加発動") and binding_echo.contains("無料") and binding_echo.contains("元の対象") and binding_echo.contains("無効ならスキップ"),"LOCALE Japanese binding echo preserves per-layer replay, cost, target and invalid-target skip")
  var damage_cap=l.display("每回合受到的最终伤害合计最多%s点，多次攻击、多段及玩偶转移伤害共用额度；下一回合恢复。\n伤害严格超过屏障剩余额度时，玩偶普通反击容量上限－1，最低1，持续本场战斗；多段及群攻每次攻击只扣一次。额度耗尽后继续攻击仍可触发。" % 12)
  t.check(damage_cap.contains("最大12") and damage_cap.contains("同じ上限枠を共有") and damage_cap.contains("上限－1（最低1）") and damage_cap.contains("ちょうど使い切った攻撃では発動しない"),"LOCALE Japanese barrier rule preserves the shared cap and counter-capacity decrement boundary")
- var wand_points=l.display("每成功打出1张技能牌，积攒1点，上限15。右键图标消耗全部点数，恢复等量自身魔力；满15点自动兑换并清空。点数跨回合、跨战斗保留，仅主动出牌计数；恢复至多为魔力上限。")
- t.check(wand_points.contains("上限15") and wand_points.contains("15ポイントになると自動的") and wand_points.contains("ターンと戦闘をまたいで保持") and wand_points.contains("再発動では追加されない"),"LOCALE Japanese large-wand points preserve the cap, automatic exchange and carry-over rules")
+ var wand_points=l.display(preload("res://data/relics.gd").TYPES.great_wand.detail)
+ t.check(wand_points.contains("自分で") and wand_points.contains("15ポイントで自動交換") and wand_points.contains("次の戦闘に持ち越す") and wand_points.contains("全ポイント"),"LOCALE Japanese large-wand points preserve the cap, automatic exchange and carry-over rules")
  var free_hand_arts=l.display("接下来2次手部体术按自由态发动，忽略拘束限制与减益；包括肘击、近身短打及其连击。每次完整攻击消耗1次，姿势、费用与次数限制照常。每次使用增加2次，剩余次数可累计。")
  t.check(free_hand_arts.contains("手部体術") and free_hand_arts.contains("攻撃全体につき使用回数を1消費") and free_hand_arts.contains("残り回数は累積"),"LOCALE Japanese free-hand effect preserves martial arts, per-complete-attack use and stacked remainder")
  t.check(l.text("ui.flask.withdraw_uses","取 {dots}",{"dots":"..."})=="取り出す ..." and l.text("ui.flask.deposit_uses","存 {dots}",{"dots":"..."})=="預ける ...","LOCALE Japanese flask actions keep deposit and withdrawal verbs")

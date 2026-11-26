@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="110" viewBox="0 0 180 110">
+ <defs>
+  <linearGradient id="silver" x2=".8" y2="1" gradientUnits="objectBoundingBox"><stop stop-color="#fff5d2"/><stop offset=".48" stop-color="#a8ced5"/><stop offset="1" stop-color="#456677"/></linearGradient>
+  <radialGradient id="halo"><stop stop-color="#ffe9a8" stop-opacity=".55"/><stop offset="1" stop-color="#e9bd69" stop-opacity="0"/></radialGradient>
+ </defs>
+ <ellipse cx="91" cy="53" rx="68" ry="48" fill="url(#halo)"/>
+ <g transform="rotate(-28 90 55)" fill="none" stroke-linecap="round" stroke-width="8">
+  <g stroke="#263942" stroke-width="12"><rect x="15" y="43" width="41" height="23" rx="12"/><path d="M77 43H60a12 12 0 0 0 0 24h13m34-24h11a12 12 0 0 1 0 24h-13"/><rect x="125" y="43" width="40" height="23" rx="12"/></g>
+  <g stroke="url(#silver)"><rect x="15" y="43" width="41" height="23" rx="12"/><path d="M77 43H60a12 12 0 0 0 0 24h13m34-24h11a12 12 0 0 1 0 24h-13"/><rect x="125" y="43" width="40" height="23" rx="12"/></g>
+ </g>
+ <path d="m111 12-25 38 13-2-26 48 8-35-12 3z" fill="#f5c16c" stroke="#fff0b0" stroke-width="1.7" stroke-linejoin="round"/>
+ <path d="m67 38-9-9m53 48 10 7m-5-37 9-3M68 71l-10 4" fill="none" stroke="#ffda8b" stroke-width="2.8" stroke-linecap="round"/>
+ <path d="m134 18 2 5 5 2-5 2-2 5-2-5-5-2 5-2zm-85 66 1.5 4 4 1.5-4 1.5-1.5 4-1.5-4-4-1.5 4-1.5z" fill="#f8e4a0"/>
+</svg>

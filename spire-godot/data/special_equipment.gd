@@ -1,4 +1,5 @@
 extends RefCounted
+const DisplayNumbers=preload("res://data/display_numbers.gd")
 const RestraintValue=preload("res://data/restraint_value.gd")
 
 const BATTERY_TURNS={1:6,2:9,3:12}
@@ -368,7 +369,7 @@ static func escape_reason(g, item: Dictionary, method: String, hands: Array) -> 
  var issue=method_reason(item,method)
  if issue!="": return issue
  if is_reinforcement(item):
-  return "" if environment_contact(g,item,"sharp") else "固定带只能借助已安装且能够接触该部位的切割类道具处理。"
+  return "请用刀具的借墙面切断固定带。"
  if method not in ["strain","slip"]: return ""
  if not hands.is_empty(): return ""
  for environment in DESIGNS[item.type].environments:
@@ -420,12 +421,10 @@ static func climax_slip_damage(item: Dictionary, tightness: int) -> float:
 
 static func climax_slip_rule(type: String) -> String:
  var base=float(TYPES.get(type,{}).get("climax_slip_base",0.0))
- return "" if base<=0 else "每次高潮：受到%s－当前紧度档位－装备等级的固定滑脱伤害。" % str(base).trim_suffix(".0")
+ return "" if base<=0 else "每次高潮：受到%s－当前紧度档位－装备等级的固定滑脱伤害。" % DisplayNumbers.amount(base)
 
 static func _number(value: float) -> String:
- if value>0.0 and value<0.005: return "小于0.01"
- var text="%.2f" % value
- return text.trim_suffix("0").trim_suffix("0").trim_suffix(".") if text.contains(".") else text
+ return DisplayNumbers.measured(value)
 
 static func _stimulus_sentence(item: Dictionary) -> String:
  if is_chastity(item):

@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="320" height="260" viewBox="0 0 320 260">
+ <defs>
+  <linearGradient id="silver" x2=".85" y2="1" gradientUnits="objectBoundingBox">
+   <stop stop-color="#e5ede8"/><stop offset=".23" stop-color="#acbfbc"/><stop offset=".52" stop-color="#687875"/><stop offset=".77" stop-color="#91a6a2"/><stop offset="1" stop-color="#455352"/>
+  </linearGradient>
+  <linearGradient id="edge" x2=".3" y2="1">
+   <stop stop-color="#f0e7ca"/><stop offset=".58" stop-color="#c6ba99"/><stop offset="1" stop-color="#84755d"/>
+  </linearGradient>
+  <linearGradient id="gum" x2="1" y2=".35">
+   <stop stop-color="#947451"/><stop offset=".46" stop-color="#e2c996"/><stop offset="1" stop-color="#b49e78"/>
+  </linearGradient>
+  <g id="roll" stroke-linejoin="round">
+   <path d="M-43 -4C-43 -29 -22 -47 0 -47C20 -47 35 -38 43 -23L47 -6C55 18 36 41 14 45C-10 51 -33 35 -37 19Z" fill="url(#silver)" stroke="#283332" stroke-width="3"/>
+   <path d="M30 -36l7 20m-2 -13 8 22m-4 -11 6 19M-7 38l4 7m9 -8 3 7m9 -9 3 6m8 -11 3 5" fill="none" stroke="#c1d2cc" opacity=".6"/>
+   <ellipse cy="-5" rx="42" ry="41" fill="url(#edge)" stroke="#38433e" stroke-width="2.6"/>
+   <g fill="none" stroke="#776e5c" opacity=".58">
+    <ellipse cy="-5" rx="39" ry="38"/><ellipse cy="-5" rx="35" ry="34"/><ellipse cy="-5" rx="32" ry="31"/><ellipse cy="-5" rx="29" ry="28"/>
+   </g>
+   <ellipse cy="-5" rx="25" ry="24" fill="#202927" stroke="#f6dcad" stroke-width="2.5"/>
+   <path d="M-24 -8C-22 -30 8 -37 21 -18C26 -11 26 -2 23 4C18 -9 8 -15 -2 -16C-11 -17 -19 -13 -24 -8Z" fill="#8a6948"/>
+   <path d="M-35 -22C-29 -35 -15 -42 1 -42" fill="none" stroke="#fff5d9" stroke-width="2"/>
+  </g>
+ </defs>
+ <ellipse cx="162" cy="235" rx="81" ry="8" fill="#11191d" opacity=".3"/>
+ <!-- Loose ribbons keep their width through each bend; the ochre face is the adhesive side. -->
+ <g stroke="#2c3534" stroke-width="3" stroke-linejoin="round">
+  <path d="M103 146C77 141 65 118 71 97C76 73 74 59 58 51L70 37C98 49 105 70 96 99C90 117 96 130 116 134Z" fill="url(#silver)"/>
+  <path d="M58 51C51 43 44 45 34 47L37 41L30 40L33 35L26 32C47 24 64 26 70 37Z" fill="url(#gum)"/>
+  <path d="M205 142C225 116 260 138 265 104C267 91 263 80 255 72L271 59C289 73 291 95 282 119C273 147 245 154 221 161Z" fill="url(#silver)"/>
+  <path d="M255 72C250 64 250 54 255 43L259 46L262 40L266 43L271 36C267 47 268 54 271 59Z" fill="url(#gum)"/>
+  <path d="M102 183C80 190 68 209 54 211C42 214 35 208 32 204L25 220C39 234 61 232 79 219L116 199Z" fill="url(#silver)"/>
+  <path d="M32 204L25 220L19 212L16 216L14 207L10 209L11 200C18 199 25 200 32 204Z" fill="url(#gum)"/>
+  <path d="M195 182C217 177 234 184 250 200C265 214 279 207 288 193L302 200C296 220 274 233 255 227C235 221 225 205 202 207Z" fill="url(#silver)"/>
+  <path d="M288 193L296 182L299 188L304 185L302 192L308 191L302 200Z" fill="url(#gum)"/>
+ </g>
+ <g fill="none" stroke="#e4efdf" stroke-width="2" opacity=".72">
+  <path d="M84 114C77 96 91 74 84 59M247 134Q280 127 278 91M32 218Q52 233 81 205M241 199Q272 234 293 201"/>
+ </g>
+ <use xlink:href="#roll" transform="translate(167 77) rotate(18) scale(.81 .93)"/>
+ <use xlink:href="#roll" transform="translate(114 109) rotate(-33) scale(.93 1.02)"/>
+ <use xlink:href="#roll" transform="translate(204 111) rotate(40) scale(.93 .96)"/>
+ <path d="M71 139Q83 104 134 98Q191 83 228 121Q249 150 228 187Q215 212 158 216Q110 213 85 191Q64 171 71 139Z" stroke="#273635" stroke-width="4" fill="url(#silver)"/>
+ <use xlink:href="#roll" transform="translate(185 177) rotate(37) scale(1.03 .99)"/>
+ <use xlink:href="#roll" transform="translate(118 176) rotate(-22) scale(1.04 .98)"/>
+ <g stroke-linejoin="round" stroke="#3a4947" stroke-width="2.6">
+  <path d="M77 125C99 102 151 97 202 108L221 128C175 112 109 122 72 146Z" fill="url(#silver)"/>
+  <path d="M78 144C120 136 167 144 209 171L202 190C166 164 110 151 85 160Z" fill="url(#silver)"/>
+  <path d="M104 197C131 165 179 139 230 128L234 146C192 160 150 181 123 210Z" fill="url(#silver)"/>
+ </g>
+ <g fill="none" stroke="#d9e6dc" opacity=".8" stroke-linecap="round">
+  <path d="M83 125Q117 105 171 106M87 147Q123 142 160 154M130 190Q173 157 220 142" stroke-width="2.5"/>
+  <path d="M99 118l2 9m4 -11 3 8m25 -12 2 8m36 39 -3 6m8 -4 -4 6m27 -20 3 6m-9 -3 3 6"/>
+ </g>
+ <!-- Its face peers out from the narrow seam between overlapping tape strips. -->
+ <path d="M99 133Q126 118 162 120Q191 119 210 127Q190 127 171 142Q150 138 135 145Q115 137 99 139Z" fill="#233330"/>
+ <g fill="#efc45f" stroke="#fff1a5" stroke-width="1.4">
+  <path d="M114 131Q125 126 139 125Q136 135 129 136Q120 137 114 131Z"/>
+  <path d="M168 127Q180 124 193 124Q186 134 176 135Q170 135 168 127Z"/>
+ </g>
+ <path d="M127 127l3 -1 -1 8 -2 -1zm51 0 3 -1 -2 7 -2 0Z" fill="#664d2f"/>
+</svg>

@@ -789,7 +789,32 @@ static func editor_tag_isolates_dev_user_dir(t) -> void:
  t.check(base!="" and override.ends_with("-dev") and override!=base,"USERDIR editor_tag_isolates_dev_user_dir: project.godot declares a distinct -dev editor override: override="+override)
  t.check(directory.ends_with("/"+(override if activated else base)),"USERDIR editor_tag_isolates_dev_user_dir: the runtime directory follows the feature tags this process has: editor="+str(activated)+" dir="+directory)
 
+static func retired_opener(t) -> void:
+ var g=Game.new(42)
+ var saved=g.export_snapshot();saved.save_revision=g.Snapshot.OPENER_REVISION
+ var old={"uid":"card_%d" % saved.next_card,"type":"letter_opener","retain_until":-1}
+ saved.next_card+=1;saved.deck.append(old);saved.powers.append(old.merged({"power_face":"bound","power_progress":2}))
+ saved.rest_cards=["focus","letter_opener","concentration"]
+ var input=saved.duplicate(true)
+ var result=g.restore_snapshot(saved)
+ t.check(result.ok and saved==input and not g.state.deck.any(func(c):return c.uid==old.uid) and g.state.powers.is_empty(),"SAVE retired card and its active counter leave the copied legacy snapshot")
+ t.check(result.ok and g.state.rest_cards.size()==3 and g.state.rest_cards[0]=="focus" and g.state.rest_cards[2]=="concentration" and g.state.rest_cards[1] not in input.rest_cards and g.state.rng==input.rng,"SAVE retired reward is replaced in place without rerolling adjacent choices or RNG")
+ t.check(not g.Cards.Rules.SPECS.has(old.type) and old.type not in g.Cards.Rules.REWARDS,"SAVE retired opener has no live definition or reward slot")
+ var retain=input.duplicate(true)
+ retain.draw.append_array(retain.hand);retain.hand=[old.duplicate()];retain.powers=[]
+ retain.pending_retain=true;retain.retain_left=1;retain.retain_draw_after=1
+ t.check(g.restore_snapshot(retain).ok and not g.state.pending_retain and g.state.hand.size()==1 and g.state.hand[0].type!=old.type,"SAVE retiring the only retain target finishes the selection and draws its pending card")
+ var shop=input.duplicate(true)
+ for room in shop.rooms:
+  if room.kind=="shop":
+   room.remove_used=false;room.stock=[{"kind":"card","type":old.type,"price":25.0,"taken":false},{"kind":"card","type":"pot_of_greed","price":25.0,"taken":false}]
+   t.check(g.restore_snapshot(shop).ok and g.room_data(room.id).stock.size()==1 and g.room_data(room.id).stock[0].type=="pot_of_greed","SAVE retired shop slot disappears while neighboring stock remains purchasable")
+   break
+ var before=g.export_snapshot();saved.save_revision=g.Snapshot.REVISION
+ t.check(not g.restore_snapshot(saved).ok and g.state==before,"SAVE current revision rejects a retired card atomically")
+
 static func run(t) -> void:
+ retired_opener(t)
  user_dir_ignores_project_name(t)
  editor_tag_isolates_dev_user_dir(t)
  legacy_source_is_the_newest_directory_with_a_readable_save(t)
@@ -900,10 +925,8 @@ static func run(t) -> void:
  g=preload("res://tests/prison_cases.gd").intake(t)
  preload("res://tests/prison_cases.gd").clear_fixture(g)
  for i in range(3): t.action(g,"prison",{"action":"explore"})
- g._gain_tool("return_seal") # Preserve existing-item support; absent from generation.
- var seal=g.state.items.filter(func(i):return i.type=="return_seal")[0]
  h=roundtrip(t,g,"retained return seal and frozen cell pool")
- step_both(t,g,h,"item_use",{"item":seal.id,"target":"hero"})
+ step_both(t,g,h,"relic_discharge",{"relic":"return_seal"})
  roundtrip(t,g,"special item escape to regenerated tower")
  g=Game.new(42,true,"equipment");t.action(g,"finish_rest");roundtrip(t,g,"practice completed")
  g=Rewards.setup()
@@ -962,7 +985,7 @@ static func run(t) -> void:
  t.check(recovered.ok and recovered.backup and recovered.snapshot==first_scene,"SAVE damaged primary recovers previous valid state")
  t.check(store.write_game(g).ok and store.read_slot("tower").snapshot==g.restart_snapshot(),"SAVE subsequent save repairs primary without losing valid backup")
  var tower_bytes=FileAccess.get_file_as_string(store.path("tower"))
- t.check(store.write_game(Game.new(42,true,"component_links")).ok and FileAccess.get_file_as_string(store.path("tower"))==tower_bytes and store.read_slot("practice").ok,"SAVE practice slot never overwrites tower")
+ t.check(store.write_game(Game.new(42,true,"leg_pair")).ok and FileAccess.get_file_as_string(store.path("tower"))==tower_bytes and store.read_slot("practice").ok,"SAVE practice slot never overwrites tower")
  var escaped=preload("res://tests/prison_cases.gd").intake(t)
  preload("res://tests/prison_cases.gd").clear_fixture(escaped)
  preload("res://tests/exploration_fixture.gd").at_site(escaped,"door");escaped.state.posture="stand"

@@ -121,25 +121,21 @@ static func run(t) -> void:
  for security in [0,4]:
   var surrender_game=Game.new(42)
   surrender_game.state.security=security;surrender_game.state.mana=37
-  surrender_game._gain_tool("return_seal")
-  var retained_seal=surrender_game.state.items[0].duplicate(true)
   surrender_game._gain_tool("shard")
   var candidate=t.find_action(surrender_game,"surrender")
   var before_surrender=surrender_game.export_snapshot()
   t.check(not surrender_game.dispatch(surrender_game.command(candidate.payload,surrender_game.state.version-1),surrender_game.state.version-1).ok and surrender_game.state==before_surrender,"SURRENDER stale confirmation changes nothing")
   t.check(surrender_game.dispatch(surrender_game.command(candidate.payload,surrender_game.state.version),surrender_game.state.version).ok,"SURRENDER formal candidate commits capture and intake")
-  t.check(surrender_game.state.phase=="captured" and surrender_game.state.security==security+1 and surrender_game.state.items==[retained_seal],"SURRENDER reaches the same one-time intake page while preserving the original seal")
+  t.check(surrender_game.state.phase=="captured" and surrender_game.state.security==security+1 and surrender_game.state.items.is_empty() and "return_seal" in surrender_game.state.relics,"SURRENDER reaches the same one-time intake page while preserving the original seal")
   t.check(surrender_game.state.capture.confiscated==1,"SEAL intake count includes only confiscated ordinary tools")
   var retained_save=Game.new(77)
-  t.check(retained_save.restore_snapshot(surrender_game.export_snapshot()).ok and retained_save.state.items==[retained_seal],"SEAL prison snapshot preserves identity and remaining uses without duplication")
+  t.check(retained_save.restore_snapshot(surrender_game.export_snapshot()).ok and retained_save.state.items.is_empty() and "return_seal" in retained_save.state.relics,"SEAL prison snapshot preserves identity and remaining uses without duplication")
   t.check(surrender_game.restart_snapshot()==surrender_game.state and not surrender_game.command_facts().any(func(c):return c.payload.kind=="surrender"),"SURRENDER checkpoints intake and cannot repeat outside battle")
   t.check(t.action(surrender_game,"prison",{"action":"enter"}).ok and surrender_game.state.phase=="prison" and surrender_game.state.prison.left==B.PRISON_INTERVALS[surrender_game.state.security-1],"SURRENDER intake page uses the formal prison entry action at every security")
  var fresh=preload("res://core/game.gd").new(42)
- t.check(fresh.state.items.size()==1 and fresh.state.items[0].type=="return_seal" and fresh.state.items[0].uses==1,"SEAL normal new game carries one single-use teleport scroll")
- t.check(fresh.get_view().items[0].name=="传送符" and fresh.get_view().items[0].category=="卷轴","SEAL initial inventory uses renamed scroll presentation")
- t.check(fresh.Tools.description(fresh,"return_seal").contains("入狱时保留。") and not fresh.Tools.description(fresh,"shard").contains("入狱时保留。"),"SEAL shared item description exposes intake protection only for the seal")
+ t.check("return_seal" in fresh.state.relics and fresh.state.items.is_empty(),"SEAL initial extra relic outside inventory")
  var restored=preload("res://core/game.gd").new(77)
- t.check(restored.restore_snapshot(fresh.restart_snapshot()).ok and restored.state.items.size()==1,"SEAL scene restore never duplicates initial scroll")
+ t.check(restored.restore_snapshot(fresh.restart_snapshot()).ok and restored.state.relics.count("return_seal")==1,"SEAL scene restore never duplicates initial scroll")
  patrol_period_cases(t)
  escape_route_cases(t)
  security_cases(t)
@@ -173,21 +169,21 @@ static func run(t) -> void:
  g._install_assembly("leg","toes","fixture")
  t.check(t.find_action(g,"prison",{"action":"explore"}).cost==g.wall_movement_profile().cost,"PRISON leg restriction fee matches wall movement")
 
- # Clean inspection preserves damage and carried tools, but exposed installed tools are confiscated.
+ # Clean inspection preserves damage and carried tools.
  g=intake(t); clear_fixture(g)
  var belt=g._install_template("belt","ankle",2,10,true,"fixture")
  g.state.prison.baseline=[belt.id]
- g._gain_tool("shard"); g._gain_tool("saw"); g.state.items[1].mount="foot_wall";g.state.items[1].prison_position=g.state.prison.space.position.duplicate()
+ g._gain_tool("shard"); g._gain_tool("saw")
  var exhausted=g.state.hand.pop_back(); g.state.exhaust.append(exhausted)
  var energy=g.state.energy; var mana=g.state.mana
  inspect(t,g)
  t.check(g.state.exhaust.size()==1 and g.state.hand.is_empty() and g.state.mana==mana,"PRISON arrival does not restore exhaust or magic or begin a free turn")
- t.check(g.command_facts().filter(func(c):return c.payload.kind not in ["flask","item_discard"]).size()==2 and g.command_facts().all(func(c):return c.payload.kind in ["prison","flask","item_discard"]),"PRISON inspection closes ordinary tools, posture and cards; personal flask remains available")
+ t.check(g.command_facts().filter(func(c):return c.payload.kind not in ["flask","item_discard","item_use"]).size()==2 and g.command_facts().all(func(c):return c.payload.kind in ["prison","flask","item_discard","item_use"]),"PRISON inspection closes ordinary tools, posture and cards; personal flask remains available")
  t.action(g,"prison",{"action":"inspect"})
  t.check(g.state.prison.missing.is_empty() and g.state.exhaust.size()==1,"PRISON lower durability alone is not a missing item and result does not restore exhaust")
  t.action(g,"prison",{"action":"accept"})
  t.check(g._equipment(belt.id).durability==2 and g._equipment(belt.id).locked and g.state.prison.checks==1,"PRISON clean check does not repair or unlock worn equipment")
- t.check(g.state.items.size()==1 and g.state.items[0].type=="shard" and g.state.exhaust.is_empty() and g.state.discard.any(func(c):return c.uid==exhausted.uid),"PRISON complete check confiscates exposed wall tool and restores each exhausted card to discard")
+ t.check(g.state.items.size()==2 and g.state.items[0].type=="shard" and g.state.exhaust.is_empty() and g.state.discard.any(func(c):return c.uid==exhausted.uid),"PRISON complete check retains carried tools and restores each exhausted card to discard")
  before=JSON.stringify(g.state)
  t.check(not t.action(g,"prison",{"action":"accept"}).ok and JSON.stringify(g.state)==before,"PRISON cannot accept punishment or restore cards twice")
  t.action(g,"prison",{"action":"resume"})
@@ -273,12 +269,12 @@ static func run(t) -> void:
  t.action(g,"posture",{"dest":"stand","wall":false})
  var old_route=JSON.stringify(g.state.rooms)
  g.state.charge=2;g.state.next_energy=1;g.state.mana=51;g.state.pressure=37
- g._gain_tool("shard");g._gain_tool("saw");g.state.items[1].mount="hand_wall";g.state.items[1].prison_position=g.state.prison.space.position.duplicate()
+ g._gain_tool("shard");g._gain_tool("saw")
  var original_deck=JSON.stringify(g.state.deck)
  t.check(t.action(g,"prison",{"action":"door_exit"}).ok,"PRISON standing with open door escapes")
  t.check(g.state.phase=="map" and g.state.room=="prison_start" and not g.state.practice and g.state.tower_generation==0 and old_route!=JSON.stringify(g.state.rooms),"PRISON escape opens prison route without prematurely reseeding tower")
  t.check(g.state.mana==61 and g.state.pressure==37 and g.state.security==1 and g.state.charge==2 and g.state.next_energy==1 and JSON.stringify(g.state.deck)==original_deck,"PRISON escape retains prison-earned charge up to the cap while preserving safety, deck and other cross-battle buffs")
- t.check(g.state.items.size()==1 and g.state.items[0].type=="shard" and g.state.completed_rooms.is_empty() and g.state.traversed_edges.is_empty() and g.validate()=="","PRISON escape leaves wall tools and old route history behind")
+ t.check(g.state.items.size()==2 and g.state.items[0].type=="shard" and g.state.completed_rooms.is_empty() and g.state.traversed_edges.is_empty() and g.validate()=="","PRISON escape retains carried tools and clears old route history")
  t.check(t.action(g,"depart",{"room":"prison_rest"}).ok,"PRISON exit route accepts its adjacent rest point")
  while g.state.phase=="travel": t.action(g,"travel_step")
  t.check(t.action(g,"rest_begin").ok and g.state.phase=="rest" and g.state.security==1 and g.state.energy==4 and g.state.next_energy==0,"PRISON selected rest consumes saved next-turn energy once")
@@ -314,7 +310,7 @@ static func run(t) -> void:
  var rope=g._install_template("rope","wrist",10,10,false,"fixture")
  card=t.hand_card(g,"strain")
  t.action(g,"card",{"uid":card.uid,"slot":"wrist","target":rope.id})
- var overload_actions=g.command_facts().filter(func(c):return c.payload.kind not in ["flask","item_discard"])
+ var overload_actions=g.command_facts().filter(func(c):return c.payload.kind not in ["flask","item_discard","item_use"])
  t.check(g.state.overloaded and overload_actions.size()==1 and overload_actions[0].payload.kind=="end","PRISON mid-turn overload closes exploration, ordinary tools and escapes")
 
  g=intake(t,5)
@@ -383,44 +379,39 @@ static func remaining_routes(t) -> void:
   g=intake(t);clear_fixture(g)
   Spatial.collect(t,g)
   t.check(not g.state.items.any(func(i):return i.type=="return_seal"),"SEAL absent from active discovery generation")
-  g._gain_tool("return_seal") # Existing/deferred item fixture, not a generation source.
-  var seal=g.state.items.filter(func(i):return i.type=="return_seal")[0]
   g.state.posture=pose;g.state.energy=0;g.state.mana=37;g.state.pressure=41
   var equipment=g.state.equipment.duplicate(true)
-  var candidate=t.find_action(g,"item_use",{"item":seal.id,"target":"hero"})
+  var candidate=t.find_action(g,"relic_discharge",{"relic":"return_seal"})
   t.check(candidate.valid and candidate.cost==0 and candidate.mana==0,"SEAL any posture zero-resource use under actual body rules")
   var version=g.state.version
   t.check(g.dispatch(g.command(candidate.payload,version),version).ok and g.state.room=="prison_start" and g.state.phase=="map","SEAL formal use leaves cell but still requires the prison route")
-  t.check(g.state.mana==47 and g.state.pressure==41 and g.state.equipment==equipment and g.state.items.size()==2 and g._item(seal.id).is_empty() and g.state.save_slot=="practice","SEAL consumes itself, triggers special-battle end healing and preserves other resources/items/save origin")
+  t.check(g.state.mana==47 and g.state.pressure==41 and g.state.equipment==equipment and g.state.items.size()==2 and g.RelicEffects.counter(g,"return_seal").value==0 and g.state.save_slot=="practice","SEAL consumes itself, triggers special-battle end healing and preserves other resources/items/save origin")
   var before=g.state.duplicate(true)
   t.check(not g.dispatch(g.command(candidate.payload,version),version).ok and g.state==before,"SEAL stale repeated use cannot repeat escape or tower generation")
  g=intake(t);clear_fixture(g)
- g._gain_tool("return_seal")
- var seal=g.state.items[0]
  g._install_assembly("wrap","left","fixture",1,1)
- t.check(t.find_action(g,"item_use",{"item":seal.id}).valid,"SEAL one free hand is sufficient")
+ t.check(t.find_action(g,"relic_discharge",{"relic":"return_seal"}).valid,"SEAL one free hand is sufficient")
  g._install_assembly("wrap","right","fixture",1,1)
- t.check(t.find_action(g,"item_use",{"item":seal.id}).valid,"SEAL scroll allows free toes with both hands blocked")
+ t.check(t.find_action(g,"relic_discharge",{"relic":"return_seal"}).valid,"SEAL scroll allows free toes with both hands blocked")
  g.add_fixture("toes",8)
  var before=g.state.duplicate(true)
- t.check(not t.action(g,"item_use",{"item":seal.id}).ok and g.state==before,"SEAL blocked fingers and toes spend no item or resources")
+ t.check(not t.action(g,"relic_discharge",{"relic":"return_seal"}).ok and g.state==before,"SEAL blocked fingers and toes spend no item or resources")
  clear_fixture(g)
  for i in range(4): g._gain_tool("shard")
- t.check(not t.find_action(g,"item_use",{"item":seal.id}).valid,"SEAL remaining inventory over capacity blocks escape")
+ t.check(not t.find_action(g,"relic_discharge",{"relic":"return_seal"}).valid,"SEAL remaining inventory over capacity blocks escape")
  t.action(g,"item_discard",{"item":g.state.items[-1].id})
- t.check(g.carried_items()==4 and t.find_action(g,"item_use",{"item":seal.id}).valid,"SEAL capacity checked after consuming its own slot")
+ t.check(g.carried_items()==3 and t.find_action(g,"relic_discharge",{"relic":"return_seal"}).valid,"SEAL capacity checked after consuming its own slot")
  g.Pressure.gain(g,100,"测试干扰")
- t.check(not t.action(g,"item_use",{"item":seal.id}).ok and g._item(seal.id).uses==1,"SEAL no zero-cost overload bypass")
- g=intake(t);clear_fixture(g);g._gain_tool("return_seal")
- seal=g.state.items[0]
+ t.check(not t.action(g,"relic_discharge",{"relic":"return_seal"}).ok and g.RelicEffects.counter(g,"return_seal").value==1,"SEAL no zero-cost overload bypass")
+ g=intake(t);clear_fixture(g)
  inspect(t,g)
- t.check(not t.action(g,"item_use",{"item":seal.id}).ok and g._item(seal.id).uses==1,"SEAL inspection blocks item use")
+ t.check(not t.action(g,"relic_discharge",{"relic":"return_seal"}).ok and g.RelicEffects.counter(g,"return_seal").value==1,"SEAL inspection blocks item use")
  t.action(g,"prison",{"action":"inspect"});t.action(g,"prison",{"action":"accept"})
- t.check(not g._item(seal.id).is_empty(),"SEAL compliant inspection preserves carried seal")
+ t.check("return_seal" in g.state.relics,"SEAL compliant inspection preserves carried seal")
  t.action(g,"prison",{"action":"resist"})
- t.check(not t.find_action(g,"item_use",{"item":seal.id}).valid,"SEAL resistance battle cannot use prison-only exit")
+ t.check(not t.find_action(g,"relic_discharge",{"relic":"return_seal"}).valid,"SEAL resistance battle cannot use prison-only exit")
  Guard.capture(g,g.state.enemies[0])
- t.check(g._item(seal.id)==seal and g._item(seal.id).uses==1,"SEAL recapture preserves the existing seal and its remaining use")
+ t.check(g.state.relics.count("return_seal")==1 and g.RelicEffects.counter(g,"return_seal").value==1,"SEAL recapture preserves the existing seal and its remaining use")
 
 static func security_cases(t) -> void:
  var expected=[[1,2],[2,2],[2,3],[3,2],[3,3]]
@@ -530,7 +521,9 @@ static func collar_cases(t) -> void:
  g._gain_tool("picks")
  var picks=g.state.items.filter(func(item):return item.type=="picks")[0]
  var uses=picks.uses
- t.check(t.action(g,"item_use",{"item":picks.id,"target":collar.id}).ok and not g._equipment(collar.id).locked and g._item(picks.id).uses==uses-1,"COLLAR ordinary carried unlocking tool opens the neck lock and spends one use")
+ t.check(t.action(g,"item_use",{"item":picks.id}).ok,"COLLAR convert picks to hand")
+ var picks_uid=g.state.hand.back().uid
+ t.check(t.action(g,"card",{"uid":picks_uid,"target":collar.id}).ok and not g._equipment(collar.id).locked and g.Cards.instance(g,picks_uid).remove_left==uses-1,"COLLAR ordinary carried unlocking tool opens the neck lock and spends one use")
  for free in [false,true]:
   g=Game.new(42)
   collar=g._install_template("restriction_collar","neck",1.0,1.0,true,"fixture",3)
@@ -622,10 +615,6 @@ static func punishment_cases(t) -> void:
  var lost=g._install_template("eye_tape","eyes",4,10,false,"fixture")
  g.state.prison.baseline=[lost.id];lost.durability=0;g._cleanup()
  fill_strong(g)
- # Saturation now includes legal links as well as occupied ordinary slots.
- for option in g.EquipmentOffers.links(g,3):
-  option.grade=3;option.tier=3
-  g.Application.execute_concrete(g,option,"fixture")
  var mouth=g.equipment_at("mouth")[0]
  mouth.grade=1;mouth.maximum=10.0;mouth.durability=4.0;mouth.locked=false;mouth.variant=0;g._refresh_equipment(mouth)
  var old_id=mouth.id
@@ -656,8 +645,8 @@ static func punishment_cases(t) -> void:
   var roots_before=g.state.composites.map(func(e):return e.id)
   t.action(g,"prison",{"action":"accept"})
   actual=g.equipment_targets().filter(func(e):return e.source=="prison")
-  t.check(actual.size()==(5 if remove_extra else 4) and actual.all(func(e):return e.template=="link_rope"),"PRISON full ordinary slots consume the declared quota on legal new links first")
-  t.check(not g._composite(root.id).is_empty() and g.state.composites.map(func(e):return e.id)==roots_before,"PRISON does not replace a composite while legal link additions remain, even with enough nominal quota")
+  t.check(actual.size()==(5 if remove_extra else 0) and g.state.links.is_empty(),"PRISON saturated slots honor the ordinary replacement quota without link fillers")
+  t.check(g._composite(root.id).is_empty()==remove_extra and (remove_extra or g.state.composites.map(func(e):return e.id)==roots_before),"PRISON whole composite replacement requires enough quota for the group")
   t.check(g.state.prison.baseline==g.equipment_targets().map(func(e):return e.id) and g.validate()=="","PRISON post-punishment registration includes surviving components and fresh automatic attachments")
 
 static func fill_strong(g) -> void:
@@ -781,7 +770,7 @@ static func sentence_cases(t) -> void:
  for kind in ["prison_release","prison_release_violation","prison_gate_exit"]:
   var practice=preload("res://core/game.gd").new(42,true,kind)
   t.check(practice.validate()=="","PRISON exit practice valid "+kind+": "+practice.validate())
-  t.check(practice.Cards.worn_count(practice,false)>=B.PRISON_INTAKE[1].floor+B.PRISON_INTAKE[1].extra and practice.state.special_equipment.size()==B.PRISON_INTAKE[1].special and not practice.state.links.is_empty(),"PRISON every exit practice retains real intake equipment and links, including later battle additions")
+  t.check(practice.Cards.worn_count(practice,false)>=B.PRISON_INTAKE[1].floor+B.PRISON_INTAKE[1].extra and practice.state.special_equipment.size()==B.PRISON_INTAKE[1].special and practice.state.links.is_empty(),"PRISON every exit practice retains real intake equipment without added links")
   if kind=="prison_gate_exit":
    t.check(practice.Prison.is_exit_battle(practice) and practice.state.phase=="battle" and practice.state.enemies.all(func(e):return e.hp==e.max_hp and e.hp==practice.Enemies.TYPES.guard.hp),"PRISON guard practice preserves normal full-health guards")
    continue

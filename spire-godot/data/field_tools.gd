@@ -1,4 +1,5 @@
 extends RefCounted
+const DisplayNumbers=preload("res://data/display_numbers.gd")
 
 # Shared definitions and state-independent descriptions. Runtime queries live in core/tool_rules.gd.
 const Environments=preload("res://data/environments.gd")
@@ -10,7 +11,6 @@ const TYPES={
  "draw_scroll":{"name":"应变卷轴","category":"scroll","operation":"buff","effect":"draw","amount":3,"uses":1,"damage":0.0,"materials":[]},
  "mana_scroll":{"name":"节魔卷轴","category":"scroll","operation":"buff","effect":"reserve_mana","amount":2,"uses":1,"damage":0.0,"materials":[]},
  "casting_scroll":{"name":"定咒卷轴","category":"scroll","operation":"buff","effect":"sure_cast","amount":1,"uses":1,"damage":0.0,"materials":[]},
- "return_seal":{"name":"传送符","category":"scroll","uses":1,"damage":0.0,"materials":[],"operation":"escape","keep_on_capture":true},
  "picks":{"name":"便携开锁针","uses":2,"damage":0.0,"materials":[],"operation":"unlock"},
  "shard":{"environment_class":"sharp","trigger_damage_types":["strain","slip"],"mouth_install":true,"name":"尖锐的小石片","uses":3,"damage":5.0,"materials":["leather","rope","tape"]},
  "saw":{"environment_class":"sharp","trigger_damage_types":["strain","slip"],"mouth_install":true,"name":"锈掉的锯条","uses":2,"damage":7.0,"materials":["leather","rope","tape","plastic"]}
@@ -29,7 +29,7 @@ static func effect_description(type: String, damage: float, assisted: bool=false
  if spec.get("keep_on_capture",false): lines.append("入狱时保留。")
  match operation(type):
   "cut":
-   lines.append("切割：每次造成%s点真实伤害%s。" % [(str(int(damage)) if is_equal_approx(damage,roundf(damage)) else "%.2f" % damage),"（基础%s）" % str(spec.damage) if damage!=spec.damage else ""])
+   lines.append("切割：每次造成%s点真实伤害%s。" % [DisplayNumbers.amount(damage),"（基础%s）" % DisplayNumbers.amount(spec.damage) if damage!=spec.damage else ""])
    lines.append("无视紧度、锁和堆叠减伤。适用材料："+"、".join(spec.materials.map(func(material):return preload("res://data/equipment.gd").MATERIAL_NAMES[material]))+"。")
    lines.append("目标须外露且可触及。" if not assisted else "触手朋友：固定工具对全身有效，无身体、姿态或触及限制。")
   "unlock":
@@ -44,7 +44,7 @@ static func effect_description(type: String, damage: float, assisted: bool=false
  return "\n".join(lines)
 
 static func mount_label(mount: String) -> String:
- return "随身" if mount=="carry" else "离地%s米的墙缝" % str(HEIGHTS[mount].height)
+ return "随身" if mount=="carry" else "离地%s米的墙缝" % DisplayNumbers.amount(HEIGHTS[mount].height)
 
 # Fixed world heights; posture changes reach, never the installed height.
 const MOUNTS=["carry","foot_wall","hand_wall","high_wall"]

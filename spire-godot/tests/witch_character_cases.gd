@@ -14,7 +14,7 @@ static func run(t) -> void:
  var original=Game.new(42);var old=original.export_snapshot()
  var g=fresh()
  t.check(g.state.deck.map(func(c):return c.type)==g.Character.STARTER and g.validate()=="","WITCH eleven declared starter cards and valid character state")
- t.check(original.state==old and original.state.deck.size()==10 and not original.state.has("witch_charges"),"WITCH selection preserves original run and starter")
+ t.check(original.state==old and original.state.deck.size()==11 and not original.state.has("witch_charges"),"WITCH selection preserves original run and starter")
  t.check(g.Cards.Rules.SPECS.siphon.self_faces.bound.mana_gain==5 and g.Cards.Rules.SPECS.witch_siphon.self_faces.bound.mana_gain==10,"WITCH card values are isolated by character")
  for part in g.Character.PARTS:
   g=fresh();g.state.energy=20;g.state.mana=100
@@ -167,9 +167,9 @@ static func _cards_and_flows(t) -> void:
 static func _revision(t) -> void:
  var original=Game.new(42)
  var g=Game.new(42,false,"equipment",true,false,25,false,false,"witch")
- t.check(g.state.mana_max==75 and g.state.mana==75 and g.Pressure.maximum(g)==75 and g.state.flask_mana==50 and g.state.relics==["witch_amulet"],"WITCH revised starting resources and relic")
+ t.check(g.state.mana_max==75 and g.state.mana==75 and g.Pressure.maximum(g)==75 and g.state.flask_mana==50 and g.state.relics==["witch_amulet","return_seal"],"WITCH starts with her resources, amulet and return seal")
  t.check(g.state.temporary_mana==5,"WITCH amulet includes first battle turn")
- t.check(original.state.mana_max==100 and original.Pressure.maximum(original)==100 and original.state.relics==["ember"] and original.state.flask_mana==0,"WITCH original starter remains unchanged")
+ t.check(original.state.mana_max==100 and original.Pressure.maximum(original)==100 and original.state.relics==["ember","return_seal"] and original.state.flask_mana==0,"WITCH original character starts with her resources, ember and return seal")
  var temp=g.state.temporary_mana
  g.RelicEffects.begin_turn(g)
  t.check(g.state.temporary_mana==temp+5,"WITCH amulet triggers following battle turn")

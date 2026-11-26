@@ -24,11 +24,11 @@ static func run(t) -> void:
  var card=Cards.give(g,"strain");var c=t.find_action(g,"card",{"uid":card.uid,"free":true})
  var before=g.export_snapshot();g.get_view();g.command_facts()
  t.check(g.state==before and not g.dispatch(g.command(c.payload,g.state.version-1),g.state.version-1).ok and g.state==before,"PRACTICED queries and stale actions do not grow chance")
- t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.powers[0].power_cast_count==1 and is_equal_approx(g.cast_view().chance,0.28),"PRACTICED successful card adds three percentage points after multipliers")
+ t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.powers[0].power_cast_count==1 and is_equal_approx(g.cast_view().chance,0.33),"PRACTICED successful card adds eight percentage points after multipliers")
  g.state.powers[0].power_cast_count=40
  t.check(g.cast_view().chance==1,"PRACTICED chance caps at one hundred percent")
  g.state.powers[0].power_cast_count=1
- var copy=Game.new(0);t.check(copy.restore_snapshot(g.export_snapshot()).ok and is_equal_approx(copy.cast_view().chance,0.28),"PRACTICED snapshot preserves current turn bonus")
+ var copy=Game.new(0);t.check(copy.restore_snapshot(g.export_snapshot()).ok and is_equal_approx(copy.cast_view().chance,0.33),"PRACTICED snapshot preserves current turn bonus")
  var bad=g.export_snapshot();bad.powers[0].power_cast_count=-1;before=copy.export_snapshot()
  t.check(not copy.restore_snapshot(bad).ok and copy.state==before,"PRACTICED corrupted progress rejected atomically")
  g._begin_player_turn();t.check(g.state.powers[0].power_cast_count==0,"PRACTICED new player turn resets counter")
@@ -47,7 +47,7 @@ static func run(t) -> void:
   card=Cards.give(g,"practiced");before=g.export_snapshot()
   t.check(not t.action(g,"card",{"uid":card.uid,"free":free}).ok and g.state==before,"PRACTICED same face rejects duplicate atomically")
  g=Game.new(42);g._discard_end();g.state.energy=30
- Cards.play(t,g,"echo_cast",false)
+ g.Cards.grant_buff(g,"echo_cast_bound")
  t.check(Cards.play(t,g,"practiced",false).ok and g.Cards.buff_stacks(g,"practiced_bound")==1,"UNIQUE replay cannot double the power")
  traction(t)
  traction_sources(t)
@@ -86,7 +86,7 @@ static func traction_sources(t) -> void:
  Cards.play(t,g,"practiced",false);g.CaptureBind.apply_bind(g,g.state.enemies[0]);var rng=g.state.rng.get("capture_bind",0)
  t.check(Cards.play(t,g,"mana_surge",false).ok and g.state.rng.get("capture_bind",0)==rng+1 and g.state.pressure>0,"TRACTION extra pulse reaches guard sensitivity through original handler")
  g=setup(t,true);g.state.pressure=75;g.state.powers[0].power_cast_count=1;g.state.card_buffs.append("fire_dynamics_bound")
- t.check(is_equal_approx(g.cast_view(g.Cards.cast_profile(g,"fireball")).chance,0.58),"PRACTICED independent bonus adds after multiplier alongside existing spell bonus")
+ t.check(is_equal_approx(g.cast_view(g.Cards.cast_profile(g,"fireball")).chance,0.63),"PRACTICED independent bonus adds after multiplier alongside existing spell bonus")
  g.state.card_buffs.erase("fire_dynamics_bound")
  g.Cards.end_powers(g)
  t.check(g.state.powers.is_empty() and not g.state.discard.any(func(card):return card.has("power_cast_count")) and is_equal_approx(g.cast_view().chance,0.25),"PRACTICED ending the scene clears bonus and card counter")

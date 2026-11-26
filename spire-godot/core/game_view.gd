@@ -42,10 +42,11 @@ static func battle_rewards(g, facts: Array) -> Array:
   var category={"potion":"药剂","scroll":"卷轴"}.get(spec.get("category",""),"道具")
   var detail=g.Consumables.description(g,type) if g.Tools.operation(type)=="buff" else "%s · 可使用%d次" % [spec.name,spec.uses]
   rows.append({"id":"","category":"item","symbol":type,"name":spec.name,"subtitle":category+" · 领取后收入道具栏","detail":detail,"claimed":claimed.has("item"),"available":true,"reason":""})
- if g.state.battle_relic_drop!="":
-  var type=g.state.battle_relic_drop
+ for slot in g.RelicRewards.DROP_FIELDS:
+  var type=g.state.get(g.RelicRewards.DROP_FIELDS[slot],"")
+  if type=="": continue
   var spec=g.Relics.TYPES[type]
-  rows.append({"id":"","category":"relic","symbol":type,"name":spec.name,"subtitle":g.Relics.RARITIES[spec.rarity]+"遗物","detail":spec.detail,"claimed":claimed.has("relic"),"available":true,"reason":""})
+  rows.append({"id":"","category":"relic","claim_category":slot,"symbol":type,"name":spec.name,"subtitle":g.Relics.RARITIES[spec.rarity]+"遗物","detail":spec.detail,"claimed":claimed.has(slot),"available":true,"reason":""})
  if not g.state.boss_relic_options.is_empty():
   rows.append({"id":"","category":"relic","symbol":g.state.boss_relic_options[0],"name":"选择一件Boss遗物","subtitle":"三选一","detail":"从本次Boss遗物奖励中选择一件。","claimed":claimed.has("relic"),"available":true,"reason":"","choices":g.Relics.view(g.state.boss_relic_options)})
   if claimed.has("relic"): rows.back().subtitle="已跳过" if claimed.relic=="skip" else "已获得「"+g.Relics.TYPES[claimed.relic].name+"」"
@@ -100,14 +101,15 @@ static func reward_panel(g, facts: Array) -> Dictionary:
  if not panel.active: return panel
  if not exits.is_empty(): panel.continue_key=String(exits[0].key)
  for row in panel.rows:
+  var category=row.get("claim_category",row.category)
   var matching=choices
   if g.state.phase=="reward":
-   matching=choices.filter(func(c):return c.payload.get("category","")==row.category and (row.id=="" or c.payload.get("reward_id","")==row.id))
+   matching=choices.filter(func(c):return c.payload.get("category","")==category and (row.id=="" or c.payload.get("reward_id","")==row.id))
   elif g.state.phase=="treasure": matching=choices.filter(func(c):return str(c.payload.index)==row.id)
   elif g.state.phase=="rest_choice": matching=choices.filter(func(c):return c.payload.kind==row.action_kind and (c.payload.kind!="enchant" or c.payload.op=="apply"))
   row.action_keys=matching.map(func(c):return String(c.key))
-  row.skipped=g.state.phase=="reward" and g.state.reward_claimed.get(row.category,"")=="skip"
-  var skips=facts.filter(func(c):return c.payload.kind=="reward_skip" and c.payload.category==row.category)
+  row.skipped=g.state.phase=="reward" and g.state.reward_claimed.get(category,"")=="skip"
+  var skips=facts.filter(func(c):return c.payload.kind=="reward_skip" and c.payload.category==category)
   row.skip_key=String(skips[0].key) if not skips.is_empty() else (panel.continue_key if g.state.phase!="reward" and not row.claimed else "")
   if row.skipped: row.subtitle="已跳过"
   if not row.claimed and not matching.is_empty() and not matching.any(func(c):return c.valid):
@@ -138,6 +140,8 @@ static func _build_equipment_entry(g, e: Dictionary) -> Dictionary:
  var linked=e.template=="link_rope"
  var current_tier=0 if Equipment.is_shackle(e) else (g.tier(g._effective_ratio(e),1.0) if e.has("parent_id") else g.tier(e.durability,e.maximum))
  var card_status=[]
+ var enchantment=g.EquipmentEnchantments.text(e)
+ if enchantment!="": card_status.append(enchantment)
  if Equipment.is_shackle(e): card_status.append("无紧度 · 固定减伤90% · 开锁即取下")
  var shoulder_text=g.Shoulders.text(g,e)
  if shoulder_text!="": card_status.append(shoulder_text)
@@ -151,6 +155,11 @@ static func _build_equipment_entry(g, e: Dictionary) -> Dictionary:
  if e.get("root_id","")!="" and not g.Composites.active(g._composite(e.root_id)):
   description+="\n遗留外带 · 套体已解除，这条外带仍然固定。"
   card_status.append("遗留外带")
+ var layers=g.Cards.vulnerable(g,e.id)
+ if layers>0:
+  var status="脆弱%d层" % layers
+  card_status.append(status)
+  description+="\n"+status+" · "+g.Cards.Rules.VULNERABLE_DETAIL
  var summary=description
  if lock_only:
   current_tier=0
@@ -164,7 +173,6 @@ static func _build_equipment_entry(g, e: Dictionary) -> Dictionary:
    var lock_state="已上锁" if e.locked else "锁已打开"
    card_status.append(lock_state)
    description+="\n状态："+lock_state
-  if g.Links.is_crotch_anchor(e): description+="\n可连接手腕或大腿根装备：对手腕算下端，对大腿根算上端。"
   var spec=g.SpecialEquipment.TYPES[e.type]
   if spec.turn_gain>0:
    if g.SpecialEquipment.is_cursed_plate(e) and not g.state.cursed_plate_masochist_mode:
@@ -212,7 +220,8 @@ static func build(g, demand: Array = []) -> Dictionary:
  var material_pieces=physical_pieces+state.links
  var material_points=restraint_material_points(material_pieces)
  var body_coverage={"points":[],"materials":portrait_materials(g,physical_pieces),"material_points":material_points}
- if physical_pieces.any(func(piece):return piece.get("template","")==g.RopeArt.HOGTIE and piece.get("durability",0)>0): body_coverage.special_pose="hogtie"
+ var hogtied=g.RopeArt.hogtied(g)
+ if hogtied: body_coverage.special_pose="hogtie"
  for e in physical_pieces:
   for point in Equipment.physical_points(e):
    if not point in body_coverage.points: body_coverage.points.append(point)
@@ -247,6 +256,7 @@ static func build(g, demand: Array = []) -> Dictionary:
   hand.back().merge(g.Cards.Rules.classification(card.type))
   hand.back().merge(g.Cards.metadata(g,card.type,card.uid),true)
   var choices=facts.filter(func(f):return f.payload.get("uid","")==card.uid and f.payload.get("kind","") in ["card","prison"])
+  hand.back().chained=g.Detective.chained(g,card.uid)
   hand.back().unplayable=B.CARD_TRAITS.get(card.type,{}).get("unplayable",false)
   hand.back().availability={"free":g.Cards.availability(g,card,true,choices),"bound":g.Cards.availability(g,card,false,choices)}
   hand.back().magic=hand.back().cast_faces.bound or hand.back().cast_faces.free
@@ -256,7 +266,7 @@ static func build(g, demand: Array = []) -> Dictionary:
  var enemies: Array=[]
  var intent_visible=g.can_observe_intents()
  for e in state.enemies:
-  enemies.append({"id":e.id,"type":g.Enemies.TYPES[e.type].visual,"visual_variant":e.get("visual_variant",""),"template":e.type,"name":e.name,"hp":e.hp,"maximum":e.max_hp,"gone":e.gone,"stage":e.stage if intent_visible else 0,"intent_visible":intent_visible,"intent_icons":preload("res://core/intent_view.gd").build(g,e,intent_visible)})
+  enemies.append({"id":e.id,"type":g.Enemies.TYPES[e.type].visual,"visual_variant":e.get("visual_variant",""),"template":e.type,"name":e.name,"hp":e.hp,"maximum":e.max_hp,"armor":e.get("mech_armor",0.0),"gone":e.gone,"stage":e.stage if intent_visible else 0,"intent_visible":intent_visible,"intent_icons":preload("res://core/intent_view.gd").build(g,e,intent_visible)})
  var wall_position=g.wall_view()
  var special_regions=g.SpecialEquipment.view(g)
  var pressure=g.Pressure.view(g,special_regions)
@@ -265,40 +275,12 @@ static func build(g, demand: Array = []) -> Dictionary:
  var capacity=g.item_capacity()
  var items: Array=[]
  for item in state.items:
-  items.append({"id":item.id,"name":Tools.TYPES[item.type].name,"uses":item.uses,"damage":Tools.TYPES[item.type].damage,"mount":Tools.mount_name(g,item),"installed":Tools.is_fixed(g,item),"contact_text":Tools.contact_text(g,item.mount) if Tools.is_fixed(g,item) else ""})
-  var environment_class=Tools.TYPES[item.type].get("environment_class","")
-  items.back().fixed_label="触手固定" if item.mount=="carry" and Tools.is_fixed(g,item) else "已安装"
-  items.back().environment_class=environment_class
-  items.back().type=item.type
-  items.back().direct_use=Tools.operation(item.type) in ["buff","escape"]
-  items.back().summary=preload("res://core/item_presentation.gd").summary(g,item.type)
-  items.back().usage_note=preload("res://core/item_presentation.gd").note(g,item.type)
-  items.back().inactive_reason=Tools.escape_reason(g) if Tools.operation(item.type)=="escape" else "进入战斗、整备、休息或牢房的可行动回合后，可操作道具。"
-  items.back().target_scope=Tools.TYPES[item.type].get("target_scope","")
-  items.back().description=Tools.description(g,item.type)
-  items.back().category={"potion":"药剂","scroll":"卷轴"}.get(Tools.TYPES[item.type].get("category",""),"工具")
-  items.back().environment_name=Tools.Environments.NAMES.get(environment_class,"")
-  items.back().passive_text=g.InstalledTools.description(g,item) if not Tools.TYPES[item.type].get("trigger_damage_types",[]).is_empty() else ""
-  var groups=[];var unavailable=[]
-  for c in facts:
-   if c.payload.kind!="item_use" or c.payload.item!=item.id: continue
-   if not c.valid:
-    if c.reason not in unavailable: unavailable.append(c.reason)
-    continue
-   if items.back().target_scope=="body_group":
-    var group=g.Equipment.panel_groups().filter(func(p):return p.id==c.payload.target)[0]
-    groups.append({"id":group.id,"name":group.name,"keys":[String(c.key)]})
-    continue
-   var target=g._equipment(c.payload.target)
-   var slots=[c.payload.target] if target.is_empty() else ([target.slot] if g.SpecialEquipment.is_special(target) else Tools.target_contact(g,target,Tools.operation(item.type)).slots)
-   for slot in slots:
-    var matches=groups.filter(func(group):return group.id==slot)
-    if matches.is_empty():
-     groups.append({"id":slot,"name":g.SpecialEquipment.slot_name(slot) if slot in g.SpecialEquipment.slots() else B.SLOT_NAMES.get(slot,{"prison_door":"牢门","hero":"自身"}.get(slot,"肩部")),"keys":[]})
-     matches=[groups.back()]
-    if String(c.key) not in matches[0].keys: matches[0].keys.append(String(c.key))
-  items.back().target_groups=groups
-  items.back().unavailable_reasons=unavailable
+  var summary=g.Cards.ItemCards.Presentation.summary(g,item.type)
+  items.append({"id":item.id,"type":item.type,"name":Tools.TYPES[item.type].name,"uses":item.uses,
+   "damage":Tools.TYPES[item.type].damage,"mount":"随身","installed":false,"direct_use":true,"target_scope":"",
+   "category":"道具","summary":summary,"description":summary,"face_requirements":g.Cards.ItemCards.face_requirements(g,item.type),
+   "inactive_reason":"在行动回合加入手牌。","usage_note":"","environment_class":"","environment_name":"","contact_text":"",
+   "fixed_label":"","passive_text":"","target_groups":[],"unavailable_reasons":[]})
  preload("res://core/status_view.gd").append_usable_items(statuses,items,facts)
  var practice_options: Array=[]
  var practice_table=Tower.all_practices()
@@ -320,9 +302,11 @@ static func build(g, demand: Array = []) -> Dictionary:
  for type in g.Cards.Rules.SPECS:
   if shown.has(type): card_texts[type]=g.Cards.text_entry(g,type)
  var chain={} if state.card_chain.is_empty() else {"name":B.CARD_NAMES[state.card_chain.type],"remaining":state.card_chain.remaining,"selection":state.card_chain.get("mode","")=="select_exhaust"}
+ if state.card_chain.get("mode","")=="select_to_hand": chain.hand_source=g.Cards.Rules.hand_source(state.card_chain.type,state.card_chain.free)
  var copy=g.ActionCopy.view(state.logs,pressure.overloaded)
  # Historical prison dialogue must not revive in a later scene with the same phase.
  var npc_cue=copy.npc_speech.get("cue","")
+ if copy.npc_speech.has("encounter") and (copy.npc_speech.encounter!=state.encounter or state.phase!="battle" or state.round!=1): copy.npc_speech={}
  if npc_cue.begins_with("prison.") and not state.prison.get("active",false):
   if npc_cue!="prison.guard.release_pass" or not state.tower_start_pending: copy.npc_speech={}
  var grouped_bodies=body_groups(g,bodies,special_regions)
@@ -341,13 +325,13 @@ static func build(g, demand: Array = []) -> Dictionary:
  var reward=reward_panel(g,facts)
  return {"run_header":run_header(g),"demo_cycle":state.demo_cycle,"demo_finished":state.demo_finished,"demo_exit":g.DemoExit.at_exit(g),"battle_rewards":reward.rows,"reward_panel":reward,"reward_title":reward.title,"reward_destination":reward.destination,"content_status":g.Content.report.duplicate(true),"card_chain":chain,"retain_left":state.retain_left,"card_costs":costs,"card_texts":card_texts,"card_instances":card_instances,"version":state.version,"seed":state.seed,"phase":state.phase,"phase_caption":preload("res://data/phases.gd").caption(state),"encounter":state.encounter,"round":state.round,"order":state.order,
   "character_id":state.get("character_id","original"),
-  "end_turn_locked":g.Character.Expansion.end_reason(g)!="",
+  "hogtie_recovery":g.RopeArt.struggle_only(g),"end_turn_locked":g.Character.Expansion.end_reason(g)!="",
   "equipment_fireball_unlocked":float(g.Cards.spell_power(g,"fireball").get("equipment_damage_factor",0.0))>0.0,
   "powers":state.powers.map(func(card):return {"uid":card.uid,"type":card.type,"power_face":card.power_face}),"casting":g.cast_view(),"speech":copy.speech,"npc_speech":copy.npc_speech,"climax":copy.climax,"action_log":copy.actions,"travel_log":travel_log(state.logs),"pressure":pressure,"room_event":room_event,"shop":shop,"relics":g.RelicEffects.view(g),
   "battle_relic_drop":g.Relics.TYPES[state.battle_relic_drop].name if state.battle_relic_drop!="" else "",
   "battle_item_drop":Tools.TYPES[state.battle_item_drop].name if state.battle_item_drop!="" else "",
   "capture":state.capture.duplicate(true),"guard_bind":guard_bind,"security":state.security,"prison":g.Prison.view(g),
-  "posture":state.posture,"pose_name":B.POSE_NAMES[state.posture],"energy":state.energy,"energy_max":g.max_energy(),"mana":state.mana,"temporary_mana":state.temporary_mana,"mana_max":state.mana_max,"mana_flask":g.ManaFlask.view(g),
+  "posture":state.posture,"pose_name":g.RopeArt.HOGTIE_POSE if hogtied else B.POSE_NAMES[state.posture],"energy":state.energy,"energy_max":g.max_energy(),"mana":state.mana,"temporary_mana":state.temporary_mana,"mana_max":state.mana_max,"mana_flask":g.ManaFlask.view(g),
   "arms":arms_level,"legs":legs_level,"has_restraint_level":arms_level>0 or legs_level>0,"equipment_portrait_layers":g.SpecialEquipment.portrait_layers(state.special_equipment),"composite_portrait_layers":composite_portrait_layers,"capacity":capacity,"bodies":bodies,"body_groups":grouped_bodies,"body_regions":ReleaseView.regions(g,grouped_bodies),"body_coverage":body_coverage,"hand":hand,"enemies":enemies,"statuses":statuses,
   "rest_left":state.rest_left,"hook_uses":state.hook_uses,"hook_location":"墙边挂钩","hook_environment_name":Tools.Environments.NAMES[Tools.Environments.HOOK_CLASS],"hook_contact":Tools.contact_text(g,Tools.HOOK_MOUNT,false),"items":items,"carried_items":g.carried_items(),
   "wall":state.wall,"wall_position":wall_position,"wall_text":wall_position.name+" · "+wall_position.status,

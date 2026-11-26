@@ -39,13 +39,6 @@ static func committed(t) -> void:
  choice=t.find_action(g,"card",{"uid":card.uid,"target":target.id,"free":false},true)
  result=g.dispatch(g.command(choice.payload,g.state.version),g.state.version)
  t.check(result.ok and result.get("sound_feedback",[]).has(Profile.cue("struggle",false)),"VOICE successful card damage emits struggle")
- g=Game.new(42);g._discard_end();g.state.energy=20
- target=g.add_fixture("ankle",10)
- t.check(Cards.play(t,g,"letter_opener",false).ok,"VOICE passive damage negative setup activates the bound opener")
- for i in range(2): t.check(Cards.play(t,g,"pleasure_conversion",true).ok,"VOICE passive damage negative setup advances the opener")
- var passive_target=target.id;var before=g._equipment(passive_target).durability
- result=Cards.play(t,g,"pleasure_conversion",true)
- t.check(result.ok and g._equipment(passive_target).durability<before and not result.get("sound_feedback",[]).has(Profile.cue("struggle",false)),"VOICE card-time passive power damage does not masquerade as direct card struggle")
  g=Game.new(42);result=t.action(g,"end")
  var voice=result.get("sound_feedback",[]).filter(func(cue):return str(cue).begins_with("voice_hit"))
  t.check(result.ok and voice.size()==1,"VOICE one enemy submission with multiple installations emits one hit cue")

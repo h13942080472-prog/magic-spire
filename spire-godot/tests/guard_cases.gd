@@ -169,16 +169,14 @@ static func run(t) -> void:
  t.check(t.action(g,"end").ok and g._enemy(e.id).intent.kind=="capture" and g.state.phase=="battle","GUARD full bind schedules capture for the next enemy action")
  var mana=g.state.mana
  var ordinary_tools=g.state.items.size()
- g._gain_tool("return_seal")
- var retained_seal=g.state.items.filter(func(item):return item.type=="return_seal")[0].duplicate(true)
  var capture_result=t.action(g,"end")
  t.check(capture_result.ok and g.state.phase=="captured" and g.state.security==1 and g.state.mana==maxf(0.0,mana-20.0) and g.state.guard_bind.is_empty() and g.state.reward_count==0,"GUARD capture clears bind, performs one intake milking and enters prison without battle reward: "+str(capture_result)+" phase="+g.state.phase)
- t.check(g.state.items==[retained_seal] and g.state.capture.confiscated==ordinary_tools,"GUARD formal capture preserves seal identity and uses while confiscating ordinary tools")
+ t.check(g.state.items.is_empty() and "return_seal" in g.state.relics and g.state.capture.confiscated==ordinary_tools,"GUARD formal capture preserves seal identity and uses while confiscating ordinary tools")
  var intake_scene=g.state.capture.intake_scene
  t.check(intake_scene.climax.count==1 and intake_scene.climax.mana_lost==20.0 and intake_scene.restraints.size()>=g.state.capture.added.size() and intake_scene.links.size()==g.state.capture.links.size() and intake_scene.toys.size()==g.state.capture.special_added.size(),"GUARD intake page stores one climax and reusable prose for every newly installed restraint, link and sex toy")
  var captured_snapshot=g.export_snapshot()
  var restored_capture=Game.new(77)
- t.check(restored_capture.restore_snapshot(captured_snapshot).ok and restored_capture.state.items==[retained_seal],"GUARD captured snapshot accepts the retained seal")
+ t.check(restored_capture.restore_snapshot(captured_snapshot).ok and restored_capture.state.items.is_empty() and "return_seal" in restored_capture.state.relics,"GUARD captured snapshot accepts the retained seal")
  var restored_before=restored_capture.export_snapshot()
  var invalid_capture=captured_snapshot.duplicate(true)
  invalid_capture.items.append({"id":"item_%d" % invalid_capture.next_item,"type":"shard","uses":3,"mount":"carry"});invalid_capture.next_item+=1
@@ -257,11 +255,11 @@ static func lower_and_charge(t) -> void:
   g.Cards.grant_buff(g,"henshin_free")
   var card=t.grant_fixture_card(g,"ease")
   var choice=t.find_action(g,"card",{"uid":card.uid,"target":CaptureBind.BIND_TARGET,"free":false})
-  t.check(choice.valid and choice.payload.preview.damage==8.0 and choice.payload.preview.charge==0.0 and choice.payload.preview.multiplier==1.0,"BIND LOWER fixed eight ignores charge, attributes and both damage multipliers")
+  t.check(choice.valid and choice.payload.preview.damage==16.0 and choice.payload.preview.charge==0.0 and choice.payload.preview.multiplier==1.0,"BIND LOWER fixed sixteen ignores charge, attributes and both damage multipliers")
   t.check(g.Cards.has_escape_target(g,"ease"),"BIND LOWER capture counts as a real bound-face target")
   var before=g.export_snapshot()
   t.check(not g.dispatch(g.command(choice.payload,g.state.version-1),g.state.version-1).ok and g.export_snapshot()==before,"BIND LOWER stale submission leaves all resources and capture unchanged")
-  t.check(g.dispatch(g.command(choice.payload,g.state.version),g.state.version).ok and g.state.guard_bind.progress==72 and g.state.charge==3 and g.state.charge_all,"BIND LOWER committed single step deals eight without consuming any charge")
+  t.check(g.dispatch(g.command(choice.payload,g.state.version),g.state.version).ok and g.state.guard_bind.progress==64 and g.state.charge==3 and g.state.charge_all,"BIND LOWER committed two tiers deal sixteen without consuming any charge")
   t.check(g.state.energy==before.energy-choice.cost and g.state.mana==before.mana-choice.mana_payment.mana,"BIND LOWER formal energy and mana costs are paid once")
  for progress in [8.0,10.0,40.0]:
   var g=Game.new(43,true,"guard")
@@ -281,7 +279,9 @@ static func lower_and_charge(t) -> void:
   for all_charge in [false,true]:
    var g=Game.new(44,true,"guard")
    g.state.equipment.clear();g.state.composites.clear();g.state.links.clear()
-   bind(g,g.state.enemies[0],80.0);g.state.charge=2;g.state.charge_all=all_charge
+   g.state.charge=2
+   if not all_charge: preload("res://tests/charge_cases.gd").unlock_single(g)
+   bind(g,g.state.enemies[0],80.0)
    var card=t.grant_fixture_card(g,type)
    var choice=t.find_action(g,"card",{"uid":card.uid,"target":CaptureBind.BIND_TARGET,"free":false})
    var charge=6.0 if all_charge else 3.0

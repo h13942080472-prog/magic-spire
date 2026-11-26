@@ -14,7 +14,7 @@ static func run(t) -> void:
   t.check(t.action(g,"card",{"uid":card.uid,"free":free}).ok and g.state.energy==0 and g.state.mana==60,"EXTENSION henshin charges three bound or four free energy and forty mana")
  var g=Game.new(42);g.state.relics=["ember","marble","small_sigil","small_gem"]
  g.state.energy=10
- t.check(Cards.cast(t,g,"adaptability",false).ok and Cards.cast(t,g,"henshin",true).ok,"EXTENSION actual powers and henshin activate")
+ t.check(Cards.cast(t,g,"resonance",true).ok and Cards.cast(t,g,"henshin",true).ok,"EXTENSION actual powers and henshin activate")
  g._gain_temporary_card("tease");g.state.sure_cast=true;g.state.evasion=2
  g.state.mana=20;g.state.charge=7;g.state.temporary_mana=45
  var before=g.export_snapshot()
@@ -26,7 +26,7 @@ static func run(t) -> void:
  var serial=g.state.combat.serial;var turn=g.state.combat.turn
  var exhaust=g.state.exhaust.duplicate(true);var powers=g.state.powers.duplicate(true)
  t.check(t.action(g,"reward",{"type":"skip"}).ok and g.state.phase=="prepare" and g.state.combat.serial==serial and g.state.combat.turn==turn+1,"EXTENSION preparation starts next turn in same session")
- t.check(g.state.mana==20 and g.state.energy==g.max_energy() and g.state.charge==8 and g.state.temporary_mana==45 and g.state.sure_cast,"EXTENSION opening relics do not repeat; existing turn-start power still triggers")
+ t.check(g.state.mana==20 and g.state.energy==g.max_energy() and g.state.charge==7 and g.state.evasion>=1 and g.state.temporary_mana==45 and g.state.sure_cast,"EXTENSION opening relics do not repeat; existing turn-start power still triggers")
  t.check(g.state.powers==powers and g.state.exhaust==exhaust and "henshin_free" in g.state.card_buffs and g.state.hand.size()==g.B.DRAW,"EXTENSION normal fresh hand uses original piles and abilities")
  Save.roundtrip(t,g,"preparation continues active powers")
  t.check(t.action(g,"finish_prepare").ok and g.state.phase=="map" and g.state.mana==50,"EXTENSION ending preparation pays low-mana and normal ending relics once")

@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="180" height="90" viewBox="0 0 180 90">
+<svg xmlns="http://www.w3.org/2000/svg" width="116" height="90" viewBox="32 0 116 90">
  <defs><linearGradient id="jade" x1="0" x2="1"><stop stop-color="#164d48"/><stop offset=".45" stop-color="#65b391"/><stop offset="1" stop-color="#205d55"/></linearGradient></defs>
  <ellipse cx="91" cy="81" rx="44" ry="5" fill="#13252a"/>
  <g stroke-linejoin="round" stroke-linecap="round" stroke-width="2">

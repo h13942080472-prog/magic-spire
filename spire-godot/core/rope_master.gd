@@ -5,9 +5,11 @@ const MASTER="rope_master"
 const ASSISTANT="rope_assistant"
 const STATUS="art_submission"
 const HOGTIE="art_hogtie"
+const HOGTIE_REASON="先解开驷马缚。"
+const HOGTIE_POSE="驷马躺姿"
 const LIMIT=24
 const OPENING_STOCK=48
-const ACTIONS={"art_intro":"隆重介绍","art_domain":"领域展开","art_sweep":"看我手速","art_tighten":"收紧！","art_tightest":"收到最紧！","art_refill":"补充绳索","art_weave":"编织绳网","art_enchant":"绳索附魔","art_admire":"欣赏作品并指指点点","art_seal":"我已探明","art_grief":"悲伤逆流成河","art_revive":"复活吧我的助理","art_prepare":"跃跃欲试","art_status":"硬上弓","art_patch":"查漏补缺","art_respect":"你必须尊重艺术","art_play":"调弄","art_rest":"手累了歇会","art_help":"我来帮忙"}
+const ACTIONS={"art_intro":"隆重介绍","art_domain":"领域展开","art_sweep":"看我手速","art_tighten":"收紧！","art_tightest":"收到最紧！","art_refill":"补充绳索","art_weave":"编织绳网","art_enchant":"绳索附魔","art_admire":"欣赏作品并指指点点","art_seal":"我已探明","art_grief":"悲伤逆流成河","art_revive":"回来吧我亲爱的手","art_prepare":"跃跃欲试","art_status":"硬上弓","art_patch":"查漏补缺","art_respect":"你必须尊重艺术","art_play":"调弄","art_rest":"手累了歇会","art_help":"我来帮忙"}
 const OPENING=["art_intro","art_domain","art_sweep","art_tighten","art_tightest","art_refill"]
 const CYCLE=["art_weave","art_enchant","art_tighten","art_admire"]
 
@@ -64,8 +66,30 @@ static func floor_value(g, item: Dictionary, after: float) -> float:
  return maxf(0.00001,after) if locked(g,item) else after
 
 static func hogtied(g) -> bool:
- var e=master(g)
- return not e.is_empty() and e.rope_art.hogtie!=""
+ return not g.worn_hogtie().is_empty()
+
+static func struggle_only(g) -> bool:
+ if g._recovery_target!="": return true
+ if not g.state.relic_bundle.is_empty(): return false
+ match g.state.phase:
+  "prepare":
+   if g.state.prepare_left>0: return false
+  "rest":
+   if g.state.rest_left>0: return false
+  "map","travel": pass
+  _: return false
+ return hogtied(g)
+
+static func recovery_hand(g) -> void:
+ g._discard_end(true)
+ g.state.energy=g.max_energy()
+ g.state.overloaded=false;g.state.overload_count=0
+ g._draw(g.B.DRAW)
+
+static func finish_recovery(g) -> void:
+ g._discard_end(true)
+ g.state.energy=0
+ if g.state.phase in ["rest","prepare"]: g._finish_preparation()
 
 static func bound(g) -> bool:
  var e=master(g)
@@ -75,8 +99,11 @@ static func active_value(g, key: String) -> int:
  var e=master(g)
  return int(e.rope_art[key]) if not e.is_empty() and e.rope_art.domain and e.rope_art.total>0 else 0
 
+static func stock_limit(e: Dictionary) -> int:
+ return LIMIT+4*int(e.rope_art.get("admired",0))
+
 static func target_reason(g, e: Dictionary, all_targets: bool) -> String:
- if e.type==ASSISTANT and not all_targets and g.state.round<=e.rope_helper.born+3: return "绳艺助理暂时不能被单体选中。"
+ if e.type==ASSISTANT and not all_targets and g.state.round<=e.rope_helper.born+3: return "绳艺助手处于单体保护期。"
  return ""
 
 static func plan(g, e: Dictionary) -> Dictionary:
@@ -84,9 +111,9 @@ static func plan(g, e: Dictionary) -> Dictionary:
  if e.type==MASTER:
   var r=e.rope_art
   if r.domain and r.total>=100: return {"kind":"capture","text":"执行收押","delayed":false}
-  if r.grief: kind="art_grief"
+  if r.refill or r.stock<2: kind="art_refill"
+  elif r.grief: kind="art_grief"
   elif r.revive: kind="art_revive"
-  elif r.refill: kind="art_refill"
   elif e.stage<=6: kind=OPENING[e.stage-1]
   else:
    kind=CYCLE[(e.stage-7)%4]
@@ -111,40 +138,44 @@ static func summon(g, boss: Dictionary) -> void:
  helper.rope_helper.owner=boss.id
  helper.acted_round=g.state.round
  helper.intent=plan(g,helper)
- g._emit("event",boss.name+"召唤了绳艺助理。")
+ g._emit("event",boss.name+"召唤了绳艺助手。")
 
-static func spec(grade: int, tier: int, links: bool=false) -> Dictionary:
- return {"pool":"ordinary","templates":["link_rope"] if links else ["rope","cord"],"grade":grade,"tier":tier,"count":1,"replace":true,"allow_links":links}
+static func spec(grade: int, tier: int) -> Dictionary:
+ return {"pool":"ordinary","templates":["rope","cord"],"grade":grade,"tier":tier,"count":1,"replace":true}
 
-# A budget fallback changes quality before tightness; legality stays in Application.
-static func install(g, e: Dictionary, request: Dictionary) -> bool:
+# Resolve the affordable specification before querying installation or replacement.
+static func install(g, e: Dictionary, request: Dictionary, capture_onset: bool=false) -> bool:
  var own=e.type==MASTER
  var current=request.duplicate(true)
  if own:
   var budget=e.rope_art.stock
-  while current.grade+current.tier>budget and current.grade>1: current.grade-=1
-  while current.grade+current.tier>budget and current.tier>1: current.tier-=1
-  if current.grade+current.tier>budget:
+  var shortage=g.RestraintValue.from_profile(current.grade,current.tier)-budget
+  if shortage>0:
    e.rope_art.refill=true
-   return false
-  if current.pool=="special":
-   current.templates=current.templates.filter(func(id):return g.SpecialEquipment.DESIGNS[id].grade==current.grade)
- var result=g.Application.execute(g,current,e.id)
+   if budget<g.RestraintValue.from_profile(1,1):
+    observe(g)
+    return false
+   var fixed_type=current.templates.size()==1
+   if current.pool=="special" and not current.templates.is_empty():
+    var family=g.SpecialEquipment.TYPES[current.templates[0]].family
+    fixed_type=current.templates.all(func(id):return g.SpecialEquipment.TYPES[id].family==family)
+   current.merge(g.RestraintValue.reduced_profile(current.grade,current.tier,shortage,fixed_type),true)
+ if current.pool=="special":
+  current.templates=current.templates.filter(func(id):return g.SpecialEquipment.DESIGNS[id].grade==current.grade)
+ var result=g.Application.execute(g,current,e.id,"enemy",capture_onset)
  for item in result.installed:
   if own: e.rope_art.stock-=g.RestraintValue.from_profile(item.grade,g.equipment_tier(item))
   track(g,item)
-  g._emit("event",e.name+"施加了"+item.name+"。",{"enemy_action":{"enemy_id":e.id,"actor":e.name,"sequence":g.state.logs.size(),"kind":e.intent.get("kind","apply"),"slots":g.Equipment.coverage(item)}})
+  g._emit("event",e.name+"施加了"+item.name+"。",{"installed_name":item.name,"enemy_action":{"enemy_id":e.id,"actor":e.name,"sequence":g.state.logs.size(),"kind":e.intent.get("kind","apply"),"slots":g.Equipment.coverage(item)}})
  g._cleanup(false)
  if own and e.rope_art.stock<2: e.rope_art.refill=true
  observe(g)
  return result.ok
 
-static func ordinary(g, e: Dictionary, grade: int, tier: int, extra: Dictionary={}) -> bool:
+static func ordinary(g, e: Dictionary, grade: int, tier: int, extra: Dictionary={}, capture_onset: bool=false) -> bool:
  var request=spec(grade,tier);request.merge(extra,true)
  # Explicit all-empty sweeps never replace the just-installed earlier positions.
- if g.Application.can_apply(g,request,e.id): return install(g,e,request)
- var link=spec(grade,tier,true)
- if g.Application.can_apply(g,link,e.id): return install(g,e,link)
+ if g.Application.can_apply(g,request,e.id): return install(g,e,request,capture_onset)
  for item in g.action_targets():
   if is_rope(item) and g.equipment_tier(item)<3:
    g._reinforce_equipment(item);track(g,item);observe(g);return true
@@ -156,7 +187,7 @@ static func sweep(g, e: Dictionary, grade: int) -> void:
  for slot in empty:
   ordinary(g,e,grade,1,{"slot":slot,"replace":false,"free_slots":true})
  if not g.state.special_equipment.any(func(item):return g.SpecialEquipment.TYPES[item.type].family=="crotch_rope"):
-  install(g,e,{"pool":"special","templates":["crotch_rope_low","crotch_rope_medium","crotch_rope_high"].filter(func(id):return g.SpecialEquipment.DESIGNS[id].grade==grade),"grade":grade,"tier":1,"count":1,"replace":true})
+  install(g,e,{"pool":"special","templates":["crotch_rope_low","crotch_rope_medium","crotch_rope_high"],"grade":grade,"tier":1,"count":1,"replace":true})
 
 static func execute(g, e: Dictionary, intent: Dictionary) -> void:
  match intent.kind:
@@ -167,7 +198,7 @@ static func execute(g, e: Dictionary, intent: Dictionary) -> void:
    e.rope_art.domain=true
    g.state.guard_bind={"progress":0.0,"sources":{MASTER:{"enemy":e.id,"energy":0}}}
    for where in [{"slot":"wrist"},{"slot":"forearm","point":"below_elbow"}]:
-    ordinary(g,e,2,2,where if not g.occupied(where.slot) else {})
+    ordinary(g,e,2,2,where if not g.occupied(where.slot) else {},true)
    observe(g)
   "art_sweep","art_patch": sweep(g,e,2 if e.type==MASTER else 1)
   "art_tighten","art_tightest":
@@ -175,15 +206,15 @@ static func execute(g, e: Dictionary, intent: Dictionary) -> void:
     if is_rope(item) and g.equipment_tier(item)<3: g._reinforce_equipment(item);track(g,item)
    observe(g)
   "art_refill":
-   e.rope_art.stock=e.rope_art.stock+12 if assistant(g).is_empty() else maxi(LIMIT,e.rope_art.stock)
+   var limit=stock_limit(e)
+   e.rope_art.stock=e.rope_art.stock+int(limit/2) if assistant(g).is_empty() else maxi(limit,e.rope_art.stock)
    e.rope_art.refill=false
-   g._emit("event","绳索补充至%d/%d。" % [e.rope_art.stock,LIMIT])
+   g._emit("event","绳索补充至%d/%d。" % [e.rope_art.stock,limit])
    if e.rope_art.hogtie_pending>0: hogtie(g,e,e.rope_art.hogtie_pending)
   "art_weave":
-   for i in range(2):
+   for i in range(2+int(e.rope_art.get("admired",0))):
     var profile=g.RestraintValue.profiles(3)[g._random_index("enemy",2)]
     ordinary(g,e,profile.grade,profile.tier)
-   ordinary(g,e,1,1,{"templates":["link_rope"],"allow_links":true})
   "art_enchant":
    var choices=["active","drain","desire"]
    var fresh=choices.filter(func(key):return e.rope_art[key]==0)
@@ -192,6 +223,8 @@ static func execute(g, e: Dictionary, intent: Dictionary) -> void:
    e.rope_art[selected]+=1
    g._emit("event",{"active":"活性绳索","drain":"吸魔绳索","desire":"情欲绳索"}[selected]+"＋1。")
   "art_admire":
+   e.rope_art.admired=int(e.rope_art.get("admired",0))+1
+   g._emit("event","绳索上限＋4，现为%d；编织绳网施加数量＋1，现为%d件。" % [stock_limit(e),2+e.rope_art.admired])
    pressure(g,3.0,g.SpecialEquipment.slots().filter(func(slot):return slot!="special_2_d"),e.name)
   "art_seal":
    e.rope_art.seal=true
@@ -199,15 +232,16 @@ static func execute(g, e: Dictionary, intent: Dictionary) -> void:
   "art_grief":
    e.rope_art.grief=false;e.rope_art.revive=e.rope_art.deaths==1
    g._emit("event",e.name+"本回合不行动。")
-  "art_prepare": g._emit("event","绳艺助理准备加入状态牌。")
+  "art_prepare": g._emit("event","绳艺助手准备加入状态牌。")
   "art_status":
    var card=g._gain_temporary_card(STATUS)
    g.state.discard.erase(card);g.state.draw.append(card)
    g._shuffle(g.state.draw)
-   install(g,e,{"pool":"ordinary","templates":["mouth_band"],"grade":3,"tier":2,"count":1,"replace":true,"allow_links":false})
+   install(g,e,{"pool":"ordinary","templates":["mouth_band"],"grade":3,"tier":2,"count":1,"replace":true})
   "art_respect": e.rope_helper.respect=true
   "art_play": pressure(g,6.0,["special_1_a","special_1_b"],e.name)
   "art_rest","art_help": g._emit("event",e.name+"本回合不行动。")
+ observe(g)
 
 # Aggregate before adding pressure: flat modifiers and climax settle once.
 static func pressure(g, amount: float, slots: Array, source: String) -> void:
@@ -251,7 +285,7 @@ static func card_damage(g, item: Dictionary, amount: float) -> float:
 static func turn_end(g) -> void:
  var amount=minf(g.state.mana,5.0*active_value(g,"drain"))
  if amount>0:
-  g.state.mana-=amount
+  g.set_own_mana(g.state.mana-amount)
   g._emit("event","吸魔绳索消耗%s自身魔力。" % g.number(amount))
 
 static func climax(g) -> void:
@@ -282,13 +316,15 @@ static func clear_cards(g) -> void:
   g.state[zone]=g.state[zone].filter(func(card):return card.type!=STATUS)
 
 static func hogtie(g, boss: Dictionary, grade: int) -> void:
- var old=g._equipment(boss.rope_art.hogtie)
+ var old=g.worn_hogtie()
+ if not old.is_empty() and old.template!=HOGTIE: return
  if not old.is_empty():
   var next_grade=maxi(old.grade,grade)
   var cost=maxi(0,next_grade+2-g.RestraintValue.from_profile(old.grade,g.equipment_tier(old)))
   if cost>boss.rope_art.stock:
    boss.rope_art.hogtie_pending=maxi(boss.rope_art.hogtie_pending,grade)
    boss.rope_art.refill=true
+   observe(g)
    return
   boss.rope_art.stock-=cost
   old.grade=next_grade;old.maximum=g.Equipment.maximum(next_grade);old.durability=old.maximum*0.8;old.variant=0
@@ -299,6 +335,7 @@ static func hogtie(g, boss: Dictionary, grade: int) -> void:
   if cost>boss.rope_art.stock:
    boss.rope_art.hogtie_pending=maxi(boss.rope_art.hogtie_pending,grade)
    boss.rope_art.refill=true
+   observe(g)
    return
   var request={"kind":"install","template":HOGTIE,"slot":"wrist","point":"","grade":grade,"tier":2,"variant":0,"locked":false,"source":boss.id}
   var result=g.Application.execute_concrete(g,request,boss.id,true)
@@ -306,17 +343,28 @@ static func hogtie(g, boss: Dictionary, grade: int) -> void:
   var item=result.installed[0]
   boss.rope_art.stock-=cost
   track(g,item)
-  g._emit("event",boss.name+"施加了"+item.name+"。",{"enemy_action":{"enemy_id":boss.id,"actor":boss.name,"sequence":g.state.logs.size(),"kind":boss.intent.get("kind","apply"),"slots":g.Equipment.coverage(item)}})
+  g._emit("event",boss.name+"施加了"+item.name+"。",{"installed_name":item.name,"enemy_action":{"enemy_id":boss.id,"actor":boss.name,"sequence":g.state.logs.size(),"kind":boss.intent.get("kind","apply"),"slots":g.Equipment.coverage(item)}})
   g._cleanup(false)
  boss.rope_art.hogtie_pending=0
+ observe(g)
+
+static func refresh_intents(g, boss: Dictionary) -> void:
+ # Publish changed priorities immediately, preserving a delayed unchanged action.
+ var next=plan(g,boss)
+ if next.kind!=boss.intent.get("kind",""): boss.intent=next
+ var helper=assistant(g)
+ if not helper.is_empty():
+  var helper_next=plan(g,helper)
+  if helper_next.kind!=helper.intent.get("kind",""): helper.intent=helper_next
 
 static func observe(g) -> void:
- if g._rope_trial: return
+ if g._rope_trial or g._rope_observing: return
  var boss=master(g)
  if boss.is_empty(): return
  var r=boss.rope_art
- if not r.domain: return
- if g._rope_observing: return
+ if not r.domain:
+  refresh_intents(g,boss)
+  return
  g._rope_observing=true
  # Each pass consumes a distinct crossing; installations may cause the next one.
  for iteration in range(8):
@@ -333,10 +381,12 @@ static func observe(g) -> void:
   if mini(100,r.total)==value: break
  if hogtied(g): g.state.posture="lie";g.state.order="last"
  g._rope_observing=false
+ # Threshold equipment can consume the final stock inside this observation.
+ refresh_intents(g,boss)
 
 static func description(e: Dictionary) -> String:
  if e.type==MASTER:
-  return "绳索%d/24。成功施加消耗绳索；捕缚值随当前绳索拘束值变化。50／75及重跨90获得醉绳；50／重跨80施加驷马缚。完成第三轮后绳索不能解除。" % e.rope_art.stock
+  return "绳索%d/%d。编织绳网施加%d件；欣赏作品使绳索上限＋4、编织数量＋1，可叠加。绳索不足时下次行动补绳：有助手补至上限，无助手补充上限的一半。捕缚值随绳索拘束值变化。50／75及重跨90获得醉绳；50／重跨80施加驷马缚。第三轮末永久封缚。" % [e.rope_art.stock,stock_limit(e),2+int(e.rope_art.get("admired",0))]
  return "召唤后的前三回合不可单体选中；群攻有效。死亡清除状态牌与不可反抗。首次死亡后复活一次。"
 
 static func validate(g, e: Dictionary) -> String:
@@ -344,12 +394,13 @@ static func validate(g, e: Dictionary) -> String:
   if not g.Snapshot.fields(e,"rope_art:d"): return "绳艺大师记录缺失。"
   var r=e.rope_art
   if not g.Snapshot.fields(r,"stock:i refill:b grief:b revive:b deaths:i domain:b seal:b total:i values:d seen50:b seen75:b previous:i drunk:i submission:i active:i drain:i desire:i hogtie:s hogtie_pending:i"): return "绳艺大师记录不完整。"
+  if r.has("admired") and (not r.admired is int or r.admired<0): return "绳索成长记录有误。"
   for key in ["stock","deaths","total","previous","drunk","submission","active","drain","desire","hogtie_pending"]:
    if r[key]<0: return "绳艺大师计数不能为负。"
   if r.deaths>2 or r.previous>100 or r.hogtie_pending>3: return "绳艺大师阶段记录不合法。"
   for value in r.values.values():
    if not value is int or value<=0 or value>6: return "绳索拘束值记录不合法。"
  elif e.type==ASSISTANT:
-  if not g.Snapshot.fields(e,"rope_helper:d") or not g.Snapshot.fields(e.rope_helper,"born:i rest:i respect:b owner:s"): return "绳艺助理记录不完整。"
+  if not g.Snapshot.fields(e,"rope_helper:d") or not g.Snapshot.fields(e.rope_helper,"born:i rest:i respect:b owner:s"): return "绳艺助手记录不完整。"
  elif e.has("rope_art") or e.has("rope_helper"): return "非绳艺敌人携带专属记录。"
  return ""

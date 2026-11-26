@@ -11,7 +11,7 @@ const Routes=preload("res://ui/command_routes.gd")
 const ROUTES={
  "card":"battle","chain":"battle","attack":"battle","status_toggle":"battle","posture":"battle",
  "wall_move":"battle","manual":"battle","hook":"battle","calm":"battle",
- "item_use":"item","item_install":"item","item_retrieve":"item","item_discard":"item",
+ "item_use":"item","item_discard":"item",
  "end":"flow","surrender":"flow","finish_prepare":"flow","finish_rest":"flow","finish_pack":"flow",
  "retain":"flow","retain_skip":"flow",
  "rest_rare":"rest","rest_card":"rest","rest_flask":"rest","rest_begin":"rest",

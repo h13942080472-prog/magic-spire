@@ -10,6 +10,7 @@ static func run(t) -> void:
  var g=Game.new(42)
  g._discard_end();g.state.energy=20
  t.check(play(t,g,"fire_dynamics",false).ok and g.state.energy==19 and g.state.mana==100,"DYNAMICS power costs one energy and no mana")
+ t.check(g.Cards.spell_power(g,"fireball").get("base_bonus",0)==4,"DYNAMICS bound face adds four fireball damage")
  for sample in [[0,1.0],[75,0.55]]:
   g.state.pressure=sample[0]
   t.check(is_equal_approx(g.cast_view(g.Cards.cast_profile(g,"fireball")).chance,sample[1]),"DYNAMICS independent addition and upper cap")
@@ -23,6 +24,9 @@ static func run(t) -> void:
  t.check(not t.action(g,"card",{"uid":card.uid,"free":true}).ok and g.state==before,"DYNAMICS repeated face rejected atomically")
  var restored=Game.new(7)
  t.check(restored.restore_snapshot(g.export_snapshot()).ok and restored.Cards.spell_power(restored,"fireball").all_enemies and restored.cast_view(restored.Cards.cast_profile(restored,"fireball")).chance==0.55,"DYNAMICS current snapshot restores both effects")
+ t.check(play(t,g,"fire_dynamics",false).ok and g.Cards.spell_power(g,"fireball").base_bonus==8 and is_equal_approx(g.Cards.spell_power(g,"fireball").chance_bonus,0.60),"DYNAMICS two bound copies add eight damage and sixty percentage points")
+ var stacked=Game.new(7)
+ t.check(stacked.restore_snapshot(g.export_snapshot()).ok and stacked.Cards.spell_power(stacked,"fireball").base_bonus==8,"DYNAMICS stacked bound face survives save and load")
  g.Cards.end_powers(g)
  t.check(not g.Cards.spell_power(g,"fireball").has("all_enemies") and g.cast_view(g.Cards.cast_profile(g,"fireball")).chance==0,"DYNAMICS session cleanup removes both effects")
 

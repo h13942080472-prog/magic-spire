@@ -267,8 +267,8 @@ static func feedback_save(t) -> void:
 # assertion, which a comparison against the same metadata source could not do. Same shape as the
 # wording pins in tests/card_text_cases.gd; product code keeps TERMS as the only wording source.
 const TERM_PINS={
- "mana_search":{"bound":[{"name":"检索","detail":"从抽牌堆抽取指定类型的牌。"}],
-  "free":[{"name":"检索","detail":"从抽牌堆抽取指定类型的牌。"},{"name":"束缚等级","detail":"上身或腿部综合受限程度（0—4级）。各部位的使用条件另行判断。"}]},
+ "mana_search":{"bound":[{"name":"检索","detail":"优先从抽牌堆抽取指定类型的牌，再从弃牌堆补足。"}],
+  "free":[{"name":"检索","detail":"优先从抽牌堆抽取指定类型的牌，再从弃牌堆补足。"},{"name":"束缚等级","detail":"上身或腿部综合受限程度（0—4级）。各部位的使用条件另行判断。"}]},
  "witch_escape_practice":{"bound":[{"name":"挣扎","detail":"受力量、蓄力和挣扎倍率影响。卡牌以卡面伤害的50%波及同位置其他拘束具，各自计算倍率。"}],
   "free":[{"name":"滑脱","detail":"受灵巧、蓄力和滑脱倍率影响；三档免疫。卡牌波及同大部位其他位置：各选最松的可滑脱装备1件，并列随机；基础为卡面伤害的50%，各自计算倍率。"}]}}
 
@@ -332,15 +332,15 @@ static func card_face_incremental(t) -> void:
  var base_nodes=face_nodes(face)
  var base_children=face_children(face)
  var base_labels=[]
- for label in face.get_node("CardText/Content").get_children(): base_labels.append([String(label.name),String(label.text),label.visible])
- t.check(base_children.size()==8 and base_children.has("CardIllustration") and base_children.has("CardText") and base_children.has("CardMana"),"FACE SETTER probe keeps the eight direct children: "+str(base_children.keys()))
+ for label in face.get_node("CardText/Content").get_children(): base_labels.append([String(label.name),String(label.text) if label is Label else "",label.visible])
+ t.check(base_children.size()==6 and base_children.has("CardIllustration") and base_children.has("CardText") and base_children.has("CardMana") and face.has_node("CardText/Content/CardKeywords"),"FACE SETTER probe keeps the six direct children and a shared scroll for printed text: "+str(base_children.keys()))
  var art_before=face.art_bottom
  var title_before=String(face.get_node("CardTitle").text)
  ui._refresh_card_face(face,data)
  face.fit_text()
  await t.frames()
  var labels_again=[]
- for label in face.get_node("CardText/Content").get_children(): labels_again.append([String(label.name),String(label.text),label.visible])
+ for label in face.get_node("CardText/Content").get_children(): labels_again.append([String(label.name),String(label.text) if label is Label else "",label.visible])
  t.check(face_nodes(face)==base_nodes,"FACE SETTER reapplying the same values creates and destroys nothing")
  t.check(labels_again==base_labels and String(face.get_node("CardTitle").text)==title_before and is_equal_approx(face.art_bottom,art_before),"FACE SETTER reapplying the same values rewrites no text and no geometry")
  var cost=String(face.get_node("CardCost").text)
@@ -366,6 +366,8 @@ static func card_face_incremental(t) -> void:
  ui._card_tooltip(face,data)
  var popup=ui.find_child("TermExplanation",true,false)
  t.check(popup!=null and t.visible_text(popup).contains("使用前请确认目标"),"FACE SETTER hover detail lists the overflowing body from the fitted layout")
+ var conditions=face.get_node("CardText/Content/CardRequirements").get_children()
+ t.check(not conditions.is_empty() and conditions.all(func(label):return t.visible_text(popup).contains(label.text)),"FACE SETTER hover detail includes each printed requirement from the scrolling group")
  ui._hide_term()
  t.check(face_nodes(face)==base_nodes and ui.find_child("TermExplanation",true,false)==null,"FACE SETTER hover detail leaves the card structure untouched")
  face.set_warning("警告探针")
@@ -391,18 +393,18 @@ static func card_face_incremental(t) -> void:
  t.check(face.get_node("CardText/Content").get_node_or_null("CardAvailability")!=availability_node,"FACE SETTER a cleared availability line is rebuilt, never re-inserted into the scroll container")
  face.set_availability("")
  face.set_keywords(["第一个词条","第二个词条"])
- t.check(face.get_node("CardKeywords").get_child_count()==2 and String(face.get_node("CardKeywords").get_child(0).text)=="第一个词条","FACE SETTER set_keywords reuses the tag seats")
+ t.check(face.get_node("CardText/Content/CardKeywords").get_child_count()==2 and String(face.get_node("CardText/Content/CardKeywords").get_child(0).text)=="第一个词条","FACE SETTER set_keywords reuses the tag seats")
  var keyword_nodes=face_nodes(face)
  face.set_keywords(["第一个词条","第二个词条"])
  t.check(face_nodes(face)==keyword_nodes,"FACE SETTER set_keywords with the same values keeps every tag")
  face.set_keywords(["第一个词条"])
- t.check(face.get_node("CardKeywords").get_child_count()==1,"FACE SETTER set_keywords drops the surplus tag from the tree")
+ t.check(face.get_node("CardText/Content/CardKeywords").get_child_count()==1,"FACE SETTER set_keywords drops the surplus tag from the tree")
  face.set_keywords(["第一个词条","第二个词条"])
  t.check(face_nodes(face)==keyword_nodes,"FACE SETTER set_keywords reuses the parked tag instance")
  face.set_requirements(["条件一","条件二"])
- t.check(face.get_node("CardRequirements").get_child_count()==2 and face.get_node("CardRequirements").get_child(0).horizontal_alignment==HORIZONTAL_ALIGNMENT_RIGHT,"FACE SETTER set_requirements writes right aligned lines")
+ t.check(face.get_node("CardText/Content/CardRequirements").get_child_count()==2 and face.get_node("CardText/Content/CardRequirements").get_child(0).horizontal_alignment==HORIZONTAL_ALIGNMENT_CENTER,"FACE SETTER set_requirements centers each requirement")
  face.set_requirements([])
- t.check(face.get_node("CardRequirements").get_child_count()==0 and not face.get_node("CardRequirements").visible,"FACE SETTER set_requirements empties the group without touching the card")
+ t.check(face.get_node("CardText/Content/CardRequirements").get_child_count()==0 and not face.get_node("CardText/Content/CardRequirements").visible,"FACE SETTER set_requirements empties the group without touching the card")
  var badges=face.get_node("CardMana")
  face.set_mana([["cost","−1","甲。"],["cost","−2","乙。"]])
  t.check(badges.get_child_count()==2 and String(badges.get_child(0).name)=="Mana_cost","FACE SETTER set_mana keeps the first badge of a kind on its plain name: "+str(badges.get_children().map(func(node):return String(node.name))))
@@ -426,11 +428,13 @@ static func card_face_incremental(t) -> void:
  face.fit_text()
  await t.frames()
  var sized_nodes=face_nodes(face)
+ var small_picture=face.get_node("CardIllustration").size
  var expected=Array(data.face_mana.bound)
  face.set_size(Vector2(181,290))
  await t.frames()
  t.check(face_nodes(face)==sized_nodes,"FACE SETTER real size change creates and destroys nothing")
- t.check(is_equal_approx(face.art_bottom-6,face.size.y*2/3) and face.get_node("CardText").get_rect().end.y<=face.size.y,"FACE SETTER real size change refits the art and the body")
+ var larger_picture=face.get_node("CardIllustration").size
+ t.check(larger_picture.x>small_picture.x and larger_picture.y>small_picture.y and face.get_node("CardText").get_rect().end.y<=face.size.y,"FACE SETTER real size change grows the illustration and keeps the body inside the card")
  t.check(face.get_node("CardMana").get_child_count()==expected.size() and Rect2(Vector2.ZERO,face.size).encloses(face.get_node("CardText").get_rect()),"FACE SETTER real size change keeps one badge per entry inside the card")
  var texture_before=face.get_node("CardIllustration").texture
  ui.display_settings.set_art_style("cards","magic_slip","test")
@@ -503,23 +507,27 @@ static func card_illustrations(t) -> void:
  for id in t.ui.game.Cards.Rules.SPECS:
   var spec=t.ui.game.Cards.Rules.SPECS[id]
   var art=spec.get("art_type",id)
-  if not face_script.ILLUSTRATIONS.has(art):
+  var equipment_art=spec.card_type=="item"
+  var texture=t.ui.display_settings.art_texture("cards",id,false) if equipment_art else face_script.ILLUSTRATIONS.get(art)
+  if texture==null:
    missing.append(id);continue
-  var texture=face_script.ILLUSTRATIONS[art]
   var source=spec.get("art_source","magic_hand" if art=="magic_hand_gift" else art)
   if source in desire_art: source="itching_heart"
-  if texture==null or texture!=face_script.ILLUSTRATIONS.get(source) or texture.get_image().get_used_rect().size==Vector2i.ZERO or (paths.has(texture.resource_path) and paths[texture.resource_path]!=source):
+  if texture==null or (not equipment_art and texture!=face_script.ILLUSTRATIONS.get(source)) or texture.get_image().get_used_rect().size==Vector2i.ZERO or (paths.has(texture.resource_path) and paths[texture.resource_path]!=source):
    broken.append(id);continue
   paths[texture.resource_path]=source
   var card=face_script.new()
+  if equipment_art: card.art_settings=t.ui.display_settings
   card.symbol=id;card.lift_on_hover=false
   card.position=Vector2(-2000,-2000);card.size=Vector2(190,285)
   t.root.add_child(card)
   var picture=card.get_node("CardIllustration")
   for dimensions in [Vector2(190,285),Vector2(290,360)]:
    card.size=dimensions;card.free_face=not card.free_face;card.queue_redraw()
-   var art_ratio=2.0/3.0
-   if picture.texture!=texture or picture.material!=null or picture.mouse_filter!=Control.MOUSE_FILTER_IGNORE or not Rect2(Vector2.ZERO,dimensions).encloses(picture.get_rect()) or not is_equal_approx(card.art_bottom-6,dimensions.y*art_ratio) or picture.stretch_mode!=TextureRect.STRETCH_KEEP_ASPECT_CENTERED or picture.position.y<42 or not picture.clip_contents:
+   if equipment_art:
+    card.set_art(id,false)
+    texture=t.ui.display_settings.art_texture("cards",id,card.free_face and spec.get("wall_face",false))
+   if picture.texture!=texture or picture.material!=null or picture.mouse_filter!=Control.MOUSE_FILTER_IGNORE or not Rect2(Vector2.ZERO,dimensions).encloses(picture.get_rect()) or picture.size.x<dimensions.x*0.92 or picture.stretch_mode!=TextureRect.STRETCH_KEEP_ASPECT_CENTERED or picture.position.y<dimensions.y*0.12 or not picture.clip_contents:
     overflow.append(id)
   card.free()
  t.check(missing.is_empty(),"CARD ART every registered card has an illustration: "+str(missing))
@@ -545,10 +553,27 @@ static func card_illustrations(t) -> void:
     var box=sample.face.get_node("CardText")
     var content=box.get_node("Content")
     var picture=sample.face.get_node("CardIllustration")
-    var footer=sample.face.get_node("CardKeywords")
-    var requirements=sample.face.get_node("CardRequirements")
-    var art_ratio=2.0/3.0
-    if not Rect2(Vector2.ZERO,dimensions).encloses(box.get_rect()) or box.position.y<picture.get_rect().end.y or not is_equal_approx(sample.face.art_bottom-6,dimensions.y*art_ratio) or content.size.x>box.size.x or not box.clip_contents: text_overflow.append(sample.data.type+str(free)+str(dimensions))
+    var footer=sample.face.get_node("CardText/Content/CardKeywords")
+    var requirements=sample.face.get_node("CardText/Content/CardRequirements")
+    var texture=picture.texture
+    var aspect=texture.get_size().aspect() if texture!=null else 1.0
+    var drawn_width=minf(picture.size.x,picture.size.y*aspect)
+    var reading_line=maxf(20,17*dimensions.y/252)
+    var effect=content.get_node("CardEffect")
+    var rows=content.get_children().filter(func(row):return row.visible)
+    if not rows.is_empty():
+     var top_gap=rows.front().position.y
+     var bottom_gap=maxf(box.size.y,content.size.y)-rows.back().get_rect().end.y
+     if absf(top_gap-bottom_gap)>2 or effect.horizontal_alignment!=HORIZONTAL_ALIGNMENT_CENTER:
+      text_overflow.append(sample.data.type+" description off center at "+str(dimensions))
+    var two_lines=2*effect.get_line_height()+effect.get_theme_constant("line_spacing")+2*dimensions.y/252
+    var copy_space=two_lines+(footer.get_combined_minimum_size().y+content.get_theme_constant("separation") if footer.visible else 0)
+    var square=texture!=null and texture.get_width()==texture.get_height()
+    if not square and box.size.y+1<minf(content.get_combined_minimum_size().y,copy_space):
+     text_overflow.append(sample.data.type+" insufficient visible rules "+str(dimensions))
+    if picture.size.x<dimensions.x*0.92 or (drawn_width+1<picture.size.x and (square or box.size.y>maxf(reading_line,copy_space)+1)):
+     overflow.append("%s face=%s card=%s image=%s body=%s"%[sample.data.type,free,dimensions,drawn_width,box.size])
+    if not Rect2(Vector2.ZERO,dimensions).encloses(box.get_rect()) or box.position.y<picture.get_rect().end.y or box.size.y+1<reading_line or content.size.x>box.size.x or not box.clip_contents: text_overflow.append(sample.data.type+str(free)+str(dimensions))
     # Scroll offsets are integer pixels; a fractional layout remainder is not a scrollable row.
     if floorf(content.size.y-box.size.y)>=1:
      box.scroll_vertical=int(ceilf(content.size.y))
@@ -557,26 +582,47 @@ static func card_illustrations(t) -> void:
     var badges=sample.face.get_node("CardMana")
     var title=sample.face.get_node("CardTitle")
     var cost=sample.face.get_node("CardCost")
-    var header_scale=1.5 if dimensions.y==480 else 1.0
-    if not cost.get_rect().get_center().is_equal_approx(Vector2(19,19)*header_scale) or cost.get_line_count()!=1 or title.get_rect().end.y>picture.position.y: header_errors.append(sample.data.type+" header alignment")
+    var header_scale=dimensions.y/252.0
+    var category=sample.face.get_node("CardHeader/CardClassification")
+    if not cost.get_rect().get_center().is_equal_approx(Vector2(18,16)*header_scale) or cost.get_line_count()!=1 or title.get_rect().end.y>picture.position.y: header_errors.append(sample.data.type+" header alignment")
     if sample.data.type=="hannya_henshin":
      t.check(title.text.replace("\n","")==sample.data.name and title.get_visible_line_count()==title.get_line_count() and title.get_rect().end.y<=42*header_scale,"HANNYA TITLE full perfect-henshin name fits the header without truncation: rect=%s lines=%d/%d font=%d" % [str(title.get_rect()),title.get_visible_line_count(),title.get_line_count(),title.get_theme_font_size("font_size")])
     var expected=sample.data.face_mana["free" if free else "bound"]
     if badges.visible!=not expected.is_empty() or badges.get_child_count()!=expected.size(): header_errors.append(sample.data.type+" visibility")
-    if badges.visible and (not Rect2(Vector2.ZERO,dimensions).encloses(badges.get_rect()) or title.get_rect().end.x>badges.position.x or badges.position.y>2 or badges.get_rect().end.y>picture.position.y): header_errors.append(sample.data.type+" overlap: title="+str(title.get_rect())+" badges="+str(badges.get_rect())+" card="+str(dimensions))
+    var band_top=picture.get_rect().end.y+2*header_scale
+    var band_bottom=sample.face.art_bottom-2*header_scale
+    if badges.visible and (not Rect2(Vector2.ZERO,dimensions).encloses(badges.get_rect()) or category.get_rect().intersects(badges.get_rect()) or badges.position.y<band_top-0.001 or badges.get_rect().end.x>dimensions.x-10*header_scale or badges.get_rect().end.y>band_bottom+0.001): header_errors.append(sample.data.type+" overlap: title="+str(title.get_rect())+" badges="+str(badges.get_rect())+" card="+str(dimensions))
+    if sample.data.type in ["mana_attachment","wildfire_descent","binding_search"]:
+     var same_row=is_equal_approx(category.get_rect().get_center().y,badges.get_rect().get_center().y)
+     if not same_row or category.get_line_count()!=1 or category.get_rect().end.x>badges.position.x or badges.position.x<=category.position.x: header_errors.append(sample.data.type+" single mana and dual type must share one row at "+str(dimensions))
     if footer.visible:
-     if not Rect2(Vector2.ZERO,dimensions).encloses(footer.get_rect()) or box.get_rect().end.y>footer.position.y: keyword_errors.append(sample.data.type+" footer bounds")
+     if footer.get_parent()!=content or footer.alignment!=FlowContainer.ALIGNMENT_CENTER or footer.position.y<0 or footer.size.x>content.size.x or footer.get_rect().end.y>effect.position.y and effect.visible: keyword_errors.append(sample.data.type+" keyword strip bounds")
      for label in footer.get_children():
+      if label.get_theme_stylebox("normal")!=face_script.KeywordPlate or label.get_theme_color("font_color")!=Color("ffe5b6"): keyword_errors.append(sample.data.type+" keyword palette")
       if not Rect2(Vector2.ZERO,footer.size).encloses(label.get_rect()) or label.get_line_count()!=1: keyword_errors.append(sample.data.type+" split keyword")
       if footer.get_children().any(func(other):return other!=label and label.get_rect().intersects(other.get_rect())): keyword_errors.append(sample.data.type+" overlapping keywords")
     var requirement_text=Array(sample.data.face_requirements["free" if free else "bound"])
     if requirements.get_children().map(func(label):return label.text)!=requirement_text: keyword_errors.append(sample.data.type+" missing requirements")
     if requirements.visible:
-     if not Rect2(Vector2.ZERO,dimensions).encloses(requirements.get_rect()) or not is_equal_approx(requirements.get_rect().end.x,dimensions.x-12) or not is_equal_approx(requirements.get_rect().end.y,dimensions.y-14) or box.get_rect().end.y>requirements.position.y or requirements.position.y<picture.get_rect().end.y: keyword_errors.append(sample.data.type+" requirement bounds "+str(dimensions)+str(requirements.get_rect()))
-     if footer.visible and requirements.get_rect().intersects(footer.get_rect()): keyword_errors.append(sample.data.type+" requirements overlap keywords")
-     if requirements.get_children().any(func(label):return label.horizontal_alignment!=HORIZONTAL_ALIGNMENT_RIGHT or not Rect2(Vector2.ZERO,requirements.size).encloses(label.get_rect())): keyword_errors.append(sample.data.type+" requirement alignment")
+     if requirements.get_parent()!=content or requirements.get_index()!=1 or (footer.visible and footer.get_rect().end.y>requirements.position.y) or requirements.size.x>content.size.x or requirements.get_rect().end.y>effect.position.y and effect.visible: keyword_errors.append(sample.data.type+" requirement bounds "+str(dimensions)+str(requirements.get_rect()))
+     if requirements.get_children().any(func(label):return label.horizontal_alignment!=HORIZONTAL_ALIGNMENT_CENTER or not Rect2(Vector2.ZERO,requirements.size).encloses(label.get_rect())): keyword_errors.append(sample.data.type+" requirement alignment")
     if sample.data.type=="fire_dynamics":
-     if not footer.visible or footer.get_child_count()!=1 or footer.get_child(0).text!="唯一" or content.get_node("CardEffect").text.contains("唯一"): keyword_errors.append("fire dynamics unique must move to bottom on both faces")
+     var unique_shown=footer.visible and footer.get_children().any(func(label):return label.text=="唯一")
+     if unique_shown!=free or content.get_node("CardEffect").text.contains("唯一"): keyword_errors.append("fire dynamics unique belongs only on the free keyword strip")
+ # Exercise the same keyword seats through a wrap and an unwrap at hand scale.
+ var printed=samples[0].face
+ var terms=["超级顺延","顺延","消耗","保留"]
+ printed.set_keywords(terms)
+ var band=printed.get_node("CardText/Content/CardKeywords")
+ var seats=band.get_children()
+ for width in [158,300,158]:
+  printed.size=Vector2(width,252)
+  printed.set_keywords(terms)
+  await t.frames()
+  var last=seats.back().get_rect()
+  t.check(band.get_children()==seats and (last.position.y>0)==(width==158),"CARD KEYWORDS same printed seats wrap at hand width and unwrap when widened")
+  var text_box=printed.get_node("CardText")
+  t.check(last.end.y<=band.size.y and band.get_rect().end.y<=text_box.get_node("Content/CardEffect").position.y and text_box.size.y>=15,"CARD KEYWORDS effect follows the final keyword row in the scrollable column at width "+str(width))
  # A deliberate display-only long-copy fixture survives later wording simplifications.
  # Every real card and both faces have already been checked above.
  var dense=samples[0]
@@ -595,9 +641,50 @@ static func card_illustrations(t) -> void:
  t.check(scroll.scroll_vertical==0,"CARD TEXT changing face resets the reading position")
  for sample in samples:
   t.ui.card_faces.erase(sample.data.uid);sample.face.free()
- t.check(text_overflow.is_empty(),"CARD TEXT both face sizes keep full scrollable effects and restrictions below the fixed art area: "+str(text_overflow))
- t.check(header_errors.is_empty(),"CARD MANA badges stay at top right without covering titles on either face/size: "+str(header_errors))
- t.check(keyword_errors.is_empty(),"CARD KEYWORDS standalone tags stay whole at the bottom outside scrollable effects: "+str(keyword_errors))
+ t.check(overflow.is_empty(),"CARD ART square textures reach both inner edges and other textures use the space above the rules: "+str(overflow))
+ t.check(text_overflow.is_empty(),"CARD TEXT all face sizes keep full scrollable effects and restrictions below the art: "+str(text_overflow))
+ t.check(header_errors.is_empty(),"CARD MANA badges fit below the illustration without covering type or rules on either face/size: "+str(header_errors))
+ t.check(keyword_errors.is_empty(),"CARD KEYWORDS standalone tags stay whole above scrollable effects: "+str(keyword_errors))
+ # Long item requirements must remain scrollable in all three supported locales.
+ var locale_before=t.ui.localization.locale
+ for locale in ["en_US","ja_JP"]:
+  t.ui.localization.set_locale(locale)
+  for id in ["endless_war_goddess","siphon_strength"]:
+   var face=t.ui._display_card(id,t.ui.layout,Callable(),"square_translation_"+id,Vector2(158,252),"",false)
+   face.position=Vector2(-2000,-2000)
+   for flip in range(2):
+    await t.frames()
+    var art=face.get_node("CardIllustration")
+    var box=face.get_node("CardText")
+    t.check(art.texture.get_width()==art.texture.get_height() and is_equal_approx(art.size.x,art.size.y),"CARD ART translated square fills both inner edges: "+id+" "+locale)
+    box.scroll_vertical=10000;await t.frames()
+    t.check(box.get_node("Content").get_rect().end.y<=box.size.y+1.1,"CARD ART last translated line is reachable below square: "+id+" "+locale)
+    face.flip_requested.emit()
+   face.free()
+  var dual=t.ui._display_card("mana_attachment",t.ui.layout,Callable(),"translated_band_"+locale,Vector2(158,252),"",false)
+  dual.position=Vector2(-2000,-2000)
+  await t.frames()
+  var category=dual.get_node("CardHeader/CardClassification")
+  var resources=dual.get_node("CardMana")
+  t.check(is_equal_approx(category.get_rect().get_center().y,resources.get_rect().get_center().y) and category.get_rect().end.x<=resources.position.x and category.get_line_count()==category.get_visible_line_count(),"CARD MANA translated dual type stays readable beside one badge: "+locale)
+  dual.set_mana([["cost","−10",""],["temporary","+10",""]])
+  await t.frames()
+  t.check(resources.get_child_count()==2 and category.get_rect().end.y<=resources.position.y and resources.get_rect().end.y<=dual.art_bottom,"CARD MANA two wide resource badges wrap together below a translated type: "+locale)
+  dual.free()
+  var item=preload("res://data/encyclopedia.gd").card("saw")
+  item.uid="printed_saw_"+locale
+  var saw=t.ui._card(item,Rect2(-2000,-2000,158,252),func():pass,0,t.ui.layout,false,false)
+  for flip in range(2):
+   await t.frames()
+   var area=saw.get_node("CardText")
+   var conditions=area.get_node("Content/CardRequirements")
+   t.check(conditions.visible and Rect2(Vector2.ZERO,saw.size).encloses(area.get_rect()) and area.size.y>=20 and conditions.position.y>=area.get_node("Content/CardKeywords").get_rect().end.y,"CARD TEXT long translated conditions and effect share a usable viewport: "+locale)
+   area.scroll_vertical=10000
+   if area.get_node("Content").size.y-area.size.y>=1: t.check(area.scroll_vertical>0,"CARD TEXT translated overflow scrolls to its end: "+locale)
+   saw.flip_requested.emit()
+  saw.free()
+  t.ui.card_faces.erase(item.uid)
+ t.ui.localization.set_locale(locale_before)
  var copy=face_script.separate_keywords("每消耗1张，恢复10魔力。消耗。",[{"name":"消耗"}])
  t.check(copy.body=="每消耗1张，恢复10魔力。" and copy.keywords==["消耗"],"CARD KEYWORDS preserve effect clauses mentioning a keyword")
  t.check(t.ui.game.export_snapshot()==before,"CARD TEXT layout and flip do not change game state")

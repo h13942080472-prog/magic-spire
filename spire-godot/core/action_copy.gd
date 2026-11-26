@@ -1,4 +1,5 @@
 extends RefCounted
+const DisplayNumbers=preload("res://data/display_numbers.gd")
 
 const Equipment=preload("res://data/equipment.gd")
 const CardRules=preload("res://data/card_rules.gd")
@@ -8,9 +9,7 @@ static var texts: Dictionary={}
 
 # Compact log numbers only; keep full precision in state and calculation records.
 static func number(value: float) -> String:
- if value>0.0 and value<0.005: return "小于0.01"
- var text="%.2f" % value
- return text.trim_suffix("0").trim_suffix("0").trim_suffix(".") if text.contains(".") else text
+ return DisplayNumbers.measured(value)
 
 static func equipment_result(source: String, target: String, before: float, after: float, kind: String="") -> String:
  var damage_name={"strain":"挣扎","slip":"滑脱","cut":"切割","magic":"魔法"}.get(kind,"")
@@ -72,7 +71,10 @@ static func view(logs: Array, need_climax: bool=false) -> Dictionary:
   if not npc_seen and npc is Dictionary and npc.get("cue",null) is String:
    npc_seen=true
    var npc_text=line(npc.cue,{},true)
-   if npc_text!="": npc_speech={"id":i,"text":npc_text,"cue":npc.cue,"visual":str(npc.get("visual","guard_purple")),"phase":str(log.get("phase",""))}
+   if npc_text!="":
+    npc_speech={"id":i,"text":npc_text,"cue":npc.cue,"visual":str(npc.get("visual","guard_purple")),"phase":str(log.get("phase",""))}
+    if npc.has("encounter"): npc_speech.encounter=npc.encounter
+    if npc.has("speaker"): npc_speech.speaker=npc.speaker
   if actions.size()==40 and speech_seen and npc_seen and (climax_seen or not need_climax): break
  actions.reverse()
  return {"speech":speech,"npc_speech":npc_speech,"climax":climax,"actions":actions}

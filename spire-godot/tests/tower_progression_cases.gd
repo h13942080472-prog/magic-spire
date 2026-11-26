@@ -59,7 +59,7 @@ static func run(t) -> void:
  var reward_version=g.state.version
  t.action(g,"reward",{"type":g.state.reward_options[0]})
  t.action(g,"reward",{"type":"skip"})
- t.check(g.state.deck.size()==11 and g.state.phase=="prepare" and not g.state.completed_rooms.has("summit"),"PROGRESSION summit reward joins permanent deck before ordinary preparation")
+ t.check(g.state.deck.size()==12 and g.state.phase=="prepare" and not g.state.completed_rooms.has("summit"),"PROGRESSION summit reward joins permanent deck before ordinary preparation")
  t.check(not g.dispatch(g.command({"kind":"card","uid":"old_action"},reward_version),reward_version).ok,"PROGRESSION prior reward version cannot be reused")
  for i in range(4):g._gain_tool("shard")
  t.action(g,"finish_prepare")
@@ -70,7 +70,9 @@ static func run(t) -> void:
  travel(t,g,"exit")
  t.check(g.state.phase=="cleared" and g.state.reward_count==rewards and g.state.mana==mana and g.state.pressure==17 and not g._equipment(marker.id).is_empty(),"PROGRESSION exit completes climb without extra reward/heal or clearing restraints")
  before=JSON.stringify(g.state)
- t.check(g.command_facts().filter(func(c):return c.payload.kind!="item_discard").size()==2 and not t.action(g,"reward",{"type":g.state.reward_options[0]}).ok and JSON.stringify(g.state)==before,"PROGRESSION exit choices cannot replay rewards")
+ var exit_actions=g.command_facts().filter(func(c):return c.payload.kind not in ["item_discard","item_use"]).map(func(c):return c.payload.kind)
+ var replay=g.dispatch(g.command({"kind":"reward","type":g.state.reward_options[0]},g.state.version),g.state.version)
+ t.check(exit_actions==["demo_end","demo_continue"] and not replay.ok and JSON.stringify(g.state)==before,"PROGRESSION exit choices cannot replay rewards")
 
  # A hand-edited/invalid travel state cannot bypass the prerequisite at arrival either.
  g=Game.new(42)

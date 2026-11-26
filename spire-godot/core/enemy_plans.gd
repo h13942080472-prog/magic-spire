@@ -19,6 +19,14 @@ static func installation_intents(g, e: Dictionary) -> Array:
  var spec=g.Enemies.TYPES[e.type]
  if spec.has("weighted_moves"): return spec.weighted_moves.values().filter(func(m):return m.plan.kind=="apply").map(func(m):return m.plan.duplicate(true))
  match spec.behavior:
+  "reinforced_rope": return g.ReinforcedRope.installations(g,e)
+  "operator_drone": return g.DroneOperator.installations(g,e)
+  "succubus_detective": return [g.Detective.ordinary(g,["cable_tie"],1,maxi(2,1+g.state.security)),g.Detective.toy_spec(g,1,maxi(2,1+g.state.security)),g.Detective.ordinary(g,g.Detective.Cuffs.keys(),1,g.Equipment.SHACKLE_RESTRAINT_VALUE)]
+  "tape_mass": return [g.TapeMass.application(g,false),g.TapeMass.application(g,true)]
+  "anti_mage_drone": return [g.AntiDrone.ordinary(g,1),g.AntiDrone.ordinary(g,1,true)]
+  "binding_box_plus": return g.BindingBoxPlus.installations(g,e)
+  "mana_smuggler": return [g.ManaSmuggler.restraints(g,2)]
+  "restraint_mechs": return g.Mechs.installations(g,e)
   "lock": return [spec.chastity_departure.duplicate(true)] if g.state.chastity_locks_enabled else []
   "six_bind": return [six_ordinary(spec,2,2,1,true,4),six_composite(2,2,true),six_special(spec,1,1,true),six_special(spec,2,1,true)]
   "rope_master","rope_assistant": return [g.RopeArt.spec(2,2)]
@@ -59,7 +67,7 @@ static func can_affect_equipment(g, e: Dictionary) -> bool:
  var behavior=definition.behavior
  var cycle=definition.get("cycle",[])
  var declared=definition.get("opening",[])+definition.get("repeat_cycle",[])
- var tightens=behavior in ["guard","six_bind","iron_man","binding_box","drone"] or (behavior=="restraint" and (cycle.is_empty() or cycle.any(func(kind):return kind in ["tighten","tighten_pair","random_strike"]))) or declared.any(func(p):return p.kind in ["tighten","versatile_control"] or p.get("tighten_missing",false))
+ var tightens=behavior in ["guard","six_bind","iron_man","binding_box","drone","mana_smuggler"] or (behavior=="restraint" and (cycle.is_empty() or cycle.any(func(kind):return kind in ["tighten","tighten_pair","random_strike"]))) or declared.any(func(p):return p.kind in ["tighten","versatile_control"] or p.get("tighten_missing",false))
  if (tightens or definition.get("weighted_moves",{}).values().any(func(m):return m.plan.get("tighten_after",false))) and not targets(g,e,"tighten").is_empty(): return true
  var locks=behavior in ["guard","iron_man","lock"] or declared.any(func(p):return p.kind in ["lock","versatile_control"])
  if locks and not targets(g,e,"lock").is_empty(): return true
@@ -97,13 +105,15 @@ static func application_spec(g, e: Dictionary, intent: Dictionary) -> Dictionary
  var spec=intent.duplicate(true)
  spec.count+=e.get("application_bonus",0)
  var definition=g.Enemies.TYPES[e.type]
- # The source rank limits every ordinary action and passive, even in strong encounters.
+ # Weak sources default to basic quality, including when used in strong encounters.
  # Final attachment retains its declared profiles; never downgrade forbidden equipment.
  if e.type in g.Enemies.Library.CLASSIFICATIONS.weak and not spec.get("final",false):
-  spec.profiles=spec.get("profiles",[{"grade":spec.get("grade",2),"tier":spec.get("tier",2)}]).filter(func(profile):return profile.grade==1)
-  if spec.pool=="special": spec.templates=spec.templates.filter(func(type):return g.SpecialEquipment.DESIGNS[type].grade==1)
+  var maximum=definition.get("special_max_grade",1) if spec.pool=="special" else definition.get("ordinary_max_grade",1)
+  spec.profiles=spec.get("profiles",[{"grade":spec.get("grade",2),"tier":spec.get("tier",2)}]).filter(func(profile):return profile.grade<=maximum)
+  if spec.pool=="special":
+   spec.templates=spec.templates.filter(func(type):return g.SpecialEquipment.DESIGNS[type].grade<=maximum)
  spec.replace=(spec.get("replace",false) and definition.get("humanoid",false)) or (spec.pool=="composite" and definition.get("mechanical",false))
- if spec.pool=="ordinary" and (definition.get("humanoid",false) or definition.get("mechanical",false)):
+ if spec.pool=="ordinary" and definition.get("include_shackles",true) and (definition.get("humanoid",false) or definition.get("mechanical",false)):
   for template in Equipment.SHACKLES:
    if template not in spec.templates: spec.templates.append(template)
  spec.ready_layers=e.get("ready_layers",0)
@@ -175,18 +185,27 @@ static func lock_departure_pending(g, e: Dictionary) -> bool:
 static func build(g, e: Dictionary) -> Dictionary:
  var spec=g.Enemies.TYPES[e.type]
  if spec.behavior in ["rope_master","rope_assistant"]: return g.RopeArt.plan(g,e)
+ if spec.behavior==g.DroneOperator.TYPE and not long_battle_limit(g): return g.DroneOperator.owner_plan(g,e)
+ if spec.behavior==g.Detective.TYPE: return g.Detective.plan(g.state,e)
+ if spec.behavior==g.AntiDrone.TYPE: return g.AntiDrone.plan(g,e)
+ if spec.behavior=="restraint_mechs": return g.Mechs.plan(g,e)
  if spec.get("humanoid",false) and g.CaptureBind.kind(g,e)=="" and long_battle_limit(g):
   return {"kind":"capture","text":"准备逮捕","delayed":false}
  if spec.behavior=="six_bind" and g.state.overload_total>=e.next_climax_capture:
   return {"kind":"capture","text":"准备逮捕","delayed":false,"cancel_on_interrupt":true,"climax_threshold":e.next_climax_capture}
- if can_arrest(g,e) and not has_equipment_space(g): return {"kind":"capture","text":"执行逮捕","delayed":false}
+ if e.type!=g.DroneOperator.DRONE and can_arrest(g,e) and not has_equipment_space(g): return {"kind":"capture","text":"执行逮捕","delayed":false}
  if spec.behavior=="guard": return g.Guard.build(g,e)
  if spec.behavior=="six_bind": return six_plan(g,e)
  if spec.behavior in ["rope_master","rope_assistant"]: return g.RopeArt.plan(g,e)
  if spec.behavior=="iron_man": return g.IronMan.plan(g,e)
- if spec.behavior in ["iron_drone","drone","binding_box"]:
+ if spec.behavior=="reinforced_rope": return g.ReinforcedRope.plan(g,e)
+ if spec.behavior==g.TapeMass.TYPE: return g.TapeMass.plan(e)
+ if spec.behavior=="binding_box_plus": return g.BindingBoxPlus.plan(g,e)
+ if spec.behavior=="mana_smuggler": return g.ManaSmuggler.plan(g,e)
+ if spec.behavior in ["iron_drone","drone","binding_box",g.DroneOperator.DRONE]:
   var required=g.CaptureBind.required_intent(g,e)
   if required!="": return {"kind":required,"text":{"capture":"执行收押","bind_apply":"施加捕缚 · 初始%s/100" % g.number(g.CaptureBind.initial_value(g,e)),"bind_prepare":"准备捕缚"}[required],"delayed":false}
+ if spec.behavior==g.DroneOperator.DRONE: return g.DroneOperator.salvo(g,e)
  if spec.behavior=="iron_drone": return {"kind":"idle","text":"维持捕缚 · 每累计%d能量触发" % g.CaptureBind.energy_threshold(g,"iron_drone"),"delayed":false}
  if spec.behavior=="puppeteer": return g.Puppets.plan(e)
  if spec.behavior=="puppet": return {"kind":"idle","text":"玩偶由玩偶师操纵","delayed":false}
@@ -290,7 +309,7 @@ static func targets(g, e: Dictionary, kind: String, required_slots: Array=[]) ->
  var definition=g.Enemies.TYPES[e.type]
  if kind=="tighten" and definition.has("reinforce_material"):
   choices=choices.filter(func(x):return x.material==definition.reinforce_material and (g.equipment_tier(x)<3 or g._reinforcement_locks(x)))
- if kind=="tighten" and g.Enemies.behavior(e.type) in ["restraint","drone"]: choices=choices.filter(func(x):return x.template in g.Enemies.TYPES[e.type].install_pool)
+ if kind=="tighten" and g.Enemies.behavior(e.type) in ["restraint","drone","mana_smuggler"]: choices=choices.filter(func(x):return x.template in g.Enemies.TYPES[e.type].install_pool)
  choices.sort_custom(func(a,b):
   var own_a=1 if a.source==e.id else 0
   var own_b=1 if b.source==e.id else 0

@@ -57,12 +57,31 @@ static func can_fill(g, options: Array, budget: int, unique_types: bool) -> bool
    reachable[total]=reachable[total] or reachable[total-strength]
  return reachable[budget]
 
-static func roll(g, budget: int=WEAK_STRENGTH, max_strength: int=0, unique_types: bool=false) -> Array:
+static func budget_options(g, budget: int, max_strength: int, unique_types: bool) -> Array:
  var options=candidates(g)
  if options.is_empty(): options=candidates(g,false)
  if max_strength>0: options=options.filter(func(m):return g.Enemies.TYPES[m.type].strength<=max_strength)
  if not can_fill(g,options,budget,unique_types):
   options=candidates(g,false).filter(func(m):return max_strength<=0 or g.Enemies.TYPES[m.type].strength<=max_strength)
+ return options
+
+# A stable candidate order gives each unordered lineup exactly one ticket.
+static func weak_lineups(g) -> Array:
+ var result=[]
+ _append_lineups(g,budget_options(g,WEAK_STRENGTH,0,false),WEAK_STRENGTH,[],result)
+ return result
+
+static func _append_lineups(g, options: Array, remaining: int, chosen: Array, result: Array) -> void:
+ for i in range(options.size()):
+  var member=options[i]
+  var left=remaining-int(g.Enemies.TYPES[member.type].strength)
+  if left<0: continue
+  var lineup=chosen+[member]
+  if left==0: result.append(lineup)
+  else: _append_lineups(g,remaining_options(g,options.slice(i),member.type,false),left,lineup,result)
+
+static func roll(g, budget: int=WEAK_STRENGTH, max_strength: int=0, unique_types: bool=false) -> Array:
+ var options=budget_options(g,budget,max_strength,unique_types)
  # Check the remaining budget before each draw, including removal of that type.
  if not can_fill(g,options,budget,unique_types): return []
  var result=[];var remaining=budget

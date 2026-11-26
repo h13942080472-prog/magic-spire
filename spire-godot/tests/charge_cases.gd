@@ -7,10 +7,19 @@ static func gain(g, amount: int) -> void:
 static func toggle(t,g) -> Dictionary:
  return t.action(g,"status_toggle",{"status":"charge"})
 
+static func unlock_single(g) -> void:
+ var card=preload("res://tests/curse_cases.gd").give(g,"finesse")
+ var facts=g.command_facts().filter(func(c):return c.payload.get("uid","")==card.uid and c.payload.get("free",true)==false)
+ g.dispatch(g.command(facts[0].payload,g.state.version),g.state.version)
+ var toggle_fact=g.command_facts().filter(func(c):return c.payload.get("status","")=="charge")[0]
+ g.dispatch(g.command(toggle_fact.payload,g.state.version),g.state.version)
+
 static func run(t) -> void:
  var g=Game.new(42)
  t.check(g.command_facts().all(func(c):return c.payload.kind!="status_toggle"),"CHARGE no mode action without stacks")
  gain(g,7)
+ t.check(not toggle(t,g).ok and g.charge_bonus()==21,"CHARGE default uses all stacks without a toggle")
+ unlock_single(g)
  var before=g.export_snapshot()
  var stale=t.find_action(g,"attack",{"type":"strike","form":0,"enemy":g.state.enemies[0].id})
  t.check(toggle(t,g).ok and g.state.charge_all and g.charge_bonus()==21,"CHARGE right-click candidate arms all seven stacks")
@@ -23,7 +32,7 @@ static func run(t) -> void:
  t.check(c.payload.damage==29 and c.brief.contains("29"),"CHARGE attack preview includes all stacks before normal multipliers")
  t.check(toggle(t,g).ok and not g.state.charge_all and g.charge_bonus()==3,"CHARGE toggling back restores one-stack mode without spending")
  for form in [0,1]:
-  g=Game.new(42);gain(g,7);toggle(t,g)
+  g=Game.new(42);gain(g,7)
   var enemy=g.state.enemies[0];enemy.hp=200;enemy.max_hp=200
   c=t.find_action(g,"attack",{"type":"strike","form":form,"enemy":enemy.id})
   var expected=c.payload.damage*c.payload.hits
@@ -31,13 +40,13 @@ static func run(t) -> void:
  for type in ["strain","slip"]:
   g=Game.new(42);g.state.wall="normal"
   var target=g.add_fixture("ankle",60,100)
-  gain(g,7);toggle(t,g)
+  gain(g,7)
   var card=t.hand_card(g,type)
   c=t.find_action(g,"card",{"uid":card.uid,"slot":"ankle","target":target.id})
   var damage=c.payload.preview.damage
   t.check(c.valid and c.payload.preview.charge==21 and g.escape_preview(target,type,5,[],true).charge==0,"CHARGE active preview uses all stacks while passive movement receives none: "+type)
   t.check(g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and is_equal_approx(g._equipment(target.id).durability,60-damage) and g.state.charge==0 and not g.state.charge_all,"CHARGE actual equipment damage matches all-stack preview: "+type)
- g=Game.new(42);g.state.wall="normal";gain(g,7);toggle(t,g)
+ g=Game.new(42);g.state.wall="normal";gain(g,7)
  var multi_target=g.add_fixture("ankle",80,100)
  g._gain_card("repeated_strain")
  var multi_card=t.hand_card(g,"repeated_strain")
@@ -45,16 +54,41 @@ static func run(t) -> void:
  t.check(t.action(g,"card",{"uid":multi_card.uid,"slot":"ankle","target":multi_target.id}).ok,"CHARGE multi-hit strain card resolves through the formal chain")
  var hits=g.state.logs.slice(log_start).filter(func(row):return row.data.has("follow_through_hit"))
  t.check(hits.size()==5 and hits[0].data.charge==21 and hits.slice(1).all(func(row):return row.data.charge==0) and g.state.charge==0,"CHARGE subsequent card hits recompute without reusing consumed stacks")
- g=Game.new(42,true,"guard");g.CaptureBind.apply_bind(g,g.state.enemies[0]);gain(g,7);toggle(t,g)
+ g=Game.new(42,true,"guard");g.CaptureBind.apply_bind(g,g.state.enemies[0]);gain(g,7)
  var card=t.hand_card(g,"strain")
  c=t.find_action(g,"card",{"uid":card.uid,"target":g.CaptureBind.BIND_TARGET})
  t.check(c.valid and c.payload.preview.charge==21 and g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state.charge==0 and not g.state.charge_all,"CHARGE capture damage uses the same all-stack consumer")
- g=Game.new(42);gain(g,3);toggle(t,g)
- t.check(t.action(g,"attack",{"type":"fireball","enemy":g.state.enemies[0].id}).ok and g.state.charge==3 and g.state.charge_all,"CHARGE fireball leaves the prepared release untouched")
+ g=Game.new(42);gain(g,3)
+ t.check(t.action(g,"attack",{"type":"fireball","enemy":g.state.enemies[0].id}).ok and g.state.charge==3 and g.charge_uses_all(),"CHARGE fireball leaves the prepared release untouched")
  g.state.energy=0;before=g.export_snapshot()
  c=t.find_action(g,"attack",{"type":"strike","enemy":g.state.enemies[0].id})
  t.check(not c.valid and not g.dispatch(g.command(c.payload,g.state.version),g.state.version).ok and g.state==before,"CHARGE unusable attack cannot spend stacks or disarm release")
  lifetime(t)
+ power_tonic(t)
+
+static func power_tonic(t) -> void:
+ var g=Game.new(42)
+ var id="power_tonic"
+ t.check(g.Relics.TYPES[id].rarity=="common" and id in g.Relics.REWARDS and id in g.Relics.shop_pool(),"POWER TONIC is a common relic in rewards and shops")
+ g.RelicEffects.gain(g,id)
+ t.check(g.state.charge==0 and g.charge_bonus()==0.0,"POWER TONIC has no bonus without spent charge")
+ gain(g,2)
+ var enemy=g.state.enemies[0]
+ var attack=t.find_action(g,"attack",{"type":"strike","form":0,"enemy":enemy.id})
+ t.check(g.state.charge==2 and attack.valid and attack.payload.damage==16,"POWER TONIC boosts the basic attack preview by one per charge")
+ t.check(t.action(g,"attack",{"type":"strike","form":0,"enemy":enemy.id}).ok and is_equal_approx(g._enemy(enemy.id).hp,enemy.hp-16.0) and g.state.charge==0,"POWER TONIC boosts resolved damage with normal charge consumption")
+ g=Game.new(42)
+ g.RelicEffects.gain(g,id);gain(g,2);unlock_single(g)
+ t.check(g.charge_bonus()==4.0 and g.charge_bonus(1)==4.0 and g.charge_bonus(2)==0.0,"POWER TONIC also boosts the one-stack mode")
+ for type in ["strain","slip"]:
+  g=Game.new(42)
+  g.RelicEffects.gain(g,id);gain(g,2)
+  g.state.wall="normal"
+  var target=g.add_fixture("ankle",60,100)
+  var card=t.hand_card(g,type)
+  var action=t.find_action(g,"card",{"uid":card.uid,"target":target.id,"slot":"ankle"})
+  t.check(g.charge_bonus()==8.0 and g.escape_preview(target,type,5,[],true).charge==0,"POWER TONIC adds to each released stack and excludes passive movement: "+type)
+  t.check(action.valid and action.payload.preview.charge==8 and g.dispatch(g.command(action.payload,g.state.version),g.state.version).ok and is_equal_approx(g._equipment(target.id).durability,60-action.payload.preview.damage) and g.state.charge==0,"POWER TONIC preview matches actual escape damage: "+type)
 
 static func lifetime(t) -> void:
  var g=Game.new(42)
@@ -72,7 +106,7 @@ static func lifetime(t) -> void:
     t.check(g.retained_charge()==expected_charge and g.retained_temporary_mana()==expected_mana and g.state==before,"RETENTION queries cap only carried balance and are read-only: "+phase)
     var control=Game.new(42);control.state=before.duplicate(true);control.state.charge=0;control.state.temporary_mana=0;control.state.charge_all=false
     control.RelicEffects.end_combat(control);g.RelicEffects.end_combat(g)
-    t.check(g.state.charge==expected_charge and g.state.temporary_mana==expected_mana and g.state.charge_all==(expected_charge>0),"RETENTION zero/below/exact/above cap, both relic states and all session kinds: "+phase)
+    t.check(g.state.charge==expected_charge and g.state.temporary_mana==expected_mana and g.charge_uses_all(),"RETENTION zero/below/exact/above cap, both relic states and all session kinds: "+phase)
     var actual=g.export_snapshot();var baseline=control.export_snapshot()
     for key in ["charge","charge_all","temporary_mana"]: actual.erase(key);baseline.erase(key)
     t.check(actual==baseline,"RETENTION leaves unrelated cleanup, resources, cards, equipment and RNG unchanged: "+phase)
@@ -91,24 +125,24 @@ static func lifetime(t) -> void:
  t.action(g,"depart",{"room":"east"})
  while g.state.phase=="travel": t.action(g,"travel_step")
  t.check(g.state.phase=="battle" and g.state.charge==4 and g.state.temporary_mana==30,"RETENTION survives travel and next combat opening")
- gain(g,2)
+ gain(g,2);unlock_single(g)
  t.check(t.action(g,"attack",{"type":"strike","form":0,"enemy":g.state.enemies[0].id}).ok and g.state.charge==5,"CHARGE ordinary attack consumes one carried or newly earned stack")
  var view=g.get_view()
  var status=view.statuses.filter(func(row):return row.id=="charge")[0]
  var mana_status=view.statuses.filter(func(row):return row.id=="temporary_mana")[0]
  var relic=view.relics.filter(func(row):return row.id=="turtle_shell")[0]
- t.check(status.duration.contains("最多保留4层") and mana_status.duration.contains("最多保留30点") and relic.current.contains("4层") and relic.current.contains("30点") and relic.detail.contains("各增加2层"),"SHELL status and relic descriptions cover both exact carried pools")
+ t.check(status.duration.contains("最多保留4层") and mana_status.duration.contains("最多保留30点") and relic.current.contains("4层") and relic.current.contains("30点") and relic.detail.contains("蓄力＋2层") and relic.detail.contains("临时魔力＋10点"),"SHELL status and relic descriptions cover both exact carried pools")
  g._finish_battle()
  t.check(g.state.charge==5 and g.state.temporary_mana==30,"SHELL battle-earned and preparation-earned balances both survive repeatedly")
  var restored=preload("res://tests/persistence_cases.gd").roundtrip(t,g,"both retained pools with turtle shell")
  t.check(restored!=null and restored.state.charge==5 and restored.state.temporary_mana==30,"RETENTION current snapshot restores both carried balances")
  t.action(g,"reward",{"type":"skip"});t.action(g,"finish_prepare")
- g._start_battle();g.state.enemies[0].hp=200;g.state.enemies[0].max_hp=200;gain(g,2);toggle(t,g)
+ g._start_battle();g.state.enemies[0].hp=200;g.state.enemies[0].max_hp=200;gain(g,2)
  t.check(t.action(g,"attack",{"type":"strike","form":0,"enemy":g.state.enemies[0].id}).ok and g.state.charge==0 and not g.state.charge_all,"CHARGE full release consumes carried and newly earned stacks once and resets")
  gain(g,5);g.state.relics.erase("turtle_shell");g._finish_battle();t.action(g,"reward",{"type":"skip"});t.action(g,"finish_prepare")
  t.check(g.state.charge==2 and g.state.temporary_mana==20,"RETENTION losing relic restores both caps at the next ending")
  for shell in [false,true]:
   g=Game.new(42,true,"guard");g.state.relics=["turtle_shell"] if shell else []
-  gain(g,7);g.state.temporary_mana=35;toggle(t,g)
+  gain(g,7);g.state.temporary_mana=35
   g.Guard.capture(g,g.state.enemies[0])
   t.check(g.state.phase=="captured" and g.state.charge==0 and g.state.temporary_mana==0 and not g.state.charge_all,"RETENTION existing incarceration reset still clears both pools regardless of relic")

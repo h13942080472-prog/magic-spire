@@ -17,6 +17,8 @@ var details_allowed=false
 var popup_context=false
 var active_popup: WeakRef
 var pressed_card: WeakRef
+var pressed_description=false
+var reading_card: WeakRef
 var card_swiping=false
 var press_version=-1
 
@@ -81,13 +83,17 @@ func _input(event: InputEvent) -> void:
    pressed_control=weakref(control) if control!=null else null
    var card=card_at(control)
    pressed_card=weakref(card) if card!=null else null
+   var description=card.get_node("CardText") if card!=null else null
+   pressed_description=description!=null and (control==description or description.is_ancestor_of(control))
+   if reading_card!=null and (not pressed_description or reading_card.get_ref()!=card): _close_description()
    scrolling=null
    var parent=control
    while parent!=null:
     if parent is ScrollContainer:
      scrolling=parent;break
     parent=parent.get_parent()
-   if card!=null and not card.drag_payload.is_empty(): scrolling=null
+   if pressed_description and card.description_expanded: scrolling=description
+   elif card!=null and not card.drag_payload.is_empty(): scrolling=null
    elif control!=null and "drag_payload" in control and not control.drag_payload.is_empty(): scrolling=null
    if popup_context and scrolling==null: scrolling=_popup_scroller(get_viewport())
   elif event.index==finger:
@@ -104,7 +110,9 @@ func _input(event: InputEvent) -> void:
    move_drag(previous)
   elif point.distance_to(origin)>MOVE_THRESHOLD:
    var displacement=point-origin
-   if pressed_card!=null and displacement.y>absf(displacement.x)*1.25:
+   var card=pressed_card.get_ref() if pressed_card!=null else null
+   var reading=pressed_description and is_instance_valid(card) and card.description_expanded
+   if not reading and pressed_card!=null and displacement.y>absf(displacement.x)*1.25:
     card_swiping=true;return
    dragging=true
    if not popup_context and not is_instance_valid(scrolling):
@@ -150,13 +158,21 @@ func release(position: Vector2) -> void:
   var card=pressed_card.get_ref() if pressed_card!=null else null
   var displacement=position-origin
   var distance=CARD_SWIPE_DISTANCE*host.layout.scale.y
-  if is_instance_valid(card) and card.is_visible_in_tree() and host.view.get("version",-1)==press_version and displacement.y>=distance and displacement.y>absf(displacement.x)*1.25:
-   var center=card.get_global_rect().get_center()
-   motion(center);button(center,MOUSE_BUTTON_RIGHT,true);button(center,MOUSE_BUTTON_RIGHT,false)
+  if is_instance_valid(card) and not card.is_queued_for_deletion() and card.is_visible_in_tree() and host.view.get("version",-1)==press_version and displacement.y>=distance and displacement.y>absf(displacement.x)*1.25:
+   # An overlapping neighbor may cover the center of the card that owns the swipe.
+   card.flip_requested.emit()
  elif held:
   if pressed_card==null: button(position,MOUSE_BUTTON_RIGHT,false)
  elif dragging:
   if not popup_context and not is_instance_valid(scrolling): button(position,MOUSE_BUTTON_LEFT,false)
+ elif pressed_description:
+  var card=pressed_card.get_ref()
+  if is_instance_valid(card) and card.is_visible_in_tree() and not card.is_queued_for_deletion() and host.view.get("version",-1)==press_version and position.distance_to(origin)<=MOVE_THRESHOLD:
+   if reading_card!=null and reading_card.get_ref()==card and card.description_expanded:
+    _close_description()
+   else:
+    card.set_description_expanded(true)
+    if card.description_expanded: reading_card=pressed_card
  else:
   var control=pressed_control.get_ref() if pressed_control!=null else null
   if (popup_context and get_viewport().visible) or (is_instance_valid(control) and control.is_visible_in_tree()):
@@ -165,14 +181,20 @@ func release(position: Vector2) -> void:
    # A tall menu can overlap its opener. The opening tap must not select a row.
    if popup_context or not is_instance_valid(opened) or not opened.visible:
     button(position,MOUSE_BUTTON_LEFT,false)
- finger=-1;held=false;dragging=false;scrolling=null;pressed_control=null;pressed_card=null;card_swiping=false
+ finger=-1;held=false;dragging=false;scrolling=null;pressed_control=null;pressed_card=null;card_swiping=false;pressed_description=false
+
+func _close_description() -> void:
+ var card=reading_card.get_ref() if reading_card!=null else null
+ reading_card=null
+ if is_instance_valid(card) and not card.is_queued_for_deletion(): card.set_description_expanded(false)
 
 func cancel() -> void:
+ _close_description()
  if finger<0: return
  motion(Vector2(-1000,-1000))
  if held and pressed_card==null: button(Vector2(-1000,-1000),MOUSE_BUTTON_RIGHT,false)
  elif dragging and not popup_context and not is_instance_valid(scrolling): button(Vector2(-1000,-1000),MOUSE_BUTTON_LEFT,false)
- finger=-1;held=false;dragging=false;scrolling=null;pressed_control=null;details_allowed=false;pressed_card=null;card_swiping=false
+ finger=-1;held=false;dragging=false;scrolling=null;pressed_control=null;details_allowed=false;pressed_card=null;card_swiping=false;pressed_description=false
  host._hide_term()
 
 func _notification(what: int) -> void:

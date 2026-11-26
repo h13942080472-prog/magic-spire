@@ -49,7 +49,8 @@ const INK=Palette.INK
 const ENEMY_STAGE_LEFT=788.0
 const ENEMY_STAGE_WIDTH=780.0
 const ENEMY_GROUP_WIDTH=280.0
-const ENEMY_STATUS_RECT=Rect2((ENEMY_GROUP_WIDTH-226.0)/2.0,498,226,51)
+const ENEMY_HP_RECT=Rect2((ENEMY_GROUP_WIDTH-226.0)/2.0,461,226,22)
+const ENEMY_STATUS_RECT=Rect2(ENEMY_HP_RECT.position.x,ENEMY_HP_RECT.end.y+2,226,45)
 const HERO_STAGE_RECT=Rect2(442.1,170.5,295.8,331.5)
 const HERO_STATUS_RECT=Rect2(386,196,52,306)
 
@@ -61,6 +62,7 @@ var card_motion: Control
 var card_interaction: Control
 var attack_forms: Dictionary={}
 var selected_character="original"
+var elite_magical_girl_start=false
 var feedback_duration=1.3
 var display_settings=preload("res://ui/display_settings.gd").new()
 var localization=preload("res://ui/localization.gd").new()
@@ -143,7 +145,6 @@ var player_picker_panel: PanelContainer
 var show_items=false
 var selected_item=""
 var selected_item_slot=""
-var item_help=false
 var prison_detail=""
 var capture_intro_acknowledged=false
 var show_hook=false
@@ -300,25 +301,19 @@ func _drawer_shell(title: String, rect: Rect2, tone: Color=CYAN) -> VBoxContaine
 
 var _drawer_key=[]
 
-# The open drawer's content is part of this section's key: the menu face (save state,
-# finished run) and, while the item drawer is open, every field `_items_drawer` renders
-# (item rows, selection and help state, the selected item's candidate slice, and the body
-# groups or equipment rows those candidates reach - `_item_details` names the group by
-# `view.body_groups` id/name and `_tool_target_card` reads the target's entry, so only the
-# reached entries are keyed instead of every body's whole target map).
+# Only visible inventory rows and their available commands invalidate an open bag.
 func _drawer_presentation_key() -> Array:
- var items=[]
- for item in view.items: items.append(item.duplicate(true))
- var item_facts=[]
- var reachable={}
- for c in TargetQueries.select(view,"item",{"item":selected_item}):
-  item_facts.append([TargetQueries.fact_key(c),bool(c.valid),String(c.reason),c.cost,c.mana,String(c.label),String(c.get("detail","")),String(c.risk),String(c.payload.kind),String(c.payload.get("target",""))])
-  var target=String(c.payload.get("target",""))
-  if target=="" or reachable.has(target): continue
-  for body in view.body_groups:
-   if String(body.id)==target: reachable[target]=[true,String(body.name)];break
-   if body.targets.has(target): reachable[target]=[false,body.targets[target].duplicate(true)];break
- return [bool(save_failed),bool(view.get("demo_finished",false)),bool(show_items),String(selected_item),String(selected_item_slot),bool(item_help),int(view.carried_items),view.capacity,items,item_facts,reachable]
+ var key=[bool(save_failed),bool(view.get("demo_finished",false)),bool(show_items)]
+ if not show_items: return key
+ key.append([view.carried_items,view.capacity])
+ for item in view.items: key.append([item.id,item.type,item.name,item.uses,item.summary,item.face_requirements])
+ for c in TargetQueries.facts(view,"item")+_inventory_potion_actions():
+  key.append([TargetQueries.fact_key(c),c.valid,c.reason,c.cost,c.mana,c.risk,c.get("detail","")])
+ return key
+
+func _inventory_potion_actions() -> Array:
+ if view.phase in ["battle","prepare","rest","prison"]: return []
+ return TargetQueries.select(view,"card",{"type":"mana_potion"})
 
 func _menu_drawer() -> void:
  var content=_drawer_shell("游戏菜单",Rect2(1090,78,474,554))
@@ -348,7 +343,7 @@ func _drawer_key_hit(key) -> bool:
  var layer=live[0]
  var expected=["InformationDrawer","DismissDrawer","CloseDrawer"]
  if show_items:
-  if not view.items.is_empty(): expected.append_array(["InventoryList","InventoryDetail","InventoryFooter","ItemHelpToggle"])
+  if not view.items.is_empty(): expected.append_array(["InventoryList","InventoryCardDetail","DisplayCard_inventory_"+selected_item])
  elif show_menu:
   expected.append_array(["OpenSaves","QuickSL","OpenLog","OpenRestart","OpenOptions","ReturnHome"])
  else:
@@ -529,7 +524,11 @@ func render(snapshot: Dictionary={}) -> void:
   display_settings.mark_first_battle_tutorial_seen()
  layout.get_node("MoonlitGallery").rest=view.phase in ["rest","rest_choice"]
  _header()
- if view.reward_panel.get("layout","")=="relic_bundle": _rewards()
+ if view.hogtie_recovery:
+  _battle_scene()
+  _place(_label("挣脱驷马绳",22,GOLD),Rect2(760,168,360,40))
+  _hand()
+ elif view.reward_panel.get("layout","")=="relic_bundle": _rewards()
  elif view.phase=="captured": _capture_screen()
  elif view.demo_exit: _demo_exit_screen()
  elif view.phase in ["inspection","prison_end"] or (view.phase=="pack" and view.prison.get("active",false)): _inspection_screen()
@@ -565,7 +564,7 @@ func render(snapshot: Dictionary={}) -> void:
   toggle.tooltip_text="收起身体与状态" if shop_sidebar_open else "展开身体与状态"
   _place(toggle,Rect2(356,238,34,54))
  elif view.phase!="departure":
-  _bottom_controls()
+  _bottom_controls(not view.hogtie_recovery)
   _body_drawer()
  if not show_route and view.phase in ["battle","prepare","rest","prison","event","shop","treasure"]: _feedback_entry()
  _npc_speech_bubble()
@@ -791,7 +790,7 @@ const PRESENT_ADJACENCY={
  "_hand_key_hit":["_hand_node_counts"],
  "_hand_face_slice":["CardFace.separate_keywords"],
  "_hand_place_row":[],
- "_card":["_place","_label","_refresh_card_face","_hand_apply_card","_clear_player_picker","_clear_drop_targets","_refresh_body_details","_ignore_mouse","_card_tooltip","_selecting_hand"],
+ "_card":["_place","_label","_refresh_card_face","_hand_apply_card","_clear_player_picker","_clear_drop_targets","_refresh_body_details","_ignore_mouse","_card_tooltip","_hide_term","_selecting_hand"],
  "_refresh_card_face":["_hand_face_slice","_ignore_mouse","_card_tooltip"],
  "_ignore_mouse":[],
  "_card_tooltip":["_show_term","_hide_term"],
@@ -843,8 +842,9 @@ const PRESENT_ADJACENCY={
  "_show_term":["_ignore_mouse","_label","_hide_term"],
  "_refresh_drawer_section":["_drawer_presentation_key","_drawer_key_hit","_menu_drawer","_items_drawer"],
  "_menu_drawer":[],
- "_items_drawer":["_label"],
- "_drawer_presentation_key":[],
+ "_items_drawer":["_label","_inventory_potion_actions"],
+ "_drawer_presentation_key":["_inventory_potion_actions"],
+ "_inventory_potion_actions":[],
  "_drawer_key_hit":[],
  "layout.body_sidebar":[],
  "render":["_hand","_refresh_notice_section","_sync_card_faces","_sync_drag_versions","_place","_selecting_hand","_hide_term"],
@@ -1026,7 +1026,7 @@ func _refresh_drawers() -> void:
 func _localize_controls(root: Node) -> void:
  if localization.locale==localization.DEFAULT_LOCALE or not is_instance_valid(root): return
  for node in root.find_children("*","Control",true,false):
-  if node is Label or node is Button or node is RichTextLabel: node.text=localization.display(node.text)
+  if (node is Label or node is Button or node is RichTextLabel) and node.auto_translate_mode!=Node.AUTO_TRANSLATE_MODE_DISABLED: node.text=localization.display(node.text)
   if node is LineEdit or node is TextEdit: node.placeholder_text=localization.display(node.placeholder_text)
   if node is OptionButton:
    for index in range(node.item_count): node.set_item_text(index,localization.display(node.get_item_text(index)))
@@ -1124,7 +1124,8 @@ func _status_tooltip(status: Dictionary) -> Dictionary:
 
 func _status_control(status: Dictionary, compact: bool) -> Button:
  var button=Button.new();button.name=("StatusIcon_" if compact else "Status_")+status.id.validate_node_name()
- button.custom_minimum_size=Vector2(38,38) if compact else Vector2(163,64)
+ var icon_side=32 if compact and status.owner!="hero" else 38
+ button.custom_minimum_size=Vector2(icon_side,icon_side) if compact else Vector2(163,64)
  var tone=RED if status.tone=="bad" else CYAN if status.tone=="good" else GOLD
  var style=_style(Color("111d28"),tone.darkened(0.7));style.shadow_size=0
  style.set_corner_radius_all(10);style.set_content_margin_all(0)
@@ -1135,7 +1136,7 @@ func _status_control(status: Dictionary, compact: bool) -> Button:
  button.add_theme_stylebox_override("pressed",hover)
  var icon=StatusIcon.new();icon.status=status.duplicate()
  if not compact: icon.status.badge=""
- _place(icon,Rect2(0,0,38,38) if compact else Rect2(7,12,40,40),button)
+ _place(icon,Rect2(0,0,icon_side,icon_side) if compact else Rect2(7,12,40,40),button)
  if not compact:
   var title=_label(status.name,13,tone);title.max_lines_visible=2
   _place(title,Rect2(55,9,101,34),button)
@@ -1173,6 +1174,9 @@ func _status_strip(owner: String, rect: Rect2, parent: Control=null, vertical: b
  if is_instance_valid(strip) and strip.is_inside_tree() and _status_keys.get(owner,[])==key: return
  _status_keys[owner]=key
  if is_instance_valid(strip): _unload_resource_direct(strip)
+ if parent!=null:
+  var previous_badge=host.get_node_or_null("StatusIcon_mech_armor_"+owner)
+  if is_instance_valid(previous_badge): _unload_resource_direct(previous_badge)
  if entries.is_empty(): return
  strip=ScrollContainer.new();strip.name="StatusStrip_"+owner
  strip.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO if vertical else ScrollContainer.SCROLL_MODE_DISABLED
@@ -1180,7 +1184,13 @@ func _status_strip(owner: String, rect: Rect2, parent: Control=null, vertical: b
  _place(strip,rect,parent)
  var row: BoxContainer=VBoxContainer.new() if vertical else HBoxContainer.new()
  row.add_theme_constant_override("separation",4);strip.add_child(row)
- for entry in entries: row.add_child(_status_control(entry,true))
+ for entry in entries:
+  var button=_status_control(entry,true)
+  if parent!=null and entry.icon=="armor":
+   host.add_child(button)
+   button.scale=Vector2(0.86,0.86)
+   button.position=Vector2(ENEMY_HP_RECT.end.x,ENEMY_HP_RECT.get_center().y-button.size.y*button.scale.y/2)
+  else: row.add_child(button)
 
 # Living enemies in presentation order; combat and target IDs retain their original order.
 func _enemy_row() -> Array:
@@ -1312,15 +1322,30 @@ func _sync_enemy_stage(enemy: Dictionary, group: Control) -> void:
  var bar=group.get_node_or_null("EnemyHp_"+id)
  if not is_instance_valid(bar):
   bar=_bar(enemy.hp,enemy.maximum,RED);bar.name="EnemyHp_"+id
-  _place(bar,Rect2(x,461,226,9),group)
+  _place(bar,ENEMY_HP_RECT,group)
  else:
   bar.max_value=float(enemy.maximum)
   bar.value=float(enemy.hp)
+ var amount=float(enemy.get("armor",0.0))
+ var coating=bar.get_node_or_null("ArmorFill")
+ if amount>0 and coating==null:
+  coating=Panel.new();coating.name="ArmorFill";coating.mouse_filter=Control.MOUSE_FILTER_IGNORE
+  coating.add_theme_stylebox_override("panel",preload("res://assets/ui/enemy-armor-fill.tres"))
+  bar.add_child(coating)
+  coating.anchor_bottom=1.0
+ if coating!=null:
+  coating.visible=amount>0 and enemy.hp>0
+  coating.anchor_right=clampf(amount/maxf(0.001,enemy.hp),0.0,1.0)
  var text=group.get_node_or_null("EnemyHpValue_"+id)
  if not is_instance_valid(text):
   text=_label(_enemy_hp_text(enemy),14,TEXT);text.name="EnemyHpValue_"+id
+  text.autowrap_mode=TextServer.AUTOWRAP_OFF
   text.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
-  _place(text,Rect2(x,473,226,24),group)
+  text.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
+  text.mouse_filter=Control.MOUSE_FILTER_IGNORE;text.z_index=1
+  text.add_theme_color_override("font_outline_color",Color("09121c"))
+  text.add_theme_constant_override("outline_size",3)
+  _place(text,ENEMY_HP_RECT,group)
  else:
   text.text=_enemy_hp_text(enemy)
  _sync_enemy_intent_icons(enemy,group,x,guard)
@@ -1368,7 +1393,7 @@ func _sync_enemy_intent_icons(enemy: Dictionary, group: Control, x: float, guard
   if not is_instance_valid(icon) or _intent_icon_keys.get(icon_name,[])!=entry:
    if is_instance_valid(icon): _unload_stage_node(icon)
    icon=preload("res://ui/intent_icon.gd").new()
-   icon.kind=entry.kind;icon.name=icon_name
+   icon.kind=entry.kind;icon.badge=entry.get("badge","");icon.name=icon_name
    _place(icon,rect,group)
    icon.z_index=8
    icon.mouse_entered.connect(func():_show_term(icon,entry));icon.mouse_exited.connect(_hide_term)
@@ -1411,6 +1436,11 @@ func _release_enemy_stage(id: String) -> void:
 
 func _select_enemy(enemy_id: String) -> void:
  if not view.enemies.any(func(e):return e.id==enemy_id and not e.gone): return
+ if selected_card!="":
+  var choice=_attack_drop_candidate({"card_uid":selected_card,"free":card_faces.get(selected_card,false),"version":view.version},enemy_id)
+  if not choice.is_empty():
+   command_router.emit("card",choice,int(view.version))
+   return
  selected_enemy=enemy_id;selected_card="";show_body=false;selected_candidate=""
  _clear_drop_targets();_clear_player_picker();_refresh_body_details()
  for card in card_buttons.values():
@@ -1441,11 +1471,11 @@ func _action_presentation_key() -> Array:
  for c in TargetQueries.facts(view,"pressure"):
   if String(c.payload.get("kind",""))!="calm": continue
   calms.append(_action_fact_slice(c))
- return [String(view.phase),String(selected_enemy),attack_forms.duplicate(true),bool(quick_release_open),attacks,calms]
+ return [localization.locale,String(view.phase),String(selected_enemy),attack_forms.duplicate(true),bool(quick_release_open),attacks,calms]
 
 func _action_fact_slice(c: Dictionary) -> Array:
  var casting=c.get("casting",{})
- return [TargetQueries.fact_key(c),bool(c.valid),String(c.reason),c.cost,String(c.label),String(c.get("body_part","")),casting.duplicate(true) if casting is Dictionary else casting,String(c.get("brief","")),String(c.risk),bool(c.get("posture_available",true))]
+ return [TargetQueries.fact_key(c),bool(c.valid),String(c.reason),c.cost,c.mana,String(c.get("brief_tags","")),String(c.label),String(c.get("body_part","")),casting.duplicate(true) if casting is Dictionary else casting,String(c.get("brief","")),String(c.risk),bool(c.get("posture_available",true))]
 
 func _action_key_hit(key) -> bool:
  if _action_key!=key: return false
@@ -1468,7 +1498,7 @@ func _build_action_rail() -> void:
   switcher.tooltip_text=preload("res://ui/quick_release_bar.gd").message(self,"to_actions","切换至动作栏") if quick_release_open else preload("res://ui/quick_release_bar.gd").message(self,"to_release","切换至快捷挣脱栏")
   _place(switcher,Rect2(1530,556,39,60),container)
   if quick_release_open:
-   preload("res://ui/quick_release_bar.gd").build(self,container,218.6)
+   preload("res://ui/quick_release_bar.gd").build(self,container,276.0)
    _action_key=_action_presentation_key()
    return
   var attack_choices=TargetQueries.facts(view,"attack").filter(func(c):return String(c.payload.get("kind",""))=="attack" and String(c.payload.get("enemy",""))==selected_enemy and c.get("posture_available",true))
@@ -1547,61 +1577,91 @@ func _basic_action_tile(c: Dictionary, rect: Rect2, parent: Control, summary: St
  btn.focus_entered.connect(func():_show_term(btn,entry));btn.focus_exited.connect(_hide_term)
  return btn
 
-# Cost stays in the left medallion; both text rows share the remaining space.
+const ACTION_PART_ICONS={
+ "arms":preload("res://assets/ui/action-arms.svg"),
+ "legs":preload("res://assets/ui/action-legs.svg"),
+ "mouth":preload("res://assets/ui/action-mouth.svg")}
+
+func _action_line(id: String, text: String, fs: int, color: Color) -> Label:
+ var label=_label(text,fs,color)
+ # Width is measured on the final translation, including text assembled from fragments.
+ label.auto_translate_mode=Node.AUTO_TRANSLATE_MODE_DISABLED
+ label.name=id;label.autowrap_mode=TextServer.AUTOWRAP_OFF;label.clip_text=true
+ label.text_overrun_behavior=TextServer.OVERRUN_TRIM_ELLIPSIS
+ label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
+ return label
+
+func _fit_action_line(label: Label, width: float, preferred: int) -> void:
+ var font=label.get_theme_font("font")
+ var fs=preferred
+ while fs>11 and font.get_string_size(label.text,HORIZONTAL_ALIGNMENT_LEFT,-1,fs).x>width:fs-=1
+ label.add_theme_font_size_override("font_size",fs)
+
 func _attack_tile_labels(btn: Button, c: Dictionary, bounds: Vector2, summary: String, tags: String, accent: Color) -> void:
  var badge=TextureRect.new();badge.name="BasicActionEnergy"
  badge.texture=preload("res://assets/ui/energy-medallion.svg")
  badge.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;badge.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
  badge.mouse_filter=Control.MOUSE_FILTER_IGNORE
  badge.modulate=Color.WHITE if c.valid else Color(0.6,0.6,0.6)
- _place(badge,Rect2(7,(bounds.y-32)/2,32,32),btn)
- var energy=_label(str(c.cost),17,TEXT if c.valid else MUTED)
- energy.autowrap_mode=TextServer.AUTOWRAP_OFF;energy.clip_text=true
- energy.name="EnergyCost";energy.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;energy.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
- _place(energy,Rect2(0,0,32,32),badge)
- var inset=46.0
- var available=bounds.x-inset-12
- var title=_label(c.label,16,TEXT if c.valid else MUTED)
- title.name="BasicAttackTitle";title.autowrap_mode=TextServer.AUTOWRAP_OFF
- title.text_overrun_behavior=TextServer.OVERRUN_TRIM_ELLIPSIS;title.clip_text=true
- var value=_label(summary,16,TEXT if c.valid else MUTED)
+ _place(badge,Rect2(7,1,24,24),btn)
+ var energy=_action_line("EnergyCost",str(c.cost),14,TEXT if c.valid else MUTED)
+ energy.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+ _place(energy,Rect2(Vector2.ZERO,badge.size),badge)
+
+ var parts=Game.BasicAttacks.PHYSICAL_PARTS.get(c.payload.get("type",""),[])
+ var metadata=[]
+ var casting=c.get("casting",{})
+ var witch=c.payload.get("witch_action",false)
+ if witch:
+  metadata.append("%d能量" % c.cost)
+ elif c.payload.kind=="calm" or casting.get("source_part",casting.get("part",""))=="mouth":
+  parts=["mouth"]
+ elif parts.is_empty() and c.body_part!="":
+  metadata.append(c.body_part)
+ var icons_x=bounds.x-8-parts.size()*24
+ for i in range(parts.size()):
+  var icon=TextureRect.new();icon.name="BodyIcon_"+parts[i];icon.texture=ACTION_PART_ICONS[parts[i]]
+  icon.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;icon.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+  icon.mouse_filter=Control.MOUSE_FILTER_IGNORE;icon.modulate=Color.WHITE if c.valid else Color(0.68,0.67,0.7)
+  _place(icon,Rect2(icons_x+i*24,3,22,22),btn)
+
  var detail_name="BasicAttackDetail_"+c.payload.type if c.payload.kind=="attack" else "DeepBreathDetail"
- value.name=detail_name if c.valid else "BasicAttackDamage"
- value.autowrap_mode=TextServer.AUTOWRAP_OFF;value.clip_text=true
- var row_y=3 if c.valid else 0
- var row_height=28 if c.valid else 24
- _place(title,Rect2(inset,row_y,1,row_height),btn);_place(value,Rect2(inset,row_y,1,row_height),btn)
- var font=title.get_theme_font("font")
- var fs=16
- var gap=6.0
- while fs>10 and ceilf(font.get_string_size(title.text,HORIZONTAL_ALIGNMENT_LEFT,-1,fs).x)+ceilf(font.get_string_size(value.text,HORIZONTAL_ALIGNMENT_LEFT,-1,fs).x)+gap>available: fs-=1
- title.add_theme_font_size_override("font_size",fs);value.add_theme_font_size_override("font_size",fs)
- var value_width=ceilf(font.get_string_size(value.text,HORIZONTAL_ALIGNMENT_LEFT,-1,fs).x)
- var title_width=ceilf(font.get_string_size(title.text,HORIZONTAL_ALIGNMENT_LEFT,-1,fs).x)
- var start=inset+(available-title_width-value_width-gap)/2
- title.position.x=start;title.size.x=title_width
- value.position.x=start+title_width+gap;value.size.x=value_width
- title.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;value.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
- title.vertical_alignment=VERTICAL_ALIGNMENT_CENTER;value.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
- var metadata=["%d能量" % c.cost] if c.payload.get("witch_action",false) else [c.body_part]
- if c.mana>0: metadata.append("%s魔力" % game.number(c.mana))
- if tags!="": metadata.append(tags)
- var secondary=_label("  ".join(metadata).replace(" · ","  "),14 if c.valid else 11,accent if c.valid else MUTED)
- secondary.name="BasicAttackMeta"
- secondary.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;secondary.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
- secondary.autowrap_mode=TextServer.AUTOWRAP_OFF
- secondary.text_overrun_behavior=TextServer.OVERRUN_TRIM_ELLIPSIS;secondary.clip_text=true
- _place(secondary,Rect2(inset,32 if c.valid else 24,bounds.x-inset-18,24 if c.valid else 17),btn)
- var secondary_size=14 if c.valid else 11
- while secondary_size>12 and font.get_string_size(secondary.text,HORIZONTAL_ALIGNMENT_LEFT,-1,secondary_size).x>secondary.size.x: secondary_size-=1
- secondary.add_theme_font_size_override("font_size",secondary_size)
+ var ink=TEXT if c.valid else MUTED
+ var title=_action_line("BasicAttackTitle",c.label,16,ink)
+ if c.mana>0:metadata.append("%s魔力" % game.number(c.mana))
+ if tags!="":metadata.append(tags)
+ var value_fs=15 if c.valid else 12
+ var meta_fs=13 if c.valid else 11
+ var value=_action_line(detail_name if c.valid else "BasicAttackDamage",summary,value_fs,ink)
+ var secondary=_action_line("BasicAttackMeta","",meta_fs,accent if c.valid else MUTED)
+ secondary.text="  ".join(metadata.map(func(fragment):return localization.display(fragment).replace(" · ","  ")))
+ secondary.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
+ var right=bounds.x-(22 if c.payload.kind=="attack" and not witch and not OS.has_feature("android") else 8)
+ var row_y=30 if c.valid else 25
+ var row_h=23 if c.valid else 18
+ var header_h=26 if c.valid else 24
+ var font=btn.get_theme_font("font")
+ var value_width=ceilf(font.get_string_size(value.text,HORIZONTAL_ALIGNMENT_LEFT,-1,value_fs).x)
+ var meta_min=ceilf(font.get_string_size(secondary.text,HORIZONTAL_ALIGNMENT_LEFT,-1,11).x)
+ var gap=6 if secondary.text!="" else 0
+ var title_width=icons_x-40
+ var meta_x=10.0
+ # Long translations get the full second row, with the effect beside the title.
+ if value_width+gap+meta_min>right-meta_x:
+  var title_min=ceilf(font.get_string_size(title.text,HORIZONTAL_ALIGNMENT_LEFT,-1,11).x)
+  value_width=minf(value_width,maxf(1,title_width-title_min-5))
+  title_width-=value_width+5
+  _place(value,Rect2(36+title_width+5,1,value_width,header_h),btn)
+ else:
+  _place(value,Rect2(meta_x,row_y,value_width,row_h),btn)
+  meta_x+=value_width+gap
+ _place(title,Rect2(36,1,title_width,header_h),btn)
+ _place(secondary,Rect2(meta_x,row_y,right-meta_x,row_h),btn)
+ _fit_action_line(title,title_width,16);_fit_action_line(value,value_width,value_fs)
+ _fit_action_line(secondary,secondary.size.x,meta_fs)
  if not c.valid:
-  var reason=_label(_basic_action_reason(c),11,RED)
-  reason.name=detail_name
-  reason.autowrap_mode=TextServer.AUTOWRAP_OFF;reason.clip_text=true
-  reason.text_overrun_behavior=TextServer.OVERRUN_TRIM_ELLIPSIS
-  reason.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;reason.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
-  _place(reason,Rect2(inset,41,bounds.x-inset-18,17),btn)
+  var reason=_action_line(detail_name,_basic_action_reason(c),11,RED)
+  _place(reason,Rect2(10,43,right-10,16),btn)
 
 # Short display copy only; eligibility and full hover text stay with the candidate.
 func _basic_action_reason(c: Dictionary) -> String:
@@ -1796,10 +1856,10 @@ func _card(card: Dictionary, rect: Rect2, fn: Callable, rotation_value: float=0,
   return ghost
  if lift:
   button.inspect_requested=func(raised):
-   if raised: _card_interaction().inspect(button)
+   if raised and not button.description_expanded: _card_interaction().inspect(button)
    elif is_instance_valid(card_interaction): card_interaction.close_inspection(button)
  if hand_interaction and not card.uid.begins_with("reward_") and not card.get("unplayable",false):
-  button.drag_payload={"card_uid":card.uid,"free":button.free_face,"version":view.version}
+  if not card.get("chained",false): button.drag_payload={"card_uid":card.uid,"free":button.free_face,"version":view.version}
   button.drag_began.connect(func(_data): selected_card=""; selected_candidate=""; _clear_drop_targets(); _clear_player_picker())
  button.flip_requested.connect(func():
   if hand_interaction and _selecting_hand(): return
@@ -1829,23 +1889,38 @@ func _card(card: Dictionary, rect: Rect2, fn: Callable, rotation_value: float=0,
  text_area.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO
  text_area.mouse_filter=Control.MOUSE_FILTER_PASS
  text_area.mouse_force_pass_scroll_events=false
- _place(text_area,Rect2(12,rect.size.y*CardFace.ART_HEIGHT_RATIO+10,rect.size.x-24,rect.size.y/3-18),button)
+ button.add_child(text_area)
+ text_area.mouse_entered.connect(func():
+  if touch_input.finger<0 and not get_viewport().gui_is_dragging(): button.set_description_expanded(true))
+ text_area.mouse_exited.connect(func():
+  if touch_input.finger<0 or touch_input.reading_card==null or touch_input.reading_card.get_ref()!=button: button.set_description_expanded(false))
  var textbox=VBoxContainer.new();textbox.name="Content"
  textbox.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ textbox.size_flags_vertical=Control.SIZE_EXPAND_FILL
+ textbox.alignment=BoxContainer.ALIGNMENT_CENTER
  textbox.add_theme_constant_override("separation",1)
  text_area.add_child(textbox)
  var keywords=HFlowContainer.new();keywords.name="CardKeywords";keywords.mouse_filter=Control.MOUSE_FILTER_IGNORE
+ keywords.alignment=FlowContainer.ALIGNMENT_CENTER
  keywords.add_theme_constant_override("h_separation",8);keywords.add_theme_constant_override("v_separation",2)
- keywords.minimum_size_changed.connect(func(): button.fit_text.call_deferred())
- button.add_child(keywords)
+ textbox.add_child(keywords)
  var requirements=VBoxContainer.new();requirements.name="CardRequirements";requirements.mouse_filter=Control.MOUSE_FILTER_IGNORE
  requirements.add_theme_constant_override("separation",1)
- requirements.minimum_size_changed.connect(func(): button.fit_text.call_deferred())
- button.add_child(requirements)
+ textbox.minimum_size_changed.connect(button._request_fit)
+ textbox.add_child(requirements)
  # 悬停／聚焦详情读**当前**数据：手牌卡经 `_hand_cards[uid].data` 取（与翻面闭包同一入口），
  # 其余调用方仍读构建期 `card`。`_hand_apply_card` 每次都换入新的合并字典，构建期快照会过期。
  if merged.is_empty(): _refresh_card_face(button,card)
  button.mouse_entered.connect(func():_card_tooltip(button,hover_entry.call()))
+ button.description_changed.connect(func(expanded):
+  if expanded:
+   if is_instance_valid(card_interaction): card_interaction.close_inspection(button)
+   _hide_term()
+  elif touch_input.finger<0 and button.is_visible_in_tree():
+   var hovered=get_viewport().gui_get_hovered_control()
+   if hovered==button or (hovered!=null and button.is_ancestor_of(hovered)):
+    if button.lift_on_hover: _card_interaction().inspect(button)
+    _card_tooltip(button,hover_entry.call()))
  button.mouse_exited.connect(_hide_term)
  button.focus_entered.connect(func():_card_tooltip(button,hover_entry.call()))
  button.focus_exited.connect(_hide_term)
@@ -1888,6 +1963,7 @@ func _refresh_card_face(button: Button, card: Dictionary, prepared: Dictionary={
  button.chosen=bool(values.chosen)
  if not button.drag_payload.is_empty(): button.drag_payload.free=button.free_face
  button.set_art(String(card.type),bool(values.effect_free))
+ button.set_chained(bool(values.chained))
  button.set_title(String(values.title))
  button.set_cost(String(values.cost))
  button.set_mana(values.mana)
@@ -1901,7 +1977,6 @@ func _refresh_card_face(button: Button, card: Dictionary, prepared: Dictionary={
  var text_area=button.get_node("CardText")
  text_area.scroll_vertical=0
  _ignore_mouse(text_area.get_node("Content"))
- _ignore_mouse(button.get_node("CardRequirements"))
  button.queue_redraw()
  if term_anchor==button or button.has_focus() or button.get_global_rect().has_point(get_global_mouse_position()):
   # 悬停重入与各 setter 的 `fit_text` 同为延迟调用，且入队更晚 ⇒ 详情读到的是本次值算完的
@@ -1916,12 +1991,15 @@ func _card_tooltip(button: Button, card: Dictionary) -> void:
  var text_area=button.get_node("CardText")
  var content=text_area.get_node("Content")
  var keyboard_details=is_instance_valid(keyboard_input) and keyboard_input.selection.get("uid","")==card.uid
+ var held_details=touch_input.held and touch_input.details_allowed
+ if button.description_expanded and not keyboard_details and not held_details: return
  # 溢出判据读 `ui/card_face.gd::fit_text` 的结果（`text_overflow`），不读 `Content.size`：
  # 就地更新后节点尺寸要等引擎排序趟，会读到上一次布局的高度。
- if button.text_overflow or keyboard_details or (is_instance_valid(touch_input) and touch_input.held and touch_input.details_allowed):
+ if button.text_overflow or keyboard_details or held_details:
   for label in content.get_children():
-   if label.visible and label.name!="CardClassification": lines.append(label.text)
-  for label in button.get_node("CardRequirements").get_children(): lines.append(label.text)
+   if label is Label and label.visible: lines.append(label.text)
+   elif label.name=="CardRequirements" and label.visible:
+    for requirement in label.get_children(): lines.append(requirement.text)
  if card.cast_faces[side] and card.has("casting"):
   var casting=card.get("face_casting",{}).get(side,card.casting)
   lines.append("施法部位：%s · %s" % ["脚趾" if casting.source_part=="toes" else game.Cards.Rules.CAST_PART_NAMES[casting.part],casting.percent])
@@ -1993,7 +2071,7 @@ func _hand_card_key(row) -> Array:
  var input=[
   uid,type,String(entry.get("name",row.get("name",""))),String(row.get("cost","")),
   bool(entry.get("single_face",row.get("single_face",false))),bool(entry.get("retained",row.get("retained",false))),
-  bool(entry.get("unplayable",row.get("unplayable",false))),
+  bool(entry.get("unplayable",row.get("unplayable",false))),bool(row.get("chained",false)),
   String(entry.get("rarity",row.get("rarity",""))),String(entry.get("rarity_name",row.get("rarity_name",""))),
   String(entry.get("type_name",row.get("type_name",""))),
   int(row.get("draw_serial",0)),String(entry.get("note",row.get("note",""))),
@@ -2013,6 +2091,10 @@ func _hand_card_data(row) -> Dictionary:
 # 不读节点、不读 View 级切片；写进节点的取值都在这里定一次。
 func _hand_face_slice(data: Dictionary, side: String) -> Dictionary:
  var names=data.get("face_names",{})
+ var classification=String(data.get("face_type_names",{}).get(side,data.get("type_name","")))
+ var spec=game.Cards.Rules.SPECS.get(data.get("type",""),{})
+ if spec.has("bound_modes") or spec.get("wall_face",false): classification+=" · "+String(names.get(side,""))
+ if spec.get("starting_card",false): classification+=" · "+String(data.get("rarity_name",""))
  var warning=String(data.get("face_warnings",{}).get(side,""))
  var effect=String(data.get("face_effects",{}).get(side,""))
  var keywords=data.get("face_keywords",{}).get(side,[])
@@ -2027,13 +2109,14 @@ func _hand_face_slice(data: Dictionary, side: String) -> Dictionary:
  var slice={
   "rarity":String(data.get("rarity","")),
   "single_face":bool(data.get("single_face",false)),
+  "chained":bool(data.get("chained",false)),
   "chosen":String(selected_card)==String(data.get("uid","")),
   "effect_free":bool(data.get("free_faces",{}).get(side,false)),
   "face_name":String(names.get(side,"")),
-  "title":String(data.get("name","")),
+  "title":String(data.get("face_titles",{}).get(side,data.get("name",""))),
   "cost":String(data.get("face_costs",{}).get(side,data.get("cost",""))),
   "mana":mana,
-  "classification":String(data.get("face_type_names",{}).get(side,data.get("type_name","")))+" · "+String(data.get("rarity_name",""))+("" if bool(data.get("single_face",false)) else (" · "+String(names.get(side,"")))),
+  "classification":classification,
   "effect":String(copy.body),
   "warning":warning,
   "keywords":copy.keywords,
@@ -2163,7 +2246,7 @@ func _hand_apply_card(uid: String, data: Dictionary, key: Array, prepared: Dicti
  var chosen=selectable if selecting else String(selected_card)==uid
  if button.chosen!=chosen: button.chosen=chosen;button.queue_redraw()
  var unique=not uid.begins_with("reward_")
- if selecting or bool(data.get("unplayable",false)) or not unique:
+ if selecting or bool(data.get("unplayable",false)) or bool(data.get("chained",false)) or not unique:
   if not button.drag_payload.is_empty(): button.drag_payload={}
  else:
   var payload={"card_uid":uid,"free":bool(card_faces.get(uid,false)),"version":view.version}
@@ -2396,7 +2479,7 @@ func _refresh_resource_section() -> void:
  _sync_hero_stage_meters()
 
 func _build_resource_bar(include_tools: bool=true) -> void:
- var has_turn_controls=not show_route and view.phase in ["battle","prepare","rest","prison"]
+ var has_turn_controls=view.hogtie_recovery or (not show_route and view.phase in ["battle","prepare","rest","prison"])
  var resource_back=Panel.new();resource_back.mouse_filter=Control.MOUSE_FILTER_IGNORE
  resource_back.name="MainResourcePanel"
  var resource_style=Palette.hud_surface(true)
@@ -2609,7 +2692,8 @@ func _body_details() -> void:
  var compact=selected_card!="" and not _single_body_card_action(selected_slot,selected_card).is_empty() and view.guard_bind.is_empty()
  var sidebar=find_child("BodyEquipmentPanel",true,false)
  var detail_x=sidebar.position.x+sidebar.size.x+10 if sidebar!=null else 344.0
- var panel=_panel(Rect2(detail_x,100,448,350 if compact else 440 if quick_release_open else 470));panel.name="EquipmentDetails";panel.z_index=180
+ var browsing=selected_card.is_empty() and not view.pending_retain
+ var panel=_panel(Rect2(detail_x,100,332 if browsing else 448,1 if browsing else (350 if compact else 440 if quick_release_open else 470)));panel.name="EquipmentDetails";panel.z_index=180
  var v=VBoxContainer.new();v.add_theme_constant_override("separation",8);panel.add_child(v)
  var heading=HBoxContainer.new();v.add_child(heading)
  var title=_label(_body_at(selected_slot).name+" · 解缚",20,GOLD);title.size_flags_horizontal=Control.SIZE_EXPAND_FILL;heading.add_child(title)
@@ -2658,6 +2742,13 @@ func _body_details() -> void:
     _equipment_tile(grid,entry.equipment,"、".join(entry.locations),(entries.size()==1 and members.size()==1) or (quick_release_open and id==quick_release_inspected))
   if not free_names.is_empty(): content.add_child(_label("自由："+"、".join(free_names),12,MUTED))
   if view.phase=="rest": content.add_child(_label("休息房只能使用卡牌拘束效果。",13,CYAN))
+ if browsing:
+  var scroll=content.get_parent()
+  var fit=func():
+   scroll.custom_minimum_size.y=minf(340,content.get_combined_minimum_size().y)
+   panel.size.y=panel.get_combined_minimum_size().y
+  content.minimum_size_changed.connect(fit,CONNECT_DEFERRED)
+  fit.call()
  _body_details_key=_body_details_presentation_key()
 
 func _equipment_grid(parent: Node) -> GridContainer:
@@ -2680,25 +2771,21 @@ func _equipment_tile(parent: Node, e: Dictionary, location: String="", expanded:
  card.add_theme_stylebox_override("panel",_style(Color("192a38"),accent.darkened(0.35),10))
  parent.add_child(card)
  var box=VBoxContainer.new();box.add_theme_constant_override("separation",5);card.add_child(box)
- preload("res://ui/release_details.gd").equipment_header(self,box,e,location,accent)
+ var toggle=_button("⌃" if expanded else "⌄",func():pass,MUTED)
+ toggle.name="EquipmentCardDetailsToggle"
+ toggle.tooltip_text=localization.display("收起详情 −" if expanded else "查看详情 ＋")
+ preload("res://ui/release_details.gd").equipment_header(self,box,e,location,accent,toggle)
  for c in TargetQueries.select(view,"manual",{"target":e.id}):
   if c.valid and c.payload.after==0.0:
    var release=_button("一键解除 · %d能量" % c.cost,func():command_router.emit(String(c.payload.get("kind","")),c),CYAN)
    release.name="QuickRelease_"+e.id
    box.add_child(release);candidate_buttons[TargetQueries.fact_key(c)]=release
  var details=VBoxContainer.new();details.name="EquipmentActions";details.visible=expanded
- var toggle=_button("收起详情 −" if expanded else "查看详情 ＋",func():pass,MUTED)
  toggle.pressed.connect(func():
   details.visible=not details.visible
   if details.visible and details.get_child_count()==0: _equipment_actions(details,e)
-  toggle.text=localization.display("收起详情 −" if details.visible else "查看详情 ＋"))
- toggle.name="EquipmentCardDetailsToggle";toggle.custom_minimum_size.y=26
- toggle.size_flags_horizontal=Control.SIZE_SHRINK_END
- for state in ["normal","hover","pressed","focus","disabled"]:
-  var style=toggle.get_theme_stylebox(state).duplicate()
-  style.content_margin_top=3;style.content_margin_bottom=3
-  toggle.add_theme_stylebox_override(state,style)
- toggle.add_theme_font_size_override("font_size",12);box.add_child(toggle)
+  toggle.text="⌃" if details.visible else "⌄"
+  toggle.tooltip_text=localization.display("收起详情 −" if details.visible else "查看详情 ＋"))
  box.add_child(details)
  if expanded: _equipment_actions(details,e)
 
@@ -2712,7 +2799,8 @@ func _equipment_actions(details: VBoxContainer, e: Dictionary) -> void:
   _action_row(details,c)
   candidate_buttons[TargetQueries.fact_key(c)].name="EquipmentSpell_"+e.id
  for c in TargetQueries.select(view,"manual",{"target":e.id}):
-  if not c.valid or c.payload.after!=0.0: _action_row(details,c)
+  if not c.valid: details.add_child(_label(c.reason,13,RED))
+  elif c.payload.after!=0.0: _action_row(details,c)
  _localize_controls(details)
 
 func _equipment_card_face(box: Node,e: Dictionary,location: String,accent: Color,compact: bool=false) -> void:
@@ -2785,7 +2873,7 @@ func _practice_screen() -> void:
  v.add_child(_label(view.practice_description,19))
  v.add_child(_label(view.practice_hint,18,CYAN))
  if view.phase=="pack":
-  v.add_child(_label("随身道具超出容量，请先在道具栏使用或放下多余工具。",18,RED))
+  v.add_child(_label("道具 · %d / %d格" % [view.carried_items,view.capacity],18,RED))
   for c in TargetQueries.facts(view,"flow"): _action_row(v,c)
  elif view.phase=="rest": v.add_child(_button("返回练习",func(): show_route=false; render(view),CYAN))
  if view.phase=="cleared":
@@ -2915,7 +3003,7 @@ func _prison_controls() -> void:
  prison_detail=""
  if view.pending_retain: v.add_child(_label("先选好要保留的手牌，再继续探索。",15,CYAN))
  var info="最多%d格 · %d能量 / 次" % [p.space.stride,p.space.cost]
- if p.space.fall.chance>0: info+=" · 摔倒率 %s%%" % str(snappedf(p.space.fall.chance*100,0.1))
+ if p.space.fall.chance>0: info+=" · 摔倒率 %s%%" % game.number(p.space.fall.chance*100)
  v.add_child(_label(info,15,CYAN))
  var scroll=_scroll(v);scroll.name="PrisonExploration"
  var grid=GridContainer.new();grid.columns=2;grid.add_theme_constant_override("h_separation",10);grid.add_theme_constant_override("v_separation",8);scroll.add_child(grid)
@@ -3324,14 +3412,14 @@ func _log_drawer() -> void:
  for i in range(view.action_log.size()-1,-1,-1):
   var note=view.action_log[i]
   scroll.add_child(_label(note.actor+" · 第%d回合" % note.round,13,CYAN))
-  scroll.add_child(_label(note.text,14,TEXT))
+  scroll.add_child(_label(localization.log_display(note.text),14,TEXT))
   scroll.add_child(HSeparator.new())
  var toggle=_button("详细记录",func():pass,MUTED);toggle.name="LogDetails";toggle.toggle_mode=true;scroll.add_child(toggle)
  var details=VBoxContainer.new();details.name="LogDetailRows";details.visible=false;scroll.add_child(details)
  toggle.toggled.connect(func(visible: bool):details.visible=visible)
  for i in range(view.logs.size()-1,maxi(-1,view.logs.size()-45),-1):
   var e=view.logs[i]
-  details.add_child(_label(("计算 · " if e.kind=="mechanical" else "")+e.text,14,MUTED))
+  details.add_child(_label(("计算 · " if e.kind=="mechanical" else "")+localization.log_display(e.text),14,MUTED))
  _log_key=_log_presentation_key()
 
 func _hide_term() -> void:
@@ -3499,13 +3587,45 @@ func _npc_speech_bubble() -> void:
  if entry.is_empty(): return
  var release_after_inspection=entry.get("cue","")=="prison.guard.release_pass" and view.get("tower_start_pending",false)
  if entry.get("phase","")!=view.phase and not release_after_inspection: return
+ var speaker: Control
+ if entry.has("encounter"):
+  if show_route or not actor_targets.has("hero"): return
+  var id=String(entry.get("speaker",""))
+  if id.is_empty():
+   # Older encounter lines only recorded the speaker's template.
+   for enemy in view.enemies:
+    if not enemy.gone and enemy.template==entry.get("visual",""):
+     id=enemy.id;break
+  if not actor_targets.has(id): return
+  speaker=layout.enemies.get(id)
+  if not is_instance_valid(speaker): return
  if not _speech_visible("npc:"+str(entry.id)): return
  speech_group=Control.new();speech_group.name="NpcSpeechGroup";speech_group.mouse_filter=Control.MOUSE_FILTER_IGNORE
- speech_group.z_index=220;_place(speech_group,Rect2(0,0,0,0))
- var panel=_panel(Rect2(930,72,472,112));panel.name="NpcSpeech";panel.reparent(speech_group)
- var row=HBoxContainer.new();row.add_theme_constant_override("separation",12);panel.add_child(row)
- row.add_child(_guard_portrait(entry.get("visual",game.Prison.PATROL_GUARD),Vector2(64,64)))
+ speech_group.z_index=20 if is_instance_valid(speaker) else 220
+ _place(speech_group,Rect2(0,0,0,0),speaker)
  var body=_label(entry.text,15,TEXT);body.name="NpcSpeechText"
+ if is_instance_valid(speaker):
+  var font=body.get_theme_font("font")
+  var width=minf(200,ceilf(font.get_string_size(body.text,HORIZONTAL_ALIGNMENT_LEFT,-1,15).x))
+  var frame=_style(Color("17232ff4"),Color("8e9aa8"))
+  frame.set_content_margin_all(8);frame.shadow_size=2
+  var bubble=_panel(Rect2(),speech_group);bubble.name="NpcSpeech"
+  bubble.add_theme_stylebox_override("panel",frame)
+  body.custom_minimum_size.x=width;bubble.add_child(body)
+  bubble.reset_size()
+  var art=speaker.get_child(0).get_rect()
+  bubble.position=Vector2(minf(art.get_center().x+12,speaker.size.x-bubble.size.x-3),art.position.y+2)
+  var tail=Polygon2D.new()
+  tail.polygon=PackedVector2Array([Vector2(12,0),Vector2(25,0),Vector2(5,8)])
+  tail.color=frame.bg_color
+  bubble.add_child(tail);tail.position=Vector2(0,bubble.size.y-1)
+  _ignore_mouse(speech_group)
+  return
+ var visual=entry.get("visual",game.Prison.PATROL_GUARD)
+ var panel=_panel(Rect2(930,72,472,112),speech_group);panel.name="NpcSpeech"
+ var row=HBoxContainer.new();row.add_theme_constant_override("separation",12);panel.add_child(row)
+ var portrait=_guard_portrait(visual,Vector2(64,64))
+ row.add_child(portrait)
  body.size_flags_horizontal=Control.SIZE_EXPAND_FILL;body.size_flags_vertical=Control.SIZE_EXPAND_FILL
  body.vertical_alignment=VERTICAL_ALIGNMENT_CENTER;row.add_child(body)
  _ignore_mouse(speech_group)
@@ -3714,11 +3834,12 @@ func _demo_exit_screen() -> void:
 
 func restart(seed_value: int, practice: bool=false, practice_kind: String="equipment") -> void:
  save_suspended=false
- game=game_factory.new(seed_value,practice,practice_kind,true,display_settings.chastity_locks_enabled and not display_settings.fixed_hero_portrait,display_settings.chastity_lock_chance,display_settings.cursed_plate_start,display_settings.cursed_plate_masochist_mode,selected_character)
+ game=game_factory.new(seed_value,practice,practice_kind,true,display_settings.chastity_locks_enabled and not display_settings.fixed_hero_portrait,display_settings.chastity_lock_chance,display_settings.cursed_plate_start,display_settings.cursed_plate_masochist_mode,selected_character,elite_magical_girl_start)
  var initial=game.get_view()
  _reset_interface(initial)
  _save_progress(true)
  render(initial)
+ CombatFeedback.play_entry(self)
  _animate_cards(initial.hand.map(func(card):return {"kind":"draw","uid":card.uid,"type":card.type}),{})
 
 func _animate_cards(events: Array, before: Dictionary) -> void:
@@ -3910,7 +4031,7 @@ func _show_drop_targets(slot: String, data: Dictionary, click_to_use: bool=false
   var face=preload("res://ui/equipment_target_face.gd").new();face.accent=tone
   var title=body.name
   var detail=""
-  if c.payload.target!="":
+  if body.targets.has(c.payload.target):
    var equipment=body.targets[c.payload.target]
    face.equipment=equipment
    title=equipment.name
@@ -3946,10 +4067,12 @@ func _actor_drop_area(rect: Rect2, parent: Control=null, interactive: bool=false
 
 func _attack_drop_candidate(data: Dictionary, enemy_id: String) -> Dictionary:
  if data.get("version",-1)!=view.version: return {}
+ if data.has("card_uid"):
+  return TargetQueries.find(view,"card",{"uid":data.card_uid,"free":data.get("free",false),"target":enemy_id,"mode":"enemy"})
  return TargetQueries.find(view,"attack",{"type":data.get("action_type",""),"form":data.get("form",0),"enemy":enemy_id})
 
 func _configure_enemy_drop(button: Button, enemy_id: String) -> void:
- button.accepted_kind="attack"
+ button.accepted_kind="any"
  button.hover_card=func(data):
   var c=_attack_drop_candidate(data,enemy_id)
   _drag_rejection(button,"目标已离场或行动已失效。" if c.is_empty() else ("" if c.valid else c.reason))
@@ -4125,6 +4248,10 @@ func _activate_card(uid: String) -> void:
   command_router.emit("card",{"kind":"card","uid":player_pick_data.card_uid,"free":player_pick_data.free,"hand_uid":uid},int(player_pick_data.version))
   return
  player_pick=false
+ if not TargetQueries.find(view,"card",{"uid":uid,"free":card_faces.get(uid,false),"mode":"enemy"}).is_empty():
+  selected_card=uid;selected_candidate="";show_body=false
+  render(view)
+  return
  # 卡牌意图的解析与改道在分类子路由（ui/command_routes.gd）；未解析时按默认显示转换处理。
  if command_router.emit("card",{"kind":"card","uid":uid,"free":card_faces.get(uid,false),"click":true},int(view.version)).handled: return
  selected_card=uid; selected_candidate=""; show_body=true; show_route=false; show_log=false; show_deck=false
@@ -4253,141 +4380,75 @@ func _pressure_drawer() -> void:
   box.add_child(_label(selected.detail,15,TEXT))
   box.add_child(_label("来源："+selected.source+"\n持续："+selected.duration,13,MUTED))
 
-func _installed_tools(placement: Rect2, parent: Control) -> void:
- if show_route or view.phase not in ["battle","prepare","rest","prison"]: return
- var installed=view.items.filter(func(item):return item.installed)
- if installed.is_empty(): return
- var panel=_panel(placement,parent);panel.name="InstalledTools"
- var frame=panel.get_theme_stylebox("panel").duplicate()
- frame.content_margin_top=3;frame.content_margin_bottom=3
- panel.add_theme_stylebox_override("panel",frame)
- var rows=_scroll(panel)
- 
- for item in installed:
-  var button=_button(item.fixed_label+"："+item.name+" · %d次" % item.uses,func():
-   selected_item=item.id
-   _open_drawer("show_items"),CYAN)
-  button.name="InstalledTool_"+item.id
-  button.custom_minimum_size.y=26
-  button.add_theme_font_size_override("font_size",12)
-  for state_name in ["normal","hover","pressed","focus","disabled"]:
-   var style=button.get_theme_stylebox(state_name).duplicate()
-   style.content_margin_top=2;style.content_margin_bottom=2
-   button.add_theme_stylebox_override(state_name,style)
-  rows.add_child(button)
-
 func _items_drawer() -> void:
- if not view.items.is_empty() and not view.items.any(func(i):return i.id==selected_item):
-  selected_item=view.items[0].id;selected_item_slot="";item_help=false
- var needs_space=view.items.any(func(item):return item.id==selected_item and item.target_scope=="body_group")
- var v=_drawer_shell("道具 · %d / %d格" % [view.carried_items,view.capacity],Rect2(582,156,820,190 if view.items.is_empty() else (540 if needs_space else 420)))
- if view.items.is_empty():
+ var potions=_inventory_potion_actions()
+ var rect=Rect2(600,170,620,448) if not view.items.is_empty() else Rect2(690,190,420,148)
+ var v=_drawer_shell("道具 · %d / %d格" % [view.carried_items,view.capacity],rect)
+ if view.items.is_empty() and potions.is_empty():
   v.add_child(_label("道具栏为空。",17,MUTED))
   return
- var row=HBoxContainer.new(); row.size_flags_vertical=Control.SIZE_EXPAND_FILL; row.add_theme_constant_override("separation",16); v.add_child(row)
- var left=_scroll(row);left.name="InventoryList";left.get_parent().custom_minimum_size.x=224
+ var columns=HBoxContainer.new();columns.size_flags_vertical=Control.SIZE_EXPAND_FILL
+ columns.add_theme_constant_override("separation",18);v.add_child(columns)
+ var list=_scroll(columns);list.name="InventoryList";list.get_parent().size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ for c in potions: _compact_action(list,c,"打出魔力药剂",false)
+ if view.items.is_empty(): return
+ var detail=VBoxContainer.new();detail.name="InventoryCardDetail";columns.add_child(detail)
+ var flip=_button("翻面",func():detail.get_child(0).flip_requested.emit(),CYAN)
+ flip.name="InventoryFlip"
+ var heading=v.get_child(0);heading.add_child(flip);heading.move_child(flip,heading.get_child_count()-2)
+ var select_item=func(item):
+  selected_item=item.id
+  _show_inventory_card(detail,item)
+  flip.visible=not detail.get_child(0).single_face
+ var group=ButtonGroup.new()
+ if not view.items.any(func(item):return item.id==selected_item): selected_item=view.items[0].id
+ var actions={}
+ var reasons=[]
+ for c in TargetQueries.facts(view,"item"):
+  var id=String(c.payload.get("item",""))
+  if not actions.has(id): actions[id]=[]
+  actions[id].append(c)
+  if not c.valid and c.reason!="" and c.reason not in reasons: reasons.append(c.reason)
  for item in view.items:
-  var item_button=_button(item.name+"\n%s · 剩余%d次" % [item.mount,item.uses],func(): selected_item=item.id; selected_item_slot=""; item_help=false; _refresh_item_details(),CYAN if selected_item==item.id else MUTED)
-  item_button.set_meta("selected_item",selected_item==item.id)
-  item_button.alignment=HORIZONTAL_ALIGNMENT_LEFT;item_button.add_theme_font_size_override("font_size",15)
-  item_button.custom_minimum_size.y=84;item_button.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-  for style_name in ["normal","hover","pressed","focus","disabled"]:
-   var style=item_button.get_theme_stylebox(style_name).duplicate();style.content_margin_left=72
-   item_button.add_theme_stylebox_override(style_name,style)
-  var icon=preload("res://ui/shop_glyph.gd").new();icon.name="ToolIcon_"+item.id
-  icon.kind="tool";icon.symbol="return_scroll" if item.type=="return_seal" else item.type
-  icon.position=Vector2(4,10);icon.size=Vector2(64,64);item_button.add_child(icon)
-  item_button.name="ToolItem_"+item.id;left.add_child(item_button)
- var right=_scroll(row)
- right.get_parent().size_flags_horizontal=Control.SIZE_EXPAND_FILL
- right.name="InventoryDetail"
- var footer=HBoxContainer.new();footer.name="InventoryFooter";footer.alignment=BoxContainer.ALIGNMENT_END;v.add_child(footer)
- _item_details(right,footer)
+  _item_details(list,item,actions.get(item.id,[]),select_item,group)
+  if item.id==selected_item: select_item.call(item)
+ for reason in reasons: list.add_child(_label(reason,14,MUTED))
 
-func _refresh_item_details() -> void:
- if not is_instance_valid(drawer_layer): return
- var right=drawer_layer.find_child("InventoryDetail",true,false)
- var footer=drawer_layer.find_child("InventoryFooter",true,false)
- if right==null or footer==null: return
+func _item_details(list: VBoxContainer, item: Dictionary, actions: Array, select_item: Callable, group: ButtonGroup) -> void:
+ var row=HBoxContainer.new();row.name="InventoryRow_"+item.id
+ row.add_theme_constant_override("separation",8);list.add_child(row)
+ var pick=_button(item.name,select_item.bind(item),CYAN)
+ pick.name="ToolItem_"+item.id;pick.toggle_mode=true;pick.button_group=group
+ pick.set_pressed_no_signal(item.id==selected_item);pick.alignment=HORIZONTAL_ALIGNMENT_LEFT
+ pick.size_flags_horizontal=Control.SIZE_EXPAND_FILL;pick.custom_minimum_size.y=48;row.add_child(pick)
+ for state in ["normal","pressed","hover","focus","disabled"]:
+  pick.get_theme_stylebox(state).content_margin_left=54
+ var icon=preload("res://ui/shop_glyph.gd").new();icon.name="ToolIcon_"+item.id
+ icon.kind="tool";icon.symbol=item.type;icon.size=Vector2(80,80);icon.scale=Vector2(0.55,0.55)
+ icon.position=Vector2(4,2);pick.add_child(icon)
+ for c in actions:
+  var discard=c.payload.kind=="item_discard"
+  var action=_button("丢弃" if discard else c.label,func():command_router.emit(String(c.payload.kind),c),MUTED if discard else CYAN)
+  action.name=("ItemDiscard_" if discard else "ItemToHand_")+item.id
+  action.custom_minimum_size=Vector2(68,48)
+  action.disabled=not c.valid;action.tooltip_text=c.reason if not c.valid else ("丢弃将永久移除。" if discard else detail_of(c))
+  row.add_child(action);candidate_buttons[TargetQueries.fact_key(c)]=action
+ if selected_item==item.id: list.get_parent().call_deferred("ensure_control_visible",row)
+
+func _show_inventory_card(detail: VBoxContainer, item: Dictionary) -> void:
+ if detail.get_meta("item_id","")==item.id: return
  _hide_term()
- for parent in [right,footer]:
-  _release_candidate_controls(parent)
-  for child in parent.get_children():
-   parent.remove_child(child);child.queue_free()
- for item in view.items:
-  var button=drawer_layer.find_child("ToolItem_"+item.id,true,false)
-  var chosen=item.id==selected_item
-  if button.get_meta("selected_item")==chosen: continue
-  button.set_meta("selected_item",chosen)
-  for state in ["normal","hover","pressed","focus","disabled"]:
-   var style=Palette.button_style(state,CYAN if state=="focus" or chosen else MUTED)
-   style.content_margin_left=72;button.add_theme_stylebox_override(state,style)
- _item_details(right,footer)
- var selected=view.items.filter(func(item):return item.id==selected_item)[0]
- var panel=drawer_layer.find_child("InformationDrawer",true,false)
- panel.set_deferred("size",Vector2(820,540 if selected.target_scope=="body_group" else 420))
- _localize_controls(right);_localize_controls(footer)
-
-func _item_details(right: VBoxContainer, footer: HBoxContainer) -> void:
- var selected=view.items.filter(func(i):return i.id==selected_item)[0]
- right.add_child(_label(selected.name,22,CYAN))
- right.add_child(_label(selected.category+" · "+selected.mount,13,MUTED))
- if selected.summary!="": right.add_child(_label(selected.summary,17,TEXT))
- if selected.usage_note!="": right.add_child(_label(selected.usage_note,13,MUTED))
- if selected.environment_name!="": right.add_child(_label(selected.environment_name+(" · "+selected.fixed_label if selected.installed else " · 安装后可作借力环境"),14,GOLD))
- if selected.contact_text!="": right.add_child(_label(selected.contact_text,14,CYAN))
- if selected.installed and selected.passive_text!="": right.add_child(_label(selected.passive_text,14,CYAN))
- var item_actions=TargetQueries.select(view,"item",{"item":selected_item})
- var usage_actions=item_actions.filter(func(c):return c.payload.kind!="item_discard")
- if usage_actions.is_empty(): right.add_child(_label(selected.inactive_reason,13,MUTED))
- if selected.direct_use:
-  if selected.target_scope=="body_group":
-   right.add_child(_label("选择涂抹部位",16,GOLD))
-   var grid=GridContainer.new();grid.columns=3;grid.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-   grid.add_theme_constant_override("h_separation",8);grid.add_theme_constant_override("v_separation",4);right.add_child(grid)
-   for c in item_actions:
-    if c.payload.kind!="item_use": continue
-    var group=view.body_groups.filter(func(body):return body.id==c.payload.target)[0]
-    var button=_button(group.name,func():command_router.emit(String(c.payload.get("kind","")),c),CYAN)
-    button.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-    button.name="ToolSlot_"+group.id;button.disabled=not c.valid
-    grid.add_child(button);candidate_buttons[TargetQueries.fact_key(c)]=button
-    if not c.valid: button.tooltip_text=c.reason
-  else:
-   for c in item_actions:
-    if c.payload.kind=="item_use": _compact_action(right,c,"使用",false)
- elif not selected.installed and not usage_actions.is_empty():
-  right.add_child(_label("选择使用位置",16,GOLD))
-  for group in selected.target_groups:
-   var button=_button(group.name+" · %d个目标" % group.keys.size(),func():selected_item_slot=group.id if selected_item_slot!=group.id else "";_refresh_item_details(),CYAN)
-   button.name="ToolSlot_"+group.id;right.add_child(button)
-   if selected_item_slot==group.id:
-    for key in group.keys:
-     var matches=item_actions.filter(func(c):return TargetQueries.fact_key(c)==key)
-     if not matches.is_empty(): _tool_target_card(right,matches[0])
-  if selected.target_groups.is_empty():
-   for reason in selected.unavailable_reasons: right.add_child(_label(reason,14,RED))
-
- var installations=item_actions.filter(func(c):return c.payload.kind=="item_install")
- if not installations.is_empty():
-  var expanded=selected_item_slot=="@install"
-  var install_button=_button("安装到墙缝"+(" −" if expanded else " ＋"),func():selected_item_slot="" if selected_item_slot=="@install" else "@install";_refresh_item_details(),GOLD)
-  install_button.name="ToolInstallMenu";right.add_child(install_button)
-  if expanded:
-   for c in installations: _compact_action(right,c,"",false)
- for c in item_actions:
-  if c.payload.kind not in ["item_use","item_install","item_discard"]: _compact_action(right,c,"",false)
- var help_button=_button("使用说明  −" if item_help else "使用说明  ＋",func():item_help=not item_help;_refresh_item_details(),MUTED)
- help_button.name="ItemHelpToggle";help_button.custom_minimum_size.y=30;help_button.add_theme_font_size_override("font_size",13);right.add_child(help_button)
- if item_help:
-  var help_box=VBoxContainer.new();help_box.name="ItemHelpContent";right.add_child(help_box)
-  help_box.add_child(_label(selected.description,14,MUTED))
-  if selected.passive_text!="" and not selected.installed: help_box.add_child(_label("安装后："+selected.passive_text,14,CYAN))
- for c in item_actions:
-  if c.payload.kind=="item_discard":
-   var discard=_button("丢弃",func():command_router.emit(String(c.payload.get("kind","")),c),MUTED);discard.name="ItemDiscard";discard.custom_minimum_size=Vector2(90,32)
-   discard.add_theme_font_size_override("font_size",14);discard.tooltip_text="丢弃将永久移除。";discard.disabled=not c.valid
-   footer.add_child(discard);candidate_buttons[TargetQueries.fact_key(c)]=discard
+ for child in detail.get_children():
+  detail.remove_child(child);child.queue_free()
+ detail.set_meta("item_id",item.id)
+ var source=game.B.card_metadata(item.type)
+ var effect=game.Cards.ItemCards.Presentation.card_effect(item.summary,item.uses)
+ source.face_effects={"bound":effect,"free":effect}
+ source.face_requirements=item.face_requirements
+ game.Cards.ItemCards.Presentation.set_remove_terms(source.face_keywords,item.uses)
+ var face=_display_card(item.type,detail,Callable(),"inventory_"+item.id,CardFace.dimensions(360),"",false,source)
+ face.fit_all_copy=true
+ face.fit_text()
 
 func _options_drawer() -> void:
  var content=_drawer_shell(_text("ui.settings.title","设置"),Rect2(390,110,820,700) if options_tab=="keys" else Rect2(550,145,500,590))
@@ -4563,8 +4624,9 @@ func _event_screen() -> void:
 func _chain_screen() -> void:
  var panel=_panel(Rect2(450,420,1060,325))
  var content=_scroll(panel)
- content.add_child(_label(view.card_chain.name+(" · 选择要消耗的牌" if view.card_chain.get("selection",false) else " · 选择下一段目标"),24,GOLD))
- content.add_child(_label("费用已支付，选择下一段目标。",16,CYAN))
+ var prompt=" · 选择要消耗的牌" if view.card_chain.get("selection",false) else " · 选择下一段目标"
+ if view.card_chain.has("hand_source"): prompt=" · 从抽牌堆选1张" if view.card_chain.hand_source=="draw" else " · 从弃牌堆选1张"
+ content.add_child(_label(view.card_chain.name+prompt,24,GOLD))
  for c in TargetQueries.facts(view,"chain"): _action_row(content,c)
 
 func _service_screen() -> void:

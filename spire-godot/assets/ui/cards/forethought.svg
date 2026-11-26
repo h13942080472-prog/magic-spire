@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="16 0 148 90" width="148" height="90">
+ <defs>
+  <linearGradient id="edge" x2=".8" y2="1" gradientUnits="objectBoundingBox"><stop stop-color="#ffeeaa"/><stop offset="1" stop-color="#b57a52"/></linearGradient>
+ </defs>
+ <ellipse cx="90" cy="79" rx="63" ry="5" fill="#0b1820" opacity=".6"/>
+ <g stroke-linejoin="round">
+  <g transform="rotate(-18 47 47)" stroke="#7cc8ca">
+   <rect x="29" y="22" width="36" height="51" rx="4" fill="#193039"/>
+   <rect x="32" y="18" width="36" height="51" rx="4" fill="#264b55"/>
+   <path d="m50 28 10 14-10 15-10-15z" fill="#76c5c7"/><path d="m50 34 5 8-5 8-5-8z" fill="#234451"/>
+  </g>
+  <g transform="rotate(18 133 47)" stroke="#d6ab78">
+   <rect x="115" y="22" width="36" height="51" rx="4" fill="#3d3035"/>
+   <rect x="112" y="18" width="36" height="51" rx="4" fill="#59404a"/>
+   <path d="m130 29 9 14-9 14-9-14z" fill="#e0b67d"/><path d="m130 35 5 8-5 8-5-8z" fill="#604248"/>
+  </g>
+  <circle cx="90" cy="45" r="25" fill="#142b35" stroke="url(#edge)" stroke-width="3"/>
+  <path d="M66 45q24-28 48 0-24 28-48 0Z" fill="#e5d7aa" stroke="#b89558"/>
+  <circle cx="90" cy="45" r="10" fill="#45919b"/><circle cx="90" cy="45" r="5" fill="#17313b"/><circle cx="93" cy="41" r="2" fill="#fff1c9"/>
+  <path d="M60 16Q74 6 92 10m-4-5 7 5-7 5M120 72q-14 11-32 7m4 5-7-5 7-5" stroke="#cca66c" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+ </g>
+</svg>

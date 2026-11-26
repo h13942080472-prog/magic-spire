@@ -1,4 +1,5 @@
 extends RefCounted
+const DisplayNumbers=preload("res://data/display_numbers.gd")
 
 # Presentation only. Never receives Game, state, display facts, or RNG.
 signal locale_changed(locale: String)
@@ -18,6 +19,31 @@ var _legacy: Dictionary={}
 var _legacy_patterns: Dictionary={}
 var _legacy_prefixes: Dictionary={}
 var _diagnostics: Array=[]
+var _log_decimal: RegEx
+
+# Persisted logs can already contain formatted prose. Only normalize their
+# rendered copy, after translation, without touching identifiers or versions.
+func log_display(source: String) -> String:
+ var rendered=display(source.replace("小于0.01","<0.1"))
+ if not rendered.contains("."): return rendered
+ if _log_decimal==null:
+  _log_decimal=RegEx.create_from_string(r"(?<![A-Za-z0-9_.])[-+]?\d+\.\d+(?![A-Za-z0-9_]|\.\d)")
+ var chunks=PackedStringArray()
+ var start=0
+ for hit in _log_decimal.search_all(rendered):
+  chunks.append(rendered.substr(start,hit.get_start()-start))
+  var token=hit.get_string()
+  var value=token.to_float()
+  var formatted=DisplayNumbers.amount(value)
+  if rendered.substr(hit.get_end(),1)=="%" and value>=0 and value<=100:
+   formatted=DisplayNumbers.probability(value/100.0).trim_suffix("%")
+  elif rendered.substr(maxi(0,hit.get_start()-1),1)=="×":
+   formatted=DisplayNumbers.factor(value)
+  chunks.append(("+" if token.begins_with("+") else "")+formatted)
+  start=hit.get_end()
+ if start==0: return rendered
+ chunks.append(rendered.substr(start))
+ return "".join(chunks)
 
 func _init() -> void:
  load_directory()
@@ -153,7 +179,10 @@ func text(key: String, fallback: String, params: Dictionary={}) -> String:
    _record("call_parameters",key);return DISPLAY_ERROR
  var result=""
  for token in parsed.tokens:
-  result+=token.literal if token.has("literal") else str(params[token.parameter])
+  if token.has("literal"): result+=token.literal
+  else:
+   var value=params[token.parameter]
+   result+=DisplayNumbers.amount(value) if value is float else str(value)
  return result
 
 static func _regex_escape(value: String) -> String:

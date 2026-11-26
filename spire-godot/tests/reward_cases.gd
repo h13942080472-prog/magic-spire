@@ -14,6 +14,27 @@ static func play(t,g,card: Dictionary,slot: String,target: String="") -> Diction
  if g.Cards.Rules.SPECS[card.type].has("self_faces"): return t.action(g,"card",{"uid":card.uid,"free":target==""})
  return t.action(g,"card",{"uid":card.uid,"slot":slot,"target":target})
 
+static func immediate_ring(t) -> void:
+ var g=setup();g.state.relics.append("silk_ring")
+ var declaration=g.Relics.TYPES.silk_ring.trigger
+ t.check(g.Relics.trigger_reason(declaration)=="" and g.Relics.trigger_reason(declaration.merged({"immediate":1},true))!="" and g.Relics.trigger_reason(declaration.merged({"op":"charge"},true))!="","RING only a draw can declare boolean immediate timing")
+ var target=g.add_fixture("ankle",3)
+ var before=g.state.hand.size()
+ g.RelicEffects.card_slipped(g,2,target)
+ t.check(g.state.hand.size()==before+1 and not g.state.relic_pending.has("silk_ring"),"RING draws immediately at the qualifying slip before action settlement")
+ g.RelicEffects.card_slipped(g,2,target)
+ g.RelicEffects.flush(g)
+ t.check(g.state.hand.size()==before+1,"RING later hits and pending settlement cannot repeat the draw")
+
+ g=Game.new(42);g._discard_end();g.state.relics.append("silk_ring")
+ target=g.add_fixture("wrist",41,100)
+ var give_cards=preload("res://tests/curse_cases.gd")
+ var source=give_cards.give(g,"breath_control");var fuel=give_cards.give(g,"sensitive")
+ var played=t.action(g,"card",{"uid":source.uid,"free":false,"target":target.id,"hand_uid":fuel.uid})
+ var triggers=g.state.logs.filter(func(row):return row.data.get("relic_trigger",{}).get("id","")=="silk_ring")
+ var hits=g.state.logs.filter(func(row):return row.kind=="mechanical" and row.text.begins_with("「运气」处理"))
+ t.check(played.ok and triggers.size()==1 and hits.size()==2 and g.state.logs.find(triggers[0])<g.state.logs.find(hits[1]),"RING real two-hit slip draws before the second hit resolves")
+
 static func run(t) -> void:
  preload("res://tests/unique_power_reward_cases.gd").run(t)
  preload("res://tests/battle_reward_cases.gd").run(t)
@@ -21,6 +42,7 @@ static func run(t) -> void:
  resource_feedback(t)
  hand_limit(t)
  configured_effects(t)
+ immediate_ring(t)
  draw_faces(t)
  reward_sampling(t)
  var g=setup()
@@ -40,7 +62,7 @@ static func run(t) -> void:
   elif type=="chain": t.check(g.state.charge==2 and g.state.hand.size()==hands+1,"REWARD chain free grants two charge and draws two")
   elif type=="peel":
    var retained=g.state.hand.map(func(c):return c.uid)
-   t.check(not g.state.pending_retain and retained.size()==hands-1 and g.state.hand.all(func(c):return c.retain_until==g.state.tick+1) and g.state.next_energy==1,"REWARD peel immediately retains the entire remaining hand without a picker")
+   t.check(not g.state.pending_retain and retained.size()==hands-1 and g.state.hand.all(func(c):return c.retain_until==g.state.tick+1) and g.state.next_energy==0 and g.state.card_buff_uses.get("slippery")==2,"REWARD peel immediately grants two Slippery and retains the entire remaining hand")
    var late=preload("res://tests/curse_cases.gd").give(g,"strain")
    g._discard_end()
    t.check(g.state.hand.map(func(c):return c.uid)==retained and g.state.discard.any(func(c):return c.uid==late.uid),"REWARD all held cards survive actual discard but later cards are not retained")
@@ -117,9 +139,9 @@ static func run(t) -> void:
  play(t,g,card,"wrist",a.id)
  t.check(g.state.charge==1,"REWARD bracer refreshes next player turn")
 
- g=setup();g.state.relics.append("silk_ring");target=g.add_fixture("ankle",7);card=t.hand_card(g,"slip")
+ g=setup();g.state.relics.append("silk_ring");target=g.add_fixture("ankle",41,100);card=t.hand_card(g,"slip")
  var hand_count=g.state.hand.size();play(t,g,card,"ankle",target.id)
- t.check(not g._equipment(target.id).is_empty() and g.tier(g._equipment(target.id).durability,10)==1 and g.state.hand.size()==hand_count,"REWARD ring draws on actual two-to-one card slip")
+ t.check(not g._equipment(target.id).is_empty() and g.equipment_tier(g._equipment(target.id))==1 and g.state.hand.size()==hand_count,"REWARD ring draws on actual two-to-one card slip")
  g=setup();g.state.relics.append("silk_ring");target=g.add_fixture("ankle",6);card=t.hand_card(g,"ease")
  hand_count=g.state.hand.size();play(t,g,card,"ankle",target.id)
  t.check(g.state.hand.size()==hand_count-1 and not g.state.relic_used.has("silk_ring:turn"),"REWARD pure downgrade is not card slip damage")
@@ -275,7 +297,7 @@ static func configured_effects(t) -> void:
  t.check(play(t,g,card,"wrist",a.id).ok and g.state.charge==2 and g.RelicEffects.used(g,"test_charge"),"CONFIG renamed relic triggers its configured amount")
  t.check(g.get_view().relics.any(func(row):return row.id=="test_charge" and row.current.contains("本次机会已使用")) and g.get_view().statuses.all(func(row):return row.category!="relic"),"CONFIG relic trigger scope is shown only in the relic projection")
  a=g.add_fixture("wrist",1);card=give(t,g,"strain");play(t,g,card,"wrist",a.id)
- t.check(g.state.charge==1,"CONFIG renamed relic does not regrant charge consumed by the next strain")
+ t.check(g.state.charge==0,"CONFIG renamed relic does not regrant charge consumed by the next strain")
  g=Game.new(12);g.state.relics=["test_mana"];g.state.mana=60
  t.check(t.action(g,"attack",{"type":"fireball","enemy":g.state.enemies[0].id}).ok and g.state.mana==50 and g.RelicEffects.used(g,"test_mana"),"CONFIG renamed guarantee relic uses its own turn record")
  g=Game.new(11);g.state.wall="normal";g.state.relics=["test_pose"];g.add_fixture("calf",4)

@@ -63,7 +63,7 @@ static func run(t) -> void:
  for only_unique in [false,true]:
   var empty=Game.new(42,true,"shop")
   for zone in ["deck"]+empty.Cards.ZONES: empty.state[zone]=[]
-  if only_unique: empty._gain_card("endless_war_goddess")
+  if only_unique: empty._gain_card("fire_mastery")
   var empty_count=empty.state.deck.size()
   empty.RelicEffects.gain(empty,TYPE)
   t.check(empty.RelicBundle.copy_cards(empty).is_empty() and t.action(empty,"relic_bundle",{"op":"finish"}).ok and empty.state.relic_bundle.is_empty() and empty.state.deck.size()==empty_count,"SCANNER empty or all-ineligible deck can skip without granting a card")

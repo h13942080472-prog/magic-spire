@@ -100,13 +100,13 @@ static func lifecycle(t) -> void:
  t.check(g.state.powers.is_empty() and g.state.discard.all(func(x):return not x.has("power_magic_remaining")) and g.Cards.energy_cost(g,"ease",true)==1,"FORMATION scene cleanup removes quotas from physical cards")
 
 static func replay(t) -> void:
- var g=setup();Cards.play(t,g,"echo_cast",false);activate(t,g,false)
+ var g=setup();g.Cards.grant_buff(g,"echo_cast_bound");activate(t,g,false)
  t.check(g.state.powers.size()==1 and g.state.powers[0].power_stacks==2 and g.state.powers[0].power_magic_remaining==2,"FORMATION replayed activation grants stacked guaranteed uses")
- Cards.play(t,g,"echo_cast",false);g.state.pressure=75
+ g.Cards.grant_buff(g,"echo_cast_bound");g.state.pressure=75
  var card=Cards.give(g,"mana_surge");var start=g.state.logs.size()
  t.check(t.action(g,"card",{"uid":card.uid,"free":false}).ok and g.state.powers[0].power_magic_remaining==1,"FORMATION replayed magic spends only original card quota")
  var spells=g.state.logs.slice(start).filter(func(x):return x.data.has("spell"))
  t.check(spells.size()==2 and spells[0].data.spell.chance==1 and spells[1].data.spell.chance<1,"FORMATION replay does not inherit the next-card guarantee")
- g=setup();Cards.play(t,g,"echo_cast",false);activate(t,g,true)
+ g=setup();g.Cards.grant_buff(g,"echo_cast_bound");activate(t,g,true)
  # Free powers are not replayed by the bound-card replay effect.
  t.check(g.state.powers[0].power_magic_remaining==1,"FORMATION replay respects the selected face")

@@ -399,7 +399,7 @@ static func unavailable_body_hint(t) -> void:
   var before=ui.game.export_snapshot();var point=t.card_point(card.uid)
   await t.move_mouse(point);await t.mouse_button(point,MOUSE_BUTTON_LEFT,true);await t.move_mouse(point+Vector2(0,-42),true)
   var ghost=t.root.find_child("CardDragPreview",true,false)
-  t.check(ghost!=null and ghost.z_index>ui.find_child("BodyEquipmentPanel",true,false).z_index and ghost.mouse_filter==Control.MOUSE_FILTER_IGNORE and t.visible_text(ghost).contains("自由"),"TARGET card drag preview stays above body sidebar and does not intercept drops")
+  t.check(ghost!=null and ghost.z_index>ui.find_child("BodyEquipmentPanel",true,false).z_index and ghost.mouse_filter==Control.MOUSE_FILTER_IGNORE and ghost.get_child(0).effect_free and not ghost.get_child(0).single_face,"TARGET card drag preview stays above body sidebar and does not intercept drops")
   for body in unavailable.slice(0,2):
    var anchor=ui.body_buttons[body.id]
    await t.move_mouse(anchor.get_global_rect().get_center(),true)

@@ -24,7 +24,7 @@
 | 回执补查（可选一次） | 对原 `exec` 地址追加 receipt 编号查询；只返回该随机编号的发送状态，不泄露正文、附件或收件人 |
 | 管理入口 | [管理脚本](https://script.google.com/d/1-syp_ASOKIj4Qv1xv2O78RBr5E4cYMJW1rG_uiMAMmTAjbHi_u0aPiMf/edit)、[服务状态](https://script.google.com/macros/s/AKfycbw9SHt60mspbgTUvGsDpmV1ylFKXBJ76zupmjXben_3Sh_2yDA3G0eHmDdhdFlRUoeLMA/exec) |
 
-- 脚本 ID：`1-syp_ASOKIj4Qv1xv2O78RBr5E4cYMJW1rG_uiMAMmTAjbHi_u0aPiMf`；部署 ID：`AKfycbw9SHt60mspbgTUvGsDpmV1ylFKXBJ76zupmjXben_3Sh_2yDA3G0eHmDdhdFlRUoeLMA`，版本 3。
+- 脚本 ID：`1-syp_ASOKIj4Qv1xv2O78RBr5E4cYMJW1rG_uiMAMmTAjbHi_u0aPiMf`；部署 ID：`AKfycbw9SHt60mspbgTUvGsDpmV1ylFKXBJ76zupmjXben_3Sh_2yDA3G0eHmDdhdFlRUoeLMA`，当前部署版本为 4；后续仓库脚本替换须另行发布新部署版本。
 - 收件邮箱**只在转发服务内固定**为 `towerlover7787@gmail.com`：玩家界面的编辑页与确认页都不展示地址，客户端也不保存该收件地址；服务端不接受客户端提供的收件人。
 - 服务维护账号（部署账号）为 `h13942080472@gmail.com`；维护账号与固定收件人**不必相同**。
 - 入口位置：场景右上角的「问题与建议」（商店位于左侧上方）。窗口布局：左侧填写／预览、右侧截图与存档附件、底部网络提示与提交按钮。
@@ -43,7 +43,9 @@
 | 截图 | 最多 3 张；可截取游戏画面（自动隐藏反馈窗口）或选取本地 PNG／JPEG；统一压缩为最长 1600 像素的 JPEG，每张最多 2 MB；**不上传原始文件路径** |
 | 当前进度存档 | 复选框「一并附带当前进度存档」，**默认勾选**，旁边常驻说明「反馈会连同当前进度存档一起发送；取消勾选则只发送上面的内容。」；勾选且服务端声明支持时附带本局固定点存档（`SaveStore.fixed_point_text`，文件名＝当前 `slot`＋`.json`，内容＝写入时刻的 `restart_snapshot()`＋当时线稿，含 `state.initial_seed` 与 `state.tower_generation`）；**不含 `.bak`**；解码后上限 2 MiB（base64 ≤2796204 字符） |
 
-服务端校验：字段长度、附件数量、单张大小与 JPEG 签名；正文一律按纯文本处理。
+服务端采用宽松内容接收：POST 必须为 JSON 对象且不超过 12 MiB 字符；标题／正文／日志转换为文本后分别不超过200／8000／40000字符。报告的 schema、类型、编号格式与上下文字段不再逐项拒绝；客户端仍使用现有字段与校验。
+截图只处理数组前3项；空数据或解码失败项跳过，解码后单项超过2 MiB则整条报告返回invalid；不再核验JPEG签名，收到的字节以服务指定的screenshot序号和.jpg扩展名转发。
+正文按纯文本处理，邮件标题去掉换行；收件人和所有附件名均由服务端决定。
 草稿存于 `user://feedback-draft.json`，与正式存档／快速 SL 无关，包含玩家选择的截图；
 点击「清空草稿」或成功提交会清空它。**存档附件不进草稿文件**（草稿体积与既有版本相同，
 存档本体仍只在 `user://saves`）。
@@ -72,6 +74,8 @@ Android 侧已打开联网权限。
 - 未勾选／没有可附带的存档／本次草稿未捕获／校验未通过／超限：**不带附件**，并在确认页的附件行
   显示各自的原因（如「未附带存档：存档过大（超过 2 MB），未附带。」「未附带存档：当前进度存档校验未通过，未附带。」），
   提交与游戏不受影响；文案走 `ui.feedback.save.*` 本地化 key，有存档时不得显示「没有可附带的存档」。
+
+服务端 `readSave` 只要求解码后为不超过2 MiB的JSON对象，不再要求format=2、输入文件名或固定键集合；接收后保持字节不变，统一命名 `progress-save.json`、MIME为application/json。无法解码、超限或非JSON对象时丢弃该附件，在邮件正文说明原因，反馈正文继续发送。客户端仍从当前固定点生成附件。
 
 ## 服务版本门控（上线顺序约束）
 
@@ -102,7 +106,7 @@ Android 侧已打开联网权限。
   不自动转发 POST（实测 Godot 自动跳转产生 400，因此由反馈请求入口显式处理）。
 - 若提交／回执跳转未返回有效响应：对原 `exec` 地址追加 receipt 编号**最多补查一次**，不重发邮件正文；
   补查也失败时保留草稿并停止，等待玩家明确重试。
-- 服务端去重：保留 48 小时内已发送编号的摘要，减少重试产生的重复邮件；
+- 服务端去重：非空编号转换为文本并截取前64字符作为回执键，空编号不建回执；客户端仍生成原有随机编号。成功发送后清理超过48小时的回执，减少重试产生的重复邮件；
   **不保证严格一次送达**（服务在记录回执前异常退出时无法保证已发送）。
 - 限流：全局每 10 秒最多一次新提交；串行锁防止同时重复发送。
 - 一次发送尝试 = 一个收件人；个人 Gmail 的 Apps Script 额度为每日 100 个收件人，脚本再限制
@@ -114,11 +118,10 @@ Android 侧已打开联网权限。
 
 - 离线：`node tools/feedback-service/test.cjs`——验证收件人固定、参数与附件校验、去重、限额、
   邮件失败与建议分类；不调用 Google、不发送邮件。存档附件同时覆盖：
-  - 接受：带合法 `save` 的提交（`ok:true`；邮件附件 `mime=application/json`、`name=tower.json`、
-    字节与提交文本相等；正文含存档行）；无 `save` 的提交行为与既有版本相同；GET 声明 `schema`。
-  - 拒绝：非法 base64／解码超 2 MiB／`name` 不符（含 `../` 路径）／解码非 JSON／`format!=2`／
-    `save` 非对象或含额外键／原始 POST 超 12 MiB 字符 → `invalid` 且不发信。
-  - 回执：同编号改标题 → `invalid`；同编号只改 `save` → 命中回执且不重发。
+  - 接受：带JSON对象存档的提交，附件mime=application/json、name=progress-save.json且字节不变；忽略输入文件名／额外键／format值。无save行为保持兼容，GET声明schema=2。
+  - 降级：非法或无法解码存档、解码超2 MiB、非JSON对象只丢弃存档；仍发正文并说明原因。无效截图跳过，第四张不处理。
+  - 拒绝：非法JSON／非对象报告、文本字段超限、前3张截图中解码后超2 MiB、原始POST超12 MiB字符，均返回invalid且不发信；覆盖允许边界。
+  - 回执：同编号改标题返回invalid；只改save命中回执且不重发；未知编号返回not_found。
 - 公网验收：匿名 GET 返回 `service`／`schema`；正式客户端发送无效 POST 后收到 `invalid` 并保留草稿；
   再由用户确认提交一封实际邮件并按编号在收件账号 Gmail 全邮箱搜索，确认送达并完成收件验收。
   2026-09-13 的验收记录（编号、时间、跳转与重试过程）见 `docs/record/verification.md`。

@@ -5,6 +5,16 @@ const INFUSION_ART={"bound":"res://assets/art/card-infusion-leg-formal-v1.png","
 const HANNYA_ART="res://assets/art/card-hannya-formal-v1.png"
 const ART_STYLE_GROUPS={"cards":{"hannya_1":["hannya_1","hannya_2","hannya_3","hannya_4","good_soup","hannya_swallow","hannya_infusion","hannya_henshin"]}}
 const FORMAL_ART={"cards":{
+ "mana_potion":"res://assets/ui/cards/items/mana_potion.svg",
+ "lubricant_potion":"res://assets/ui/cards/items/lubricant_potion.svg",
+ "energy_potion":"res://assets/ui/cards/items/energy_potion.svg",
+ "charge_potion":"res://assets/ui/cards/items/charge_potion.svg",
+ "draw_scroll":"res://assets/ui/cards/items/draw_scroll.svg",
+ "mana_scroll":"res://assets/ui/cards/items/mana_scroll.svg",
+ "casting_scroll":"res://assets/ui/cards/items/casting_scroll.svg",
+ "picks":"res://assets/ui/cards/items/picks.svg",
+ "shard":{"bound":"res://assets/ui/cards/items/shard.svg","free":"res://assets/ui/cards/items/shard_wall.svg"},
+ "saw":{"bound":"res://assets/ui/cards/items/saw.svg","free":"res://assets/ui/cards/items/saw_wall.svg"},
  "strain":"res://assets/art/card-strain-formal-v1.png",
  "slip":"res://assets/art/card-slip-formal-v1.png",
  "crossed_legs":"res://assets/art/card-crossed-legs-formal-v1.png",

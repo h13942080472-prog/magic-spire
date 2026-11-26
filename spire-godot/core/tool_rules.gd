@@ -4,14 +4,13 @@ extends "res://data/field_tools.gd"
 const Contact=preload("res://core/contact.gd")
 
 static func description(g, type: String) -> String:
- if operation(type)=="buff": return g.Consumables.description(g,type)
- return effect_description(type,TYPES[type].damage*g.Cards.damage_multiplier(g,"equipment"),assisted(g))
+ return g.Cards.ItemCards.Presentation.summary(g,type)+("手持0费，借墙1费。" if operation(type)=="cut" else "")
 
 static func assisted(g) -> bool:
  return g.relic_value("unrestricted_items")>0
 
 static func is_fixed(g, item: Dictionary) -> bool:
- return item.mount!="carry" or (assisted(g) and not TYPES[item.type].get("trigger_damage_types",[]).is_empty())
+ return item.mount!="carry"
 
 static func mount_name(g, item: Dictionary) -> String:
  return "触手固定" if item.mount=="carry" and is_fixed(g,item) else mount_label(item.mount)
@@ -25,7 +24,7 @@ static func escape_reason(g) -> String:
  if g.state.phase!="prison" or g.state.security>=5: return "传送符仅限一至四级牢房的可行动回合使用。"
  var scroll_reason=g.Consumables.scroll_reason(g)
  if scroll_reason!="": return scroll_reason
- if g.carried_items()-1>g.item_capacity(): return "用掉传送符后，剩余道具仍超出容量；请先使用或放弃多出的道具。"
+ if g.carried_items()>g.item_capacity(): return "请先整理背包至容量内。"
  return ""
 
 static func unlock_reason(g, target: Dictionary={}) -> String:

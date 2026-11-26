@@ -27,7 +27,7 @@ static func run(t) -> void:
  g=Game.new(42)
  g.state.charge=2;g.state.temporary_mana=15;g.state.next_energy=2
  t.check(find(g,"charge").value=="2层" and find(g,"temporary_mana").value=="15点" and find(g,"charge").detail.contains("滑脱"),"STATUS carried buffs keep separate stacks")
- t.check(t.action(g,"attack",{"type":"strike","enemy":"enemy_1"}).ok and find(g,"charge").value=="1层","STATUS formal strike consumes one charge and immediately updates")
+ t.check(t.action(g,"attack",{"type":"strike","enemy":"enemy_1"}).ok and find(g,"charge").is_empty(),"STATUS formal strike consumes all charge and removes the status")
  g=Game.new(42,true,"pressure")
  t.check(g.get_view().statuses.any(func(e):return e.id.begins_with("pressure_")),"STATUS includes active pressure sources")
  var old=g.state.pressure

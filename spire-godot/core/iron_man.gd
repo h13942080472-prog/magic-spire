@@ -129,16 +129,16 @@ static func execute(g, e: Dictionary, intent: Dictionary) -> void:
   "iron_recharge": recharge(g,e)
   "iron_upgrade": upgrade(g,e)
 
-static func apply_capture_equipment(g, e: Dictionary) -> void:
+static func apply_capture_equipment(g, e: Dictionary, capture_onset: bool=true) -> void:
  var cursed=g.state.special_equipment.any(g.SpecialEquipment.is_cursed_plate)
  if g.Character.active(g) or cursed:
   var spec=fallback_spec(e)
   var pool=g.SpecialEquipment.prison_pool(spec.grade,false,false)
   var plan={"kind":"apply","pool":"special","templates":pool,"grade":spec.grade,"tier":spec.tier,"count":spec.count,"locked":false,"final":false,"replace":true,"text":"佩戴／替换特殊装备","delayed":false}
-  g._enemy_operation(e,plan)
+  g._enemy_operation(e,plan,capture_onset)
   return
  var spec=cup_spec(e)
- var replaced=Replacement.force_special(g,spec.type,spec.tier,e.name+"的捕缚")
+ var replaced=Replacement.force_special(g,spec.type,spec.tier,e.id,not capture_onset)
  if replaced.ok:
   g._emit("event",e.name+"佩戴／替换了"+g.SpecialEquipment.TYPES[spec.type].name+"，紧度%d档。" % spec.tier,{"iron_capture_equipment":{"enemy":e.id,"installed":replaced.installed[0].id,"removed":replaced.removed}})
 
@@ -161,7 +161,7 @@ static func drone_energy_trigger(g, drone: Dictionary) -> void:
  g._enemy_operation(drone,{"kind":"lock","text":"随机上锁","random_target":true,"delayed":false})
 
 static func recharge(g, e: Dictionary) -> void:
- apply_capture_equipment(g,e)
+ apply_capture_equipment(g,e,false)
  var count=0
  for item in g.state.special_equipment:
   var duration=int(g.SpecialEquipment.TYPES[item.type].duration)

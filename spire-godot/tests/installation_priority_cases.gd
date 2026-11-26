@@ -21,7 +21,7 @@ static func run(t) -> void:
  choices=g.EquipmentOffers.preferred(g,g.EquipmentOffers.for_pool(g,1,pool))
  t.check(choices.any(func(o):return o.slot=="mouth") and choices.any(func(o):return o.slot=="fingers") and choices.all(func(o):return o.slot in ["mouth","fingers"]),"PRIORITY empty mouth and fingers share second band")
  g.add_fixture("mouth",8);g.add_fixture("fingers",8,10,false,0,"cord");g._install_template("rope","forearm",8,10,false,"fixture",1,-1,0,"mid_forearm")
- # Once every physical point is covered, additions and links retain the old shared band.
+ # Once every physical point is covered, ordinary additions occupy the remaining band.
  for slot in g.B.ARM_SLOTS+g.B.LEG_SLOTS:
   for point in g.Equipment.points(slot):
    if g.physical_pieces().any(func(e):return point in g.Equipment.physical_points(e)): continue
@@ -30,21 +30,20 @@ static func run(t) -> void:
  choices=g.EquipmentOffers.preferred(g,g.EquipmentOffers.for_pool(g,1,pool))
  for slot in ["wrist","fingers","foot","toes","thigh"]:
   t.check(choices.any(func(o):return o.kind=="install" and o.slot==slot),"PRIORITY third band includes "+slot)
- t.check(choices.any(func(o):return o.kind=="link") and choices.all(func(o):return o.rank==1),"PRIORITY legal links share third band, never inherit endpoint rank")
+ t.check(choices.all(func(o):return o.kind=="install" and o.rank==1),"PRIORITY remaining ordinary pieces share the third band")
  # Audit real general-purpose enemy sources, not just a synthetic link whitelist.
  for type in ["small_circle","ominous_circle","trader","guard"]:
   var source={"type":type,"id":"pool_audit"}
   var plans=g.EnemyPlans.installation_intents(g,source).filter(func(p):return p.get("pool","")=="ordinary" and "rope" in p.get("templates",[]))
-  t.check(not plans.is_empty(),"PRIORITY general source has a path to ordinary links: "+type)
+  t.check(not plans.is_empty(),"PRIORITY general source has an ordinary equipment pool: "+type)
   if plans.is_empty(): continue
   var legal=g.Application._choice_bands(g,plans[0],source.id)
-  t.check(legal.any(func(band):return band.any(func(p):return p.kind=="link")) and legal.all(func(band):return band.all(func(p):return p.rank==1)),"PRIORITY real source admits legal links in the shared third band: "+type)
+  t.check(not legal.is_empty() and legal.all(func(band):return band.all(func(p):return p.rank==1 and p.kind!="link")),"PRIORITY real source offers only standalone equipment: "+type)
   var actual=plans[0].duplicate(true);actual.templates=["link_rope"];actual.count=1
   var old_equipment=g.state.equipment.duplicate(true)
   var result=g.Application.execute(g,actual,source.id)
-  t.check(result.ok and result.installed[0].template=="link_rope" and g.state.equipment==old_equipment,"PRIORITY real source can commit a link without inventing endpoints: "+type)
-  g.state.links.clear()
- t.check(g.EquipmentOffers.for_pool(g,1,["belt"]).any(func(o):return o.kind=="link") and g.EquipmentOffers.for_pool(g,1,["tape"]).all(func(o):return o.kind=="install" and o.template=="tape"),"PRIORITY belt sources inherit links, tape-only sources do not")
+  t.check(not result.ok and result.installed.is_empty() and g.state.equipment==old_equipment,"PRIORITY real source rejects a retired link-only pool: "+type)
+ t.check(g.EquipmentOffers.for_pool(g,1,["belt"]).all(func(o):return o.kind=="install") and g.EquipmentOffers.for_pool(g,1,["tape"]).all(func(o):return o.kind=="install" and o.template=="tape"),"PRIORITY belt and tape pools only offer ordinary installations")
  g=Game.new(42)
  t.check(g.Application.choose(g,{"templates":["cord"],"grade":1},"test").slot=="fingers","PRIORITY missing wrist-capable template skips first band")
  t.check(g.Application.choose(g,{"templates":["eye_leather"],"grade":1},"test").is_empty(),"PRIORITY grade restriction precedes priority")
@@ -57,49 +56,12 @@ static func run(t) -> void:
  t.check(effects.issue=="" and effects.effects[0].slot=="fingers" and effects.effects[1].slot!="mouth","PRIORITY event batch updates occupancy between source-limited additions")
 
  g=linked_battle()
- var enemy=g.state.enemies[0];var id=enemy.id
- var plan=g.EnemyPlans.application(["link_rope"])
- var anchors=g.link_anchors().map(func(anchor):return anchor.id)
- t.check(plan.kind=="apply" and plan.templates==["link_rope"] and plan.grade==1 and plan.tier==2,"LINK enemy plan uses real link template")
- enemy.intent=plan
- var icon=g.get_view().enemies[0].intent_icons[0]
- t.check(icon.kind=="bind" and icon.detail=="敌人准备对你施加拘束","LINK intent shares concise restraint icon")
- before=g.state.duplicate(true)
- g.get_view();g.command_facts()
- t.check(g.state==before,"LINK preview does not install or advance RNG")
- var h=Save.roundtrip(t,g,"pending enemy link")
- Save.step_both(t,g,h,"end")
- var link=g.state.links[0]
- t.check(g.state.links.size()==1 and link.ends.all(func(end):return end in anchors) and g.tier(link.durability,10)==2 and g.state.equipment.size()==3,"LINK actual enemy operation installs one link without extra endpoints")
- t.check(g.get_view().action_log.any(func(l):return l.text.contains("链接绳")) and g.state.logs.any(func(l):return l.data.get("enemy_action",{}).get("slots",[])==link.slots),"LINK result and both affected body locations recorded")
- t.check(g.EquipmentOffers.links(g,1).all(func(o):return o.ends!=link.ends),"LINK existing pair excluded from later additions")
- var malformed=h.export_snapshot();malformed.links[0].ends=[link.ends[0],link.ends[0]]
- before=h.state.duplicate(true)
- t.check(not h.restore_snapshot(malformed).ok and h.state==before,"LINK corrupted physical pair rejected atomically")
-
- g=linked_battle();enemy=g.state.enemies[0];id=enemy.id
- enemy.stage=4;enemy.intent=g.EnemyPlans.application(["link_rope"],2,2,1,true)
- g.state.round=2
- g.state.card_buffs.append("infusion_bound") # Interruption fixture; the card itself has separate casting tests.
- t.check(t.action(g,"attack",{"type":"kick","form":2,"enemy":id}).ok,"LINK prepared final attachment can be interrupted")
- h=Save.roundtrip(t,g,"interrupted final link")
- Save.step_both(t,g,h,"end")
- t.check(g.state.links.is_empty() and g._enemy(id).stage==4,"LINK interrupt delays application without choosing endpoints")
- Save.step_both(t,g,h,"end")
- t.check(g.state.links.size()==1 and g.state.links[0].grade==2 and g._enemy(id).gone and g.state.reward_count==1,"LINK final medium attachment leaves and rewards once")
-
- g=linked_battle();enemy=g.state.enemies[0];plan=g.EnemyPlans.application(["link_rope"])
- enemy.intent=plan
- # Remove an extreme anchor after announcing a link-only application.
- var remove_id=g.equipment_at("forearm")[0].id
- g._equipment(remove_id).durability=0;g._cleanup()
- var resolved=g.EnemyPlans.resolve(g,enemy,plan)
- t.check(resolved==plan and not resolved.has("ends"),"LINK generic declaration still defers concrete endpoints to execution")
- t.action(g,"end")
- t.check(g.state.links.size()==1 and remove_id not in g.state.links[0].ends,"LINK retarget commits through formal enemy turn")
- g=linked_battle();enemy=g.state.enemies[0];enemy.stage=4;enemy.intent=g.EnemyPlans.application(["link_rope"],2,2,1,true)
- g.state.equipment.clear()
- t.check(t.action(g,"end").ok and g.physical_pieces().is_empty() and g._enemy(enemy.id).gone,"LINK no pair leaves without invented endpoints or widened installation")
+ var enemy=g.state.enemies[0]
+ var concrete=g.EquipmentOffers.links(g,1)[0]
+ before=g.export_snapshot()
+ t.check(not g.Application.execute_concrete(g,concrete,enemy.id,true).ok and g.export_snapshot()==before,"LINK explicit legacy request rejects before evasion, RNG or equipment changes")
+ enemy.intent=g.EnemyPlans.application(["link_rope"],2,2,1,true)
+ t.check(t.action(g,"end").ok and g.state.links.is_empty() and g._enemy(enemy.id).gone,"LINK retired final pool leaves normally without installing a rope")
  empty_point_priority(t)
 
 static func empty_point_priority(t) -> void:

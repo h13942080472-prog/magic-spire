@@ -22,8 +22,18 @@ static func definitions() -> Dictionary:
  var versatile_special={"kind":"apply","text":"安装一件初级2档性玩具","delayed":false,"final":false,"replace":true,"count":1,"grade":1,"tier":2,"pool":"special","templates":Special.RANDOM_POOLS[1].duplicate()}
  var versatile_control={"kind":"versatile_control","text":"寻找可以上锁或加固的拘束具","delayed":false}
  var result={
- "rope_master":{"behavior":"rope_master","humanoid":true,"visual":"rope_master","name":"绳艺大师","hp":140,"strength":6,"order":62,"capture_kind":"rope_master","capture_start":0.0,"install_pool":["rope","cord","link_rope"]},
- "rope_assistant":{"behavior":"rope_assistant","humanoid":true,"can_arrest":false,"visual":"rope_assistant","name":"绳艺助理","hp":36,"order":61,"install_pool":["rope","cord","link_rope"]},
+ "reinforced_rope":{"behavior":"reinforced_rope","visual":"reinforced_rope","name":"魔力强化绳索","hp":23,"debut_act":2,"hp_rolls":6,"hit_cap":8,"order":11,"strength":1,"ordinary_max_grade":3,"install_pool":["rope","cord"]},
+ "drone_operator":{"behavior":"drone_operator","humanoid":true,"visual":"drone_operator","name":"无人机操作员","hp":108,"hp_rolls":1,"debut_act":2,"order":42},
+ "operator_drone":{"behavior":"operator_drone","mechanical":true,"capture_kind":"drone","capture_start":30.0,"capture_pose":"stand","include_shackles":false,"visual":"operator_drone","name":"魔导无人机","hp":20,"hp_rolls":1,"debut_act":2,"order":44,"install_pool":["tape","eye_tape","mouth_tape"],"special_pool":Special.prison_pool(1,true)+Special.prison_pool(2,true)+Special.prison_pool(3,true)},
+ "succubus_detective":{"behavior":"succubus_detective","humanoid":true,"visual":"succubus_detective","name":"魅魔侦探","hp":86,"hp_rolls":1,"debut_act":2,"order":49,"capture_kind":"succubus_detective","capture_start":40.0,"include_shackles":false,"install_pool":["cable_tie","handcuffs","ankle_cuffs"],"special_pool":Special.prison_pool(1,true)+Special.prison_pool(2,true)+Special.prison_pool(3,true)},
+ "tape_mass":{"behavior":"tape_mass","visual":"tape_mass","name":"胶带团","hp":76,"hp_rolls":1,"debut_act":2,"order":31,"install_pool":["tape","eye_tape","mouth_tape"]},
+ "anti_mage_drone":{"behavior":"anti_mage_drone","mechanical":true,"capture_kind":"anti_mage_drone","capture_start":40.0,"include_shackles":false,"visual":"anti_mage_drone","name":"对法师特化无人机Ⅱ型","hp":70,"hp_rolls":1,"debut_act":2,"order":44,"install_pool":["belt","fine_belt","eye_leather","mouth_band"]},
+ "binding_box_plus":{"behavior":"binding_box_plus","mechanical":true,"can_arrest":false,"include_shackles":false,"visual":"binding_box_plus","name":"拘束盒 Plus","hp":86,"hp_rolls":1,"debut_act":2,"order":43,"strength":2,"ordinary_max_grade":3,"install_pool":["belt","fine_belt","tape","cable_tie","mouth_tape","mouth_band"],"special_pool":Special.RANDOM_POOLS[1].duplicate()},
+ "mana_smuggler":{"behavior":"mana_smuggler","humanoid":true,"include_shackles":false,"visual":"mana_smuggler","name":"魔力走私者","hp":55,"previous_base_hp":[45.0],"hp_rolls":1,"debut_act":2,"order":45,"strength":1,"ordinary_max_grade":3,"install_pool":["belt","fine_belt","rope","cord","cable_tie","tape"]},
+ "mini_restraint_mech":{"behavior":"restraint_mechs","mechanical":true,"can_arrest":false,"include_shackles":false,"visual":"mini_restraint_mech","name":"微型拘束机甲","hp":32,"hp_rolls":1,"debut_act":2,"order":46,"strength":1,"ordinary_max_grade":3,"install_pool":["belt","fine_belt","eye_leather","mouth_band"]},
+ "support_restraint_mech":{"behavior":"restraint_mechs","mechanical":true,"include_shackles":false,"visual":"support_restraint_mech","name":"辅助拘束机甲","hp":30,"hp_rolls":1,"debut_act":2,"order":47,"strength":1,"capture_kind":"support_restraint_mech","capture_start":40.0,"special_max_grade":2,"special_pool":Special.RANDOM_POOLS[2].duplicate()},
+ "rope_master":{"behavior":"rope_master","humanoid":true,"visual":"rope_master","name":"绳艺大师","hp":140,"strength":6,"order":62,"capture_kind":"rope_master","capture_start":0.0,"install_pool":["rope","cord"]},
+ "rope_assistant":{"behavior":"rope_assistant","humanoid":true,"can_arrest":false,"visual":"rope_assistant","name":"绳艺助手","hp":36,"order":61,"install_pool":["rope","cord"]},
  "iron_man":{"behavior":"iron_man","humanoid":true,"mechanical":true,"visual":"iron_man","name":"铁男","hp":140,"strength":6,"order":40,"capture_kind":"iron_man","capture_start":30.0,"capture_poses":["sit","lie"],"install_pool":["belt","fine_belt","eye_leather","mouth_band"]},
  "iron_drone":{"behavior":"iron_drone","mechanical":true,"can_arrest":false,"capture_kind":"iron_drone","capture_start":20.0,"visual":"drone","name":"捕缚无人机","hp":40,"order":44},
  "puppeteer":{"behavior":"puppeteer","humanoid":true,"visual":"puppeteer","name":"玩偶师","hp":96,"order":51,"damage_cap":30.0,"special_pool":Special.RANDOM_POOLS[2].duplicate()},
@@ -41,17 +51,17 @@ static func definitions() -> Dictionary:
    "roll":{"weight":30,"limit":2,"plan":{"kind":"apply","text":"翻卷收紧","delayed":false,"pool":"ordinary","templates":ordinary_initial+["mouth_band"],"grade":1,"tier":2,"profiles":RestraintValue.profiles(3),"count":1,"replace":false,"tighten_after":true}},
    "swell":{"weight":45,"limit":1,"plan":{"kind":"charge","text":"躁动膨胀","delayed":false,"quantity_gain":1}}}},
  "rope_serpent":{"behavior":"restraint","visual":"rope_serpent","name":"游动的绳蛇","hp":60,"strength":3,"order":27,
-  "install_pool":["rope","cord","link_rope"],"final_pool":["rope","cord","link_rope"],"restraint_name":"绳索","install_grade":1,"install_count":2,
+  "install_pool":["rope","cord"],"final_pool":["rope","cord"],"restraint_name":"绳索","install_grade":1,"install_count":2,
   "cycle":["turn_install","random_strike"],"turn_install_effect":{"name":"紧缠","timing":"turn_end","stack":true}},
  "ominous_circle":{"behavior":"sequence","visual":"ominous_circle","name":"看着不妙的魔法阵","hp":40,"strength":2,"order":47,
   "ritual_gain":3,"opening":[{"kind":"charge","ritual_gain":3,"text":"启动仪式","delayed":false}],
   "repeat_cycle":[{"kind":"apply","text":"施加拘束具，无处添加时加固","delayed":false,"pool":"ordinary","templates":ordinary_medium.duplicate(),"grade":1,"tier":2,"count":1,"replace":false,"tighten_missing":true,"profiles":RestraintValue.profiles(3)}]},
  "trader":{"behavior":"humanoid","humanoid":true,"visual":"trader","name":"奴隶贩子","full_name":"被魔法控制的奴隶贩子","hp":56,"strength":2,"order":48,
   "opening":opening,"repeat_cycle":[opening[0].duplicate(true),opening[2].duplicate(true),opening[3].duplicate(true)],"repeat_count":2},
- "rope_heap":{"install_pool":["rope","cord","link_rope"],"final_pool":["rope","cord"],"behavior":"restraint","visual":"rope_heap","name":"一堆绳","hp":96,"order":26,
+ "rope_heap":{"install_pool":["rope","cord"],"final_pool":["rope","cord"],"behavior":"restraint","visual":"rope_heap","name":"一堆绳","hp":96,"order":26,
   "install_grade":2,"cycle":["turn_install","prepare","install_pair","tighten_pair","prepare_burst","split_burst"],"turn_install_effect":{"name":"绳索增生","timing":"turn_start","stack":false},
   "split_threshold":0.5,"split_spawns":[{"type":"rope_mass","grade":2,"hp_ratio":1.0},{"type":"rope","grade":1,"hp_ratio":0.5},{"type":"rope","grade":1,"hp_ratio":0.5}]},
- "rope_mass":{"install_pool":["rope","cord","link_rope"],"final_pool":["rope","cord","link_rope"],"behavior":"restraint","visual":"rope_mass","name":"一团绳","hp":48,"strength":3,"order":25,
+ "rope_mass":{"install_pool":["rope","cord"],"final_pool":["rope","cord"],"behavior":"restraint","visual":"rope_mass","name":"一团绳","hp":48,"strength":3,"order":25,
   "install_grade":2,"cycle":["prepare_install","install_prepared","tighten"],"defeat_spawns":[{"type":"rope","grade":1},{"type":"rope","grade":1}]},
  "binding_box":{"behavior":"binding_box","mechanical":true,"capture_kind":"binding_box","capture_start":40.0,"capture_pose":"sit","capture_turn_install":true,
   "visual":"binding_box","name":"魔导拘束盒","hp":64,"strength":4,"order":43,
@@ -59,7 +69,7 @@ static func definitions() -> Dictionary:
   "carried_composites":[{"family":"leg","variant":"upper","straps":"straight"},{"family":"leg","variant":"lower","straps":"straight"},{"family":"glove","variant":"short","straps":"straight"}]},
  "drone":{"behavior":"drone","mechanical":true,"capture_kind":"drone","capture_start":30.0,"capture_pose":"stand","visual":"drone","name":"魔导无人机","hp":32,"strength":2,"order":44,"install_pool":["tape","eye_tape","mouth_tape"]},
  "guard":{"capture_kind":"guard","capture_start":50.0,"behavior":"guard","humanoid":true,"visual":"guard","visual_pool":["guard_purple","guard_brown"],"name":"魅魔警卫","hp":B.GUARD_HP,"order":50},
- "rope":{"install_pool":["rope","cord","link_rope"],"final_pool":["rope","cord","link_rope"],"behavior":"restraint","visual":"rope","name":"漂浮绳索","hp":B.ROPE_HP,"strength":1,"order":10},
+ "rope":{"install_pool":["rope","cord"],"final_pool":["rope","cord"],"behavior":"restraint","visual":"rope","name":"漂浮绳索","hp":B.ROPE_HP,"strength":1,"order":10},
  "belt":{"install_pool":["belt","fine_belt","eye_leather"],"final_pool":["belt","fine_belt","eye_leather"],"behavior":"restraint","visual":"belt","name":"漂浮皮带","hp":B.BELT_HP,"strength":1,"order":20},
  "tape":{"install_pool":["tape","eye_tape","mouth_tape"],"final_pool":["tape","eye_tape","mouth_tape"],"behavior":"restraint","visual":"tape","name":"漂浮胶带","hp":30,"strength":1,"order":30},
  "cable_tie":{"install_pool":["cable_tie"],"final_pool":["cable_tie"],"behavior":"restraint","visual":"cable_tie","name":"漂浮扎带","hp":30,"strength":1,"order":35},
@@ -117,6 +127,16 @@ static var ENCOUNTERS={
  "belt_heap_solo":{"group":"精英","rank":"elite","members":[{"type":"belt_heap","grade":2}]},
  "rope_heap_solo":{"group":"精英","rank":"elite","members":[{"type":"rope_heap","grade":2}]},
  "rope_mass_solo":{"group":"强怪练习","rank":"strong","members":[{"type":"rope_mass","grade":2}]},
+ "reinforced_rope_trio":{"group":"魔力强化绳索×3","rank":"weak","members":[{"type":"reinforced_rope","grade":1},{"type":"reinforced_rope","grade":1},{"type":"reinforced_rope","grade":1}]},
+ "reinforced_rope_quartet":{"group":"魔力强化绳索×4","rank":"strong","members":[{"type":"reinforced_rope","grade":1},{"type":"reinforced_rope","grade":1},{"type":"reinforced_rope","grade":1},{"type":"reinforced_rope","grade":1}]},
+ "drone_operator_solo":{"group":"无人机操作员","rank":"strong","members":[{"type":"drone_operator","grade":2}]},
+ "succubus_detective_solo":{"group":"魅魔侦探","rank":"strong","members":[{"type":"succubus_detective","grade":2}]},
+ "tape_mass_solo":{"group":"胶带团","rank":"strong","members":[{"type":"tape_mass","grade":2}]},
+ "anti_mage_drone_solo":{"group":"对法师特化无人机Ⅱ型","rank":"strong","members":[{"type":"anti_mage_drone","grade":2}]},
+ "binding_box_plus_circle":{"group":"拘束盒 Plus 与不妙法阵","rank":"strong","members":[{"type":"binding_box_plus","grade":2},{"type":"ominous_circle","grade":2}]},
+ "binding_box_plus_solo":{"group":"拘束盒 Plus","rank":"weak","members":[{"type":"binding_box_plus","grade":2}]},
+ "mana_smuggler_pair":{"group":"魔力走私者×2","rank":"weak","members":[{"type":"mana_smuggler","grade":1,"thefts":3},{"type":"mana_smuggler","grade":1,"thefts":4}]},
+ "restraint_mech_pair":{"group":"双拘束机甲","rank":"weak","members":[{"type":"mini_restraint_mech","grade":1},{"type":"support_restraint_mech","grade":2}]},
  "weak_group":{"group":"弱怪组合","rank":"weak","members":[],"weak_strength":FirstFloor.WEAK_STRENGTH},
  "guard_solo":{"group":"精英","rank":"elite","members":[{"type":"guard","grade":2}]},
  "double_guard":{"group":"双魅魔警卫","rank":"elite","members":[{"type":"guard","grade":2},{"type":"guard","grade":2}]},
@@ -163,6 +183,9 @@ static func damage_multiplier(g, type: String, damage_type: String) -> float:
   var override=g.RelicEffects.definition(g,id).modifiers.get("mechanical_damage_reduction_percent",-1)
   if override>=0: reduction=minf(reduction,override)
  return 1.0-reduction/100.0
+
+static func cap_hit(enemy: Dictionary, damage: float) -> float:
+ return minf(damage,TYPES[enemy.type].get("hit_cap",INF))
 
 static func barrier_limit(enemy: Dictionary, health_scale: float) -> float:
  return TYPES[enemy.type].get("damage_cap",INF)*health_scale
