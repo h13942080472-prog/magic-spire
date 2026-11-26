@@ -880,9 +880,7 @@ static func route_history_escape_keeps_generation(t) -> void:
    preload("res://tests/exploration_fixture.gd").at_site(h,"vent")
    t.check(t.action(h,"prison",{"action":"vent_exit"}).ok,"ROUTEHIST-4 the vent exit is a real escape")
   else:
-   h._gain_tool("return_seal")
-   var seal=h.state.items.filter(func(item):return String(item.type)=="return_seal")[0]
-   t.check(t.action(h,"item_use",{"item":seal.id,"target":"hero"}).ok,"ROUTEHIST-4 the return seal is a real escape")
+   t.check(t.action(h,"relic_discharge",{"relic":"return_seal"}).ok,"ROUTEHIST-4 the return seal is a real escape")
   var record=route_last(h)
   t.check(route_history_of(h).size()==1 and String(record.get("enter",""))==ROUTE_ESCAPE and String(record.get("region",""))=="prison","ROUTEHIST-4 alternative escape "+route+" writes one escape record")
   t.check(String(record.get("boss",""))=="" and int(record.get("generation",-2))==0 and int(record.get("security",-1))==h.state.security,"ROUTEHIST-4 alternative escape "+route+" keeps generation, summit and security")
@@ -1055,7 +1053,7 @@ static func route_history_pre_revision_backfill(t) -> void:
 static func route_history_roundtrip(t) -> void:
  var g=CoreGame.new(42)
  var history=route_history_of(g).duplicate(true)
- t.check(CoreGame.Snapshot.REVISION==55 and not history.is_empty(),"ROUTEHIST-12 the additive field ships without a revision bump")
+ t.check(not history.is_empty(),"ROUTEHIST-12 a new save carries the route history")
  var restored=roundtrip(t,g,"route history")
  if restored==null: return
  t.check(route_history_of(restored)==history,"ROUTEHIST-12 the written and read history is identical")
