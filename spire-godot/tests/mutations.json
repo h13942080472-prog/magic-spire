@@ -517,6 +517,60 @@
       "find": "for path in inputs: lines.append(_key(path)+\":\"+SourceText.normalized_text_sha256(path))",
       "replace": "for path in inputs: lines.append(_key(path)+\":\"+FileAccess.get_file_as_string(path).sha256_text())",
       "suite": "runner"
+    },
+    "route_history_single_writer": {
+      "file": "core/game.gd",
+      "find": "if not continuation:\n  _transition_log.append(kind)\n  if bool(spec.get(\"route\",false)): RouteHistory.open(self,kind)\n _transition_written=",
+      "replace": "if not continuation:\n  _transition_log.append(kind)\n if bool(spec.get(\"route\",false)): RouteHistory.open(self,kind)\n _transition_written=",
+      "suite": "architecture"
+    },
+    "route_switch_declared": {
+      "file": "core/game.gd",
+      "find": " \"setup_init\":{\"phases\":[\"map\"],\"room\":false,\"route\":true,\"tx\":false,\"owners\":[\"_init\"]},",
+      "replace": " \"setup_init\":{\"phases\":[\"map\"],\"room\":false,\"tx\":false,\"owners\":[\"_init\"]},",
+      "suite": "architecture"
+    },
+    "route_reason_branches_declared": {
+      "file": "core/route_history.gd",
+      "find": "   if int(g.state.demo_cycle)>int(last.get(\"cycle\",0)): return ENTER_CYCLE\n   if _serving_sentence(g): return ENTER_RELEASE\n   if String(last.get(\"region\",\"\"))==REGION_PRISON: return ENTER_GATE_EXIT",
+      "replace": "   if String(last.get(\"region\",\"\"))==REGION_PRISON: return ENTER_GATE_EXIT\n   if _serving_sentence(g): return ENTER_RELEASE\n   if int(g.state.demo_cycle)>int(last.get(\"cycle\",0)): return ENTER_CYCLE",
+      "suite": "architecture"
+    },
+    "route_history_second_capture_release": {
+      "file": "core/route_history.gd",
+      "find": "   if _serving_sentence(g): return ENTER_RELEASE\n   if String(last.get(\"region\",\"\"))==REGION_PRISON: return ENTER_GATE_EXIT",
+      "replace": "   if String(last.get(\"region\",\"\"))==REGION_PRISON: return ENTER_GATE_EXIT\n   if _serving_sentence(g): return ENTER_RELEASE",
+      "suite": "persistence"
+    },
+    "route_reason_called_only_by_open": {
+      "file": "core/demo_exit.gd",
+      "find": "static func continue_run(g) -> void:",
+      "replace": "static func _route_reason_probe(g) -> String:\n var route=g.RouteHistory\n if route._serving_sentence(g): return \"\"\n return g.RouteHistory.reason(g,\"x\")\n\nstatic func continue_run(g) -> void:",
+      "suite": "architecture"
+    },
+    "route_legacy_backfill_is_pinned": {
+      "file": "core/game.gd",
+      "find": " if not candidate.has(\"route_history\"): candidate.route_history=RouteHistory.backfill(candidate)\n",
+      "replace": "",
+      "suite": "architecture"
+    },
+    "route_history_no_version": {
+      "file": "core/route_history.gd",
+      "find": "const KEYS=[\"enter\"",
+      "replace": "# version probe\nconst KEYS=[\"enter\"",
+      "suite": "architecture"
+    },
+    "route_history_switch_matrix": {
+      "file": "core/game.gd",
+      "find": " \"prison_escape\":{\"phases\":[\"map\"],\"room\":true,\"route\":true,\"tx\":true,\"owners\":[\"Prison.escape\"]},",
+      "replace": " \"prison_escape\":{\"phases\":[\"map\"],\"room\":true,\"tx\":true,\"owners\":[\"Prison.escape\"]},",
+      "suite": "persistence"
+    },
+    "route_history_references_are_pinned": {
+      "file": "core/demo_exit.gd",
+      "find": "static func end_detail(_g, _args: Dictionary) -> String:\n return \"结束本次游玩。\"",
+      "replace": "static func end_detail(_g, _args: Dictionary) -> String:\n var history: Array=_g.state.route_history\n history.append({\"enter\":\"probe\"})\n return \"结束本次游玩。\"",
+      "suite": "architecture"
     }
   }
 }

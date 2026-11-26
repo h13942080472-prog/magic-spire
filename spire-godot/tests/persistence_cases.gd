@@ -728,6 +728,474 @@ static func save_and_random_untouched(t) -> void:
   var refused=g.dispatch(g.command(blocked[0].payload,g.state.version),g.state.version)
   t.check(not refused.ok and store.writes==refused_before,"G9 save_and_random_untouched: a refused command writes nothing")
 
+# ==== 塔路历史（docs/spec/save-fixed-points.md「加性字段与只读入口」）====
+# 判据只观察正式输入（find_action／action／dispatch）、state.route_history、export_snapshot 与
+# restore_snapshot 的结果，不直接调用 core/route_history.gd；真实塔路用 CoreGame，夹具塔路只用于
+# 需要构造场景的分支。
+const ROUTE_KEYS=["boss","cycle","enter","floor","generation","nodes","region","security","seed"]
+const ROUTE_START="start"
+const ROUTE_RELEASE="release"
+const ROUTE_ESCAPE="escape"
+const ROUTE_GATE_EXIT="gate_exit"
+const ROUTE_CYCLE="cycle"
+const ROUTE_UNKNOWN="unknown"
+
+static func route_history_of(g) -> Array:
+ var history=g.state.get("route_history",[])
+ return history if history is Array else []
+
+static func route_record(g, index: int) -> Dictionary:
+ var history=route_history_of(g)
+ return history[index] if index>=0 and index<history.size() else {}
+
+static func route_last(g) -> Dictionary:
+ return route_record(g,route_history_of(g).size()-1)
+
+# 塔路移动只有 travel_step 一个真实指令；夹具不另造路径。
+static func route_travel(t, g) -> void:
+ var guard=0
+ while g.state.phase=="travel" and guard<20:
+  guard+=1
+  if not t.action(g,"travel_step").ok: break
+
+static func route_keys_sorted(record: Dictionary) -> Array:
+ var keys=record.keys().map(func(key):return String(key))
+ keys.sort()
+ return keys
+
+# 只缩短生命，攻击、支付、奖励与整备全部走正式候选与提交。
+static func route_win_battle(t, g) -> void:
+ for enemy in g.state.enemies: enemy.hp=1.0
+ var guard=0
+ while g.state.phase=="battle" and guard<80:
+  guard+=1
+  var attack=preload("res://tests/route_driver.gd").attack(g)
+  if attack.is_empty():
+   if not t.action(g,"end").ok: break
+  else:
+   var result=g.dispatch(g.command(attack.payload,g.state.version),g.state.version)
+   if not result.ok:
+    t.check(false,"ROUTEHIST battle attack commits: "+String(result.get("error","")))
+    break
+ guard=0
+ while g.state.phase=="reward" and guard<10:
+  guard+=1
+  var skip=t.find_action(g,"reward",{"type":"skip"},true)
+  if not skip.valid: break
+  t.check(t.action(g,"reward",{"type":"skip"}).ok,"ROUTEHIST a reward leaves through the real continue")
+ guard=0
+ while g.state.phase=="pack" and guard<10:
+  guard+=1
+  var pack=preload("res://tests/route_driver.gd").packing_action(g)
+  if pack.is_empty(): break
+  g.dispatch(g.command(pack.payload,g.state.version),g.state.version)
+ guard=0
+ while g.state.phase=="prepare" and guard<10:
+  guard+=1
+  var finish=t.find_action(g,"finish_prepare",{},true)
+  if not finish.valid: break
+  t.check(t.action(g,"finish_prepare").ok,"ROUTEHIST preparation ends through the real command")
+
+static func route_new_run(t):
+ var g=CoreGame.new(42)
+ t.check(g.state.phase=="departure" and route_history_of(g).size()==1,"ROUTEHIST-1 a real new run opens one record before the first floor")
+ t.check(t.action(g,"departure",{"op":"skip"}).ok,"ROUTEHIST-1 the real departure command starts the run")
+ var rooms=g.state.rooms.filter(func(room):return int(room.get("floor",-2))==0 and room.next.any(func(target):return String(g.room_data(target).get("pool",""))=="ordinary"))
+ t.check(not rooms.is_empty(),"ROUTEHIST-1 the generated tower has a first floor with an ordinary battle neighbour")
+ if rooms.is_empty(): return g
+ t.check(t.action(g,"depart",{"room":rooms[0].id}).ok,"ROUTEHIST-1 the first-floor departure is a real command")
+ route_travel(t,g)
+ t.check(g.state.phase=="battle","ROUTEHIST-1 arrival starts the first-floor battle")
+ return g
+
+static func route_capture(t, g) -> void:
+ t.check(t.action(g,"surrender").ok,"ROUTEHIST the real surrender captures instead of bypassing the battle")
+ t.check(g.state.phase=="captured","ROUTEHIST capture reaches the captured phase")
+ t.check(t.action(g,"prison",{"action":"enter"}).ok,"ROUTEHIST the real intake enters the cell")
+
+static func route_history_start_record(t) -> void:
+ var g=route_new_run(t)
+ var record=route_record(g,0)
+ t.check(route_keys_sorted(record)==ROUTE_KEYS,"ROUTEHIST-1 the start record has exactly the declared keys")
+ t.check(String(record.get("enter",""))==ROUTE_START and int(record.get("cycle",-1))==0 and int(record.get("generation",-1))==0,"ROUTEHIST-1 the start record says start, cycle zero and generation zero")
+ t.check(String(record.get("region",""))=="tower" and int(record.get("seed",0))==42 and String(record.get("boss",""))==String(g.state.room_encounters.get("summit","")),"ROUTEHIST-1 the start record keeps region, seed and the summit encounter")
+ t.check(int(record.get("security",-1))==0 and int(record.get("nodes",0))==-1 and int(record.get("floor",0))==-1,"ROUTEHIST-1 security starts at zero and nodes/floor wait for the first close")
+ var stable=g.export_snapshot()
+ g.get_view();g.route_view();g.command_facts()
+ t.check(g.export_snapshot()==stable and route_history_of(g).size()==1,"ROUTEHIST-1 pure display reads neither append nor rewrite a record")
+
+static func route_history_practice_isolated(t) -> void:
+ for kind in ["equipment","guard"]:
+  var g=CoreGame.new(42,true,kind)
+  t.check(g.state.has("route_history"),"ROUTEHIST-2 practice "+kind+" carries the declared field with no record")
+  t.check(route_history_of(g).is_empty(),"ROUTEHIST-2 practice "+kind+" starts no tower-route record")
+  for i in range(3): t.action(g,"end")
+  t.check(route_history_of(g).is_empty(),"ROUTEHIST-2 practice "+kind+" turns stay outside the tower history")
+
+static func route_history_release_closes_route(t) -> void:
+ var g=route_new_run(t)
+ route_win_battle(t,g)
+ t.check(g.state.phase=="map" and g.state.completed_rooms.size()==1,"ROUTEHIST-3 one real room is completed before capture")
+ var rooms=g.route_view().filter(func(room):return String(room.get("status",""))=="available" and String(room.get("icon","")) in ["battle","boss"])
+ t.check(not rooms.is_empty(),"ROUTEHIST-3 the completed room exposes a battle room")
+ if rooms.is_empty(): return
+ t.check(t.action(g,"depart",{"room":rooms[0].id}).ok,"ROUTEHIST-3 the next battle room departs for real")
+ route_travel(t,g)
+ route_capture(t,g)
+ var k=g.state.completed_rooms.size()
+ var expected_floor=0
+ for id in g.state.completed_rooms:
+  var room=g.room_data(String(id))
+  if not room.is_empty(): expected_floor=maxi(expected_floor,int(room.floor)+1)
+ t.check(k==1 and expected_floor==1,"ROUTEHIST-3 expected nodes and floor come from the closed route itself")
+ g.state.prison.key=true
+ g.state.prison.served_turns=g.Prison.sentence_limit(g)-1
+ t.check(t.action(g,"end").ok,"ROUTEHIST-3 the sentence ends on a real completed turn")
+ var history=route_history_of(g)
+ t.check(history.size()==2,"ROUTEHIST-3 release appends exactly one route record")
+ var opened=route_record(g,1);var closed=route_record(g,0)
+ t.check(String(opened.get("enter",""))==ROUTE_RELEASE and int(opened.get("generation",-1))==1,"ROUTEHIST-3 release opens the next generation")
+ t.check(String(opened.get("region",""))=="tower" and int(opened.get("cycle",-1))==0 and String(opened.get("boss",""))==String(closed.get("boss","")),"ROUTEHIST-3 release keeps region, cycle and summit")
+ t.check(int(closed.get("nodes",-1))==k and int(closed.get("floor",-1))==expected_floor,"ROUTEHIST-3 the closed record carries the completed node count and reached floor")
+ t.check(int(closed.get("cycle",-1))==0 and String(closed.get("enter",""))==ROUTE_START,"ROUTEHIST-3 the start record stays closed in place")
+
+static func route_history_escape_keeps_generation(t) -> void:
+ var g=route_new_run(t)
+ route_capture(t,g)
+ var generation=int(route_record(g,0).get("generation",-1))
+ var security=g.state.security
+ preload("res://tests/prison_cases.gd").exit_to_route(t,g)
+ var history=route_history_of(g)
+ t.check(history.size()==2,"ROUTEHIST-4 an escape appends exactly one record")
+ var escape=route_record(g,1)
+ t.check(String(escape.get("enter",""))==ROUTE_ESCAPE and String(escape.get("region",""))=="prison","ROUTEHIST-4 the escape record says escape and prison")
+ t.check(int(escape.get("generation",-2))==generation and String(escape.get("boss",""))=="" and int(escape.get("security",-1))==security,"ROUTEHIST-4 the escape keeps generation, clears the summit and carries security")
+ t.check(int(route_record(g,0).get("nodes",-1))==0 and int(route_record(g,0).get("floor",-1))==0,"ROUTEHIST-4 the closed tower record keeps the zero-room backfill")
+ for route in ["vent","seal"]:
+  var h=preload("res://tests/prison_cases.gd").intake(t)
+  preload("res://tests/prison_cases.gd").clear_fixture(h)
+  if route=="vent":
+   preload("res://tests/exploration_fixture.gd").mark_found(h,"vent")
+   h.state.prison.vent_hits=h.B.PRISON_VENT_HITS
+   preload("res://tests/exploration_fixture.gd").at_site(h,"vent")
+   t.check(t.action(h,"prison",{"action":"vent_exit"}).ok,"ROUTEHIST-4 the vent exit is a real escape")
+  else:
+   t.check(t.action(h,"relic_discharge",{"relic":"return_seal"}).ok,"ROUTEHIST-4 the return seal is a real escape")
+  var record=route_last(h)
+  t.check(route_history_of(h).size()==1 and String(record.get("enter",""))==ROUTE_ESCAPE and String(record.get("region",""))=="prison","ROUTEHIST-4 alternative escape "+route+" writes one escape record")
+  t.check(String(record.get("boss",""))=="" and int(record.get("generation",-2))==0 and int(record.get("security",-1))==h.state.security,"ROUTEHIST-4 alternative escape "+route+" keeps generation, summit and security")
+
+# 越狱后走到出口守卫战，再用正式奖励与整备回到新塔；-5 与 -8 共用这条真实序列。
+static func route_escape_and_gate(t):
+ var g=route_new_run(t)
+ route_capture(t,g)
+ preload("res://tests/prison_cases.gd").exit_to_route(t,g)
+ preload("res://tests/prison_cases.gd").travel_route(t,g,"prison_rest")
+ t.check(t.action(g,"rest_begin").ok and g.state.phase=="rest","ROUTEHIST-5 the prison rest room starts for real")
+ t.check(t.action(g,"finish_rest").ok,"ROUTEHIST-5 rest ends for real")
+ preload("res://tests/prison_cases.gd").travel_route(t,g,"prison_gate")
+ t.check(g.state.phase=="battle","ROUTEHIST-5 the exit gate starts the guard battle")
+ route_win_battle(t,g)
+ return g
+
+static func route_history_gate_exit_appends(t) -> void:
+ var g=route_escape_and_gate(t)
+ t.check(g.state.phase=="map" and g.state.room=="tower_bottom" and g.state.map_region=="tower","ROUTEHIST-5 the gate reward returns to a new tower")
+ var history=route_history_of(g)
+ t.check(history.size()==3,"ROUTEHIST-5 the gate return appends exactly one record")
+ var opened=route_record(g,2);var closed=route_record(g,1)
+ t.check(String(opened.get("enter",""))==ROUTE_GATE_EXIT and String(opened.get("region",""))=="tower","ROUTEHIST-5 the return reason is gate_exit")
+ t.check(int(opened.get("generation",-1))==int(closed.get("generation",-2))+1 and int(opened.get("cycle",-1))==0,"ROUTEHIST-5 the gate return advances one generation without changing cycle")
+ t.check(int(closed.get("nodes",-1))>0 and int(closed.get("floor",-1))>0,"ROUTEHIST-5 the closed escape route records completed prison nodes and floor")
+ t.check(int(opened.get("security",-1))==int(closed.get("security",-2)),"ROUTEHIST-5 cumulative security survives the return")
+
+# 换塔后塔底入口的下一层是第 0 层，data/tower.gd::generate 把第 0 层固定为战斗房；只发真实 depart／travel_step。
+static func route_depart_first_battle(t, g) -> bool:
+ var targets=[]
+ for id in g.room_data(g.state.room).get("next",[]):
+  var room=g.room_data(String(id))
+  if int(room.get("floor",-2))==0 and String(room.get("kind",""))=="battle": targets.append(String(id))
+ t.check(not targets.is_empty(),"ROUTEHIST the new tower exposes a first-floor battle")
+ if targets.is_empty(): return false
+ if not t.action(g,"depart",{"room":targets[0]}).ok: return false
+ route_travel(t,g)
+ return g.state.phase=="battle"
+
+# 越狱路线走到出口守卫战并以投降再次被收押：只经真实指令推进，不碰 core/route_history.gd。
+static func route_escape_to_gate_capture(t):
+ var g=route_new_run(t)
+ route_capture(t,g)
+ preload("res://tests/prison_cases.gd").exit_to_route(t,g)
+ preload("res://tests/prison_cases.gd").travel_route(t,g,"prison_rest")
+ t.check(t.action(g,"rest_begin").ok and g.state.phase=="rest","ROUTEHIST the prison rest room starts for real")
+ t.check(t.action(g,"finish_rest").ok,"ROUTEHIST the prison rest room ends for real")
+ preload("res://tests/prison_cases.gd").travel_route(t,g,"prison_gate")
+ t.check(g.state.phase=="battle" and g.state.map_region=="prison","ROUTEHIST the exit gate starts the guard battle inside the prison region")
+ route_capture(t,g)
+ t.check(g.state.map_region=="prison","ROUTEHIST the second capture keeps the prison region, the old gate_exit guess")
+ return g
+
+# 越狱路线在出口守卫战再次被收押后服满刑期，进入原因仍是 release。
+# 判别信号取挂载点当时的状态（state.prison 仍非空），不按上一条记录的 region。
+static func route_history_second_capture_release(t) -> void:
+ var g=route_escape_to_gate_capture(t)
+ var history=route_history_of(g)
+ t.check(history.size()==2,"ROUTEHIST route_history_second_capture_release: the escape route holds two records before serving")
+ var escape=route_record(g,1)
+ t.check(String(escape.get("enter",""))==ROUTE_ESCAPE and String(escape.get("region",""))=="prison","ROUTEHIST route_history_second_capture_release: the second capture opens no tower record")
+ t.check(not g.state.prison.is_empty() and bool(g.state.prison.get("active",false)),"ROUTEHIST route_history_second_capture_release: the mount point still sees the active cell")
+ g.state.prison.key=true
+ g.state.prison.served_turns=g.Prison.sentence_limit(g)-1
+ t.check(t.action(g,"end").ok,"ROUTEHIST route_history_second_capture_release: the sentence ends on a real completed turn")
+ history=route_history_of(g)
+ t.check(history.size()==3,"ROUTEHIST route_history_second_capture_release: the release appends exactly one record")
+ var opened=route_record(g,2)
+ t.check(String(opened.get("enter",""))==ROUTE_RELEASE,"ROUTEHIST route_history_second_capture_release: a sentence release after a second capture opens release, not gate_exit: "+String(opened.get("enter","")))
+ t.check(int(opened.get("generation",-1))==int(escape.get("generation",-2))+1 and String(opened.get("region",""))=="tower" and int(opened.get("cycle",-1))==0,"ROUTEHIST route_history_second_capture_release: the release opens the next generation on the tower without changing cycle")
+ t.check(String(opened.get("boss",""))==String(route_record(g,0).get("boss","")),"ROUTEHIST route_history_second_capture_release: the same cycle keeps the previous summit")
+ t.check(int(opened.get("nodes",0))==-1 and int(opened.get("floor",0))==-1,"ROUTEHIST route_history_second_capture_release: the new record stays open")
+
+# cycle 之后在新一代塔路内被捕并服刑，进入原因也是 release。
+static func route_history_cycle_capture_release(t) -> void:
+ var g=route_new_run(t)
+ route_win_battle(t,g)
+ preload("res://tests/demo_exit_cases.gd").exit_fixture(g)
+ t.check(t.action(g,"demo_continue").ok,"ROUTEHIST route_history_cycle_capture_release: the real continue opens the next cycle")
+ var cycle=route_record(g,1)
+ t.check(route_history_of(g).size()==2 and String(cycle.get("enter",""))==ROUTE_CYCLE,"ROUTEHIST route_history_cycle_capture_release: the cycle switch is recorded before the capture")
+ t.check(g.state.phase=="map" and g.state.room=="tower_bottom","ROUTEHIST route_history_cycle_capture_release: the new generation starts at the tower bottom")
+ t.check(route_depart_first_battle(t,g),"ROUTEHIST route_history_cycle_capture_release: a real departure starts the new generation battle")
+ route_capture(t,g)
+ t.check(not g.state.prison.is_empty(),"ROUTEHIST route_history_cycle_capture_release: the new generation capture opens a real cell")
+ g.state.prison.key=true
+ g.state.prison.served_turns=g.Prison.sentence_limit(g)-1
+ t.check(t.action(g,"end").ok,"ROUTEHIST route_history_cycle_capture_release: the sentence ends on a real completed turn")
+ var history=route_history_of(g)
+ t.check(history.size()==3,"ROUTEHIST route_history_cycle_capture_release: the release appends exactly one record")
+ var opened=route_record(g,2)
+ t.check(String(opened.get("enter",""))==ROUTE_RELEASE,"ROUTEHIST route_history_cycle_capture_release: a capture inside the new cycle also opens release: "+String(opened.get("enter","")))
+ t.check(int(opened.get("cycle",-1))==1 and int(opened.get("generation",-1))==int(cycle.get("generation",-2))+1 and String(opened.get("region",""))=="tower","ROUTEHIST route_history_cycle_capture_release: the release keeps cycle one and advances the generation")
+
+static func route_history_cycle_and_cleared_rooms(t) -> void:
+ var g=route_new_run(t)
+ route_win_battle(t,g)
+ preload("res://tests/demo_exit_cases.gd").exit_fixture(g)
+ t.check(g.state.completed_rooms==["summit","exit"],"ROUTEHIST-6 the fixture reaches the cleared summit boundary")
+ t.check(t.action(g,"demo_continue").ok,"ROUTEHIST-6 the real continue command opens the next cycle")
+ var history=route_history_of(g)
+ t.check(history.size()==2,"ROUTEHIST-6 the cycle switch appends exactly one record")
+ var opened=route_record(g,1);var closed=route_record(g,0)
+ t.check(String(opened.get("enter",""))==ROUTE_CYCLE and int(opened.get("cycle",-1))==1 and String(opened.get("region",""))=="tower","ROUTEHIST-6 the cycle record carries the new cycle number")
+ t.check(int(closed.get("nodes",-1))==2 and int(closed.get("floor",-1))==17,"ROUTEHIST-6 the closed record backfills nodes and the reached floor")
+
+static func route_history_one_per_switch(t) -> void:
+ var g=CoreGame.new(42)
+ var before=route_history_of(g).size()
+ var log=preload("res://tests/architecture_cases.gd").transition_log(g)
+ g._restart_tower()
+ var delta=preload("res://tests/architecture_cases.gd").transition_delta(g,log)
+ t.check(route_history_of(g).size()==before+1,"ROUTEHIST-7 one tower switch appends exactly one record")
+ t.check(preload("res://tests/architecture_cases.gd").transition_kinds(delta,"tower_restart").size()==1,"ROUTEHIST-7 the switch stays one declared transition")
+
+static func route_history_is_reproducible(t) -> void:
+ var a=route_escape_and_gate(t)
+ var b=route_escape_and_gate(t)
+ t.check(route_history_of(a).size()>0,"ROUTEHIST-8 the gate exit leaves records to compare")
+ t.check(route_history_of(a)==route_history_of(b),"ROUTEHIST-8 same seed and commands reproduce the same history")
+ t.check(a.export_snapshot()==b.export_snapshot(),"ROUTEHIST-8 the whole exported state is reproducible")
+ for record in route_history_of(a):
+  t.check(route_keys_sorted(record)==ROUTE_KEYS,"ROUTEHIST-8 every record keeps the declared key set")
+
+static func route_history_rejected_switch_rolls_back(t) -> void:
+ var g=route_new_run(t)
+ preload("res://tests/demo_exit_cases.gd").exit_fixture(g)
+ var history=route_history_of(g).duplicate(true)
+ t.check(history.size()>0,"ROUTEHIST-9 the run holds one record before the rejected switch")
+ g.state.security=7
+ var version=g.state.version
+ var before=g.export_snapshot()
+ var candidate=t.find_action(g,"demo_continue")
+ var result=g.dispatch(g.command(candidate.payload,version),version)
+ t.check(not result.ok,"ROUTEHIST-9 a switch that fails the aggregate check is rejected")
+ t.check(g.export_snapshot()==before,"ROUTEHIST-9 the rejection restores the whole state byte-for-byte")
+ t.check(route_history_of(g)==history,"ROUTEHIST-9 the rejected switch appends no record")
+
+static func route_history_legacy_backfills(t) -> void:
+ var g=CoreGame.new(42)
+ var saved=g.export_snapshot()
+ saved.erase("route_history")
+ var before=saved.duplicate(true)
+ var twin=CoreGame.new(7)
+ var result=twin.restore_snapshot(saved)
+ t.check(result.ok,"ROUTEHIST-10 a save without the field still loads")
+ t.check(saved==before,"ROUTEHIST-10 the caller dictionary stays without the field")
+ var history=route_history_of(twin)
+ t.check(history.size()==1,"ROUTEHIST-10 the legacy save backfills exactly one record")
+ var record=route_record(twin,0)
+ t.check(String(record.get("enter",""))==ROUTE_UNKNOWN,"ROUTEHIST-10 the backfill is visibly unattributed")
+ t.check(int(record.get("cycle",-1))==int(twin.state.demo_cycle) and int(record.get("generation",-1))==int(twin.state.tower_generation) and String(record.get("region",""))==String(twin.state.map_region),"ROUTEHIST-10 the backfill keeps cycle, generation and region")
+ t.check(int(record.get("nodes",0))==-1 and int(record.get("floor",0))==-1,"ROUTEHIST-10 nodes and floor wait for the next real close")
+ t.check(twin.state.save_revision==CoreGame.Snapshot.REVISION,"ROUTEHIST-10 the backfill does not raise the save revision")
+ twin._restart_tower()
+ t.check(int(route_record(twin,0).get("nodes",-1))==0 and int(route_record(twin,0).get("floor",-1))==0,"ROUTEHIST-10 the next close fills the backfilled record")
+
+static func route_history_pre_revision_backfill(t) -> void:
+ var g=CoreGame.new(42)
+ var saved=g.export_snapshot()
+ saved.save_revision=CoreGame.Snapshot.IRON_DRONE_REVISION
+ saved.erase("route_history")
+ var twin=CoreGame.new(7)
+ var result=twin.restore_snapshot(saved)
+ t.check(result.ok,"ROUTEHIST-11 a pre-revision save still loads")
+ t.check(route_history_of(twin).size()==1 and String(route_record(twin,0).get("enter",""))==ROUTE_UNKNOWN,"ROUTEHIST-11 the migration backfills one unattributed record")
+ t.check(twin.state.save_revision==CoreGame.Snapshot.REVISION,"ROUTEHIST-11 loading writes only the shared current revision")
+
+static func route_history_roundtrip(t) -> void:
+ var g=CoreGame.new(42)
+ var history=route_history_of(g).duplicate(true)
+ t.check(not history.is_empty(),"ROUTEHIST-12 a new save carries the route history")
+ var restored=roundtrip(t,g,"route history")
+ if restored==null: return
+ t.check(route_history_of(restored)==history,"ROUTEHIST-12 the written and read history is identical")
+ t.check(restored.state.save_revision==CoreGame.Snapshot.REVISION,"ROUTEHIST-12 the roundtrip keeps the current revision")
+
+# ==== 加固矩阵：五类真实切换 × 三种存档形态 ====
+# 存档形态只改载入路径：本片写出的档、擦掉 route_history 的旧档、同一旧档标成 IRON_DRONE_REVISION。
+# 每一格都从真实命令推进到切换点，再经真实 dispatch 触发切换；判据只读 state.route_history 与
+# restore_snapshot 的结果（不直接调用 core/route_history.gd）。见 docs/spec/route-history.md「输入域」。
+const ROUTE_MATRIX_CAUSES=["start","release","escape","gate_exit","cycle"]
+
+# 切换点夹具：返回切换发生前的真实局面。start 之外都不触发目标切换。
+static func route_matrix_prepare(t, cause: String):
+ var g=null
+ match cause:
+  "start":
+   g=CoreGame.new(42)
+  "release":
+   g=route_new_run(t)
+   route_win_battle(t,g)
+   var rooms=g.route_view().filter(func(room):return String(room.get("status",""))=="available" and String(room.get("icon","")) in ["battle","boss"])
+   t.check(not rooms.is_empty(),"ROUTEHIST route_history_switch_matrix: the release fixture exposes a battle room")
+   if not rooms.is_empty():
+    t.check(t.action(g,"depart",{"room":rooms[0].id}).ok,"ROUTEHIST route_history_switch_matrix: the release fixture departs for a real battle")
+    route_travel(t,g)
+    route_capture(t,g)
+    g.state.prison.key=true
+    g.state.prison.served_turns=g.Prison.sentence_limit(g)-1
+  "escape":
+   g=route_new_run(t)
+   route_capture(t,g)
+   preload("res://tests/exploration_fixture.gd").at_site(g,"door")
+   g.state.prison.key=true
+   t.check(t.action(g,"prison",{"action":"key"}).ok,"ROUTEHIST route_history_switch_matrix: the escape fixture holds the cell key")
+  "gate_exit":
+   g=route_new_run(t)
+   route_capture(t,g)
+   preload("res://tests/prison_cases.gd").exit_to_route(t,g)
+   preload("res://tests/prison_cases.gd").travel_route(t,g,"prison_rest")
+   t.check(t.action(g,"rest_begin").ok,"ROUTEHIST route_history_switch_matrix: the gate fixture starts the prison rest room")
+   t.check(t.action(g,"finish_rest").ok,"ROUTEHIST route_history_switch_matrix: the gate fixture ends the prison rest room")
+   preload("res://tests/prison_cases.gd").travel_route(t,g,"prison_gate")
+  "cycle":
+   g=route_new_run(t)
+   route_win_battle(t,g)
+   preload("res://tests/demo_exit_cases.gd").exit_fixture(g)
+ return g
+
+# 载入形态：只有存档字节不同。新档保留字段；旧档与迁移档都缺字段，由 restore_snapshot 回填。
+static func route_matrix_load(t, source, form: String):
+ var saved=source.export_snapshot()
+ if form!="new":
+  saved.erase("route_history")
+  if form=="migration": saved.save_revision=CoreGame.Snapshot.IRON_DRONE_REVISION
+ var twin=CoreGame.new(7)
+ var result=twin.restore_snapshot(saved)
+ t.check(result.ok,"ROUTEHIST route_history_switch_matrix: the "+form+" save loads: "+String(result.get("error","")))
+ return twin
+
+# 真实切换：只发正式指令，不碰 RouteHistory。
+static func route_matrix_switch(t, cause: String, g) -> void:
+ match cause:
+  "start":
+   return
+  "release":
+   t.check(t.action(g,"end").ok,"ROUTEHIST route_history_switch_matrix: release closes the sentence through a real turn end")
+  "escape":
+   t.check(t.action(g,"prison",{"action":"door_exit"}).ok,"ROUTEHIST route_history_switch_matrix: escape leaves through the real door exit")
+  "gate_exit":
+   route_win_battle(t,g)
+  "cycle":
+   t.check(t.action(g,"demo_continue").ok,"ROUTEHIST route_history_switch_matrix: the cycle switch is the real continue command")
+
+# §3.5 的期望：条数、进入原因、周目、代数、区域；boss 由区域与 state.room_encounters 决定。
+static func route_matrix_expected(form: String, cause: String) -> Dictionary:
+ var counts={"new":{"start":1,"release":2,"escape":2,"gate_exit":3,"cycle":2},
+  "legacy":{"start":1,"release":2,"escape":2,"gate_exit":2,"cycle":2},
+  "migration":{"start":1,"release":2,"escape":2,"gate_exit":2,"cycle":2}}
+ var cycles={"start":0,"release":0,"escape":0,"gate_exit":0,"cycle":1}
+ var generations={"start":0,"release":1,"escape":0,"gate_exit":1,"cycle":1}
+ var regions={"start":"tower","release":"tower","escape":"prison","gate_exit":"tower","cycle":"tower"}
+ return {"count":int(counts[form][cause]),"cycle":int(cycles[cause]),"generation":int(generations[cause]),"region":String(regions[cause])}
+
+static func route_history_switch_matrix(t) -> void:
+ for cause in ROUTE_MATRIX_CAUSES:
+  var source=route_matrix_prepare(t,cause)
+  t.check(source!=null,"ROUTEHIST route_history_switch_matrix: the "+cause+" fixture builds a real run")
+  if source==null: continue
+  var before=route_history_of(source).duplicate(true)
+  for form in ["new","legacy","migration"]:
+   var g=route_matrix_load(t,source,form)
+   var loaded=route_history_of(g).duplicate(true)
+   if form=="new":
+    t.check(loaded==before,"ROUTEHIST route_history_switch_matrix: "+cause+"/new keeps the field written by this slice")
+   else:
+    t.check(loaded.size()==1 and String(route_record(g,0).get("enter",""))==ROUTE_UNKNOWN,"ROUTEHIST route_history_switch_matrix: "+cause+"/"+form+" backfills exactly one unknown record")
+   route_matrix_switch(t,cause,g)
+   var expected=route_matrix_expected(form,cause)
+   var history=route_history_of(g)
+   var label=" "+cause+"/"+form
+   t.check(history.size()==int(expected.count),"ROUTEHIST route_history_switch_matrix:"+label+" keeps "+str(expected.count)+" records: "+str(history.size()))
+   if history.is_empty(): continue
+   var record=history[-1]
+   print("ROUTEHIST MATRIX cell "+cause+"/"+form+" count="+str(history.size())+" first="+String(history[0].get("enter",""))+" last="+String(record.get("enter",""))+" cycle="+str(record.get("cycle",""))+" generation="+str(record.get("generation",""))+" region="+String(record.get("region",""))+" boss="+String(record.get("boss","")))
+   var want_enter=cause if form=="new" or cause!="start" else ROUTE_UNKNOWN
+   t.check(String(record.get("enter",""))==want_enter,"ROUTEHIST route_history_switch_matrix:"+label+" opens with "+want_enter)
+   t.check(int(record.get("cycle",-1))==int(expected.cycle),"ROUTEHIST route_history_switch_matrix:"+label+" records cycle "+str(expected.cycle))
+   t.check(int(record.get("generation",-1))==int(expected.generation),"ROUTEHIST route_history_switch_matrix:"+label+" records generation "+str(expected.generation))
+   t.check(String(record.get("region",""))==String(expected.region),"ROUTEHIST route_history_switch_matrix:"+label+" records region "+String(expected.region))
+   var want_boss="" if String(expected.region)=="prison" else String(g.state.room_encounters.get("summit",""))
+   t.check(String(record.get("boss",""))==want_boss,"ROUTEHIST route_history_switch_matrix:"+label+" records the summit id "+want_boss)
+   t.check(int(record.get("seed",-1))==int(g.state.seed),"ROUTEHIST route_history_switch_matrix:"+label+" records the opened route seed")
+   t.check(int(record.get("security",-1))==int(g.state.security),"ROUTEHIST route_history_switch_matrix:"+label+" records the opened security count")
+   t.check(int(record.get("nodes",0))==-1 and int(record.get("floor",0))==-1,"ROUTEHIST route_history_switch_matrix:"+label+" leaves the new record open")
+   if history.size()>1:
+    var closed=history[-2]
+    t.check(int(closed.get("nodes",-1))>=0 and int(closed.get("floor",-1))>=0,"ROUTEHIST route_history_switch_matrix:"+label+" closes the previous record")
+   if form!="new" and cause!="start":
+    var backfilled=history[0]
+    t.check(int(backfilled.get("nodes",-1))>=0 and int(backfilled.get("floor",-1))>=0,"ROUTEHIST route_history_switch_matrix:"+label+" closes the backfilled record")
+   if cause=="release":
+    t.check(String(record.get("boss",""))==String(route_record(g,0).get("boss","")),"ROUTEHIST route_history_switch_matrix:"+label+" keeps the summit within the cycle")
+   if cause=="gate_exit" and form=="new":
+    t.check(String(record.get("boss",""))==String(route_record(g,0).get("boss","")),"ROUTEHIST route_history_switch_matrix:"+label+" keeps the previous tower summit")
+
+static func route_history_cases(t) -> void:
+ route_history_start_record(t)
+ route_history_practice_isolated(t)
+ route_history_release_closes_route(t)
+ route_history_escape_keeps_generation(t)
+ route_history_gate_exit_appends(t)
+ route_history_second_capture_release(t)
+ route_history_cycle_capture_release(t)
+ route_history_cycle_and_cleared_rooms(t)
+ route_history_one_per_switch(t)
+ route_history_is_reproducible(t)
+ route_history_rejected_switch_rolls_back(t)
+ route_history_legacy_backfills(t)
+ route_history_pre_revision_backfill(t)
+ route_history_roundtrip(t)
+ route_history_switch_matrix(t)
+
 static func retired_opener(t) -> void:
  var g=Game.new(42)
  var saved=g.export_snapshot();saved.save_revision=g.Snapshot.OPENER_REVISION
@@ -760,6 +1228,7 @@ static func run(t) -> void:
  initial_seed_survives_round_trip(t)
  legacy_save_without_initial_seed_backfills(t)
  initial_seed_uses_the_shared_field_check(t)
+ route_history_cases(t)
  fixed_point_text_reads_the_written_bytes(t)
  save_writes_on_new_floor(t)
  save_writes_when_battle_finishes(t)

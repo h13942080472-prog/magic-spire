@@ -62,21 +62,40 @@ _checkpoint_kind(log_start: int) -> String
 #   core/save_store.gd::fixed_point_text(game, map_drawings={}) -> {ok, slot, filename, text}
 #   text = pack(game.restart_snapshot(), map_drawings)　# 与 write_game 写出的主档字节同源
 
-# 加性字段（_init 写入一次，此后不变）：
-state.initial_seed: int    # = _init 的 run_seed；state.seed 仍由 _restart_tower 改写
+# 加性字段（_init 写入一次，此后按声明派生追加）：
+state.initial_seed: int      # = _init 的 run_seed；state.seed 仍由 _restart_tower 改写
+state.route_history: Array   # 塔路历史：每条 {enter,cycle,generation,region,seed,boss,security,nodes,floor}
 
 # 唯一回填点：core/game.gd::restore_snapshot
-#   is_current 通过后、Snapshot.check 之前，对副本回填 initial_seed = seed（缺字段时）
+#   is_current 通过后、Snapshot.check 之前，对副本依次：回填 initial_seed = seed（缺字段时）；
+#   把已退役的 practice_kind 规范化为 Tower.current_practice；
+#   把缺字段的 route_history 回填为一条 enter="unknown" 记录（nodes／floor 留 -1）
+
+# 唯一写入者与唯一追加点（route 列＝TRANSITIONS 里的声明，语义见 docs/spec/route-history.md）：
+#   core/route_history.gd::open／reason／backfill
+#   core/game.gd::_apply_transition 的 not-continuation 块按 TRANSITIONS 的 route 列调用 open
 ```
 
 - 加性字段**不升** `Snapshot.REVISION`（升版会把既有玩家存档判为不兼容）；`Snapshot.check` 的
-  通用逐字段循环已要求该字段存在且为 `int`，`core/snapshot.gd` 零改动。
-- 缺字段的旧档按当时的 `state.seed` 回填；缺 `save_revision` 或修订号**不是当前值**的档按迁移链口径处置：
+  通用逐字段循环已要求该字段存在且类型一致，`core/snapshot.gd` 零改动。
+- 缺 `initial_seed` 的旧档按当时的 `state.seed` 回填；缺 `route_history` 的旧档回填为一条
+  `enter="unknown"` 记录，`nodes`／`floor` 留 `-1`，等下一次真正关闭该路线时补齐。回填只发生在
+  载入副本上，不改调用方字典、不写盘、不改玩家文件。
+- 缺 `save_revision` 或修订号**不是当前值**的档按迁移链口径处置：
   已支持的旧修订号（`core/snapshot.gd::REINFORCEMENT_STATE_REVISION`／`core/snapshot.gd::CUP_STACK_REVISION`／
   `core/snapshot.gd::IRON_DRONE_REVISION`／`core/snapshot.gd::INVENTORY_REVISION`／`core/snapshot.gd::OPENER_REVISION`／`core/snapshot.gd::ADAPTABILITY_REVISION`）由 `core/game.gd::restore_snapshot` 在 `Snapshot.check` 之前
   按迁移链升级（迁移判定旧档数据不完整时整档拒绝、保留当前游戏）；**更早、更新、缺 `save_revision`
   或非整数的一律拒绝，不作迁移**。同口径与迁移函数见 `docs/design/game-design.md` 存档节。
-- `_scene_key` 不变；固定点身份与写入时机不受影响。
+
+### 塔路历史记录（现行）
+
+`state.route_history` 的记录形状、进入原因、关闭口径、写入面与切换点见
+`docs/spec/route-history.md`；本文件只登记它对本域的影响：
+
+- 缺 `route_history` 的旧档由 `core/game.gd::restore_snapshot` 的单行回填补一条 `enter="unknown"`
+  记录（`nodes`／`floor` 留 `-1`），位置在 `initial_seed` 回填之后、`Snapshot.check` 之前；
+  回填只发生在载入副本上，读不写盘。
+- 该字段是加性的，不升 `Snapshot.REVISION`；`_scene_key` 不变，固定点身份与写入时机不受影响。
 - 本节的字段与回填语义、`fixed_point_text` 的消费方（反馈附件）与玩家可见标识见
   `docs/spec/seed-identity.md` 与 `docs/spec/feedback-deployment.md`。
 

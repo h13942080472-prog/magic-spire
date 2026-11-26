@@ -4,6 +4,7 @@ const Enchantments=preload("res://core/card_enchantments.gd")
 const RestraintValue=preload("res://data/restraint_value.gd")
 const FirstTurnControl=preload("res://core/first_turn_control.gd")
 const CommandRegistry=preload("res://core/command_registry.gd")
+const RouteHistory=preload("res://core/route_history.gd")
 var _resource_feedback
 var _card_feedback: Array=[]
 var _equipment_read: Dictionary={}
@@ -546,7 +547,7 @@ func _init(run_seed: int = 20260906, practice: bool=false, practice_kind: String
   "sure_cast":false,"body_buffs":[],"item_drop_chance":Tools.DROP_INITIAL,"battle_item_drop":"",
   "prepare_left":0,"reward_count":0,"reward_claimed":{},"battle_flask_drop":0,"logs":[],"summary":"", "pending_retain":false,
   "room":"entrance","map_region":"tower","last_strong_group":"","completed_rooms":[],"journey":{},"travel_turns":0,"traversed_edges":[],
-  "rest_left":0,"hook_uses":0,"items":[],"next_item":1,"practice":practice,"room_encounters":{},"next_enemy":1}
+  "rest_left":0,"hook_uses":0,"items":[],"next_item":1,"practice":practice,"room_encounters":{},"next_enemy":1,"route_history":[]}
  state.departure={}
  state.demo_cycle=0;state.demo_lap=1;state.demo_finished=false
  state.event_seen=[]
@@ -1118,11 +1119,12 @@ func _rest_round() -> void:
 
 # docs/transition-pipeline.md「接口」迁移声明表。每个 kind 声明它允许进入的阶段（空＝不写阶段）、
 # 是否允许改当前房间（写值由调用点的 args.room 提供）、是否在已提交事务内（tx 列本片只登记事实，
-# 供存档切片消费）、是否是一个进度固定点（checkpoint 列，缺省＝不是；见 docs/save-fixed-points.md「接口」），
+# 供存档切片消费）、是否是一个进度固定点（checkpoint 列，缺省＝不是；见 docs/save-fixed-points.md「接口」）、
+# 是否开启一条新的塔路（route 列＝唯一追加 state.route_history 的声明，见 core/route_history.gd），
 # 以及谁负责触发它。
 const TRANSITIONS={
- "setup_init":{"phases":["map"],"room":false,"tx":false,"owners":["_init"]},
- "tower_restart":{"phases":["map"],"room":true,"tx":true,"owners":["_restart_tower"]},
+ "setup_init":{"phases":["map"],"room":false,"route":true,"tx":false,"owners":["_init"]},
+ "tower_restart":{"phases":["map"],"room":true,"route":true,"tx":true,"owners":["_restart_tower"]},
  "practice_init":{"phases":[],"room":true,"tx":false,"owners":["_start_practice"]},
  "prison_cell_init":{"phases":[],"room":true,"tx":false,"owners":["Prison.start_practice"]},
  "prison_gate_init":{"phases":[],"room":true,"tx":false,"owners":["Prison.exit_practice"]},
@@ -1139,7 +1141,7 @@ const TRANSITIONS={
  "prison_cell_enter":{"phases":["prison"],"room":false,"tx":true,"owners":["Prison.begin_turn"]},
  "inspection_start":{"phases":["inspection"],"room":false,"tx":true,"owners":["Prison.end_turn"]},
  "prison_exit_battle_start":{"phases":["battle"],"room":false,"tx":true,"owners":["Prison.execute"]},
- "prison_escape":{"phases":["map"],"room":true,"tx":true,"owners":["Prison.escape"]},
+ "prison_escape":{"phases":["map"],"room":true,"route":true,"tx":true,"owners":["Prison.escape"]},
  "event_enter":{"phases":["event"],"room":false,"tx":true,"owners":["Events.start"]},
  "event_leave_empty":{"phases":["map"],"room":false,"tx":false,"owners":["Events.start"]},
  "event_item_rewards":{"phases":["reward"],"room":false,"tx":true,"owners":["Events.begin_item_rewards"]},
@@ -1173,7 +1175,9 @@ func _apply_transition(kind: String, args: Dictionary = {}) -> String:
  # 迁移日志：一次迁移记一条。同一 kind 的 phase／room 由调用点分两次写入（写入位置不变），
  # 第二条若只写未写过的字段则不再记；重复写同一字段仍是新的一次迁移（例如牢房每回合）。
  var continuation=_transition_written.get("kind","")==kind and not wrote.is_empty() and wrote.all(func(field):return field not in _transition_written.get("fields",[]))
- if not continuation: _transition_log.append(kind)
+ if not continuation:
+  _transition_log.append(kind)
+  if bool(spec.get("route",false)): RouteHistory.open(self,kind)
  _transition_written={"kind":kind,"fields":wrote}
  return ""
 
@@ -4616,6 +4620,9 @@ func restore_snapshot(saved: Dictionary) -> Dictionary:
  # shared field check, so the caller dictionary, the file and the live state stay untouched.
  if not candidate.has("initial_seed"): candidate.initial_seed=int(candidate.get("seed",0))
  if candidate.get("practice_kind") in Tower.RETIRED_LINK_PRACTICES: candidate.practice_kind=Tower.current_practice(candidate.practice_kind)
+ # Same additive rule for the tower-route history: one unattributed record, nodes/floor
+ # stay open until the next real close. No save revision bump.
+ if not candidate.has("route_history"): candidate.route_history=RouteHistory.backfill(candidate)
  var issue=Snapshot.check(candidate,self)
  if issue!="": return {"ok":false,"error":"无法继续这份存档："+issue}
  var previous=state

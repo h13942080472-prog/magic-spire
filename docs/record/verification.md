@@ -5223,3 +5223,13 @@ Godot 4.7.2 专项 66 项断言通过。两个部位各承受两段「浑身解�
 - 日志含 `BASELINE DIFF link=C declared_cells=26 moved_cells=26` 与 `PREFIX BRANCH TABLES FROZEN states=63 moved=0`。
 - 敏感性（`tools/check-mutation.ps1 -Check <名>`，逐条串行）：`baseline_diff_is_declared`、`behavior_baseline_equivalence`、`prefix_branch_tables_are_frozen`、`frozen_anchor_files_match_git` 四条均变红且逐字节还原；`default_projection_is_unchanged`（运行目录 `20261125T215844051-55176`，子运行 `20261125T215844660-22444`）：F6 判据行变红，但键改名使同套件另一消费者 `e_profile_matrix` 读取该键抛运行时错误，工具判 `FAILED exit-red=False`（已还原）。在父侧 e4fde8d 复核结果相同（变异运行目录 `20261125T222316079-48264`，子运行 `20261125T222317078-53028`，同为 `FAILED exit-red=False`，两侧均为 90 条同文 SCRIPT ERROR，仅 `architecture_cases.gd` 行号随版本不同），属既有突变设计，非本次改动引入。
 - 仅验证桌面源码；未打包，未做安卓真机验收。
+
+## 2026-11-26｜塔路历史 PR 前完整回归
+
+- 域：`spire-godot/` 塔路历史（每段塔路的进入原因与收尾）的分支回归；验收 HEAD `d0524d1`，对照父侧 `e4fde8d` 的逐套件基线。规则 59 个、界面 50 个套件。
+- 全量命令 `tools/check.ps1 -Suite all -UI -UISuite all -KeepGoing -TimeoutSeconds 3600`：运行号 `20261126T033638846-27952`，退出码 1，用时 571 秒。截断：规则相位在 `exploration` 的 SCRIPT ERROR 后收尾，只有 30 个规则套件有结果行；界面相位未启动。
+- 补跑：规则 29 个、界面 50 个，逐个独立运行（`-Suite <名>`／`-UIOnly -UISuite <名>`，`-TimeoutSeconds 1800`），每个都有自己的结果行。
+- 结果：规则 PASS 43、父侧既有红 16；界面 PASS 27、父侧既有红 23。109 个套件结果与父侧逐一相同；本分支没有父侧没有的 ERROR／SCRIPT ERROR 行（前 120 字去重）。`persistence` 规则套件 PASS（1611 断言，父侧 1062，含新增塔路历史用例）。
+- 父侧红行消失：`architecture` 的 `STATEREAD state_read_sites_are_pinned`（读者表由唯一写者重生成）；`runner` 的 `index_matches_regeneration` 与 `index_regeneration_is_the_only_writer`（生成物随合并重生成）。界面 `trader` 首跑即 PASS。
+- 敏感性：本分支新增 9 条登记突变（`route_history_single_writer`、`route_switch_declared`、`route_reason_branches_declared`、`route_history_second_capture_release`、`route_reason_called_only_by_open`、`route_legacy_backfill_is_pinned`、`route_history_no_version`、`route_history_switch_matrix`、`route_history_references_are_pinned`）逐条串行实跑，均 `RED exit-red=True restored=True`，逐字节还原并核对工作树未变。
+- 未跑：`-UISuite all` 全量未能完整执行（界面相位未启动，界面由 50 次单套件运行覆盖）；未做打包、安卓真机或公开发布验收。

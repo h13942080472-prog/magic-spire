@@ -1222,6 +1222,13 @@ static func run(t) -> void:
  var settled=g.export_snapshot()
  g._cleanup()
  t.check(g.export_snapshot()==settled,"ARCH cleanup reaches a fixed point without repeated events")
+ route_history_single_writer(t)
+ route_history_references_are_pinned(t)
+ route_switch_declared(t)
+ route_reason_branches_declared(t)
+ route_reason_called_only_by_open(t)
+ route_legacy_backfill_is_pinned(t)
+ route_history_no_version(t)
 
 static func tool_registry_boundary(t) -> void:
  var catalog=preload("res://data/field_tools.gd")
@@ -6962,3 +6969,125 @@ static func frozen_anchor_files_match_git(t) -> void:
  t.check(mismatches.is_empty(),"FB frozen_anchor_files_match_git: every anchor blob hash equals its declared sha256 (git unavailable, object missing and hash mismatch all fail closed): "+str(mismatches))
  print("FROZEN ANCHORS: %d anchor(s) recomputed from git blobs, %d matched" % [anchors.size(),anchors.size()-mismatches.size()])
 
+# ==== 塔路历史（docs/spec/save-fixed-points.md「加性字段与只读入口」）====
+# state.route_history 的唯一写入者是 core/route_history.gd；直接写面只有 _init 字面与
+# restore_snapshot 的单行回填，追加只由 TRANSITIONS 的 route 列在 _apply_transition 的
+# not-continuation 块里派生。以下检查读源码文本与声明表，不依赖运行期计数器。
+const ROUTE_HISTORY_FILE="core/route_history.gd"
+# The suite loads the owner module so the check index has a real case-file edge to it
+# (tests/check_index.gd counts `preload` targets); the judgments below still read source text.
+const RouteHistoryModule=preload("res://core/route_history.gd")
+
+# Write shape outside the owner module: a field assignment, a chained element assignment
+# (state.route_history[i][k]=…), or a mutating call on the field name.
+const ROUTE_HISTORY_WRITE_PATTERN="(?<![A-Za-z0-9_])route_history\\s*(?:\\[[^\\]]*\\]\\s*)*(?:=(?!=)|\\.(?:append|push_back|insert|erase|clear|remove_at)\\s*\\()"
+# A local name bound to the field is a write path by another name; only the owner module may
+# hold one. Catch the binding itself, which is what a later history.append(…) would rely on.
+const ROUTE_HISTORY_ALIAS_PATTERN="^\\s*(?:var\\s+)?([A-Za-z_][A-Za-z0-9_]*)\\s*(?::[^=\\n]*)?=\\s*[^#\\n]*route_history"
+# The registered sites outside the owner module, each pinned by its anchor text: every runtime
+# line in core/data/ui that names route_history (the field, or the owner module path in the
+# game.gd preload) must be one of them. The owner module is allowed wholesale as the single writer.
+const ROUTE_HISTORY_REFERENCE_SITES=["core/game.gd::<file>","core/game.gd::_init","core/game.gd::restore_snapshot"]
+const ROUTE_HISTORY_REFERENCE_ANCHORS={"<file>":"preload(\"res://core/route_history.gd\")","_init":"\"route_history\":[]","restore_snapshot":"candidate.route_history=RouteHistory.backfill(candidate)"}
+
+static func route_history_write_sites() -> Array:
+ return source_write_sites(["res://core","res://data","res://ui"],ROUTE_HISTORY_WRITE_PATTERN)
+
+static func route_history_single_writer(t) -> void:
+ var writes=write_site_names(route_history_write_sites())
+ t.check(writes==["core/game.gd::restore_snapshot"],"ROUTEHIST route_history_single_writer: the only direct field write outside the owner module is the restore_snapshot backfill: "+str(writes))
+ var aliases=route_history_alias_sites()
+ t.check(aliases.is_empty(),"ROUTEHIST route_history_single_writer: no module binds a local alias of route_history outside the owner: "+str(aliases))
+ var opens=write_site_names(source_write_sites(["res://core","res://data","res://ui"],"(?<![A-Za-z0-9_])RouteHistory\\.open\\s*\\("))
+ t.check(opens==["core/game.gd::_apply_transition"],"ROUTEHIST route_history_single_writer: RouteHistory.open has exactly one call site inside _apply_transition: "+str(opens))
+ var expected="if not continuation:\n  _transition_log.append(kind)\n  if bool(spec.get(\"route\",false)): RouteHistory.open(self,kind)\n _transition_written="
+ t.check(game_function_body("_apply_transition").replace("\r","").contains(expected),"ROUTEHIST route_history_single_writer: the append is the second statement of the not-continuation block")
+ var text=source_text(ROUTE_HISTORY_FILE)
+ t.check(text.contains("func open(") and text.contains("func reason(") and text.contains("func backfill("),"ROUTEHIST route_history_single_writer: the owner module declares the three contracted entry points")
+ t.check(source_text("core/game.gd").contains("\"route_history\":[]"),"ROUTEHIST route_history_single_writer: the _init literal still creates the field once")
+
+# A whitelist of the sites above rather than a list of write shapes, so an alias, a
+# chained element write or an unregistered read is red even when no write pattern matches it.
+static func route_history_reference_sites() -> Array:
+ return source_write_sites(["res://core","res://data","res://ui"],"(?<![A-Za-z0-9_])route_history\\b")
+
+static func route_history_alias_sites() -> Array:
+ var sites=source_write_sites(["res://core","res://data","res://ui"],ROUTE_HISTORY_ALIAS_PATTERN)
+ return sites.filter(func(hit):return String(hit.file)!=ROUTE_HISTORY_FILE).map(func(hit):return String(hit.file)+"::"+String(hit.function)+":"+str(hit.line))
+
+static func route_history_reference_violations() -> Array:
+ var out=[]
+ for hit in route_history_reference_sites():
+  var name=String(hit.file)+"::"+String(hit.function)
+  if String(hit.file)==ROUTE_HISTORY_FILE or name in ROUTE_HISTORY_REFERENCE_SITES: continue
+  out.append(name+":"+str(hit.line))
+ return out
+
+static func route_history_references_are_pinned(t) -> void:
+ var violations=route_history_reference_violations()
+ t.check(violations.is_empty(),"ROUTEHIST route_history_references_are_pinned: every route_history reference lives in the owner module or the three registered game.gd sites: "+str(violations))
+ var game=route_history_reference_sites().filter(func(hit):return String(hit.file)=="core/game.gd")
+ t.check(game.size()==3,"ROUTEHIST route_history_references_are_pinned: game.gd names route_history exactly three times: "+str(game.size()))
+ for hit in game:
+  var function=String(hit.function)
+  var anchor=String(ROUTE_HISTORY_REFERENCE_ANCHORS.get(function,""))
+  t.check(anchor!="" and String(hit.text).contains(anchor),"ROUTEHIST route_history_references_are_pinned: the "+function+" reference keeps its registered line: "+String(hit.text))
+
+static func route_switch_declared(t) -> void:
+ var flagged=[]
+ for kind in GameCore.TRANSITIONS:
+  if bool(GameCore.TRANSITIONS[kind].get("route",false)): flagged.append(String(kind))
+ flagged.sort()
+ t.check(flagged==["prison_escape","setup_init","tower_restart"],"ROUTEHIST route_switch_declared: exactly the three route-opening kinds carry the flag: "+str(flagged))
+
+static func route_reason_branches_declared(t) -> void:
+ var body=source_func_body_code("res://core/route_history.gd","reason")
+ var cycle=body.find("return ENTER_CYCLE")
+ var gate=body.find("return ENTER_GATE_EXIT")
+ t.check(cycle>=0 and gate>cycle,"ROUTEHIST route_reason_branches_declared: the cycle branch is decided before the prison gate branch")
+ t.check(body.find("demo_cycle")>=0 and body.find("region")>=0,"ROUTEHIST route_reason_branches_declared: the reason reads the cycle and the previous region")
+ t.check(body.find("return ENTER_START")>=0 and body.find("return ENTER_ESCAPE")>=0,"ROUTEHIST route_reason_branches_declared: setup and escape keep their own reasons")
+
+# The entry reason has one path, open -> reason -> _serving_sentence, all inside the
+# owner module. A call through the module handle (RouteHistory.reason(...) or g.RouteHistory.reason(...))
+# names no route_history token, so the reference whitelist above cannot see it: this scan reads
+# the handle form in core/data/ui and the bare form inside the owner module. The handle is bound
+# once (the game.gd preload) and is only ever followed by a member, so no alias hides a call.
+static func route_reason_called_only_by_open(t) -> void:
+ var roots=["res://core","res://data","res://ui"]
+ var reasons=source_write_sites(roots,"(?<![A-Za-z0-9_])RouteHistory\\s*\\.\\s*reason\\b")
+ reasons.append_array(declaration_text(source_write_sites(roots,"(?<![A-Za-z0-9_.])reason\\s*\\(").filter(func(hit):return String(hit.file)==ROUTE_HISTORY_FILE),"func reason("))
+ t.check(reasons.size()==1 and write_site_names(reasons)==[ROUTE_HISTORY_FILE+"::open"],"ROUTEHIST route_reason_called_only_by_open: reason has one call, inside open, and none through the RouteHistory handle: "+str(reasons.map(func(hit):return verdict_site(hit))))
+ var serving=source_write_sites(roots,"(?<![A-Za-z0-9_])_serving_sentence\\b")
+ var owned=[ROUTE_HISTORY_FILE+"::_serving_sentence",ROUTE_HISTORY_FILE+"::reason"]
+ owned.sort()
+ t.check(serving.size()==2 and write_site_names(serving)==owned,"ROUTEHIST route_reason_called_only_by_open: _serving_sentence is named only by its declaration and the one call inside reason: "+str(serving.map(func(hit):return verdict_site(hit))))
+ var handles=source_write_sites(roots,"(?<![A-Za-z0-9_])RouteHistory\\b(?!\\s*\\.)")
+ t.check(handles.size()==1 and write_site_names(handles)==["core/game.gd::<file>"],"ROUTEHIST route_reason_called_only_by_open: the RouteHistory handle is bound once, by the game.gd preload, and never taken as a value: "+str(handles.map(func(hit):return verdict_site(hit))))
+
+static func route_legacy_backfill_is_pinned(t) -> void:
+ var body=game_function_body("restore_snapshot")
+ var seed_line=body.find("if not candidate.has(\"initial_seed\")")
+ var route_line=body.find("if not candidate.has(\"route_history\"): candidate.route_history=RouteHistory.backfill(candidate)")
+ var check_line=body.find("Snapshot.check(candidate,self)")
+ t.check(seed_line>=0 and route_line>seed_line and check_line>route_line,"ROUTEHIST route_legacy_backfill_is_pinned: the backfill follows the run-identity backfill and precedes the shared field check")
+ t.check(route_line>=0 and body.count("RouteHistory.backfill(")==1,"ROUTEHIST route_legacy_backfill_is_pinned: restore_snapshot writes the backfill once")
+
+static func route_history_no_version(t) -> void:
+ var text=source_text(ROUTE_HISTORY_FILE)
+ var banned=[]
+ for token in ["Time.","version","randi","Crypto","ProjectSettings"]:
+  if text.contains(token): banned.append(token)
+ t.check(not text.is_empty() and banned.is_empty(),"ROUTEHIST route_history_no_version: the owner module carries no time, revision, randomness or settings token: "+str(banned))
+ var declared=[]
+ var regex=RegEx.new()
+ if regex.compile("const KEYS=\\[([^\\]]+)\\]")==OK:
+  var found=regex.search(text)
+  if found!=null:
+   for part in found.get_string(1).split(","):
+    declared.append(String(part).strip_edges().trim_prefix("\"").trim_suffix("\""))
+ declared.sort()
+ t.check(declared==["boss","cycle","enter","floor","generation","nodes","region","security","seed"],"ROUTEHIST route_history_no_version: the declared key set carries no time or revision key: "+str(declared))
+ var compiled=RouteHistoryModule.KEYS.duplicate()
+ compiled.sort()
+ t.check(compiled==declared,"ROUTEHIST route_history_no_version: the compiled key constant equals the declared source text: "+str(compiled))

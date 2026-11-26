@@ -56,8 +56,8 @@ _room_transition_kind(target: String) -> String
 
 ### 迁移声明表 `TRANSITIONS`
 
-`const TRANSITIONS = {kind: {"phases":Array[String], "room":bool, "tx":bool, "checkpoint":String, "owners":Array[String]}}`
-（`checkpoint` 缺省＝不是固定点；kind 全集与 checkpoint 列的机读冻结副本＝
+`const TRANSITIONS = {kind: {"phases":Array[String], "room":bool, "route":bool, "tx":bool, "checkpoint":String, "owners":Array[String]}}`
+（`checkpoint` 缺省＝不是固定点；`route` 缺省＝不开启新塔路；kind 全集与 checkpoint 列的机读冻结副本＝
 `tests/architecture_cases.gd::TRANSITION_KINDS`／`TRANSITION_CHECKPOINTS`，
 检查＝`tests/architecture_cases.gd::transition_kind_set_pinned`。）
 
@@ -66,36 +66,39 @@ _room_transition_kind(target: String) -> String
 - `tx=false`＝构造／练习等事务外路径（`tx` 列只登记事实，供存档切片消费）。
 - `checkpoint` 非空＝该 kind 是进度固定点（取值 `floor`／`battle_end`／`prepare_end`）；
   缺省＝不是。**固定点语义与写盘规则见 `docs/spec/save-fixed-points.md`**，本表只声明事实。
+- `route=true`＝该 kind 开启一条新塔路：`_apply_transition` 的 `not continuation` 块按此列调用
+  `core/route_history.gd::open`；带 `route` 的 kind 恰为 `setup_init`／`tower_restart`／`prison_escape`。
+  **记录语义见 `docs/spec/route-history.md`**，本表只声明事实。
 - `owners`＝允许触发该 kind 的调用者；每个 kind 有**唯一实现分支**。
 
-| kind | 允许写入的阶段 | 改 room | tx | checkpoint | owners |
-| --- | --- | --- | --- | --- | --- |
-| `setup_init` | `map` | 否 | 否 | — | `_init` |
-| `tower_restart` | `map` | 是 | 是 | — | `_restart_tower` |
-| `practice_init` | （不写） | 是 | 否 | — | `_start_practice` |
-| `prison_cell_init` | （不写） | 是 | 否 | — | `Prison.start_practice` |
-| `prison_gate_init` | （不写） | 是 | 否 | — | `Prison.exit_practice` |
-| `battle_start` | `battle` | 否 | 是 | — | `_start_battle` |
-| `battle_end_victory` | `reward`／`event` | 否 | 是 | `battle_end` | `_finish_battle` |
-| `battle_end_saturated` | `reward`／`event` | 否 | 是 | `battle_end` | `_finish_battle` |
-| `battle_end_captured` | `captured` | 是 | 是 | `battle_end` | `Guard.capture` |
-| `prepare_start` | `prepare` | 否 | 是 | — | `_start_preparation` |
-| `prepare_end` | `pack`／`map`／`cleared` | 否 | 是 | `prepare_end` | `_finish_preparation` |
-| `rest_start` | `rest_choice`／`rest` | 否 | 是 | — | `_start_rest`／`_begin_rest` |
-| `room_enter` | `map`／`cleared` | 是 | 是 | — | `_arrive_room` |
-| `floor_enter` | （不写） | 是 | 是 | `floor` | `_depart`／`_advance_travel` |
-| `travel_start` | `travel` | 否 | 是 | — | `_depart` |
-| `prison_cell_enter` | `prison` | 否 | 是 | — | `Prison.begin_turn` |
-| `inspection_start` | `inspection` | 否 | 是 | — | `Prison.end_turn` |
-| `prison_exit_battle_start` | `battle` | 否 | 是 | — | `Prison.execute` |
-| `prison_escape` | `map` | 是 | 是 | — | `Prison.escape` |
-| `event_enter` | `event` | 否 | 是 | — | `Events.start` |
-| `event_leave_empty` | `map` | 否 | 否 | — | `Events.start` |
-| `event_item_rewards` | `reward` | 否 | 是 | — | `Events.begin_item_rewards` |
-| `shop_enter` | `shop`／`treasure` | 否 | 是 | — | `Services.start` |
-| `departure_start` | `departure` | 否 | 否 | — | `Departure.start` |
-| `departure_end` | `map` | 否 | 是 | — | `Departure.execute` |
-| `demo_end` | （不写） | 否 | 是 | — | `_execute` |
+| kind | 允许写入的阶段 | 改 room | route | tx | checkpoint | owners |
+| --- | --- | --- | --- | --- | --- | --- |
+| `setup_init` | `map` | 否 | 是 | 否 | — | `_init` |
+| `tower_restart` | `map` | 是 | 是 | 是 | — | `_restart_tower` |
+| `practice_init` | （不写） | 是 | — | 否 | — | `_start_practice` |
+| `prison_cell_init` | （不写） | 是 | — | 否 | — | `Prison.start_practice` |
+| `prison_gate_init` | （不写） | 是 | — | 否 | — | `Prison.exit_practice` |
+| `battle_start` | `battle` | 否 | — | 是 | — | `_start_battle` |
+| `battle_end_victory` | `reward`／`event` | 否 | — | 是 | `battle_end` | `_finish_battle` |
+| `battle_end_saturated` | `reward`／`event` | 否 | — | 是 | `battle_end` | `_finish_battle` |
+| `battle_end_captured` | `captured` | 是 | — | 是 | `battle_end` | `Guard.capture` |
+| `prepare_start` | `prepare` | 否 | — | 是 | — | `_start_preparation` |
+| `prepare_end` | `pack`／`map`／`cleared` | 否 | — | 是 | `prepare_end` | `_finish_preparation` |
+| `rest_start` | `rest_choice`／`rest` | 否 | — | 是 | — | `_start_rest`／`_begin_rest` |
+| `room_enter` | `map`／`cleared` | 是 | — | 是 | — | `_arrive_room` |
+| `floor_enter` | （不写） | 是 | — | 是 | `floor` | `_depart`／`_advance_travel` |
+| `travel_start` | `travel` | 否 | — | 是 | — | `_depart` |
+| `prison_cell_enter` | `prison` | 否 | — | 是 | — | `Prison.begin_turn` |
+| `inspection_start` | `inspection` | 否 | — | 是 | — | `Prison.end_turn` |
+| `prison_exit_battle_start` | `battle` | 否 | — | 是 | — | `Prison.execute` |
+| `prison_escape` | `map` | 是 | 是 | 是 | — | `Prison.escape` |
+| `event_enter` | `event` | 否 | — | 是 | — | `Events.start` |
+| `event_leave_empty` | `map` | 否 | — | 否 | — | `Events.start` |
+| `event_item_rewards` | `reward` | 否 | — | 是 | — | `Events.begin_item_rewards` |
+| `shop_enter` | `shop`／`treasure` | 否 | — | 是 | — | `Services.start` |
+| `departure_start` | `departure` | 否 | — | 否 | — | `Departure.start` |
+| `departure_end` | `map` | 否 | — | 是 | — | `Departure.execute` |
+| `demo_end` | （不写） | 否 | — | 是 | — | `_execute` |
 
 ## 输入域
 
