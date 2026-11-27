@@ -97,7 +97,11 @@ static func run_once(host, desktop: bool) -> Dictionary:
  if not enabled(host.persistence_enabled,desktop):
   return _answer(true,false,"disabled","",[],[])
  var target=ProjectSettings.globalize_path(String(host.saves.directory)).replace("\\","/").trim_suffix("/").get_base_dir()
- return _import(target.get_base_dir(),target.path_join(MARKER_NAME),host.display_settings,host.keyboard_input.settings,host.saves)
+ var parent=target.get_base_dir()
+ if OS.has_feature("linux") and String(host.saves.directory)=="user://saves":
+  var legacy_parent=OS.get_data_dir().path_join("godot/app_userdata")
+  if DirAccess.dir_exists_absolute(legacy_parent): parent=legacy_parent
+ return _import(parent,target.path_join(MARKER_NAME),host.display_settings,host.keyboard_input.settings,host.saves)
 
 static func _import(parent: String, marker: String, display_settings, key_bindings, store) -> Dictionary:
  if FileAccess.file_exists(marker):
@@ -125,7 +129,11 @@ static func _import(parent: String, marker: String, display_settings, key_bindin
   var path=source_root.path_join(String(entry.file))
   if not FileAccess.file_exists(path): continue
   var owner=entry.owner
-  if owner==null or not owner.import_from(path): skipped.append({"file":String(entry.file),"code":"invalid"})
+  if owner!=null and FileAccess.file_exists(owner.path):
+   skipped.append({"file":String(entry.file),"code":"target_not_empty"})
+  elif owner==null or not owner.import_from(path):
+   var write_failed=owner!=null and (owner.save_error!="" if owner==display_settings else owner.error!="")
+   skipped.append({"file":String(entry.file),"code":"write" if write_failed else "invalid"})
   else: copied.append(String(entry.file))
  # A write failure leaves the import unfinished: no terminal marker, so the next start retries. The
  # marker only closes a finished copy or a validation verdict (invalid, version, target_not_empty, none);

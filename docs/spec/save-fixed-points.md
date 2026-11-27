@@ -135,6 +135,8 @@ state.route_history: Array   # 塔路历史：每条 {enter,cycle,generation,reg
   扫描失败（选源父目录打不开，`code=scan`）与写入失败（任一存档提交失败，`skipped` 出现 `write`，
   `code=write`）是 IO 异常，**不写终结标记**，结果 `ok=false`，下一次启动重试。`none` 只表示父目录可读
   且没有可用候选：生产父目录是 `app_userdata`，用户目录就在它下面，打不开不能当成「确认没有旧档」。
+- Linux 首次导入读取系统数据目录下小写的 `godot/app_userdata`。自定义测试目录仍扫描其同级目录。
+- 目标中已有的显示或键位设置逐文件保留，缺少的设置才导入；设置写入失败记为 `write`。
 - 目标非空即不复制：`saves` 下已有任一位主档或 `.bak` 时不动任何文件，标记记 `target_not_empty`
   （父目录里有没有候选都一样）。中断的复制因此在下一次启动收敛到同一结果：`.tmp` 写完、改名之前退出时
   目标仍视为空，下一次启动重试并完成复制，`.tmp` 被提交的档替换；复制到一半退出时按 `target_not_empty`

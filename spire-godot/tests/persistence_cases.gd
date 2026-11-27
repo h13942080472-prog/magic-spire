@@ -1315,6 +1315,7 @@ static func run(t) -> void:
  legacy_source_never_picks_dev_or_target_name(t)
  legacy_source_accepts_non_ascii_and_spaced_names(t)
  legacy_run_once_derives_paths_from_the_injected_store(t)
+ legacy_preserves_existing_preferences(t)
  legacy_display_import_follows_initialize_domains(t)
  legacy_write_failure_keeps_the_import_retryable(t)
  legacy_scan_failure_keeps_the_import_retryable(t)
@@ -2215,6 +2216,19 @@ static func legacy_run_once_derives_paths_from_the_injected_store(t) -> void:
 # LEGACY-17：DisplaySettings.import_from 对窗口模式与分辨率按 initialize() 的取值域读入——合法值
 # 照收（含 choices() 收得下的非预设分辨率），越界或类型不符保持属主没读这一键时的取值（新实例即默认），
 # 大于最大一档的分辨率按 initialize() 收到最后一档；固定立绘为真时锁池仍被关掉。
+static func legacy_preserves_existing_preferences(t) -> void:
+ var ready=legacy_ready(t,"preserve preferences","keep-settings")
+ var target=ready.root.path_join("target")
+ legacy_saves(ready.source.path_join("saves"),"tower",1)
+ legacy_settings(ready.source)
+ legacy_settings(target)
+ var display=target.path_join("display-settings.cfg")
+ var keys=target.path_join("key-bindings.cfg")
+ legacy_write(display,"[update]\ncheck_on_start=false\n")
+ legacy_write(keys,"[keyboard]\nhold_end=false\n")
+ var result=ready.module.run(ready.parent,target,target.path_join("marker.json"),Store.new(target.path_join("saves")))
+ t.check(result.ok and result.copied==["saves/tower.json"] and result.skipped.size()==2 and legacy_cfg_values(display)=={"update/check_on_start":false} and legacy_cfg_values(keys)=={"keyboard/hold_end":false},"LEGACY existing player preferences survive importing the missing save")
+
 static func legacy_display_import_follows_initialize_domains(t) -> void:
  var root=legacy_root("legacy-display-domains")
  legacy_dir(root)

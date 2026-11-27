@@ -15,8 +15,8 @@ extends RefCounted
 # with k1, or no k1-only build ever hears of it. Once the manifest key_id switches to k2, every
 # k1-only build answers none/key to it, silently, so the maintainer times the switch by how far
 # players have upgraded. Before the k1 private key is destroyed, confirm that no k1-only build
-# still needs a notice. A leaked key goes the same way: first announce the version that carries
-# the new key with a manifest signed by the old one, then switch. Steps: skills/repo-ops/SKILL.md
+# still needs a notice. Recovery after compromise requires a build that removes the compromised key, delivered
+# through an independently trusted channel. Steps: skills/repo-ops/SKILL.md
 # 「更新签名私钥保管」.
 const KEYS={
  "k1":"""-----BEGIN PUBLIC KEY-----
