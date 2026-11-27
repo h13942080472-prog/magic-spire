@@ -33,7 +33,7 @@
 | 文件 | 行数 | 行数线 | 说明 |
 | --- | --- | --- | --- |
 | `tests/check_index.gd` | 540 | 400 | **超出**：派生（scan／compare）与路由（suites_for／ROUTE 渲染）同文件。职责边界是整个索引流水线，不按行数拆分；被扫描的源码文本的读取已收口到叶 `tests/source_text.gd`（扫描文本换行归一），本文件不再自带被扫描源码的读原语（冻结物 `FROZEN_PATH` 的 `FileAccess` 读取保留）。按根 `AGENTS.md`「大文件按职责拆，不按行数硬拆」，此处以职责说明代替拆分。 |
-| `tests/check_index_edges.gd` | 161 | 500 | 手写层八张表（`DOMAINS` 60／`WIDEN` 1／`EXCLUDE` 15／`BLIND_BY_DESIGN` 3／`INDEX_DEFECTS` 0／`CLOSURE` 10（含 `update/` 前缀：规则 `update,architecture`、界面 `update`；索引只扫 `core|data|ui`，`update/` 靠这条闭包路由）／`ORACLE_NOTES` 2／`SUITE_EXEMPT` 3），逐条 `reason`；随语料增长，是人类审查面。 |
+| `tests/check_index_edges.gd` | 165 | 500 | 手写层八张表（`DOMAINS` 60／`WIDEN` 1／`EXCLUDE` 15／`BLIND_BY_DESIGN` 3／`INDEX_DEFECTS` 0／`CLOSURE` 14（含 `update/` 前缀：规则 `update,architecture`、界面 `update`；索引只扫 `core|data|ui`，`update/` 靠这条闭包路由；另含更具体的前缀 `tests/fixtures/update/`、`tools/export-patch`、`tools/update-manifest`、`tools/sign-update-manifest`：规则 `update`（后三者加 `runner`），让更新夹具与发布脚本的改动跑到回放它们的 `update` 套件，而不是整层兜底或只跑 `runner`；先匹配先得，具体前缀排在 `tests/`、`tools/` 之前）／`ORACLE_NOTES` 2／`SUITE_EXEMPT` 3），逐条 `reason`；随语料增长，是人类审查面。 |
 | `tests/route_plan.gd` | 56 | 120 | 计划宿主 CLI：读冻结物、打印 `ROUTE *`、写计划 JSON。 |
 | `tools/build_check_index.gd` | 47 | 60 | `--verify`／`--write`；与读取方共用同一 `derive()`。 |
 | `tests/runner_cases.gd` | 389 | — | 既有归属自检＋九条索引判据（一次 `derive()` 共用）＋四条扫描面判据（`tests/runner_cases.gd::source_text_folds_crlf_pairs`／`::source_text_keeps_lone_cr`／`::state_reader_reads_through_one_entry`／`::check_index_reads_through_one_entry`；扫描文本换行归一）。 |
