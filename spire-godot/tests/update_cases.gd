@@ -10,6 +10,8 @@ extends RefCounted
 
 const Manifest=preload("res://update/update_manifest.gd")
 const Keys=preload("res://update/update_keys.gd")
+const Store=preload("res://update/update_store.gd")
+const UpdateCheck=preload("res://update/update_check.gd")
 # The startup switch is one key of the existing settings file, never a second store.
 const Settings=preload("res://ui/display_settings.gd")
 
@@ -41,6 +43,11 @@ const RELEASE_KEY_ID="t1"
 const RELEASE_VERSION="0.18.4"
 const RELEASE_SERIAL=4
 const RELEASE_REVOKED=["0.18.3"]
+# The windows-x64 patch entry of that manifest: tools/update-manifest.ps1 copied from/to/bytes/sha256
+# from patch-meta.json (the shape tools/export-patch.ps1 writes next to its pack); patch.pck is a
+# stand-in pack whose independent hash must equal the metadata.
+const RELEASE_PATCH_URL="https://update.magicspire.xyz/v1/patches/0.18.3-0.18.4.pck"
+const RELEASE_PATCH_MIRROR="https://github.com/h13942080472-prog/magic-spire/releases/download/v0.18.4/patch-0.18.3-0.18.4.pck"
 const RELEASE_LINKS={
  "windows-x64":["https://update.magicspire.xyz/v1/0.18.4/spire-v0.18.4-windows64.zip","https://github.com/h13942080472-prog/magic-spire/releases/tag/v0.18.4"],
  "android":["https://update.magicspire.xyz/v1/0.18.4/spire-v0.18.4.apk","https://github.com/h13942080472-prog/magic-spire/releases/tag/v0.18.4"],
@@ -69,6 +76,13 @@ static func run(t) -> void:
  oversized_or_broken_manifest_yields_none(t,pair,keys)
  non_https_url_is_rejected(t,pair,keys)
  patches_are_ignored(t,pair,keys)
+ patch_matches_baseline(t,pair,keys)
+ patch_ignores_effective_version_match(t,pair,keys)
+ patch_not_reoffered_once_mounted(t,pair,keys)
+ patch_withdrawn_or_failed_is_dropped(t,pair,keys)
+ patch_entry_domain_and_compat(t,pair,keys)
+ check_passes_identity_to_evaluate(t,pair,keys)
+ export_patch_feasibility_domain(t)
  settings_toggle_uses_one_store(t)
  manifest_size_and_shape_domain(t,pair,keys)
  manifest_link_domain(t,pair,keys)
@@ -162,6 +176,10 @@ static func signature_of(body: PackedByteArray, pair: Array) -> PackedByteArray:
 
 static func judge(body: PackedByteArray, pair: Array, keys: Dictionary, current: String=CURRENT, platform: String=PLATFORM) -> Dictionary:
  return Manifest.evaluate(body,signature_of(body,pair),keys,current,platform)
+
+# The patch-aware call: `local` is what update_store.gd::identity() returns.
+static func judge_local(body: PackedByteArray, pair: Array, keys: Dictionary, current: String, local: Dictionary, platform: String=PLATFORM) -> Dictionary:
+ return Manifest.evaluate(body,signature_of(body,pair),keys,current,platform,local)
 
 # ---- 判定 -----------------------------------------------------------------------------
 
@@ -306,15 +324,26 @@ static func openssl_signed_manifest_interops(t) -> void:
  var rejected=Manifest.evaluate(tampered,signature,{"k1":public_pem},CURRENT,PLATFORM)
  t.check(changed==1 and rejected.get("kind","")=="none" and rejected.get("reason","")=="signature","UPDATE openssl_signed_manifest_interops: a one-byte edit after signing is a signature failure: "+str(rejected)+" changed="+str(changed))
 
+# JSON numbers parse as floats: compare the entries field by field, where 300.0 == 300.
+static func patches_hold(listed: Variant, expected: Array) -> bool:
+ if not listed is Array or listed.size()!=expected.size(): return false
+ for index in expected.size():
+  var left=listed[index]
+  var right=expected[index]
+  if not left is Dictionary or left.size()!=right.size(): return false
+  for key in right:
+   if not left.has(key) or left[key]!=right[key]: return false
+ return true
+
 # The release scripts' own output verifies through evaluate on both platforms and carries
 # exactly the scripts' inputs. Android bytes/sha256 must equal the package manifest they were
 # copied from; the Windows pair must equal an independent hash of the committed ZIP (in the
 # release pipeline the generator is the only place that hashes it). One byte changed after
 # signing is a signature failure.
 static func release_scripts_manifest_interops(t) -> void:
- var names=["manifest.json","manifest.json.sig","public.pem","notes.txt","android-package-manifest.json","windows.zip"]
+ var names=["manifest.json","manifest.json.sig","public.pem","notes.txt","android-package-manifest.json","windows.zip","patch.pck","patch-meta.json"]
  var missing=names.filter(func(name):return not FileAccess.file_exists(RELEASE_DIRECTORY+name))
- t.check(missing.is_empty(),"UPDATE release_scripts_manifest_interops: the committed fixture supplies the scripts' manifest, its signature, the one-time public PEM and the three inputs: missing="+str(missing))
+ t.check(missing.is_empty(),"UPDATE release_scripts_manifest_interops: the committed fixture supplies the scripts' manifest, its signature, the one-time public PEM and the five inputs: missing="+str(missing))
  if not missing.is_empty(): return
  var body=fixture(RELEASE_DIRECTORY+"manifest.json")
  var signature=fixture(RELEASE_DIRECTORY+"manifest.json.sig")
@@ -331,7 +360,20 @@ static func release_scripts_manifest_interops(t) -> void:
   "windows-x64":{"bytes":fixture(zip_path).size(),"sha256":FileAccess.get_sha256(zip_path)},
   "android":{"bytes":int(package_json.data.get("bytes",-1)),"sha256":String(package_json.data.get("sha256",""))},
  }
+ var meta_json=JSON.new()
+ var meta_read=meta_json.parse(fixture(RELEASE_DIRECTORY+"patch-meta.json").get_string_from_utf8())==OK and meta_json.data is Dictionary
+ t.check(meta_read,"UPDATE release_scripts_manifest_interops: patch-meta.json is a JSON object")
+ if not meta_read: return
+ var pack_path=RELEASE_DIRECTORY+"patch.pck"
+ var meta=meta_json.data as Dictionary
+ t.check(int(meta.get("bytes",-1))==fixture(pack_path).size() and String(meta.get("sha256",""))==FileAccess.get_sha256(pack_path),"UPDATE release_scripts_manifest_interops: the patch metadata equals an independent size and hash of the stand-in pack: "+str(meta))
+ var patch_entry_expected={"from":String(meta.get("from","")),"to":String(meta.get("to","")),"url":RELEASE_PATCH_URL,"mirror":RELEASE_PATCH_MIRROR,"bytes":int(meta.get("bytes",-1)),"sha256":String(meta.get("sha256",""))}
  var keys={RELEASE_KEY_ID:public_pem}
+ var identity=identity_of(String(meta.get("from","")))
+ var patched=Manifest.evaluate(body,signature,keys,String(meta.get("from","")),PLATFORM,identity)
+ t.check(patched.get("kind","")=="notice" and patched.get("patch",{})==patch_entry_expected,"UPDATE release_scripts_manifest_interops: windows-x64 on the patch's baseline is offered exactly the entry the script wrote from the metadata: "+str(patched))
+ var android_patched=Manifest.evaluate(body,signature,keys,String(meta.get("from","")),"android",identity)
+ t.check(android_patched.get("kind","")=="notice" and not android_patched.has("patch"),"UPDATE release_scripts_manifest_interops: android is never offered a patch: "+str(android_patched))
  for platform in RELEASE_LINKS:
   var expected={"kind":"notice","version":RELEASE_VERSION,"bytes":int(inputs[platform].bytes),"url":RELEASE_LINKS[platform][0],
    "mirror":RELEASE_LINKS[platform][1],"notes":notes,"revoked":false,"platform":platform}
@@ -347,7 +389,7 @@ static func release_scripts_manifest_interops(t) -> void:
  for platform in RELEASE_LINKS:
   var entry=(parser.data.platforms as Dictionary).get(platform,{})
   var full=entry.get("full",{}) if entry is Dictionary else {}
-  t.check(String(full.get("sha256",""))==String(inputs[platform].sha256) and int(full.get("bytes",-1))==int(inputs[platform].bytes) and entry.get("patches",null)==[],"UPDATE release_scripts_manifest_interops: "+platform+" bytes/sha256 come from its single hash source and patches is empty: "+str(full))
+  t.check(String(full.get("sha256",""))==String(inputs[platform].sha256) and int(full.get("bytes",-1))==int(inputs[platform].bytes) and patches_hold(entry.get("patches",null),[patch_entry_expected] if platform==PLATFORM else []),"UPDATE release_scripts_manifest_interops: "+platform+" bytes/sha256 come from their single hash sources and patches holds only the metadata entry (windows-x64): "+str(entry))
  var tampered=body.get_string_from_utf8().replace("\"serial\": 4","\"serial\": 5").to_utf8_buffer()
  var changed=0
  if tampered.size()!=body.size(): changed=-1
@@ -390,6 +432,258 @@ static func patches_are_ignored(t, pair: Array, keys: Dictionary) -> void:
   "url":"https://update.magicspire.xyz/v1/0.18.4/patch.zip","bytes":1024,"sha256":"0".repeat(64),"requires_full":false}
  var offer=judge(bytes_of(document("0.18.4",{"patches":[patch]})),pair,keys)
  t.check(offer.get("kind","")=="notice" and not offer.has("patches"),"UPDATE patches_are_ignored: the update check never reads the patch array and never offers one: "+str(offer))
+
+# ---- 补丁条目匹配 ---------------------------------------------------------------------
+
+# docs/spec/update-check.md「补丁条目匹配」: the baseline is the executable's version, the current
+# version is what runs; a patch is cumulative against the baseline, so only `from` == baseline
+# matches. Every case calls the real evaluate with the 6th argument.
+const BASELINE="0.18.4"
+const MOUNTED="0.18.5"
+const LATEST="0.18.6"
+const PATCH_URL="https://update.magicspire.xyz/v1/patches/0.18.4-0.18.6.pck"
+const PATCH_MIRROR="https://github.com/h13942080472-prog/magic-spire/releases/download/v0.18.6/patch-0.18.4-0.18.6.pck"
+const PATCH_BYTES=1234567
+const PATCH_FIELDS=["from","to","url","mirror","bytes","sha256"]
+
+static func patch_entry(source: String, target: String, overrides: Dictionary={}) -> Dictionary:
+ var entry={"from":source,"to":target,"url":PATCH_URL,"mirror":PATCH_MIRROR,"bytes":PATCH_BYTES,"sha256":"ab".repeat(32)}
+ for key in overrides: entry[key]=overrides[key]
+ return entry
+
+static func without(entry: Dictionary, key: String) -> Dictionary:
+ var copy=entry.duplicate()
+ copy.erase(key)
+ return copy
+
+static func identity_of(baseline: String, failed: Array=[]) -> Dictionary:
+ return {"baseline":baseline,"failed":failed}
+
+static func patch_offer(pair: Array, keys: Dictionary, current: String, patches: Variant, local: Dictionary, overrides: Dictionary={}) -> Dictionary:
+ var settings=overrides.duplicate()
+ settings["patches"]=patches
+ var platform=String(settings.get("platform",PLATFORM))
+ return judge_local(bytes_of(document(LATEST,settings)),pair,keys,current,local,platform)
+
+static func patch_matches_baseline(t, pair: Array, keys: Dictionary) -> void:
+ var entry=patch_entry(BASELINE,LATEST)
+ var offer=patch_offer(pair,keys,MOUNTED,[entry],identity_of(BASELINE))
+ t.check(offer.get("kind","")=="notice" and String(offer.get("version",""))==LATEST,"UPDATE patch_matches_baseline: the manifest is still a notice for the latest version: "+str(offer))
+ var patch=offer.get("patch",{})
+ var wrong=PATCH_FIELDS.filter(func(key):return not patch is Dictionary or not patch.has(key) or patch[key]!=entry[key])
+ t.check(patch is Dictionary and patch.size()==PATCH_FIELDS.size() and wrong.is_empty(),"UPDATE patch_matches_baseline: a baseline-keyed cumulative patch is offered with exactly from/to/url/mirror/bytes/sha256: wrong="+str(wrong)+" "+str(offer))
+ t.check(String(offer.get("url",""))==URL and String(offer.get("mirror",""))==MIRROR and int(offer.get("bytes",0))==SIZE,"UPDATE patch_matches_baseline: the full package fields stay the fallback beside the patch: "+str(offer))
+ var first=patch_entry(BASELINE,LATEST,{"url":"https://update.magicspire.xyz/v1/patches/first.pck"})
+ var second=patch_entry(BASELINE,LATEST,{"url":"https://update.magicspire.xyz/v1/patches/second.pck"})
+ var chosen=patch_offer(pair,keys,BASELINE,[first,second],identity_of(BASELINE))
+ t.check(chosen.get("patch",{}).get("url","")==first.url,"UPDATE patch_matches_baseline: several eligible entries resolve to the first one: "+str(chosen))
+ var unmounted=patch_offer(pair,keys,BASELINE,[entry],identity_of(BASELINE))
+ t.check(unmounted.get("patch",{}).get("to","")==LATEST,"UPDATE patch_matches_baseline: an unmounted baseline install matches the same entry: "+str(unmounted))
+ var spelled=patch_offer(pair,keys,MOUNTED,[patch_entry("0.18.4.0",LATEST)],identity_of(BASELINE))
+ t.check(spelled.get("patch",{}).get("to","")==LATEST,"UPDATE patch_matches_baseline: from is compared as a version (0.18.4.0 == 0.18.4), not as text: "+str(spelled))
+ var android=patch_offer(pair,keys,MOUNTED,[entry],identity_of(BASELINE),{"platform":"android"})
+ t.check(android.get("kind","")=="notice" and not android.has("patch"),"UPDATE patch_matches_baseline: a patch is only matched for windows-x64: "+str(android))
+
+static func patch_ignores_effective_version_match(t, pair: Array, keys: Dictionary) -> void:
+ var by_effective=patch_entry(MOUNTED,LATEST)
+ var offer=patch_offer(pair,keys,MOUNTED,[by_effective],identity_of(BASELINE))
+ t.check(offer.get("kind","")=="notice" and not offer.has("patch"),"UPDATE patch_ignores_effective_version_match: an entry keyed by the mounted version does not match; only the full package is offered: "+str(offer))
+ var wrong_target=patch_offer(pair,keys,MOUNTED,[patch_entry(BASELINE,"0.18.7")],identity_of(BASELINE))
+ t.check(wrong_target.get("kind","")=="notice" and not wrong_target.has("patch"),"UPDATE patch_ignores_effective_version_match: an entry whose target is not the latest version never matches: "+str(wrong_target))
+ var blank=patch_offer(pair,keys,MOUNTED,[patch_entry(BASELINE,LATEST)],identity_of(""))
+ t.check(blank.get("kind","")=="notice" and not blank.has("patch"),"UPDATE patch_ignores_effective_version_match: an identity without a baseline matches nothing: "+str(blank))
+
+static func patch_not_reoffered_once_mounted(t, pair: Array, keys: Dictionary) -> void:
+ var latest_five=bytes_of(document(MOUNTED,{"patches":[patch_entry(BASELINE,MOUNTED)]}))
+ var settled=judge_local(latest_five,pair,keys,MOUNTED,identity_of(BASELINE))
+ t.check(settled.get("kind","")=="none" and settled.get("reason","")=="","UPDATE patch_not_reoffered_once_mounted: with the latest version already mounted the answer is a verified none, never a prompt: "+str(settled))
+ var unmounted=judge_local(latest_five,pair,keys,BASELINE,identity_of(BASELINE))
+ t.check(unmounted.get("kind","")=="notice" and unmounted.get("patch",{}).get("to","")==MOUNTED,"UPDATE patch_not_reoffered_once_mounted: the same manifest is a notice with a patch while the version is not mounted: "+str(unmounted))
+
+static func patch_withdrawn_or_failed_is_dropped(t, pair: Array, keys: Dictionary) -> void:
+ var entry=patch_entry(BASELINE,LATEST)
+ var current_revoked=patch_offer(pair,keys,MOUNTED,[entry],identity_of(BASELINE),{"revoked":[MOUNTED]})
+ t.check(current_revoked.get("kind","")=="notice" and current_revoked.get("revoked",false)==true,"UPDATE patch_withdrawn_or_failed_is_dropped: a revoked current version is still recommended for update: "+str(current_revoked))
+ t.check(current_revoked.get("patch",{}).get("to","")==LATEST,"UPDATE patch_withdrawn_or_failed_is_dropped: the revoked current version still receives the matching patch: "+str(current_revoked))
+ var target_revoked=patch_offer(pair,keys,MOUNTED,[entry],identity_of(BASELINE),{"revoked":[LATEST]})
+ t.check(target_revoked.get("kind","")=="notice" and not target_revoked.has("patch"),"UPDATE patch_withdrawn_or_failed_is_dropped: a patch whose target is revoked is not offered: "+str(target_revoked))
+ var target_failed=patch_offer(pair,keys,MOUNTED,[entry],identity_of(BASELINE,[LATEST]))
+ t.check(target_failed.get("kind","")=="notice" and not target_failed.has("patch"),"UPDATE patch_withdrawn_or_failed_is_dropped: a target that already failed to mount here is not offered again: "+str(target_failed))
+ var other_failed=patch_offer(pair,keys,MOUNTED,[entry],identity_of(BASELINE,["0.18.5"]))
+ t.check(other_failed.get("patch",{}).get("to","")==LATEST,"UPDATE patch_withdrawn_or_failed_is_dropped: only the target's own failure drops the entry: "+str(other_failed))
+
+static func patch_entry_domain_and_compat(t, pair: Array, keys: Dictionary) -> void:
+ var good=patch_entry(BASELINE,LATEST)
+ var bad_rows={
+  "sha256 of 63 digits":patch_entry(BASELINE,LATEST,{"sha256":"a".repeat(63)}),
+  "sha256 of 65 digits":patch_entry(BASELINE,LATEST,{"sha256":"a".repeat(65)}),
+  "upper-case sha256":patch_entry(BASELINE,LATEST,{"sha256":"AB".repeat(32)}),
+  "non-hex sha256":patch_entry(BASELINE,LATEST,{"sha256":"g".repeat(64)}),
+  "bytes of zero":patch_entry(BASELINE,LATEST,{"bytes":0}),
+  "negative bytes":patch_entry(BASELINE,LATEST,{"bytes":-5}),
+  "bytes over the cap":patch_entry(BASELINE,LATEST,{"bytes":Manifest.MAX_PATCH_BYTES+1}),
+  "fractional bytes":patch_entry(BASELINE,LATEST,{"bytes":1.5}),
+  "text bytes":patch_entry(BASELINE,LATEST,{"bytes":"1024"}),
+  "plain-http url":patch_entry(BASELINE,LATEST,{"url":"http://update.magicspire.xyz/v1/patches/p.pck"}),
+  "plain-http mirror":patch_entry(BASELINE,LATEST,{"mirror":"http://github.com/p.pck"}),
+  "empty from":patch_entry("",LATEST),
+  "empty to":patch_entry(BASELINE,""),
+  "numeric from":patch_entry(BASELINE,LATEST,{"from":18}),
+  "missing url":without(good,"url"),
+  "missing mirror":without(good,"mirror"),
+  "missing bytes":without(good,"bytes"),
+  "missing sha256":without(good,"sha256"),
+  "missing from":without(good,"from"),
+  "missing to":without(good,"to"),
+ }
+ for label in bad_rows:
+  var offer=patch_offer(pair,keys,MOUNTED,[bad_rows[label]],identity_of(BASELINE))
+  t.check(offer.get("kind","")=="notice" and not offer.has("patch") and String(offer.get("url",""))==URL,"UPDATE patch_entry_domain_and_compat: "+label+" disqualifies only its entry; the signed full package prompt stays: "+str(offer))
+ var edge=patch_offer(pair,keys,MOUNTED,[patch_entry(BASELINE,LATEST,{"bytes":Manifest.MAX_PATCH_BYTES})],identity_of(BASELINE))
+ t.check(edge.get("patch",{}).get("bytes",0)==Manifest.MAX_PATCH_BYTES,"UPDATE patch_entry_domain_and_compat: a patch of exactly the byte cap is eligible: "+str(edge))
+ t.check(Manifest.MAX_PATCH_BYTES==268435456,"UPDATE patch_entry_domain_and_compat: the patch byte cap is 256 MiB")
+ var mixed=patch_offer(pair,keys,MOUNTED,["junk",42,null,[],bad_rows["bytes of zero"],good],identity_of(BASELINE))
+ t.check(mixed.get("patch",{}).get("to","")==LATEST,"UPDATE patch_entry_domain_and_compat: junk and bad entries before a good one are skipped: "+str(mixed))
+ var not_array=patch_offer(pair,keys,MOUNTED,{"from":BASELINE},identity_of(BASELINE))
+ t.check(not_array.get("kind","")=="notice" and not not_array.has("patch"),"UPDATE patch_entry_domain_and_compat: a patches value that is not an array is ignored: "+str(not_array))
+ var body=bytes_of(document(LATEST,{"patches":[good]}))
+ var legacy=judge(body,pair,keys,MOUNTED)
+ var empty_local=judge_local(body,pair,keys,MOUNTED,{})
+ t.check(not legacy.has("patch") and not empty_local.has("patch") and legacy.keys()==OFFER_FIELDS and empty_local.keys()==OFFER_FIELDS,"UPDATE patch_entry_domain_and_compat: without a local identity the offer carries exactly the eight fields and no patch: "+str(legacy)+" "+str(empty_local))
+ t.check(legacy==empty_local,"UPDATE patch_entry_domain_and_compat: the five-argument and the empty-identity answers are equal: "+str(legacy)+" "+str(empty_local))
+
+# The production call site hands the install's identity to evaluate. A check node under --script
+# never builds the default store (it would read the player's data), so the identity comes from an
+# injected store here; the default player-session path is not reachable from a --script run.
+static func check_passes_identity_to_evaluate(t, pair: Array, keys: Dictionary) -> void:
+ if UpdateCheck.platform_key()!=PLATFORM:
+  t.check(true,"UPDATE check_passes_identity_to_evaluate: skipped, this host is not windows-x64")
+  return
+ var baseline=Store.baseline_version()
+ var body=bytes_of(document(PATCH_A,{"patches":[patch_entry(baseline,PATCH_A)]}))
+ var clean_store=Store.new(boot_root("identity"))
+ var failed_store=Store.new(boot_root("identity-failed"))
+ failed_store.write_state(boot_state(baseline,{},{},"",[PATCH_A]))
+ var rows=[["injected store with a clean state",clean_store,true],["injected store that marked the target failed",failed_store,false],["no store under --script",null,false]]
+ for row in rows:
+  var check=UpdateCheck.new()
+  check.keys=keys
+  if row[1]!=null: check.store=row[1]
+  var answers=[body,signature_of(body,pair)]
+  check.transport=func(_url: String, _method: int) -> int:
+   check.deliver(HTTPRequest.RESULT_SUCCESS,200,PackedStringArray(),answers.pop_front())
+   return OK
+  check.check()
+  var offer=check.offer
+  t.check(offer.get("kind","")=="notice" and offer.has("patch")==bool(row[2]),"UPDATE check_passes_identity_to_evaluate: "+String(row[0])+": offer.patch present="+str(row[2])+": "+str(offer))
+  t.check(not bool(row[2]) or offer.get("patch",{}).get("to","")==PATCH_A,"UPDATE check_passes_identity_to_evaluate: "+String(row[0])+": the offered patch is the baseline-keyed entry: "+str(offer))
+  check.free()
+
+# ---- 补丁导出的可行性判定 -------------------------------------------------------------
+
+# docs/spec/update-check.md「发布侧脚本」: tools/export-patch.ps1 is the only judge of whether a
+# patch may exist. Every row runs the script itself (-CheckOnly: judge, never start the engine)
+# against a fixture tree written here, so removing a judgement from the script turns its row red.
+const EXPORT_SCRIPT="res://tools/export-patch.ps1"
+const EXPORT_BASE="0.18.4"
+const EXPORT_TARGET="0.18.5"
+const EXPORT_ENGINE="Godot v4.7.2.stable.official.fixture"
+const EXPORT_BOOT_FILES=["update/boot.gd","update/boot.tscn","update/update_store.gd","update/update_manifest.gd","update/update_keys.gd"]
+
+static func export_project(version: String, extra: String="") -> String:
+ return "config_version=5\n\n[application]\n\nconfig/name=\"fixture\"\nconfig/version=\"%s\"\nrun/main_scene=\"res://update/boot.tscn\"\n%s" % [version,extra]
+
+static func export_presets(version: String, filter: String="all_resources") -> String:
+ return "[preset.0]\n\nname=\"Windows v%s\"\nplatform=\"Windows Desktop\"\nexport_filter=\"%s\"\n\n[preset.0.options]\n\napplication/file_version=\"%s.0\"\napplication/product_version=\"%s.0\"\napplication/file_description=\"fixture v%s\"\n" % [version,filter,version,version,version]
+
+static func export_write(path: String, text: String) -> void:
+ write_bytes(path,text.to_utf8_buffer())
+
+# One fixture world: package/ (the baseline release package), base-src/ (the baseline sources),
+# game/ (the target tree). The returned dictionary names the three roots.
+static func export_world(label: String) -> Dictionary:
+ var root=boot_root("export-"+label)
+ var world={"root":root,"package":root+"/package","base_src":root+"/base-src","game":root+"/game","out":root+"/out"}
+ var packs={"content/packs/a.json":"{\"a\":1}\n","content/packs/sub/b.json":"{\"b\":2}\n"}
+ var pck=boot_content("pck",256)
+ write_bytes(world.package+"/game.pck",pck)
+ var files=[{"path":"game.pck","bytes":pck.size(),"sha256":sha_hex(pck)}]
+ for path in packs:
+  export_write(world.package+"/"+path,packs[path])
+  export_write(world.game+"/"+path,packs[path])
+  var raw=String(packs[path]).to_utf8_buffer()
+  files.append({"path":String(path).replace("/","\\"),"bytes":raw.size(),"sha256":sha_hex(raw)})
+ var manifest={"version":EXPORT_BASE,"platform":"windows-x64","build":"fixture","engine":EXPORT_ENGINE,"files":files}
+ export_write(world.package+"/manifest.json",JSON.stringify(manifest))
+ export_write(world.base_src+"/project.godot",export_project(EXPORT_BASE))
+ export_write(world.game+"/project.godot",export_project(EXPORT_TARGET))
+ export_write(world.base_src+"/export_presets.cfg",export_presets(EXPORT_BASE))
+ export_write(world.game+"/export_presets.cfg",export_presets(EXPORT_TARGET))
+ for path in EXPORT_BOOT_FILES:
+  export_write(world.base_src+"/"+path,"# "+path+"\n")
+  export_write(world.game+"/"+path,"# "+path+"\n")
+ return world
+
+# Runs the script through pwsh; returns {"exit":int,"output":String}.
+static func export_run(world: Dictionary, switches: Array=[], overrides: Dictionary={}) -> Dictionary:
+ var args=["-NoProfile","-File",ProjectSettings.globalize_path(EXPORT_SCRIPT),
+  "-BasePackage",ProjectSettings.globalize_path(world.package),"-BaseVersion",EXPORT_BASE,
+  "-Out",ProjectSettings.globalize_path(world.out),"-ProjectRoot",ProjectSettings.globalize_path(world.game),
+  "-BaseSourceDirectory",ProjectSettings.globalize_path(world.base_src),"-EngineVersion",EXPORT_ENGINE]
+ for key in overrides:
+  var index=args.find(key)
+  var value=String(overrides[key])
+  if index>=0: args[index+1]=ProjectSettings.globalize_path(value) if value.begins_with("res://") else value
+ args.append_array(switches)
+ var output=[]
+ var exit_code=OS.execute("pwsh",PackedStringArray(args),output,true)
+ return {"exit":exit_code,"output":"".join(output)}
+
+static func export_expect_refusal(t, world: Dictionary, gate: String, label: String, switches: Array=["-CheckOnly"], overrides: Dictionary={}) -> void:
+ var run=export_run(world,switches,overrides)
+ t.check(run.exit!=0 and String(run.output).contains("PATCH REFUSED: "+gate),"UPDATE export_patch_feasibility_domain: "+label+" is refused by the "+gate+" judgement: exit="+str(run.exit)+" "+String(run.output).left(600))
+ t.check(not DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(world.out)),"UPDATE export_patch_feasibility_domain: "+label+" leaves no output directory")
+
+static func export_patch_feasibility_domain(t) -> void:
+ var world=export_world("ok")
+ var run=export_run(world,["-CheckOnly"])
+ t.check(run.exit==0 and String(run.output).contains("PATCH FEASIBLE") and not String(run.output).contains("PATCH REFUSED"),"UPDATE export_patch_feasibility_domain: identical content packs, a version-only project/preset difference and an untouched boot closure are feasible: exit="+str(run.exit)+" "+String(run.output).left(600))
+ t.check(not DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(world.out)),"UPDATE export_patch_feasibility_domain: a judge-only run writes nothing")
+ world=export_world("pack-changed")
+ export_write(world.game+"/content/packs/a.json","{\"a\":2}\n")
+ export_expect_refusal(t,world,"content-packs","a content pack with another hash")
+ world=export_world("pack-changed-full")
+ export_write(world.game+"/content/packs/a.json","{\"a\":2}\n")
+ export_expect_refusal(t,world,"content-packs","a content pack with another hash in a full (not judge-only) run",[])
+ world=export_world("pack-added")
+ export_write(world.game+"/content/packs/c.json","{}\n")
+ export_expect_refusal(t,world,"content-packs","an added content pack")
+ world=export_world("pack-removed")
+ DirAccess.remove_absolute(ProjectSettings.globalize_path(world.game+"/content/packs/sub/b.json"))
+ export_expect_refusal(t,world,"content-packs","a removed content pack")
+ world=export_world("project")
+ export_write(world.game+"/project.godot",export_project(EXPORT_TARGET,"[display]\n\nwindow/size/viewport_width=1280\n"))
+ export_expect_refusal(t,world,"project-settings","a project.godot difference beyond config/version")
+ world=export_world("presets")
+ export_write(world.game+"/export_presets.cfg",export_presets(EXPORT_TARGET,"selected_scenes"))
+ export_expect_refusal(t,world,"export-presets","an export preset difference beyond the version fields")
+ for path in EXPORT_BOOT_FILES:
+  world=export_world("boot-"+String(path).get_file())
+  export_write(world.game+"/"+path,"# "+path+" changed\n")
+  export_expect_refusal(t,world,"boot-closure","a changed "+String(path))
+ world=export_world("no-boot")
+ DirAccess.remove_absolute(ProjectSettings.globalize_path(world.base_src+"/update/boot.gd"))
+ export_expect_refusal(t,world,"baseline-no-boot","a baseline that predates the boot scene")
+ world=export_world("engine")
+ export_expect_refusal(t,world,"engine","another engine version",["-CheckOnly"],{"-EngineVersion":"Godot v4.8.0.stable.official.other"})
+ world=export_world("no-sources")
+ export_expect_refusal(t,world,"baseline-unavailable","baseline sources that cannot be fetched",["-CheckOnly"],{"-BaseSourceDirectory":world.root+"/absent"})
+ world=export_world("package-pck")
+ export_write(world.package+"/game.pck","not the packed bytes")
+ export_expect_refusal(t,world,"package","a main pack that differs from the package manifest")
+ world=export_world("no-manifest")
+ DirAccess.remove_absolute(ProjectSettings.globalize_path(world.package+"/manifest.json"))
+ export_expect_refusal(t,world,"package","a package without its manifest")
 
 # One key in the existing file, no second store and no new user:// file.
 static func settings_toggle_uses_one_store(t) -> void:

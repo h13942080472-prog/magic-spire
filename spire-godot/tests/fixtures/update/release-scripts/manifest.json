@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "serial": 4,
-  "issued": "2026-11-21T17:34:21Z",
+  "issued": "2026-11-27T18:36:00Z",
   "key_id": "t1",
   "latest": {
     "version": "0.18.4",
@@ -18,7 +18,16 @@
         "bytes": 231,
         "sha256": "f49e6fb8dfa0ae0a8aac7de8f7084d920befe44d0e18b8f8260782fafcb3c015"
       },
-      "patches": []
+      "patches": [
+        {
+          "from": "0.18.3",
+          "to": "0.18.4",
+          "url": "https://update.magicspire.xyz/v1/patches/0.18.3-0.18.4.pck",
+          "mirror": "https://github.com/h13942080472-prog/magic-spire/releases/download/v0.18.4/patch-0.18.3-0.18.4.pck",
+          "bytes": 300,
+          "sha256": "055b1b485b603b674669f034a48c39a78fd8fa3694a4b4f9f93702d9474cde83"
+        }
+      ]
     },
     "android": {
       "full": {
