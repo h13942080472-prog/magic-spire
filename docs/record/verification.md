@@ -5250,3 +5250,16 @@ Godot 4.7.2 专项 66 项断言通过。两个部位各承受两段「浑身解�
 - 父侧红行在本分支消失 3 条，均由生成物重生成解释：`architecture` 的 `STATEREAD state_read_sites_are_pinned`（`tests/state_readers.json` 重生成），`runner` 的 `RUNNER index_matches_regeneration` 与 `RUNNER index_regeneration_is_the_only_writer`（`tests/check_index.json` 重冻）；两个生成物都在本分支改动面内。
 - 敏感性：本分支相对 `e4fde8d` 新增的 45 条登记突变逐条 `tools/check-mutation.ps1 -Check <名>`（串行），45 条均 `RED exit-red=True restored=True`，每条逐字节还原自证通过；全部结束后工作树无改动。
 - 未跑：公开验收（真实发布地址、正式签名）未做，本轮不碰网络发布面；Android 真机验收未做。红套件均为父侧既有红，未在本分支修复，也不作为通过证据。
+
+## 2026-11-27｜启动时更新检查合入上游 4be2c1c 后的 PR 前完整回归与公网验收
+
+- 域：`spire-godot/` 规则 60 类（含新增 `update`）与界面 51 类（含新增 `update`），逐类对照父侧 `4be2c1c` 的逐类基线；本分支相对 `e4fde8d` 新增的 46 条登记突变；公网更新清单验收。验收源码为已提交的隔离树，HEAD `e12c6bd`（已合入 `origin/main` `4be2c1c`，`origin/main...HEAD` 左侧 0、右侧 58），开工 `git status --porcelain` 0 行；导入后 `.import` 行尾假脏已在锁外恢复，非 `.import` 改动 0、未跟踪 0。
+- 导入：`check.ps1 -Import -Suite runner` 运行号 `20261126T164726090-16784`，退出码 1（`runner` 为父侧既有红，`FAIL: 3/1977 assertions; 3 engine errors`，父侧同为 3 条失败）。
+- 全量命令 `check.ps1 -Suite all -UI -UISuite all -KeepGoing -TimeoutSeconds 3600`：运行号 `20261126T164803777-37096`，退出码 1，约 401 秒，`DOCS RESULT: PASS`。规则相位在 `exploration` 的 SCRIPT ERROR 之后提前收尾（`FAIL: 56/127663 assertions; 58 engine errors`），共 31 个结果行，其后 29 个规则类无结果行；界面相位未启动。截断位置与父侧基线一致（父侧同为 56 条失败、58 条引擎错误）。
+- 补跑：规则 29 类（运行号 `20261126T170916515-27140` 至 `20261126T172128382-25488`）与界面 51 类（`20261126T172143549-57300` 至 `20261126T183915368-65392`），逐个独立运行，每个都有自己的 `SUITE RESULT` 行，无超时。
+- 结果：规则 60 类中通过 44 类、父侧既有红 16 类；界面 51 类中通过 28 类、父侧既有红 23 类。红套件的 `ERROR:`／`SCRIPT ERROR` 行按前 120 字去重后与父侧逐行比对，本分支没有父侧没有的行，新红 0；新增套件 `update` 规则 108 项、界面 79 项断言全部通过（父侧无结果）。全部日志中没有 `resources still in use at exit`、`ObjectDB instances were leaked` 两行。口径说明：规则前 31 类两边均来自全量（exhaustive 抽样），其余 29 类与全部界面类两边均为单套件补跑（daily 抽样），口径一致。
+- 父侧红行消失 1 条：界面 `rewards` 的父侧日志中 `DIPLOMA UI deck overview uses current enhanced card value` 出现 2 次，本分支运行中未出现（断言 399 对 398）。本分支改动不涉及该界面，未能由本分支改动解释，列为待裁定，不作为本分支的修复结论。
+- 敏感性：本分支相对 `e4fde8d` 与 `origin/main` 新增的 46 条登记突变（取 `tests/mutations.json` 键集合的 HEAD 减 `e4fde8d` 减 `origin/main`，含 `host_free_releases_unparented_check`）逐条 `tools/check-mutation.ps1 -Check <名>` 串行执行，46 条均 `RED exit-red=True restored=True`，具名判据均有对应 `ERROR:` 行，逐字节还原自证通过，每条之后工作树恢复干净；突变运行中的退出泄漏两行属被突变源码的预期红，不计入套件结果。
+- 公网验收：`https://update.magicspire.xyz/v1/manifest.json` HTTP 200、766 字节，`manifest.json.sig` HTTP 200、512 字节；用仓内 `update_keys.gd::KEYS` 的 `k1` 公钥验签输出 `Verified OK`；`k1` 的 DER sha256 为 `a4311195c39051d64a0fc5bec6352316eebc9a836d93f0982d52006bcbb8727c`，与 `docs/spec/update-check.md` 记录一致；两个公网文件与本地发布副本逐字节一致（`cmp` 无差异）。
+- 生产代码路径探针（`--headless --script`，不替换 `transport`，真实 `HTTPRequest`，进程内改版本、不写盘）：a 轮把版本临时设为 `0.18.3`，`kind=notice`、`version=0.18.4`、`requests=2`，下载地址与公网清单一致；b 轮恢复为实际版本 `0.18.4`，`kind=none`（不提示）、`requests=2`。探针后 `git status` 干净，`project.godot` 未被改写。
+- 未验证：导出成品在真机上弹出提示（线上版本等于本分支版本，成品不会提示）；安卓清单（线上只有 `windows-x64`）；镜像地址（当前与下载地址相同）；Android 真机验收。红套件均为父侧既有红，未在本分支修复，也不作为已知红之外的通过依据。
