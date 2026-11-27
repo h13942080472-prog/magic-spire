@@ -19,6 +19,7 @@ const CombatFeedback=preload("res://ui/combat_feedback.gd")
 const ImpactFeedback=preload("res://ui/impact_feedback.gd")
 const Queries=preload("res://ui/target_queries.gd")
 const SaveStore=preload("res://core/save_store.gd")
+const UpdateStore=preload("res://update/update_store.gd")
 const PRISON_CAPTURE_INTRO_ART={
  "leather":preload("res://assets/art/prison-capture-intro-leather-v1.png"),
  "rope":preload("res://assets/art/prison-capture-intro-rope-v1.png"),
@@ -69,6 +70,8 @@ var localization=preload("res://ui/localization.gd").new()
 # docs/spec/update-check.md「接口」: the check node is created here, before the scene enters the
 # tree, so a probe or a test can install the transport stand-in before the automatic start runs.
 var update_check=preload("res://update/update_check.gd").new()
+# Owner of the patch state, built in a player session (a harness injects its own to assert the startup proof).
+var update_store=null
 # The single launch point for both offer links; a probe or a test replaces it with a recorder.
 var open_url=Callable()
 
@@ -216,7 +219,7 @@ func _ready() -> void:
  keyboard_input=preload("res://ui/keyboard_input.gd").new();keyboard_input.host=self;add_child(keyboard_input)
  feedback_report=preload("res://ui/feedback_report.gd").new();feedback_report.host=self;add_child(feedback_report)
  takeover_presenter=preload("res://ui/first_turn_presenter.gd").new();takeover_presenter.host=self;add_child(takeover_presenter)
- get_window().title=ProjectSettings.get_setting("application/config/name")
+ get_window().title=str(ProjectSettings.get_setting("application/config/name"))+" v"+UpdateStore.effective_version()
  shop_chatter_rng.randomize()
  display_settings.initialize(get_window(),persistence_enabled)
  localization.set_locale(display_settings.locale)
@@ -229,6 +232,9 @@ func _ready() -> void:
  theme=Palette.controls()
  preload("res://ui/legacy_import.gd").run_once(self,OS.has_feature("pc"))
  _restore_startup()
+ # Startup restore finished: this session proved itself, so a mounted patch stops being on probation.
+ if update_store==null and UpdateStore.player_session(): update_store=UpdateStore.new()
+ if update_store!=null: update_store.mark_boot_succeeded()
  render(view)
  update_check.host=self
  add_child(update_check)

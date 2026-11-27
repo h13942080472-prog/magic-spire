@@ -813,7 +813,7 @@ static func patch_file_verification_domain(t) -> void:
  t.check(not Manifest.verify_patch_file(directory.path_join("missing.pck"),big.size(),sha) and not Manifest.verify_patch_file(directory,big.size(),sha),"UPDATE patch_file_verification_domain: a missing file and a directory fail")
  var empty=directory.path_join("empty.pck")
  write_bytes(empty,PackedByteArray())
- t.check(not Manifest.verify_patch_file(empty,0,sha_hex(PackedByteArray())),"UPDATE patch_file_verification_domain: an empty package never verifies, even with a matching zero length")
+ t.check(not Manifest.verify_patch_file(empty,0,"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),"UPDATE patch_file_verification_domain: an empty package never verifies, even with a matching zero length")
  t.check(Manifest.is_newer("99.0.1","0.18.4") and not Manifest.is_newer("0.18.4","0.18.4") and not Manifest.is_newer("0.18.3","0.18.4"),"UPDATE patch_file_verification_domain: a boot candidate must be strictly newer than the baseline")
 
 # State read from disk is untrusted: a version becomes a file name, so it must pass the version

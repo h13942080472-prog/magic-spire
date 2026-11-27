@@ -6638,11 +6638,11 @@ static func update_sites_in_files(sites: Array) -> Array:
 
 static func update_compare_single_entry(t) -> void:
  var sites=update_source_sites(update_scan_files(["res://ui","res://update","res://core"]),"(?<![A-Za-z0-9_])compare\\s*\\(")
- t.check(sites==["update/update_manifest.gd::_revoked","update/update_manifest.gd::compare","update/update_manifest.gd::evaluate"],"DEP update_compare_single_entry: version comparison exists only in update/update_manifest.gd compare/evaluate/_revoked; a second compare( anywhere in ui/update/core is red: "+str(sites))
+ t.check(sites==["update/update_manifest.gd::_revoked","update/update_manifest.gd::compare","update/update_manifest.gd::evaluate","update/update_manifest.gd::is_newer"],"DEP update_compare_single_entry: version comparison exists only in update/update_manifest.gd compare/evaluate/is_newer/_revoked; a second compare( anywhere in ui/update/core is red: "+str(sites))
 
 static func update_document_single_entry(t) -> void:
  var sites=update_source_sites(update_feature_files(),"JSON\\.(?:new|parse|parse_string)\\s*\\(")
- t.check(sites==["update/update_manifest.gd::_document"],"DEP update_document_single_entry: manifest parsing exists only in update/update_manifest.gd::_document; a second JSON parse on the update surface is red: "+str(sites))
+ t.check(sites==["update/update_manifest.gd::document"],"DEP update_document_single_entry: JSON parsing on the update surface exists only in update/update_manifest.gd::document (the manifest and the patch state both go through it); a second JSON parse is red: "+str(sites))
 
 static func update_verify_single_entry(t) -> void:
  var sites=update_source_sites(update_scan_files(["res://ui","res://update","res://core"]),"CryptoKey\\.new\\s*\\(|load_from_string\\s*\\(|\\.verify\\s*\\(")

@@ -1,5 +1,6 @@
 extends RefCounted
 const Queries=preload("res://ui/target_queries.gd")
+const EffectiveStore=preload("res://update/update_store.gd")
 
 static func practice_copy(t) -> void:
  var ui=t.ui;ui.restart(42,true,"advanced");await t.frames()
@@ -37,7 +38,7 @@ static func feedback(t) -> void:
  t.check(ui.find_child("FeedbackReview",true,false).get_global_rect().end.y<850 and ui.find_child("FeedbackForm",true,false).get_global_rect().end.x<ui.find_child("FeedbackAttachments",true,false).get_global_rect().position.x,"FEEDBACK split form and attachments keep primary action within the viewport")
  report.draft.context.version="0.17";report.draft.id="old-version-receipt"
  var original_context=report.draft.context.duplicate(true)
- var current_version=str(ProjectSettings.get_setting("application/config/version",""))
+ var current_version=EffectiveStore.effective_version()
  original_context.version=current_version
  ui._close_drawers();ui._refresh_drawers();report.open();await t.frames()
  t.check(ui.find_child("FeedbackTitle",true,false).text=="测试反馈" and report.draft.images.size()==3,"FEEDBACK closing and reopening preserves text and screenshots")
@@ -211,7 +212,7 @@ static func feedback_save(t) -> void:
  # while keeping the original scene (docs/spec/feedback-deployment.md「输入域」); the restore must
  # not overwrite that scene with this process's startup game.
  var expected_context=restored_context.duplicate(true)
- expected_context.version=str(ProjectSettings.get_setting("application/config/version",""))
+ expected_context.version=EffectiveStore.effective_version()
  t.check(report.save_captured and report.draft.context==expected_context,"FEEDBACK restored draft captures at its first use: the capture runs once, the restored scene is kept and only the version follows this build")
  var restored_body=report.payload()
  var restored_text=Marshalls.base64_to_raw(String(restored_body.get("save",{}).get("data",""))).get_string_from_utf8()

@@ -13,6 +13,7 @@ const Palette=preload("res://ui/visual_theme.gd")
 const Click=preload("res://tests/interface_ui_cases.gd")
 # The static configuration reader is called through the class, not an instance.
 const Check=preload("res://update/update_check.gd")
+const RunningStore=preload("res://update/update_store.gd")
 
 static func run(t) -> void:
  await startup_offer_renders_notice(t)
@@ -42,14 +43,14 @@ static func harness(served: Dictionary, prefs: String="") -> Dictionary:
 static func size_text() -> String:
  return "%.1f" % (float(Cases.SIZE)/1048576.0)
 
-# The running build's version comes from the production reader (Check.current_version), and the
+# The running build's version comes from the production reader (Store.effective_version), and the
 # "newer" version is derived from it by appending a ".1" segment: UpdateManifest.compare treats
 # a missing segment as numeric 0, so the extra non-zero numeric segment always ranks higher,
 # whatever the build number is, including a text last segment such as "0.18.3.fix". A literal
 # would stop being an update the day the project version is bumped upstream, and the notice
 # cases would fail without any product defect.
 static func newer_version() -> String:
- return Check.current_version()+".1"
+ return RunningStore.effective_version()+".1"
 
 static func signed(version: String, other_signature: bool=false) -> Dictionary:
  var pair=Cases.keypair()
@@ -181,7 +182,7 @@ static func toggle_off_skips_startup(t) -> void:
  await open_options(t,again)
  # A fresh manifest needs its own key: the stand-in answers from the same signed document and
  # an old table would reject the new signature.
- var latest=signed(Check.current_version())
+ var latest=signed(RunningStore.effective_version())
  options["response"]=latest
  options["keys"]=latest.keys
  again.update_check.keys=latest.keys

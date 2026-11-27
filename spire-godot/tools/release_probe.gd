@@ -2,6 +2,7 @@ extends SceneTree
 
 # Run with the editor executable and --main-pack pointing at the release PCK.
 # Official templates disable script overrides; the actual release gets a separate startup test.
+const Store=preload("res://update/update_store.gd")
 var failures: Array[String]=[]
 
 func check(ok: bool, message: String) -> void:
@@ -16,7 +17,7 @@ func run() -> void:
  check(not FileAccess.file_exists("res://project.godot"),"Probe must load exported project.binary, not source files")
  var expected_version=OS.get_environment("SPIRE_PROBE_VERSION")
  if expected_version=="": expected_version="0.16"
- check(ProjectSettings.get_setting("application/config/version","")==expected_version,"Release version must match package manifest")
+ check(Store.baseline_version()==expected_version,"Release version must match package manifest")
  check(not ResourceLoader.exists("res://tests/test_game.gd") and not ResourceLoader.exists("res://tools/check_content.gd"),"Development scripts must not be exported")
  var scene=load("res://main.tscn")
  check(scene!=null,"Main scene must be present in PCK")
