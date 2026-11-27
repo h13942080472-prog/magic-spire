@@ -69,9 +69,13 @@ $sourceRoot = $BaseSourceDirectory
 $temporarySources = ''
 if (-not $sourceRoot) {
     $ref = if ($BaseRef) { $BaseRef } else { 'v' + $BaseVersion }
-    $top = (& git -C $gameDirectory rev-parse --show-toplevel 2>$null | Select-Object -First 1)
-    $prefix = (& git -C $gameDirectory rev-parse --show-prefix 2>$null | Select-Object -First 1)
-    if ($LASTEXITCODE -ne 0 -or -not $top) { throw "-ProjectRoot is not inside a git work tree, so the baseline sources cannot be fetched: $gameDirectory" }
+    # No pipeline after git: $LASTEXITCODE is only meaningful for the command that ran last.
+    $top = & git -C $gameDirectory rev-parse --show-toplevel 2>$null
+    $topExit = $LASTEXITCODE
+    $prefix = & git -C $gameDirectory rev-parse --show-prefix 2>$null
+    if ($topExit -ne 0 -or $LASTEXITCODE -ne 0 -or -not $top) { throw "-ProjectRoot is not inside a git work tree, so the baseline sources cannot be fetched: $gameDirectory" }
+    $top = @($top)[0]
+    $prefix = @($prefix)[0]
     $temporarySources = Join-Path ([IO.Path]::GetTempPath()) ('export-patch-base-' + [guid]::NewGuid().ToString('N'))
     $sourceRoot = $temporarySources
     foreach ($path in @('project.godot', 'export_presets.cfg') + $script:PatchBootClosure) {

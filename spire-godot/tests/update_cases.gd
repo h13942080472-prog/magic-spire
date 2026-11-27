@@ -644,7 +644,56 @@ static func export_expect_refusal(t, world: Dictionary, gate: String, label: Str
  t.check(run.exit!=0 and String(run.output).contains("PATCH REFUSED: "+gate),"UPDATE export_patch_feasibility_domain: "+label+" is refused by the "+gate+" judgement: exit="+str(run.exit)+" "+String(run.output).left(600))
  t.check(not DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(world.out)),"UPDATE export_patch_feasibility_domain: "+label+" leaves no output directory")
 
+# The baseline sources of a real run come from the git objects of the baseline version. This
+# builds a nested repository whose commit (tagged v<EXPORT_BASE>) holds the baseline files, then
+# rewrites the work tree to the target; the script is run without its source-directory seam.
+static func export_git(root: String, args: Array) -> int:
+ var all=["-C",ProjectSettings.globalize_path(root),"-c","user.name=fixture","-c","user.email=fixture@example.invalid","-c","commit.gpgsign=false","-c","core.autocrlf=false"]
+ all.append_array(args)
+ return OS.execute("git",PackedStringArray(all),[],true)
+
+static func export_git_world(label: String, with_boot: bool) -> Dictionary:
+ var world=export_world(label)
+ var game=String(world.game)
+ var target_project=FileAccess.get_file_as_string(game+"/project.godot")
+ var target_presets=FileAccess.get_file_as_string(game+"/export_presets.cfg")
+ export_write(game+"/project.godot",export_project(EXPORT_BASE) if with_boot else "config_version=5
+
+[application]
+
+config/version=\"%s\"
+" % EXPORT_BASE)
+ export_write(game+"/export_presets.cfg",export_presets(EXPORT_BASE))
+ var steps=[["init","-q"],["add","game"],["commit","-q","-m","baseline"],["tag","v"+EXPORT_BASE]]
+ var failed=steps.filter(func(step):return export_git(world.root,step)!=0)
+ world["git_ready"]=failed.is_empty()
+ export_write(game+"/project.godot",target_project)
+ export_write(game+"/export_presets.cfg",target_presets)
+ return world
+
+static func export_git_run(world: Dictionary, ref: String="") -> Dictionary:
+ var args=["-NoProfile","-File",ProjectSettings.globalize_path(EXPORT_SCRIPT),
+  "-BasePackage",ProjectSettings.globalize_path(world.package),"-BaseVersion",EXPORT_BASE,
+  "-Out",ProjectSettings.globalize_path(world.out),"-ProjectRoot",ProjectSettings.globalize_path(world.game),
+  "-EngineVersion",EXPORT_ENGINE,"-CheckOnly"]
+ if not ref.is_empty(): args.append_array(["-BaseRef",ref])
+ var output=[]
+ var exit_code=OS.execute("pwsh",PackedStringArray(args),output,true)
+ return {"exit":exit_code,"output":"".join(output)}
+
+static func export_git_sources_domain(t) -> void:
+ var world=export_git_world("git",true)
+ t.check(bool(world.git_ready),"UPDATE export_patch_feasibility_domain: the fixture repository holds a tagged baseline commit")
+ var run=export_git_run(world)
+ t.check(run.exit==0 and String(run.output).contains("PATCH FEASIBLE"),"UPDATE export_patch_feasibility_domain: baseline sources fetched from the v<base> tag's git objects make the same fixture feasible: exit="+str(run.exit)+" "+String(run.output).left(600))
+ run=export_git_run(world,"v9.9.9")
+ t.check(run.exit!=0 and String(run.output).contains("PATCH REFUSED: baseline-unavailable"),"UPDATE export_patch_feasibility_domain: a ref that does not resolve is refused, never defaulted to allowed: exit="+str(run.exit)+" "+String(run.output).left(600))
+ world=export_git_world("git-no-boot",false)
+ run=export_git_run(world)
+ t.check(run.exit!=0 and String(run.output).contains("PATCH REFUSED: baseline-no-boot"),"UPDATE export_patch_feasibility_domain: a baseline commit without the boot scene is refused: exit="+str(run.exit)+" "+String(run.output).left(600))
+
 static func export_patch_feasibility_domain(t) -> void:
+ export_git_sources_domain(t)
  var world=export_world("ok")
  var run=export_run(world,["-CheckOnly"])
  t.check(run.exit==0 and String(run.output).contains("PATCH FEASIBLE") and not String(run.output).contains("PATCH REFUSED"),"UPDATE export_patch_feasibility_domain: identical content packs, a version-only project/preset difference and an untouched boot closure are feasible: exit="+str(run.exit)+" "+String(run.output).left(600))

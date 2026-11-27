@@ -98,16 +98,17 @@ function Test-PatchProjectSettings {
     return , @()
 }
 
-# export_presets.cfg: identical once the version fields are dropped and the version spelled in
-# preset names and descriptions is replaced by a placeholder.
+# export_presets.cfg: identical once the version fields are dropped and either version, as spelled
+# in preset names and descriptions, is replaced by a placeholder (a name that still carries the
+# baseline version is cosmetic, not a difference of what the patch ships).
 function Test-PatchExportPresets {
     param([string]$BaseSources, [string]$ProjectRoot, [string]$BaseVersion, [string]$TargetVersion)
     $normalize = {
-        param($text, $version)
-        @($text.Split("`n") | Where-Object { $line = $_; -not ($script:PatchPresetVersionKeys | Where-Object { $line.StartsWith($_ + '=', [StringComparison]::Ordinal) }) } | ForEach-Object { $_.Replace($version, '<version>') })
+        param($text)
+        @($text.Split("`n") | Where-Object { $line = $_; -not ($script:PatchPresetVersionKeys | Where-Object { $line.StartsWith($_ + '=', [StringComparison]::Ordinal) }) } | ForEach-Object { $_.Replace($BaseVersion, '<version>').Replace($TargetVersion, '<version>') })
     }
-    $left = & $normalize (Read-PatchText (Join-Path $BaseSources 'export_presets.cfg')) $BaseVersion
-    $right = & $normalize (Read-PatchText (Join-Path $ProjectRoot 'export_presets.cfg')) $TargetVersion
+    $left = & $normalize (Read-PatchText (Join-Path $BaseSources 'export_presets.cfg'))
+    $right = & $normalize (Read-PatchText (Join-Path $ProjectRoot 'export_presets.cfg'))
     for ($index = 0; $index -lt [Math]::Max($left.Count, $right.Count); $index++) {
         $a = if ($index -lt $left.Count) { $left[$index] } else { '<end>' }
         $b = if ($index -lt $right.Count) { $right[$index] } else { '<end>' }
