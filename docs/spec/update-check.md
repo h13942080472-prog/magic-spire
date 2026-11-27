@@ -13,10 +13,10 @@
 - 收束对象：**把一个已签名的更新清单变成玩家可见的一次提示**。链路只有一条：
   `spire-godot/update/update_check.gd::check` 读配置、发最多两个 HTTPS GET，把字节交给
   `spire-godot/update/update_manifest.gd::evaluate` 判定，主页与设置页只显示判定结果。
-- 发布侧同样只有一条链路：`spire-godot/tools/update-manifest.ps1` 生成清单，
-  `spire-godot/tools/sign-update-manifest.ps1` 签名，两者见「发布侧脚本」。
+- 发布侧同样只有一条链路：`spire-godot/tools/export-patch.ps1` 生成补丁（可选），`spire-godot/tools/update-manifest.ps1` 生成清单，
+  `spire-godot/tools/sign-update-manifest.ps1` 签名，三者见「发布侧脚本」。
 - 不含：下载补丁、联网校验包体、主页的补丁提示与自动下载（留给后续的下载与交互）、上传与部署清单（人工动作）、
-  反馈上传。启动时的补丁挂载与版本身份见「引导挂载与版本身份」；检查本身仍不写盘。
+  反馈上传。启动时的补丁挂载与版本身份见「引导挂载与版本身份」，清单里补丁条目的匹配见「补丁条目匹配」；检查本身仍不写盘。
 - 模块边界：`spire-godot/update/` 是叶子模块，不引用 `ui`、`core`、`data`、`tests`；
   `core` 与 `data` 也不引用 `update`。发 HTTP 的只有 `spire-godot/update/update_check.gd`。
 - 明文口径：**更新检查只读一个公开文件**。请求不带存档、种子、设备标识、账号或自定义标识头。
@@ -37,9 +37,10 @@
 ```gdscript
 # 唯一判定（纯函数，无 IO、无单例状态、不读 ProjectSettings）：spire-godot/update/update_manifest.gd
 static func evaluate(manifest_bytes: PackedByteArray, signature: PackedByteArray, keys: Dictionary,
-                     current: String, platform: String) -> Dictionary
+                     current: String, platform: String, local: Dictionary = {}) -> Dictionary
 #   offer = {"kind":"notice", "version":String, "bytes":int, "url":String, "mirror":String,
 #            "notes":String, "revoked":bool, "platform":String}
+#          匹配到补丁时多一个 "patch":{"from","to","url","mirror","bytes","sha256"}，见「补丁条目匹配」
 #   none  = {"kind":"none", "reason":String}   # reason ∈ REJECTIONS 或 ""（已验签、不是更新）
 static func compare(a: String, b: String) -> int   # 版本比较，-1／0／1；数字段按十进制数字串比较，不经整数
 # 引导挂载用的纯函数与解析入口见「引导挂载与版本身份」（verify_patch_file／is_newer／is_sha256／document）
@@ -55,7 +56,8 @@ var keys: Dictionary        # 生产默认＝update_keys.gd 的 KEYS；探针／
 var transport: Callable     # 测试接缝：有效时替代 HTTPRequest，形状同 ui/feedback_report.gd
 func check() -> void        # 手动入口：不看开关，成功或失败都只发一次 checked(offer)
 func deliver(result: int, status: int, headers: PackedStringArray, body: PackedByteArray) -> void
-static func manifest_url() -> String     # [update] manifest_url 的唯一读取点；`deliver` 把 spire-godot/update/update_store.gd::effective_version() 交给 evaluate
+static func manifest_url() -> String     # [update] manifest_url 的唯一读取点；`deliver` 把 spire-godot/update/update_store.gd::effective_version() 与本机身份 `_identity()` 交给 evaluate
+var store                                # 本机身份来源的注入口（update_store.gd 实例）；玩家会话缺省时现建默认存储，--script 下不建
 static func platform_key() -> String     # "android" / "windows-x64" / ""（未覆盖平台）
 static func scripted_run() -> bool       # 引擎带 --script 启动：用例／探针／工具，不是玩家会话（定义在 update_store.gd，此处转调）
 func auto_allowed() -> bool              # 自动检查门槛，见「输入域」
@@ -78,7 +80,7 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
 # 设置页节点：UpdateCheckEnabled（CheckButton）、UpdateCheckNow、UpdateCheckStatus
 ```
 
-- `notice` 只含上面列出的八个字段：清单里的其它字段（如 `sha256`）不进入 `offer`。
+- `notice` 只含上面列出的八个字段，匹配到补丁时再多一个 `patch` 键：清单里的其它字段（如完整包的 `sha256`）不进入 `offer`。
 - `check()` 的重入：检查进行中（`busy`）再次调用会被忽略——不发请求、不排队、不另发 `checked`；
   在途那次检查完成时只发一次 `checked(offer)`。
 - 提示位置：主页布局层（`ui.layout`）上的独立面板，**不在** `GameHome` 之内，
@@ -97,14 +99,14 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
 
 收束对象：**本进程运行的是哪一份代码、对外报告哪一个版本**。入口只有两处：
 `spire-godot/update/boot.gd`（产品运行时的唯一挂载者；发布侧工具 `spire-godot/tools/patch_release_pck.gd` 只在打包机上以 `--script` 运行，另有一次挂载）与 `spire-godot/update/update_store.gd`（`user://updates/` 的唯一读写者、
-版本身份的唯一来源）。本节不含联网、下载、清单补丁匹配与主页补丁提示。
+版本身份的唯一来源）。本节不含联网、下载与主页补丁提示；清单里补丁条目的匹配见「补丁条目匹配」。
 
 ```gdscript
 # spire-godot/update/update_store.gd（RefCounted；目录可注入：Store.new(directory)，默认 user://updates）
 static func baseline_version() -> String        # 基线＝EXE 与主 PCK 的版本；全仓唯一读取 application/config/version 的位置
 static func effective_version() -> String       # 有效版本＝本进程实际挂载成功的补丁 to，否则等于基线；读进程内 Engine meta，不读磁盘
 static func record_mounted(to: String) -> void  # 有效版本的唯一写入者，只由 boot.gd 在引擎接受补丁后调用；空串＝回到基线
-func identity() -> Dictionary                   # {"baseline":String,"failed":Array}，供后续的清单补丁匹配
+func identity() -> Dictionary                   # {"baseline":String,"failed":Array}，供清单补丁匹配（evaluate 的 local）
 static func scripted_run() -> bool              # 引擎带 --script 启动（spire-godot/update/update_check.gd::scripted_run 转调这里）
 static func player_session() -> bool            # 桌面特性 pc 且非 scripted_run：补丁只在这样的会话里挂载与证明
 static func valid_version(value) -> bool        # 版本文法，见下
@@ -154,6 +156,36 @@ static func document(bytes: PackedByteArray) -> Variant                         
 - 挂载与状态读取的任何失败都不弹窗、不影响进入游戏；失败只体现为「以基线进入」与 `failed` 里多一条。
 
 
+## 补丁条目匹配
+
+收束对象：**清单里的哪一个补丁条目适用于这台机器**。入口只有 `spire-godot/update/update_manifest.gd::evaluate` 的第六个参数
+`local` 与它的私有函数 `_matching_patch`（条目校验 `_patch_entry`）；本节不含下载、校验包体与主页提示。
+
+```gdscript
+# local = spire-godot/update/update_store.gd::identity() 的形状；省略或为空字典时不匹配补丁
+local := {"baseline": String, "failed": Array}
+# 匹配成功时 offer 多一个键（其余八个字段不变）：
+offer.patch = {"from": String, "to": String, "url": String, "mirror": String, "bytes": int, "sha256": String}
+const PATCH_PLATFORM = "windows-x64"
+const MAX_PATCH_BYTES = 268435456    # 256 MiB
+```
+
+- 条目位置：`platforms.windows-x64.patches[]`。条目字段（全部必填）：`from`（补丁所针对的**基线版本**，即玩家 EXE 与主 PCK 的版本）、
+  `to`（目标版本）、`url`（维护者存储桶的直链）、`mirror`（GitHub Releases 镜像）、`bytes`（整数）、`sha256`（64 位小写十六进制）。
+- 补丁是累计的：每个补丁都相对基线主 PCK 导出，包含基线以来的全部变更；同一时刻只挂载一个补丁，新补丁替换旧补丁而不叠加。
+  所以 `from` 对**基线**比较，不对正在运行的有效版本：基线 0.18.4、已挂载 0.18.5 时清单发布 0.18.6，适用的条目是 `from=0.18.4`、`to=0.18.6`，
+  `from=0.18.5` 的条目不匹配。
+- 全部成立才给出 `offer.patch`：平台为 `windows-x64`；`local` 非空且 `local.baseline` 非空；条目字段全部合格（`from`／`to` 非空字符串，
+  `url`／`mirror` 以 `https://` 开头，`bytes` 是 `0 < bytes ≤ MAX_PATCH_BYTES` 的整数，`sha256` 通过 `is_sha256`）；
+  `compare(from, local.baseline)==0`；`to` 等于 `latest.version`；`to` 不在 `revoked` 里，也不在 `local.failed` 里。
+  这一步发生在既有判定第 9 步给出 `notice` 之后，所以有效版本已是最新（`none`）时永远没有补丁；多条合格取第一条（发布侧保证唯一）。
+- 坏条目（缺字段、哈希畸形、非 `https`、`bytes` 越界或非整数、非对象）只让该条不合格，**不**让整份清单变成 `none`：
+  清单已验签，完整包提示依旧有效。`patches` 不是数组同样只是没有补丁。
+- 没有匹配的条目就只给完整包提示——这是清单「退回完整包」的唯一表达：发布侧不为该基线写任何 `from` 条目，客户端不需要也没有 `full_only` 一类的标志。
+- 生产调用点只有 `spire-godot/update/update_check.gd::deliver`，它把 `_identity()` 交给 `evaluate`：注入的 `store` 优先，否则玩家会话
+  （`spire-godot/update/update_store.gd::player_session`）里现建默认存储取 `identity()`；`--script` 运行与没有 `pc` 特性的平台不构造存储，身份为空，不匹配补丁。
+- 补丁包本身不带 `.sig`：信任来自已验签清单里的 `bytes` 与 `sha256`，下载与逐块校验属于后续的下载与交互，不在本检查内。
+
 ## 输入域
 
 - 清单：`v1/manifest.json`，UTF-8 JSON，**≤ 65536 字节**，schema 1；签名是
@@ -162,7 +194,7 @@ static func document(bytes: PackedByteArray) -> Variant                         
   base64，按 `signature` 拒绝。签名脚本因此用 `openssl base64 -A` 输出单行——默认的
   `base64` 每 64 字符换行，会被这条规则拒绝。
   清单字段：`schema`、`serial`、`issued`、`key_id`、`latest.version`、`latest.notes_zh`、
-  `revoked`、`platforms.<platform>.full.{url,mirror,bytes,sha256}`、`platforms.<platform>.patches`。
+  `revoked`、`platforms.<platform>.full.{url,mirror,bytes,sha256}`、`platforms.<platform>.patches`（条目字段与匹配见「补丁条目匹配」）。
 - 判定顺序（每步失败即 `none`，不再往下读）：
   1. `size`：空字节或超过上限；
   2. `json`：解析失败；
@@ -175,6 +207,7 @@ static func document(bytes: PackedByteArray) -> Variant                         
   8. `url`：`full` 缺失，或其 `url`／`mirror` 缺失、为空串、不是 `https://` 开头；
   9. 判定结果：当前版本在 `revoked` 里 → `notice`（`revoked=true`）；
      `compare(latest.version, current)>0` → `notice`（`revoked=false`）；否则 `none`／`""`。
+     给出 `notice` 之后才做补丁匹配（见「补丁条目匹配」）；坏的补丁条目不影响这一步的结论。
 - 形状与链接两组的实际判定顺序是 `full` 对象 → 两个链接 → `latest` 与 `bytes`：`full.url`
   缺失或不合格时返回 `url`，即使 `latest.version` 同时缺失；`latest`／`bytes` 的形状错误
   只在两个链接可用之后才会返回 `json`。
@@ -186,7 +219,8 @@ static func document(bytes: PackedByteArray) -> Variant                         
   显式空段（如 `0.18..1`）等于数字段 0。
 - 版本序：`compare` 是 `.` 分段上的全序（自反、反对称、传递），于是 `0.18.10>0.18.9`、
   `0.18.3.fix>0.18.3`、`0.18==0.18.0`、`01==1`。
-- `patches` 数组本检查不读、不显示、不产生 `patch` 结果；`evaluate` 的 `current` 是有效版本（`spire-godot/update/update_store.gd::effective_version`）。
+- `evaluate` 的 `current` 是有效版本（`spire-godot/update/update_store.gd::effective_version`），撤回与「是否更新」都对它判定；补丁匹配另用 `local.baseline`。
+  `local` 为空时 `patches` 不被读取，回答与不带补丁的清单逐字相同。
 - 请求：HTTPS GET 清单 → HTTPS GET `<manifest_url>.sig`；`timeout=10`、`max_redirects=0`、
   `body_size_limit=65536`；一次检查**最多两个**请求，不重试、不轮询。
 - 自动检查门槛（`auto_allowed`，四条全真才发）：引擎不是 `--script` 启动（玩家会话）、
@@ -211,19 +245,48 @@ static func document(bytes: PackedByteArray) -> Variant                         
 
 ## 发布侧脚本
 
-在 `spire-godot/` 下用 PowerShell 7 执行（两份脚本都带 `#Requires -Version 7.0`，Windows PowerShell 5.1 下直接报版本要求，
+在 `spire-godot/` 下用 PowerShell 7 执行（脚本都带 `#Requires -Version 7.0`，Windows PowerShell 5.1 下直接报版本要求，
 不产出文件）；路径参数一律是绝对路径；已存在的输出文件一律不覆盖。
 
 ```powershell
+# 补丁 PCK 唯一生成入口（可选；先判定后导出）
+& tools/export-patch.ps1 -BasePackage <基线发行包目录> -BaseVersion <基线版本> -Out <尚不存在的输出目录> [-CheckOnly] [-ProjectRoot <目标源码根>] [-BaseRef <git 引用>]
 # 唯一清单生成入口
 & tools/update-manifest.ps1 -Version <版本> -NotesFile <UTF-8 文本> -Serial <正整数> [-KeyId k1] [-Revoked '<版本>','<版本>'…] -Out <manifest.json>
     [-WindowsZip <发行 ZIP> -WindowsUrl <https://…> -WindowsMirror <https://…>]
+    [-WindowsPatchMeta <元信息 JSON>,… -WindowsPatchUrl <https://…>,… -WindowsPatchMirror <https://…>,…]   # 每个补丁各一项，三个列表一一对应
     [-AndroidManifest <package-android 写出的 manifest.json> -AndroidUrl <https://…> -AndroidMirror <https://…>]
 # 唯一签名入口：输出 <manifest>.sig
 & tools/sign-update-manifest.ps1 -Manifest <manifest.json> -PrivateKey <私钥 PEM> [-PassphraseEnv <环境变量名>]
 ```
 
-- 生成：字段与「输入域」逐项一致；`issued` 取生成时刻的 UTC（`yyyy-MM-ddTHH:mm:ssZ`），`patches` 为 `[]`；
+- 补丁生成（`spire-godot/tools/export-patch.ps1`，可选；只在打包机上运行）：补丁是对**基线发行包**的累计差量，所以基线发行包
+  （`tools/package.ps1` 的产出：恰有一个顶层主 `.pck`，加上逐文件 `bytes`／`sha256` 的 `manifest.json`）必须在仓外归档，丢失即无法为该基线出补丁。
+  目标版本取 `-ProjectRoot`（默认本仓 `spire-godot/`）`project.godot` 的 `config/version`（与 `tools/package.ps1` 同一正则），须不同于 `-BaseVersion`。
+  顺序：参数 → 可行性判定 → 引擎导出到暂存目录 → 哈希 → 暂存目录改名为 `-Out`；`-Out` 必须是尚不存在的目录。判定命中或任何步骤失败都
+  打印 `PATCH REFUSED: <门>: <说明>`／`PATCH EXPORT FAILED: …`、退出码 1，且不留 `-Out` 与暂存目录；`-CheckOnly` 只判定，不起导出、不写任何文件。
+- 基线源取自基线版本的 git 对象（`git show <引用>:<路径>`；引用默认版本标签 `v<BaseVersion>`，可用 `-BaseRef` 指定），不读工作区：
+  来源由引用确定、可复现；引用解析不了或文件缺失一律拒绝，不默认放行。取 `project.godot`、`export_presets.cfg` 与引导闭包五个文件。
+  `-BaseSourceDirectory`（直接给一个基线源目录）与 `-EngineVersion`（不问引擎）只作测试接缝，发布不传。
+- 可行性判定（`spire-godot/tools/export-patch-feasibility.ps1::Test-PatchFeasibility`，补丁只对「基线发行包 → 目标构建」成立）。任一命中即不出补丁，
+  该基线上的客户端按「清单如何退回完整包」只得到完整包提示：
+  1. `content-packs`：`content/packs` 的逐文件 SHA-256（`*.txt` 不计，与 `tools/package.ps1` 的复制范围一致）与基线包 `manifest.json` 里
+     `content/packs/` 条目不一致（含增删）；基线包清单没有任何内容包条目也拒绝。内容包在 Windows 成品里是 EXE 旁的文件，补丁 PCK 改不了它。
+  2. `project-settings`：`project.godot` 除 `config/version` 一行外有任何差异（挂载后工程设置是否重载，官方文档未写明，保守处理）。
+  3. `export-presets`：`export_presets.cfg` 除版本字段（`application/file_version`、`application/product_version`、`version/code`、`version/name`）
+     与预设名、说明里的版本号写法外有差异——这些写进 EXE 元数据，补丁改不了。
+  4. `boot-closure`：引导闭包五个文件（`update/boot.gd`、`update/boot.tscn`、`update/update_store.gd`、`update/update_manifest.gd`、`update/update_keys.gd`）
+     有任何差异——它们在挂载前已载入并缓存，本会话换不成补丁里的版本；公钥只随完整包变化。
+  5. `baseline-no-boot`：基线没有引导场景与闭包，或其 `run/main_scene` 不是 `res://update/boot.tscn`——更早的基线没有挂载能力。
+  另有三道前置自检：`package`（包清单缺失、版本或平台不符、顶层 `.pck` 不是恰好一个、`.pck` 的字节数或哈希与清单不符）、
+  `baseline-unavailable`（基线源取不到，或其 `config/version` 不是 `-BaseVersion`）、`engine`（基线包记录的引擎版本与当前引擎不同）。
+  同一语义只在 `Test-PatchFeasibility` 里判定；测试经真实入口 `-CheckOnly` 取证，不在 GDScript 里重写。
+- 导出与输出：Windows 预设按平台（`Windows Desktop`，恰好一个）而不按含版本号的名称查找，命令为
+  `<引擎> --headless --path <根> --export-patch <预设> <暂存 .pck> --patches <基线主 .pck>`（Godot 4.7.2 `--help` 原文：
+  `--export-patch <preset> <path>` 「Export pack with changed files only」，`--patches <paths>` 「List of patches to use with --export-patch. The list is comma-separated.」），
+  引擎退出码非零、产物缺失或为空、日志含 `ERROR:` 都算失败。输出 `patch-<from>-<to>.pck` 与 `patch-<from>-<to>.json`
+  （`from`、`to`、`bytes`、`sha256`）；**补丁的哈希只在这里算一次**，`update-manifest.ps1` 只复制它。
+- 生成：字段与「输入域」逐项一致；`issued` 取生成时刻的 UTC（`yyyy-MM-ddTHH:mm:ssZ`），`patches` 默认为 `[]`，只有 `windows-x64` 可以带补丁条目；
   平台按需给一组或两组，一组的三个参数缺一即拒绝，至少要有一个平台。`-Serial` 只收整数或十进制数字串
   （1–2147483647），`1.5`、`'1.5'` 之类直接拒绝，不取整；Android 包清单的 `sha256` 必须恰好是
   64 位小写十六进制，末尾多一个换行也拒绝。`-Revoked` 的每个版本都要加引号（`-Revoked '0.20','0.19.5'`
@@ -235,9 +298,11 @@ static func document(bytes: PackedByteArray) -> Variant                         
   `manifest.json`，不重算，且其 `version` 必须等于 `-Version`；因此 `-AndroidUrl`／`-AndroidMirror` 必须指向
   APK 本体，不能指向含说明与许可的 Android ZIP（大小与哈希会对不上所链接的文件）。Windows 发行 ZIP 在
   `tools/package.ps1` 之后人工打成，流水线里没有它的哈希，`update-manifest.ps1` 是计算它的唯一位置
-  （`Get-FileHash`，一次）。
+  （`Get-FileHash`，一次）。补丁条目的 `from`／`to`／`bytes`／`sha256` 取自 `export-patch.ps1` 写的元信息 JSON，不重算；`url`／`mirror`
+  是每个补丁的 `-WindowsPatchUrl`／`-WindowsPatchMirror`（维护者存储桶直链为主，GitHub Releases 作镜像；本契约只要求两者都是 `https://`）。
 - 生成自检：先写临时文件再回读，核对 UTF-8 无 BOM、LF、严格 JSON、不超过 65536 字节、每个平台的
-  `url`／`mirror` 都以 `https://` 开头；任一不满足即抛错，不留输出文件。这份回读自检只有一份实现
+  `url`／`mirror` 都以 `https://` 开头，且每个补丁条目都是客户端能接受的（`from`／`to` 非空、`to` 等于 `latest.version`、`url`／`mirror` 为 `https://`、
+  `bytes` 为 (0, 256 MiB] 的整数、`sha256` 为 64 位小写十六进制、同一平台内 `(from, to)` 不重复）；任一不满足即抛错，不留输出文件。这份回读自检只有一份实现
   `tools/update-manifest-check.ps1::Assert-UpdateManifest`，两份脚本 dot-source 共用。
 - 签名：对清单原始字节做 `openssl dgst -sha256 -sign`（RSA PKCS#1 v1.5 + SHA-256），再用
   `openssl base64 -A` 写成单行 `<manifest>.sig`。
@@ -263,9 +328,10 @@ static func document(bytes: PackedByteArray) -> Variant                         
 
 取证方式：规则侧用真实 `Crypto.generate_rsa` 现场生成密钥对、把**公钥**交给 `evaluate`，并复放提交在
 `tests/fixtures/update/` 的 OpenSSL 夹具（公钥 PEM、清单与签名）与两份发布侧脚本产出的两平台夹具
-（`tests/fixtures/update/release-scripts/`：一次性公钥、三份输入、清单与签名；私钥用后即删）；
+（`tests/fixtures/update/release-scripts/`：一次性公钥、五份输入（含占位补丁包与元信息）、清单与签名；私钥用后即删）；
 生产键表按 DER sha256 钉住。UI 侧走真实 `main.tscn` 与真实点击，transport 替身回答两次 GET。
-发布侧脚本的拒签与拒绝路径没有常驻门禁，证据是脚本实跑日志；唯一签名入口与唯一清单写出点
+补丁导出的可行性判定经真实入口 `tools/export-patch.ps1 -CheckOnly` 由 `export_patch_feasibility_domain` 常驻取证；
+其余发布侧脚本的拒签与拒绝路径没有常驻门禁，证据是脚本实跑日志；唯一签名入口与唯一清单写出点
 由 architecture 的三条发布侧单点判据按源码文本钉住。
 
 判据全集与执行符号见 [update-check-dependencies.md「判据 → 检查」](update-check-dependencies.md)。
