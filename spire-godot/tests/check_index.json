@@ -946,6 +946,14 @@
       "owner": "ui:services",
       "signals": 3
     },
+    "spire-godot/tests/update_cases.gd": {
+      "owner": "rule:update",
+      "signals": 1
+    },
+    "spire-godot/tests/update_ui_cases.gd": {
+      "owner": "ui:update",
+      "signals": 3
+    },
     "spire-godot/tests/wall_cases.gd": {
       "owner": "rule:wall",
       "signals": 1
@@ -983,7 +991,7 @@
       "signals": 2
     }
   },
-  "digest": "dacaff83702aaaba2a5494f4b92a390ec97f18f429693758cfe4742d140421ef",
+  "digest": "76cc3c00c98a40d9e83ee3e367640d179120d7c6dcd3c9ed0a0678a1d5a2104e",
   "domain_words": {
     "ANTI DRONE": [],
     "ART": [
@@ -2055,7 +2063,7 @@
       ]
     }
   },
-  "generated_from": "8479a92842ec68990079449427b40a8461b08ceddf3743634799fcc64dbc7189",
+  "generated_from": "fb52dc71bac35d664afa9d508c3cc8ae63c925371e64fecf26a979c777cb725c",
   "registries": {
     "rule": [
       "drone_operator",
@@ -2067,6 +2075,7 @@
       "enchantments",
       "witch_character",
       "localization",
+      "update",
       "card_power",
       "card_expansion",
       "relics",
@@ -2168,24 +2177,25 @@
       "events",
       "consumables",
       "rewards",
-      "persistence"
+      "persistence",
+      "update"
     ]
   },
   "schema": 1,
   "stats": {
     "blind": 4,
     "blind_by_design": 4,
-    "case_files": 244,
+    "case_files": 246,
     "domains": 71,
     "domains_declared": 71,
     "excluded": 15,
-    "inputs": 404,
-    "rule_suites": 59,
+    "inputs": 406,
+    "rule_suites": 60,
     "source_files": 155,
     "sources_with_edges": 150,
-    "suite_edges": 598,
-    "suites_with_edges": 106,
-    "ui_suites": 50,
+    "suite_edges": 602,
+    "suites_with_edges": 108,
+    "ui_suites": 51,
     "widen": 1
   },
   "suite_files": {
@@ -3058,6 +3068,11 @@
         "preload"
       ],
       "spire-godot/data/restraint_value.gd": [
+        "preload"
+      ]
+    },
+    "rule:update": {
+      "spire-godot/ui/display_settings.gd": [
         "preload"
       ]
     },
@@ -4201,6 +4216,17 @@
         "symbol_ui"
       ],
       "spire-godot/ui/target_queries.gd": [
+        "preload"
+      ]
+    },
+    "ui:update": {
+      "spire-godot/ui/main.gd": [
+        "symbol_ui"
+      ],
+      "spire-godot/ui/shop_screen.gd": [
+        "symbol_ui"
+      ],
+      "spire-godot/ui/visual_theme.gd": [
         "preload"
       ]
     },

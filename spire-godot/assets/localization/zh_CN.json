@@ -407,6 +407,46 @@
     "ui.settings.doubao_voice_volume": {
       "text": "豆包语音音量 · {percent}%",
       "context": "豆包语音独立音量百分比"
+    },
+    "ui.settings.update_check": {
+      "text": "启动时检查更新",
+      "context": "设置页：启动时自动检查更新的开关"
+    },
+    "ui.settings.update_check_note": {
+      "text": "只匿名读取一个公开文件，不发送任何信息。",
+      "context": "设置页：自动检查更新的说明"
+    },
+    "ui.settings.update_now": {
+      "text": "立即检查",
+      "context": "设置页：手动检查更新按钮"
+    },
+    "ui.update.notice": {
+      "text": "发现新版本 {version}（约 {size} MB）",
+      "context": "主页更新提示标题"
+    },
+    "ui.update.notice.revoked": {
+      "text": "当前版本已撤回，建议更新到 {version}（约 {size} MB）",
+      "context": "主页更新提示标题：当前版本被撤回"
+    },
+    "ui.update.download": {
+      "text": "下载新版",
+      "context": "主页更新提示的下载跳转按钮"
+    },
+    "ui.update.mirror": {
+      "text": "GitHub 备用",
+      "context": "主页更新提示的备用跳转按钮"
+    },
+    "ui.update.checking": {
+      "text": "正在检查更新…",
+      "context": "设置页：检查更新进行中"
+    },
+    "ui.update.available": {
+      "text": "发现新版本 {version}。",
+      "context": "设置页：检查结果显示有新版"
+    },
+    "ui.update.latest": {
+      "text": "已是最新版本。",
+      "context": "设置页：检查结果显示已是最新"
     }
   }
 }

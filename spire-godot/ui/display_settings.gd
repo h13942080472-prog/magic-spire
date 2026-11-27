@@ -67,6 +67,9 @@ const FRAME_LIMITS=[60,120,240,0]
 var frame_limit=60
 var vsync_enabled=true
 var reduced_card_motion=false
+# docs/spec/update-check.md「开关」: the startup update check defaults on and the
+# player can turn it off. The value lives in this file only — no second settings store.
+var update_check_enabled=true
 const Localization=preload("res://ui/localization.gd")
 var locale=Localization.DEFAULT_LOCALE
 const RESOLUTIONS=[Vector2i(1280,720),Vector2i(1440,810),Vector2i(1600,900),Vector2i(1920,1080),Vector2i(2560,1440),Vector2i(3840,2160)]
@@ -99,6 +102,7 @@ func initialize(target: Window, persist: bool=true) -> void:
  interaction_audio_enabled=true;interaction_audio_volume=0.7
  frame_limit=60;vsync_enabled=true
  reduced_card_motion=false
+ update_check_enabled=true
  _apply_frame_settings()
  mode=2 if window.mode in [Window.MODE_FULLSCREEN,Window.MODE_EXCLUSIVE_FULLSCREEN] else (1 if window.borderless else 0)
  resolution=window.size
@@ -174,6 +178,8 @@ func _read_settings(file: String) -> bool:
  var saved_vsync=config.get_value("display","vsync_enabled",vsync_enabled)
  var saved_motion=config.get_value("display","reduced_card_motion",reduced_card_motion)
  if saved_motion is bool: reduced_card_motion=saved_motion
+ var saved_update=config.get_value("update","check_on_start",true)
+ if saved_update is bool: update_check_enabled=saved_update
  if saved_limit is int and saved_limit in FRAME_LIMITS: frame_limit=saved_limit
  if saved_vsync is bool: vsync_enabled=saved_vsync
  var saved_mode=config.get_value("display","mode",mode)
@@ -218,6 +224,10 @@ func set_frame_limit(value: int) -> bool:
 func set_vsync(enabled: bool) -> void:
  vsync_enabled=enabled;_apply_frame_settings();save()
 
+func set_update_check(enabled: bool) -> void:
+ if update_check_enabled==enabled: return
+ update_check_enabled=enabled;save()
+
 func save() -> void:
  save_error=""
  if not persistence_enabled: return
@@ -235,6 +245,7 @@ func save() -> void:
  config.set_value("gameplay","cursed_plate_start",cursed_plate_start)
  config.set_value("gameplay","cursed_plate_masochist_mode",cursed_plate_masochist_mode)
  config.set_value("onboarding","first_battle_tutorial_seen",first_battle_tutorial_seen)
+ config.set_value("update","check_on_start",update_check_enabled)
  config.set_value("audio","card_music_enabled",card_music_enabled)
  config.set_value("audio","card_music_volume",card_music_volume)
  config.set_value("audio","doubao_voice_enabled",doubao_voice_enabled)

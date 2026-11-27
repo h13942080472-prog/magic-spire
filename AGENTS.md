@@ -185,6 +185,8 @@
 | 卡面词条依赖约束（cleaner 核对） | docs/spec/card-terms-dependencies.md |
 | 指令判定与候选移除 | docs/spec/candidate-removal.md、docs/spec/candidate-removal-dependencies.md |
 | 装备只读查询 | docs/spec/equipment-query-seam.md |
+| 游戏内检查更新与提示 | docs/spec/update-check.md |
+| 更新检查依赖约束（cleaner 核对） | docs/spec/update-check-dependencies.md |
 | 玩家可见文案的收口与按需 | docs/spec/ondemand-copy.md |
 | 界面拆分与装备详情 | docs/spec/release-interface.md |
 | 项目结构 | docs/spec/project-map.md |

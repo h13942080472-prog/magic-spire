@@ -407,6 +407,46 @@
     "ui.settings.doubao_voice_volume": {
       "source": "豆包语音音量 · {percent}%",
       "text": "Doubao Voice Volume · {percent}%"
+    },
+    "ui.settings.update_check": {
+      "source": "启动时检查更新",
+      "text": "Check for updates at startup"
+    },
+    "ui.settings.update_check_note": {
+      "source": "只匿名读取一个公开文件，不发送任何信息。",
+      "text": "Reads one public file anonymously and sends nothing."
+    },
+    "ui.settings.update_now": {
+      "source": "立即检查",
+      "text": "Check now"
+    },
+    "ui.update.notice": {
+      "source": "发现新版本 {version}（约 {size} MB）",
+      "text": "New version {version} available (about {size} MB)"
+    },
+    "ui.update.notice.revoked": {
+      "source": "当前版本已撤回，建议更新到 {version}（约 {size} MB）",
+      "text": "This version has been withdrawn; updating to {version} is recommended (about {size} MB)"
+    },
+    "ui.update.download": {
+      "source": "下载新版",
+      "text": "Download"
+    },
+    "ui.update.mirror": {
+      "source": "GitHub 备用",
+      "text": "GitHub mirror"
+    },
+    "ui.update.checking": {
+      "source": "正在检查更新…",
+      "text": "Checking for updates…"
+    },
+    "ui.update.available": {
+      "source": "发现新版本 {version}。",
+      "text": "New version {version} available."
+    },
+    "ui.update.latest": {
+      "source": "已是最新版本。",
+      "text": "You are up to date."
     }
   }
 }

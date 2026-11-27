@@ -1,0 +1,5 @@
+# The OpenSSL signature covers the exact manifest bytes, so checkout must never rewrite their
+# line endings (core.autocrlf would otherwise turn LF into CRLF and break every fresh checkout).
+openssl-manifest.json -text
+openssl-manifest.json.sig -text
+openssl-public.pem -text

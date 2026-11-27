@@ -1173,6 +1173,15 @@ static func run(t) -> void:
  card_facts_consumes_has_targets_at(t)
  card_facts_keyword_min_query(t)
  slice_dependency_directions(t)
+ update_module_is_a_leaf(t)
+ update_compare_single_entry(t)
+ update_document_single_entry(t)
+ update_verify_single_entry(t)
+ update_http_single_entry(t)
+ update_jump_single_entry(t)
+ update_sign_single_entry(t)
+ update_signature_write_single_entry(t)
+ update_manifest_write_single_entry(t)
  run_identity_single_writer(t)
  feedback_save_single_serializer(t)
  feedback_save_cap_pinned(t)
@@ -6548,6 +6557,221 @@ static func slice_dependency_directions(t) -> void:
   for token in ["res://core","res://ui","res://data"]:
    if source_text(path.trim_prefix("res://")).contains(token): service_references.append(path.trim_prefix("res://")+" references "+token)
  t.check(service_references.is_empty(),"DEP slice_dependency_directions: tools/feedback-service never references game source paths (res://core, res://ui, res://data): "+str(service_references))
+
+# docs/spec/update-check-dependencies.md: update/ is a leaf module. It owns the only update
+# network entry and the only manifest judgement, and it never reaches into ui, core, data or
+# the test harness; the edge points one way (ui -> update).
+static func update_module_is_a_leaf(t) -> void:
+ var updaters=[]
+ for path in script_files("res://update"):
+  for token in ["res://ui","res://core","res://data","res://tests"]:
+   if source_text(path.trim_prefix("res://")).contains(token): updaters.append(path.trim_prefix("res://")+" references "+token)
+ t.check(updaters.is_empty(),"DEP update_module_is_a_leaf: update/ never references ui, core, data or tests: "+str(updaters))
+ var updaters_of_core=[]
+ for path in script_files("res://core")+script_files("res://data"):
+  if source_text(path.trim_prefix("res://")).contains("res://update"): updaters_of_core.append(path.trim_prefix("res://"))
+ t.check(updaters_of_core.is_empty(),"DEP update_module_is_a_leaf: core/data never reference the update module: "+str(updaters_of_core))
+ var entries=[]
+ for path in script_files("res://update"):
+  var text=source_text(path.trim_prefix("res://"))
+  if text.contains("HTTPRequest") or text.contains("HTTPClient"): entries.append(path.trim_prefix("res://"))
+ t.check(entries==["update/update_check.gd"],"DEP update_module_is_a_leaf: update/update_check.gd is the only update file that speaks HTTP: "+str(entries))
+
+# docs/spec/update-check-dependencies.md「单一路径」: five mechanical single-entry judgments.
+# The feature surface is update/** plus the three ui files the dependency table names for this
+# slice; the scan strips `#` comments and attributes each hit to the enclosing function, so the
+# expected set is a file::function declaration, not a line list. A second implementation in any
+# scanned file changes the set and reddens the named check. Tokens that no unrelated feature
+# uses (compare, CryptoKey/load_from_string/verify, OS.shell_open) are scanned across all of
+# ui/, update/ and core/; JSON parsing and HTTPRequest are scanned on the feature surface only
+# because localization, save, content, art and feedback carry unrelated pre-existing parsers
+# and the feedback uploader's own HTTP transport.
+const UPDATE_FEATURE_UI=["res://ui/main.gd","res://ui/home_screen.gd","res://ui/display_settings.gd"]
+
+static func update_feature_files() -> Array:
+ var files=script_files("res://update")
+ for path in UPDATE_FEATURE_UI:
+  if path not in files and ResourceLoader.exists(path): files.append(path)
+ files.sort()
+ return files
+
+static func update_scan_files(roots: Array) -> Array:
+ var files=[]
+ for root in roots:
+  for path in script_files(root):
+   if path not in files: files.append(path)
+ files.sort()
+ return files
+
+# Same attribution rules as source_write_sites, but over an explicit file list (the feature
+# surface is not a directory for the three ui files). Returns sorted, de-duplicated
+# "file::function" names; "<file>" marks code outside any function.
+static func update_source_sites(files: Array, pattern: String) -> Array:
+ var regex=RegEx.new()
+ if regex.compile(pattern)!=OK: return ["<bad pattern "+pattern+">"]
+ var declaration=RegEx.new()
+ declaration.compile("^\\s*(?:static\\s+)?func\\s+([A-Za-z_][A-Za-z0-9_]*)")
+ var sites=[]
+ for path in files:
+  var relative=String(path).trim_prefix("res://")
+  var lines=source_text(relative).split("\n")
+  var current="<file>"
+  for index in range(lines.size()):
+   var code=String(lines[index]).split("#")[0]
+   var declared=declaration.search(code)
+   if declared!=null: current=declared.get_string(1)
+   if regex.search(code)==null: continue
+   var name=relative+"::"+current
+   if name not in sites: sites.append(name)
+ sites.sort()
+ return sites
+
+static func update_sites_in_files(sites: Array) -> Array:
+ var files=[]
+ for site in sites:
+  var file=String(site).split("::")[0]
+  if file not in files: files.append(file)
+ files.sort()
+ return files
+
+static func update_compare_single_entry(t) -> void:
+ var sites=update_source_sites(update_scan_files(["res://ui","res://update","res://core"]),"(?<![A-Za-z0-9_])compare\\s*\\(")
+ t.check(sites==["update/update_manifest.gd::_revoked","update/update_manifest.gd::compare","update/update_manifest.gd::evaluate"],"DEP update_compare_single_entry: version comparison exists only in update/update_manifest.gd compare/evaluate/_revoked; a second compare( anywhere in ui/update/core is red: "+str(sites))
+
+static func update_document_single_entry(t) -> void:
+ var sites=update_source_sites(update_feature_files(),"JSON\\.(?:new|parse|parse_string)\\s*\\(")
+ t.check(sites==["update/update_manifest.gd::_document"],"DEP update_document_single_entry: manifest parsing exists only in update/update_manifest.gd::_document; a second JSON parse on the update surface is red: "+str(sites))
+
+static func update_verify_single_entry(t) -> void:
+ var sites=update_source_sites(update_scan_files(["res://ui","res://update","res://core"]),"CryptoKey\\.new\\s*\\(|load_from_string\\s*\\(|\\.verify\\s*\\(")
+ t.check(sites==["update/update_manifest.gd::_verified"],"DEP update_verify_single_entry: key loading and signature checking exist only in update/update_manifest.gd::_verified; a second CryptoKey/load_from_string/verify site is red: "+str(sites))
+
+static func update_http_single_entry(t) -> void:
+ var sites=update_source_sites(update_feature_files(),"HTTPRequest|HTTPClient")
+ t.check(sites.size()>0 and update_sites_in_files(sites)==["update/update_check.gd"],"DEP update_http_single_entry: the update surface owns exactly one HTTP transport, update/update_check.gd; the feedback uploader is outside this surface: "+str(sites))
+
+static func update_jump_single_entry(t) -> void:
+ var sites=update_source_sites(update_scan_files(["res://ui","res://update","res://core"]),"OS\\.shell_open\\s*\\(")
+ t.check(sites==["ui/main.gd::_open_update_url"],"DEP update_jump_single_entry: the update buttons launch only through ui/main.gd::_open_update_url (the open_url seam); a second OS.shell_open in ui/update/core is red: "+str(sites))
+
+# docs/spec/update-check-dependencies.md「单一路径」, release side: one signer and
+# one manifest generator. These three judgments read source text and never run a script.
+# Scanned: every tools/**/*.ps1 and every .gd under res://, minus the git-ignored trees in
+# UPDATE_RELEASE_IGNORED_DIRECTORIES (.gitignore; local probes and logs live there). `#` starts a
+# comment in both languages; a `#` inside a string truncates that line (fewer hits, never more),
+# and PowerShell `<# #>` blocks are not stripped (a token there counts as code: red, not a silent
+# pass). A scope is a GDScript func up to the next column-0 line, a PowerShell function up to its
+# column-0 `}`, or "<file>" for top-level code. A scope "writes a file" when its code uses one of
+# the write primitives listed in update_release_scopes. The scopes named in UPDATE_RELEASE_SELF
+# are skipped: their patterns and messages spell out the very tokens they look for. A file that
+# cannot be opened counts as a hit of every kind, so the scan fails closed.
+const UPDATE_RELEASE_IGNORED_DIRECTORIES=["build",".godot","outputs","__pycache__"]
+const UPDATE_RELEASE_SELF=["update_release_files","update_release_scopes","update_release_matches","update_sign_single_entry","update_signature_write_single_entry","update_manifest_write_single_entry"]
+
+static func update_release_files() -> Array:
+ var files=[]
+ var pending=["res://"]
+ while not pending.is_empty():
+  var directory=String(pending.pop_back())
+  var handle=DirAccess.open(directory)
+  if handle==null:
+   files.append(directory.trim_prefix("res://")+"/<unlisted>")
+   continue
+  for name in handle.get_files():
+   var relative=directory.path_join(name).trim_prefix("res://")
+   if relative.ends_with(".gd") or (relative.begins_with("tools/") and relative.ends_with(".ps1")): files.append(relative)
+  for name in handle.get_directories():
+   if name not in UPDATE_RELEASE_IGNORED_DIRECTORIES: pending.append(directory.path_join(name))
+ files.sort()
+ return files
+
+# "file::scope" -> {kind: [line numbers]} for the scopes with at least one hit. Kinds: signing
+# (one code line holding both `dgst` and `-sign`; `-signature` is not `-sign`), signature_file
+# (a `.sig` file name or SIGNATURE_SUFFIX), key_id, platforms (the two manifest keys) and write.
+static func update_release_scopes() -> Dictionary:
+ var kinds=["signing","signature_file","key_id","platforms","write"]
+ var patterns={
+  "dgst":"(?<![A-Za-z0-9_])dgst(?![A-Za-z0-9_])",
+  "sign":"(?<![A-Za-z0-9_])-sign(?![A-Za-z0-9_-])",
+  "signature_file":"\\.sig(?![A-Za-z0-9_])|SIGNATURE_SUFFIX",
+  "key_id":"(?<![A-Za-z0-9_])key_id(?![A-Za-z0-9_])",
+  "platforms":"(?<![A-Za-z0-9_])platforms(?![A-Za-z0-9_])",
+  # PowerShell cmdlets and .NET writers (case-insensitive), openssl -out, Godot file writers.
+  "write":"(?i:(?<![A-Za-z0-9_-])(?:Set-Content|Add-Content|Out-File|Tee-Object|New-Item|Copy-Item|Move-Item|Rename-Item)(?![A-Za-z0-9_-])|IO\\.File\\]::(?:Write|AppendAll|AppendText|Create|OpenWrite|Copy|Move|Replace)|StreamWriter|FileStream)|(?<![A-Za-z0-9_])-out(?![A-Za-z0-9_-])|FileAccess\\.(?:WRITE|READ_WRITE|WRITE_READ)|store_(?:string|buffer|line|var|csv_line|pascal_string)\\s*\\(|(?:copy|rename)_absolute\\s*\\(|ResourceSaver\\.save|\\.save\\s*\\(",
+ }
+ var every_kind={}
+ for kind in kinds: every_kind[kind]=[0]
+ var compiled={}
+ for key in patterns:
+  var regex=RegEx.new()
+  if regex.compile(patterns[key])!=OK: return {"<bad pattern "+key+">":every_kind}
+  compiled[key]=regex
+ var gd_declaration=RegEx.new()
+ gd_declaration.compile("^\\s*(?:static\\s+)?func\\s+([A-Za-z_][A-Za-z0-9_]*)")
+ var ps_declaration=RegEx.new()
+ ps_declaration.compile("^\\s*(?i:function)\\s+([A-Za-z_][A-Za-z0-9_-]*)")
+ var scopes={}
+ for relative in update_release_files():
+  var handle=FileAccess.open("res://"+relative,FileAccess.READ)
+  if handle==null:
+   scopes[relative+"::<unreadable>"]=every_kind.duplicate(true)
+   continue
+  var text=handle.get_as_text().replace("\r\n","\n")
+  if not (text.contains("dgst") or text.contains(".sig") or text.contains("SIGNATURE_SUFFIX") or text.contains("key_id")): continue
+  var powershell=relative.ends_with(".ps1")
+  var current="<file>"
+  var lines=text.split("\n")
+  for index in range(lines.size()):
+   var line=String(lines[index])
+   var code=line.split("#")[0]
+   var declared=(ps_declaration if powershell else gd_declaration).search(code)
+   if declared!=null: current=declared.get_string(1)
+   elif not powershell and code.strip_edges()!="" and not line.begins_with(" ") and not line.begins_with("\t"): current="<file>"
+   if not (relative=="tests/architecture_cases.gd" and current in UPDATE_RELEASE_SELF):
+    var hits=[]
+    if compiled.dgst.search(code)!=null and compiled.sign.search(code)!=null: hits.append("signing")
+    for kind in ["signature_file","key_id","platforms","write"]:
+     if compiled[kind].search(code)!=null: hits.append(kind)
+    if not hits.is_empty():
+     var name=relative+"::"+current
+     if not scopes.has(name):
+      scopes[name]={}
+      for kind in kinds: scopes[name][kind]=[]
+     for kind in hits: scopes[name][kind].append(index+1)
+   if powershell and code.begins_with("}") and code.strip_edges()=="}": current="<file>"
+ return scopes
+
+# Sorted files, and "file::scope kind@[lines] …" sites, of the scopes that hit every kind given.
+static func update_release_matches(required: Array) -> Dictionary:
+ var scopes=update_release_scopes()
+ var files=[]
+ var sites=[]
+ for name in scopes:
+  var parts=[]
+  for kind in required:
+   if (scopes[name][kind] as Array).is_empty():
+    parts.clear()
+    break
+   parts.append(String(kind)+"@"+str(scopes[name][kind]))
+  if parts.is_empty(): continue
+  sites.append(String(name)+" "+" ".join(parts))
+  var file=String(name).split("::")[0]
+  if file not in files: files.append(file)
+ files.sort()
+ sites.sort()
+ return {"files":files,"sites":sites}
+
+static func update_sign_single_entry(t) -> void:
+ var found=update_release_matches(["signing"])
+ t.check(found.files==["tools/sign-update-manifest.ps1"],"DEP update_sign_single_entry: only tools/sign-update-manifest.ps1 calls openssl dgst with -sign; a code line holding both dgst and -sign anywhere else in tools/**/*.ps1 or **/*.gd is a second signer and is red: "+str(found.sites))
+
+static func update_signature_write_single_entry(t) -> void:
+ var found=update_release_matches(["signature_file","write"])
+ t.check(found.files==["tools/sign-update-manifest.ps1"],"DEP update_signature_write_single_entry: only tools/sign-update-manifest.ps1 writes manifest.json.sig; any other scope in tools/**/*.ps1 or **/*.gd that names a .sig file (or SIGNATURE_SUFFIX) and writes a file is red: "+str(found.sites))
+
+static func update_manifest_write_single_entry(t) -> void:
+ var found=update_release_matches(["key_id","platforms","write"])
+ t.check(found.files==["tools/update-manifest.ps1"],"DEP update_manifest_write_single_entry: only tools/update-manifest.ps1 writes an update manifest; any other scope in tools/**/*.ps1 or **/*.gd that names both key_id and platforms and writes a file is red: "+str(found.sites))
 
 static func run_identity_single_writer(t) -> void:
  var clipboard=write_site_names(source_write_sites(["res://core","res://data","res://ui"],"DisplayServer\\.clipboard_set\\s*\\("))

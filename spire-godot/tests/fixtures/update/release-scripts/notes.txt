@@ -1,0 +1,1 @@
+发布脚本互通夹具：update-manifest.ps1 生成两平台清单，sign-update-manifest.ps1 用一次性密钥签名。

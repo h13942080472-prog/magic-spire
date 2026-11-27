@@ -116,8 +116,8 @@
 
 - 成品清单：版本／文件 SHA256 清单与第三方授权随包；`check-package.ps1` 复验清单、发布 EXE 启动及成品 PCK。
 - 验收记录：检查使用临时用户目录；`release_probe.gd` 验证开发脚本排除、版本、12 份相邻内容包、动态贴图、
-  新游戏、练习及隔离目录的存档读写恢复；压缩前核对本批验证记录，生成最终 ZIP 与 SHA256，
-  并从 ZIP 重新解压核对所有清单文件。
+  新游戏、练习及隔离目录的存档读写恢复；压缩前核对本批验证记录，生成最终 ZIP（其 SHA256 不另算，
+  取自更新清单，见下文「生成并签名更新清单」），并从 ZIP 重新解压核对所有清单文件。
 - 触屏专项：`tools/check.ps1 -UIOnly -UISuite touch`（真实 `ScreenTouch`／`ScreenDrag` 输入进入正式 UI）。
 - 结果与失败集登记在验证记录（`docs/record/verification.md`）；未执行项不记作通过。
 
@@ -126,9 +126,18 @@
 - Windows：`tools/package.ps1` 建目录、写清单与授权，导出日志与源码指纹存 `build/package-<编号>`；
   发布 EXE 直接运行查主页与启动错误，`tools/release_probe.gd` 经 `--main-pack` 载入同一 PCK，
   `tools/check-package.ps1 -Directory <成品目录>` 复验清单、EXE 启动与成品 PCK；
-  压缩前核对本批验证记录，生成最终 ZIP 与 SHA256，并从 ZIP 重新解压核对所有清单文件。
+  压缩前核对本批验证记录，生成最终 ZIP（其 SHA256 不另算，取自更新清单，见下文「生成并签名更新清单」），
+  并从 ZIP 重新解压核对所有清单文件。
 - Android：`tools/package-android.ps1` 生成签名 APK（ETC2/ASTC 与兼容渲染器开启，横屏 16:9）；
   `content/packs` 打进 APK 按开发值经 `res://` 读取；`tools/check-android-package.ps1` 直接取 APK assets
   启动包内游戏并验证主页、内容、动态资源、新游戏、练习和隔离存档；
   触屏行为通过真实 `ScreenTouch`／`ScreenDrag` 输入进入正式 UI，专项入口
   `tools/check.ps1 -UIOnly -UISuite touch`。
+- 生成并签名更新清单（两平台成品验收之后）：`tools/update-manifest.ps1` 由 Android 成品旁的 `manifest.json`
+  与人工打成的 Windows 发行 ZIP 生成清单，维护者本人用 `tools/sign-update-manifest.ps1` 签名；接口、
+  哈希单一来源与签名防错见 [update-check.md「发布侧脚本」](update-check.md)。发行 ZIP 的 SHA256 只由
+  `update-manifest.ps1` 计算一次，以它写入清单的 `platforms.windows-x64.full.sha256` 为唯一来源：
+  发布页等人工步骤需要 ZIP 的 SHA256 时都引用清单里的值，不另算。Android 条目的 `bytes`／`sha256` 是 APK 本体
+  的值（取自 APK 旁的 `manifest.json`），所以 `-AndroidUrl`／`-AndroidMirror` 必须指向 APK 本体，不能指向
+  含说明与许可的 Android ZIP。上传需用户明确指示：
+  先传包，再按清单里的 `bytes`／`sha256` 核对公网 URL 上的文件，最后传清单与 `.sig`。
