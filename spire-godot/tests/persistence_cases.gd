@@ -1542,6 +1542,7 @@ static func legacy_settings(directory: String) -> void:
  display.frame_limit=120
  display.vsync_enabled=false
  display.reduced_card_motion=true
+ display.update_check_enabled=false
  display.locale="ja_JP"
  display.art_choices={"cards":{"strain":"test","binding_enthusiast":"fixed"},"enemies":{"six_bind":"test"}}
  display.chastity_locks_enabled=true
