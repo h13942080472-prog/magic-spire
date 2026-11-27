@@ -922,12 +922,20 @@ static func main_scene_is_boot_scene(t) -> void:
  t.check(not name.is_empty() and Store!=null and not name.contains(Store.baseline_version()),"UPDATE main_scene_is_boot_scene: config/name carries no version, the window title adds it: "+name)
 
 # A real pack through the real engine call: the default mounter must make the pack's file
-# visible under res://. The pack adds a path nothing else uses, so the rest of the run is unaffected.
+# visible under res://. The engine mount redirects res:// directory access for the rest of its
+# process (a later suite in the shared rule process could no longer create res://build), so the
+# mount runs in a child engine process (fixtures/update/mount_probe.gd) and only its verdict
+# comes back; this process never mounts. The child inherits this process's environment, so it
+# sees the same APPDATA and user data directory. The parent polls for MOUNT_LIMIT_MSEC and kills
+# a child that does not exit; the child's engine log is read back and must carry no exit-leak line.
+const MOUNT_PROBE="res://tests/fixtures/update/mount_probe.gd"
+const MOUNT_LIMIT_MSEC=60000
+const MOUNT_LEAK_MARKERS=["leaked","still in use"]
+
 static func engine_mounter_loads_a_real_pack(t) -> void:
  var modules=boot_modules(t,"engine_mounter_loads_a_real_pack")
  if modules.is_empty(): return
  var Store=modules[0]
- var Boot=modules[1]
  var store=Store.new(boot_root("engine"))
  var source=store.root.path_join("marker-source.txt")
  write_bytes(source,"mounted".to_utf8_buffer())
@@ -937,10 +945,25 @@ static func engine_mounter_loads_a_real_pack(t) -> void:
  t.check(packer.pck_start(ProjectSettings.globalize_path(packed))==OK and packer.add_file("res://update_boot_probe/marker.txt",ProjectSettings.globalize_path(source))==OK and packer.flush()==OK,"UPDATE engine_mounter_loads_a_real_pack: the fixture pack is written")
  var content=FileAccess.get_file_as_bytes(packed)
  store.write_state(boot_state(Store.baseline_version(),{},{"to":PATCH_A,"bytes":content.size(),"sha256":sha_hex(content)}))
- t.check(not FileAccess.file_exists("res://update_boot_probe/marker.txt"),"UPDATE engine_mounter_loads_a_real_pack: the marker is absent before the mount")
- var result=Boot.start(store,Callable(),true)
- t.check(String(result.get("mounted",""))==PATCH_A and FileAccess.get_file_as_string("res://update_boot_probe/marker.txt")=="mounted","UPDATE engine_mounter_loads_a_real_pack: the default engine mounter exposes the pack's file under res://: "+str(result))
- Store.record_mounted("")
+ var verdict_path=ProjectSettings.globalize_path(store.root.path_join("mount-verdict.json"))
+ var log_path=ProjectSettings.globalize_path(store.root.path_join("mount-probe.log"))
+ var pid=OS.create_process(OS.get_executable_path(),PackedStringArray(["--headless","--path",ProjectSettings.globalize_path("res://"),"--log-file",log_path,"--script",MOUNT_PROBE,"--",store.root,verdict_path]))
+ t.check(pid>0,"UPDATE engine_mounter_loads_a_real_pack: the child engine process starts")
+ var deadline=Time.get_ticks_msec()+MOUNT_LIMIT_MSEC
+ while pid>0 and OS.is_process_running(pid) and Time.get_ticks_msec()<deadline: OS.delay_msec(100)
+ var hung=pid>0 and OS.is_process_running(pid)
+ if hung:
+  OS.kill(pid)
+  OS.delay_msec(500)
+ t.check(pid>0 and not hung,"UPDATE engine_mounter_loads_a_real_pack: the child engine process exits within the limit")
+ var verdict=JSON.parse_string(FileAccess.get_file_as_string(verdict_path)) if FileAccess.file_exists(verdict_path) else null
+ t.check(verdict is Dictionary and verdict.get("marker_before",true)==false,"UPDATE engine_mounter_loads_a_real_pack: the marker is absent in the child before the mount: "+str(verdict))
+ t.check(verdict is Dictionary and String(verdict.get("mounted",""))==PATCH_A and String(verdict.get("content",""))=="mounted","UPDATE engine_mounter_loads_a_real_pack: the default engine mounter exposes the pack's file under res://: "+str(verdict))
+ t.check(not FileAccess.file_exists("res://update_boot_probe/marker.txt"),"UPDATE engine_mounter_loads_a_real_pack: this process never mounted the pack")
+ var child_log=FileAccess.get_file_as_string(log_path)
+ var leaked=false
+ for marker in MOUNT_LEAK_MARKERS: leaked=leaked or child_log.contains(marker)
+ t.check(not leaked,"UPDATE engine_mounter_loads_a_real_pack: the child engine log has no exit-leak line: "+child_log.substr(0,400))
 
 # Last case of the suite, so everything above has already run in this process. The rule suites
 # share one process (tests/test_game.gd::SUITES order), and later suites such as runner create

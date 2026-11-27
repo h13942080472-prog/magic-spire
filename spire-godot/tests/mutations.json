@@ -1141,6 +1141,18 @@
       "replace": "+\" v\"+UpdateStore.baseline_version()",
       "suite": "update",
       "execution": "ui"
+    },
+    "engine_mounter_loads_a_real_pack": {
+      "file": "update/boot.gd",
+      "find": " return ProjectSettings.load_resource_pack(path,true)",
+      "replace": " return true",
+      "suite": "update"
+    },
+    "suite_leaves_res_build_writable": {
+      "file": "tests/update_cases.gd",
+      "find": " var verdict_path=ProjectSettings.globalize_path(store.root.path_join(\"mount-verdict.json\"))",
+      "replace": " ProjectSettings.load_resource_pack(packed,true)\n var verdict_path=ProjectSettings.globalize_path(store.root.path_join(\"mount-verdict.json\"))",
+      "suite": "update"
     }
   }
 }
