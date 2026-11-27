@@ -436,7 +436,7 @@ static func patches_are_ignored(t, pair: Array, keys: Dictionary) -> void:
  var patch={"version":"0.18.4","engine":"4.7.2","base_pck_sha256":"0".repeat(64),"save_revision":3,
   "url":"https://update.magicspire.xyz/v1/0.18.4/patch.zip","bytes":1024,"sha256":"0".repeat(64),"requires_full":false}
  var offer=judge(bytes_of(document("0.18.4",{"patches":[patch]})),pair,keys)
- t.check(offer.get("kind","")=="notice" and not offer.has("patches"),"UPDATE patches_are_ignored: the update check never reads the patch array and never offers one: "+str(offer))
+ t.check(offer.get("kind","")=="notice" and not offer.has("patches"),"UPDATE patches_are_ignored: without a local identity the update check offers a notice and never a patch, even when the manifest lists one: "+str(offer))
 
 # ---- 补丁条目匹配 ---------------------------------------------------------------------
 
@@ -601,6 +601,11 @@ static func export_project(version: String, extra: String="") -> String:
 static func export_presets(version: String, filter: String="all_resources") -> String:
  return "[preset.0]\n\nname=\"Windows v%s\"\nplatform=\"Windows Desktop\"\nexport_filter=\"%s\"\n\n[preset.0.options]\n\napplication/file_version=\"%s.0\"\napplication/product_version=\"%s.0\"\napplication/file_description=\"fixture v%s\"\n" % [version,filter,version,version,version]
 
+# Replaces both preset files of a world with a pair under tests/fixtures/update/export-presets/.
+static func export_presets_fixture(world: Dictionary, kind: String) -> void:
+ export_write(world.base_src+"/export_presets.cfg",FileAccess.get_file_as_string(FIXTURE_DIRECTORY+"export-presets/"+kind+"-base.cfg"))
+ export_write(world.game+"/export_presets.cfg",FileAccess.get_file_as_string(FIXTURE_DIRECTORY+"export-presets/"+kind+"-target.cfg"))
+
 static func export_write(path: String, text: String) -> void:
  write_bytes(path,text.to_utf8_buffer())
 
@@ -721,6 +726,13 @@ static func export_patch_feasibility_domain(t) -> void:
  world=export_world("presets")
  export_write(world.game+"/export_presets.cfg",export_presets(EXPORT_TARGET,"selected_scenes"))
  export_expect_refusal(t,world,"export-presets","an export preset difference beyond the version fields")
+ world=export_world("presets-versioned")
+ export_presets_fixture(world,"versioned")
+ var run_versioned=export_run(world,["-CheckOnly"])
+ t.check(run_versioned.exit==0 and String(run_versioned.output).contains("PATCH FEASIBLE"),"UPDATE export_patch_feasibility_domain: presets that differ only in the version fields and in the version written in preset names and descriptions are feasible: exit="+str(run_versioned.exit)+" "+String(run_versioned.output).left(600))
+ world=export_world("presets-include")
+ export_presets_fixture(world,"include")
+ export_expect_refusal(t,world,"export-presets","a version number inside include_filter (the placeholder only applies to preset names and descriptions)")
  for path in EXPORT_BOOT_FILES:
   world=export_world("boot-"+String(path).get_file())
   export_write(world.game+"/"+path,"# "+path+" changed\n")
