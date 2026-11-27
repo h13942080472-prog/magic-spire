@@ -5259,3 +5259,16 @@ Godot 4.7.2 专项 66 项断言通过。两个部位各承受两段「浑身解�
 - 打包面（沙盒内）：导出模板取真实目录下与引擎同版的 `4.7.2.stable`，只读复制进沙盒。导出前把 `core/content_catalog.gd` 的 `PACKS_ROOT` 临时改为 `"adjacent"`，导出结束在 `finally` 里按原始字节写回，改前、改后（还原后）sha256 同为 `9730DADE302290C8D3A1675F22A78560955A29D69CF81DF5840F707EA37F36F1`，`git diff --quiet` 为 0，未进提交。`tools/package.ps1 -BuildId d23val3` 退出 0；`tools/check-package.ps1` 退出 0，输出 `RELEASE CONTENT PACKS: 12`、`RELEASE PROBE PASS`、`PACKAGE CHECK PASS`；两个探针的用户目录都落在检查目录的 `appdata` 下（`native` 探针写出 `紧缚尖塔/legacy-import.json`，`pck` 探针只建 `紧缚尖塔-dev`），未触及真实 `%APPDATA%`。导出重写的 788 个 `*.import` 在锁外按 `git checkout --pathspec-from-file` 恢复。
 - 成品旧目录导入：沙盒 `app_userdata` 下现造 `紧缚尖塔demo v0.17.1`（主档、`.bak`、两份设置），以导出的成品 EXE 启动一次（`--headless --quit-after 300`，退出 0）：固定目录 `紧缚尖塔` 出现与源文件逐字节相同的 `saves/tower.json`、`saves/tower.json.bak`、`display-settings.cfg`、`key-bindings.cfg`，终结标记 `legacy-import.json` 为 `copied` 四项、`skipped` 空；旧目录文件的大小、sha256 与修改时间与启动前完全相同。再启动一次（退出 0），标记与全部导入文件的 sha256 和修改时间都不变，导入未重复。成品 EXE 只验证了导入分支，没有走到存档读取之后的玩法。
 - 未做：安卓导出与真机；公开发布（发布闸仍靠人审）；未打 tag、未发布、未上传。
+
+## 2026-11-27｜旧档导入分支：合入上游 4be2c1c 后的 PR 前完整回归
+
+- 域：本功能分支，验收 HEAD `338a79d`（合并提交 `8444613` 之上一条记录措辞提交），父侧 `4be2c1c`（上游基线，同机同引擎另树实跑）；固定用户目录、`ui/legacy_import.gd` 旧目录导入、`core/save_store.gd` 原子提交及本分支新增的 35 条登记突变。引擎 Godot 4.7.2，`APPDATA` 指向沙盒，真实 `%APPDATA%/Godot/app_userdata` 的目录名与修改时间在开工、导入后、全量后、补跑后、突变后与交回各列一次，均与开工逐字节相同。
+- 开工核对：HEAD `338a79d`，`origin/main` 为 `4be2c1c`，`rev-list --left-right --count origin/main...HEAD` 为 `0 46`，工作区干净。`e4fde8d..4be2c1c` 对 `project.godot`、`core/save_store.gd`、`ui/legacy_import.gd`、`core/content_catalog.gd` 的 `git diff --stat` 为空，打包面证据沿用上一条合入后的打包面验收，本条不重做。
+- 导入：`-Import -Suite runner`，运行号 `20261126T145138479-54468`，导入完成；runner 的 3 条 `index_declared_domains_exist` 与父侧同名 3 条相同。
+- 全量：`check.ps1 -Suite all -UI -UISuite all -KeepGoing -TimeoutSeconds 3600`，运行号 `20261126T150157157-37860`，退出 1；规则相位在 `exploration` 的 SCRIPT ERROR 后收尾（30 个结果行），`FAIL: 56/127569 assertions; 58 engine errors`（父侧 56/127544，差额为本分支新增断言），界面相位未启动，截断位置与父侧相同。
+- 补跑：全量没有结果行的规则 29 个与界面 50 个各自独立运行（规则 `-Suite <名>`，界面 `-UIOnly -UISuite <名>`），79 项均取得 `SUITE RESULT` 行，无超时；每项运行号与原行见验收证据。
+- 逐套件对照父侧 109 套件（规则 59、界面 50）：规则 PASS 43、父侧既有红 16；界面 PASS 27、父侧既有红 23。无新红、无父 FAIL 本 PASS、无父侧无结果。口径一致：规则前 30 个两边均取自全量（exhaustive 抽样），其余规则与全部界面两边均取自单套件补跑（daily 抽样）。FAIL 对 FAIL 的 39 个按 `ERROR:`／`SCRIPT ERROR:` 前 120 字去重逐行比对，本分支无父侧没有的行。
+- 对照中的两处差异（未新增红，如实记录）：界面 `rewards` 父侧有 `DIPLOMA UI deck overview uses current enhanced card value` 两次，本分支 0 次，断言 399 对 398，该用例在本分支未改动的 `reward_ui_cases.gd`，疑为时序抖动，未查明；界面 `persistence` 错误行相同，断言 110 对 111，原因未查明。规则与界面里断言数多于父侧的套件（runner 1967 对 1963、architecture 113700 对 113675、display 1330 对 1324 等）由本分支新增断言解释。
+- 敏感性：本分支相对 `e4fde8d` 与 `origin/main` 新增的 35 条登记突变（取三者 `tests/mutations.json` 键集合之差 `HEAD − e4fde8d − origin/main`，键数 72／85／120）逐条串行运行 `check-mutation.ps1 -Check`，35 条全部变红（`exit-red=True`）并逐字节还原（`restored=True`），每批之后 `git status` 为 0 行。
+- 过程（如实）：突变分 6 批，其中批次 3–6 因一次会话中断后重发，不影响结果；等锁期间另一工作者持锁远超其声明时长，未触碰他人锁与票据。
+- 未做：安卓导出与真机；公开发布（发布闸仍靠人审）；未打 tag、未发布、未上传。
