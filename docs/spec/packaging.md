@@ -145,7 +145,9 @@
   含说明与许可的 Android ZIP。上传需用户明确指示：
   先传包，再按清单里的 `bytes`／`sha256` 核对公网 URL 上的文件，最后传清单与 `.sig`。
 - 生成补丁（可选，仅 Windows；基线发行包已仓外归档为前提）：
-  1. `tools/export-patch.ps1 -BasePackage <归档的基线发行包> -BaseVersion <基线版本> -Out <新目录>`：先做可行性判定，再用 Godot 命令行导出补丁 `.pck`
+  1. 导出补丁同样要先把 `core/content_catalog.gd` 的 `PACKS_ROOT` 改成 `"adjacent"`，导出后改回（与出完整包相同；开发值会让补丁带着 `res://` 的内容包定位，挂载后加载不出内容包）；
+     `tools/export-patch.ps1` 导出前经 `tools/assert-packs-root.ps1` 断言，不是 `adjacent` 即拒绝且不出补丁。
+     `tools/export-patch.ps1 -BasePackage <归档的基线发行包> -BaseVersion <基线版本> -Out <新目录>`：先做可行性判定，再用 Godot 命令行导出补丁 `.pck`
      与元信息 JSON（`from`、`to`、`bytes`、`sha256`；补丁的哈希只在这里算一次）。判定命中（内容包、`project.godot`、导出预设、引导闭包有改动，
      或基线没有引导场景）即非零退出、不出补丁：该基线不写补丁条目，客户端自然退回完整包。
   2. 成品叠加验收：把补丁挂到该基线的成品上启动，确认 `res://` 被覆盖、内容包正常、窗口标题与反馈报告报目标版本

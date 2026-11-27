@@ -43,7 +43,7 @@
 判据名＝测试里的具名 check（断言标签 `UPDATE <name>:`／`DEP <name>:` 的 `<name>`，也是该 check 的函数名）。
 表与 `tests/update_cases.gd`、`tests/update_ui_cases.gd`、`tests/architecture_cases.gd` 的 update 具名 check
 **双向相等**：一条判据一行，一行只点名一个检查；漏行、多行、改名或幽灵条目都要同批改表。
-本版共 75 条（规则 52、窗口 12、架构 11），按 `tests/<file>.gd::<name>` 逐名核对。
+本版共 76 条（规则 53、窗口 12、架构 11），按 `tests/<file>.gd::<name>` 逐名核对。
 
 | 判据 | 执行它的检查 |
 | --- | --- |
@@ -106,6 +106,7 @@
 | 坏条目与兼容：哈希畸形、`bytes` 越界或非整数、非 `https`、缺字段、非对象条目、`patches` 非数组只让该条不合格，完整包提示仍在；恰好 256 MiB 合格；无本机身份时 `offer` 与五参调用逐字相同 | `tests/update_cases.gd::patch_entry_domain_and_compat`（规则分类 `update`） |
 | 生产调用点把本机身份交给 `evaluate`：注入的存储给出身份时有补丁，目标已失败时无补丁，`--script` 下没有存储时无补丁 | `tests/update_cases.gd::check_passes_identity_to_evaluate`（规则分类 `update`） |
 | 补丁导出的可行性判定经 `spire-godot/tools/export-patch.ps1` 真实运行：内容包有改、增、删，`project.godot` 或导出预设有版本以外的差异，引导闭包五个文件各有改动，基线没有引导场景，引擎不同，基线源取不到，主 PCK 与包清单不符，包清单缺失，都非零退出且不留输出；全部相同则可行 | `tests/update_cases.gd::export_patch_feasibility_domain`（规则分类 `update`） |
+| 补丁导出前断言内容包根为发布值：开发树上以导出模式（非 `-CheckOnly`）运行可行的夹具，在启动引擎之前因 `PACKS_ROOT` 不是 `adjacent` 而非零退出，不留输出与暂存目录；`-CheckOnly` 在开发树上不受此断言；发布值通过断言并走到引擎步骤（判据以不存在的引擎路径收场，从不启动引擎） | `tests/update_cases.gd::export_patch_requires_release_packs_root`（规则分类 `update`） |
 | 版本已在 failed 列表的完好补丁不挂载，条目与文件被清掉 | `tests/update_cases.gd::boot_skips_failed_version`（规则分类 `update`） |
 | 不比基线新的补丁（等于或更旧）不挂载，记 failed 并清掉 | `tests/update_cases.gd::boot_skips_not_newer_patch`（规则分类 `update`） |
 | 标记写不进去（`begin_mount` 为假）时不挂载任何包 | `tests/update_cases.gd::boot_requires_marker_before_mount`（规则分类 `update`） |
@@ -140,7 +141,7 @@
 | 跳转 | `spire-godot/ui/main.gd::_open_update_url` | `open_url`，默认 `OS.shell_open` | `spire-godot/tests/update_ui_cases.gd::startup_offer_renders_notice`；`spire-godot/tests/architecture_cases.gd::update_jump_single_entry`（唯一 `OS.shell_open`） |
 | 生产键表 | `spire-godot/update/update_keys.gd::KEYS` | `spire-godot/update/update_check.gd::keys` 的默认值；签名脚本的比较对象 | `spire-godot/tests/update_cases.gd::production_key_table_pins_k1` |
 | 清单生成（发布侧） | `spire-godot/tools/update-manifest.ps1` | `spire-godot/tools/update-manifest.ps1::Add-Platform` 建平台条目，`spire-godot/tools/update-manifest-check.ps1::Assert-UpdateManifest` 回读自检（唯一实现，签名器共用）；Android 哈希读 `tools/package-android.ps1` 写出的 `manifest.json`，补丁条目读 `spire-godot/tools/export-patch.ps1` 写的元信息 JSON | `spire-godot/tests/update_cases.gd::release_scripts_manifest_interops`；`spire-godot/tests/architecture_cases.gd::update_manifest_write_single_entry`（唯一清单写出点） |
-| 补丁生成与可行性判定（发布侧） | `spire-godot/tools/export-patch.ps1` | `spire-godot/tools/export-patch-feasibility.ps1::Test-PatchFeasibility`（内容包逐文件哈希、`project.godot`、导出预设、引导闭包、基线无引导场景五条判定，外加基线包自检与引擎一致）；补丁的哈希只在此处算一次，元信息 JSON 交给 `spire-godot/tools/update-manifest.ps1` | `spire-godot/tests/update_cases.gd::export_patch_feasibility_domain` |
+| 补丁生成与可行性判定（发布侧） | `spire-godot/tools/export-patch.ps1` | `spire-godot/tools/export-patch-feasibility.ps1::Test-PatchFeasibility`（内容包逐文件哈希、`project.godot`、导出预设、引导闭包、基线无引导场景五条判定，外加基线包自检与引擎一致）；补丁的哈希只在此处算一次，元信息 JSON 交给 `spire-godot/tools/update-manifest.ps1`；导出前经 `spire-godot/tools/assert-packs-root.ps1::Assert-SpirePacksRoot` 断言 `PACKS_ROOT` 为 `adjacent`（与 `tools/package.ps1` 同一函数，不复制判定） | `spire-godot/tests/update_cases.gd::export_patch_feasibility_domain`、`::export_patch_requires_release_packs_root` |
 | 发行 ZIP 的 SHA256 | `spire-godot/tools/update-manifest.ps1`（`Get-FileHash`，一次） | 写入清单 `platforms.windows-x64.full.sha256`；`docs/spec/packaging.md` 的人工步骤只引用该值 | `spire-godot/tests/update_cases.gd::release_scripts_manifest_interops`（清单值等于 ZIP 独立重算） |
 | 签名（发布侧） | `spire-godot/tools/sign-update-manifest.ps1` | 签名前先调 `spire-godot/tools/update-manifest-check.ps1::Assert-UpdateManifest` 回读自检；`spire-godot/tools/sign-update-manifest.ps1::Read-KeyTable` 读 `spire-godot/update/update_keys.gd::KEYS`，`spire-godot/tools/sign-update-manifest.ps1::Invoke-OpenSsl` 签名与复核 | `spire-godot/tests/update_cases.gd::release_scripts_manifest_interops`；`spire-godot/tests/architecture_cases.gd::update_sign_single_entry`（唯一 `openssl dgst -sign`）、`::update_signature_write_single_entry`（唯一 `.sig` 写出点） |
 | 版本身份 | `spire-godot/update/update_store.gd::baseline_version`（基线）、`::effective_version`（有效版本） | `::record_mounted`（有效版本的唯一写入，只由 `spire-godot/update/boot.gd::start` 调用）；窗口标题 `spire-godot/ui/main.gd::_ready`、反馈报告 `spire-godot/ui/feedback_report.gd::_capture_context`、清单判定 `spire-godot/update/update_check.gd::deliver` 读有效版本；`spire-godot/tools/release_probe.gd::run` 读基线 | `spire-godot/tests/update_cases.gd::effective_version_follows_mount`、`::effective_version_requires_mount`；`spire-godot/tests/update_ui_cases.gd::mounted_version_reaches_title_and_report`、`::unmounted_patch_reports_baseline`；`spire-godot/tests/architecture_cases.gd::version_read_single_entry`（唯一读取点） |
@@ -183,5 +184,5 @@
 - 补丁导出在真实成品上的行为没有常驻门禁：`tools/package.ps1` 出基线包（它断言 `PACKS_ROOT` 为发布值 `adjacent`）后 `tools/export-patch.ps1` 的真实导出、
   内容包被改一字节时的拒绝与无输出，只能实跑取证，结果登记在验证记录；成品叠加启动、公网上传与下载、重定向与镜像回退属后续的下载与交互。
 - 补丁导出与补丁条目的拒绝路径（`export-patch.ps1` 的参数拒绝、基线源取不到、`update-manifest.ps1` 的补丁参数拒绝、`Assert-UpdateManifest`
-  的补丁条目回读拒绝）没有常驻门禁，证据是脚本实跑日志；`export_patch_feasibility_domain` 只钉住可行性判定本身。
+  的补丁条目回读拒绝）没有常驻门禁，证据是脚本实跑日志；`export_patch_feasibility_domain` 只钉住可行性判定本身，`export_patch_requires_release_packs_root` 只钉住导出前的内容包根断言。
 - 不属于本片授权面：`spire-godot/core/**`、`spire-godot/data/**`、`spire-godot/ui/**`；`spire-godot/tools/package*.ps1` 只改源码稳定性清单。

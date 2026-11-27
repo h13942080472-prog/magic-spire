@@ -263,7 +263,7 @@ const MAX_PATCH_BYTES = 268435456    # 256 MiB
 - 补丁生成（`spire-godot/tools/export-patch.ps1`，可选；只在打包机上运行）：补丁是对**基线发行包**的累计差量，所以基线发行包
   （`tools/package.ps1` 的产出：恰有一个顶层主 `.pck`，加上逐文件 `bytes`／`sha256` 的 `manifest.json`）必须在仓外归档，丢失即无法为该基线出补丁。
   目标版本取 `-ProjectRoot`（默认本仓 `spire-godot/`）`project.godot` 的 `config/version`（与 `tools/package.ps1` 同一正则），须不同于 `-BaseVersion`。
-  顺序：参数 → 可行性判定 → 引擎导出到暂存目录 → 哈希 → 暂存目录改名为 `-Out`；`-Out` 必须是尚不存在的目录。判定命中或任何步骤失败都
+  顺序：参数 → 可行性判定 → （`-CheckOnly` 到此为止）内容包根断言 → 引擎导出到暂存目录 → 哈希 → 暂存目录改名为 `-Out`；`-Out` 必须是尚不存在的目录。判定命中或任何步骤失败都
   打印 `PATCH REFUSED: <门>: <说明>`／`PATCH EXPORT FAILED: …`、退出码 1，且不留 `-Out` 与暂存目录；`-CheckOnly` 只判定，不起导出、不写任何文件。
 - 基线源取自基线版本的 git 对象（`git show <引用>:<路径>`；引用默认版本标签 `v<BaseVersion>`，可用 `-BaseRef` 指定），不读工作区：
   来源由引用确定、可复现；引用解析不了或文件缺失一律拒绝，不默认放行。取 `project.godot`、`export_presets.cfg` 与引导闭包五个文件。
@@ -281,6 +281,10 @@ const MAX_PATCH_BYTES = 268435456    # 256 MiB
   另有三道前置自检：`package`（包清单缺失、版本或平台不符、顶层 `.pck` 不是恰好一个、`.pck` 的字节数或哈希与清单不符）、
   `baseline-unavailable`（基线源取不到，或其 `config/version` 不是 `-BaseVersion`）、`engine`（基线包记录的引擎版本与当前引擎不同）。
   同一语义只在 `Test-PatchFeasibility` 里判定；测试经真实入口 `-CheckOnly` 取证，不在 GDScript 里重写。
+- 内容包根断言：导出（非 `-CheckOnly`）在启动引擎之前，经 `tools/assert-packs-root.ps1::Assert-SpirePacksRoot -Expected 'adjacent'`（与 `tools/package.ps1` 同一函数）
+  断言 `core/content_catalog.gd` 的 `PACKS_ROOT` 为发布值。Windows 成品的内容包在 EXE 旁，补丁若带着开发值 `res://content/packs` 的目录定位，
+  挂载后游戏会去 `res://` 找内容包而加载不出来。断言失败即 `PATCH EXPORT FAILED`、退出码 1，不留 `-Out` 与暂存目录；常量不自动翻转，导出前手改、导出后改回（见 [packaging.md](packaging.md)）。
+  `-CheckOnly` 不做这条断言：它只判定可行性，测试与日常都在开发树上运行，那里的值就是开发值。`-EngineBinary` 只作测试接缝（引擎可执行文件路径，不是文件即在启动任何进程之前失败），发布不传。
 - 导出与输出：Windows 预设按平台（`Windows Desktop`，恰好一个）而不按含版本号的名称查找，命令为
   `<引擎> --headless --path <根> --export-patch <预设> <暂存 .pck> --patches <基线主 .pck>`（Godot 4.7.2 `--help` 原文：
   `--export-patch <preset> <path>` 「Export pack with changed files only」，`--patches <paths>` 「List of patches to use with --export-patch. The list is comma-separated.」），
@@ -330,7 +334,8 @@ const MAX_PATCH_BYTES = 268435456    # 256 MiB
 `tests/fixtures/update/` 的 OpenSSL 夹具（公钥 PEM、清单与签名）与两份发布侧脚本产出的两平台夹具
 （`tests/fixtures/update/release-scripts/`：一次性公钥、五份输入（含占位补丁包与元信息）、清单与签名；私钥用后即删）；
 生产键表按 DER sha256 钉住。UI 侧走真实 `main.tscn` 与真实点击，transport 替身回答两次 GET。
-补丁导出的可行性判定经真实入口 `tools/export-patch.ps1 -CheckOnly` 由 `export_patch_feasibility_domain` 常驻取证；
+补丁导出的可行性判定经真实入口 `tools/export-patch.ps1 -CheckOnly` 由 `export_patch_feasibility_domain` 常驻取证，
+导出前的内容包根断言经同一入口的导出模式由 `export_patch_requires_release_packs_root` 取证（不启动引擎）；
 其余发布侧脚本的拒签与拒绝路径没有常驻门禁，证据是脚本实跑日志；唯一签名入口与唯一清单写出点
 由 architecture 的三条发布侧单点判据按源码文本钉住。
 
