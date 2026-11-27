@@ -792,8 +792,8 @@
     },
     "same_or_older_latest_yields_none": {
       "file": "update/update_manifest.gd",
-      "find": "if offer.revoked or compare(version,current)>0: return offer",
-      "replace": "if offer.revoked or compare(version,current)>=0: return offer",
+      "find": "if not offer.revoked and compare(version,current)<=0: return none(\"\")",
+      "replace": "if not offer.revoked and compare(version,current)<0: return none(\"\")",
       "suite": "update"
     },
     "version_order_is_numeric_per_segment": {
@@ -1141,6 +1141,48 @@
       "replace": "+\" v\"+UpdateStore.baseline_version()",
       "suite": "update",
       "execution": "ui"
+    },
+    "patch_matches_baseline": {
+      "file": "update/update_manifest.gd",
+      "find": "\"url\":url,\"mirror\":mirror,\"bytes\":int(bytes),\"sha256\":sha256}",
+      "replace": "\"url\":mirror,\"mirror\":mirror,\"bytes\":int(bytes),\"sha256\":sha256}",
+      "suite": "update"
+    },
+    "patch_ignores_effective_version_match": {
+      "file": "update/update_manifest.gd",
+      "find": "String(local.get(\"baseline\",\"\"))",
+      "replace": "current",
+      "suite": "update"
+    },
+    "patch_not_reoffered_once_mounted": {
+      "file": "update/update_manifest.gd",
+      "find": "compare(version,current)<=0: return none(\"\")",
+      "replace": "compare(version,current)<=0 and local.is_empty(): return none(\"\")",
+      "suite": "update"
+    },
+    "patch_withdrawn_or_failed_is_dropped": {
+      "file": "update/update_manifest.gd",
+      "find": "if failed is Array and latest in failed: return {}",
+      "replace": "if false: return {}",
+      "suite": "update"
+    },
+    "patch_entry_domain_and_compat": {
+      "file": "update/update_manifest.gd",
+      "find": " or not is_sha256(sha256): return {}",
+      "replace": ": return {}",
+      "suite": "update"
+    },
+    "check_passes_identity_to_evaluate": {
+      "file": "update/update_check.gd",
+      "find": "platform_key(),_identity()))",
+      "replace": "platform_key()))",
+      "suite": "update"
+    },
+    "export_patch_feasibility_domain": {
+      "file": "tools/export-patch-feasibility.ps1",
+      "find": "if ($changed.Count + $added.Count + $removed.Count -eq 0) { return , @() }",
+      "replace": "if ($true) { return , @() }",
+      "suite": "update"
     }
   }
 }
