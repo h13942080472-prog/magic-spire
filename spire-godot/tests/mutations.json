@@ -1184,6 +1184,12 @@
       "replace": "if ($true) { return , @() }",
       "suite": "update"
     },
+    "export_presets_placeholder_scope": {
+      "file": "tools/export-patch-feasibility.ps1",
+      "find": "if ($script:PatchPresetPlaceholderKeys | Where-Object { $line.StartsWith($_ + '=', [StringComparison]::Ordinal) }) {",
+      "replace": "if ($true) {",
+      "suite": "update"
+    },
     "export_patch_requires_release_packs_root": {
       "file": "tools/export-patch.ps1",
       "find": "Assert-SpirePacksRoot -GameDirectory $gameDirectory -Expected 'adjacent'",

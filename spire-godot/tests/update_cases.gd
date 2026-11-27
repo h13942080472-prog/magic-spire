@@ -732,7 +732,7 @@ static func export_patch_feasibility_domain(t) -> void:
  t.check(run_versioned.exit==0 and String(run_versioned.output).contains("PATCH FEASIBLE"),"UPDATE export_patch_feasibility_domain: presets that differ only in the version fields and in the version written in preset names and descriptions are feasible: exit="+str(run_versioned.exit)+" "+String(run_versioned.output).left(600))
  world=export_world("presets-include")
  export_presets_fixture(world,"include")
- export_expect_refusal(t,world,"export-presets","a version number inside include_filter (the placeholder only applies to preset names and descriptions)")
+ export_expect_refusal(t,world,"export-presets","export_presets_placeholder_scope: a version number inside include_filter (the placeholder applies to preset names and descriptions only)")
  for path in EXPORT_BOOT_FILES:
   world=export_world("boot-"+String(path).get_file())
   export_write(world.game+"/"+path,"# "+path+" changed\n")

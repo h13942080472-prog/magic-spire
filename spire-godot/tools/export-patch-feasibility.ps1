@@ -21,6 +21,9 @@
 $script:PatchBootClosure = @('update/boot.gd', 'update/boot.tscn', 'update/update_store.gd', 'update/update_manifest.gd', 'update/update_keys.gd')
 # Export-preset lines that carry the version and are therefore allowed to differ.
 $script:PatchPresetVersionKeys = @('application/file_version', 'application/product_version', 'version/code', 'version/name')
+# Export-preset lines whose text may spell either version (preset names and descriptions are cosmetic
+# labels); every other line is compared verbatim, so a version inside e.g. include_filter still refuses.
+$script:PatchPresetPlaceholderKeys = @('name', 'application/file_description')
 $script:PatchMainScene = 'run/main_scene="res://update/boot.tscn"'
 
 function New-PatchRefusal {
@@ -99,13 +102,17 @@ function Test-PatchProjectSettings {
 }
 
 # export_presets.cfg: identical once the version fields are dropped and either version, as spelled
-# in preset names and descriptions, is replaced by a placeholder (a name that still carries the
-# baseline version is cosmetic, not a difference of what the patch ships).
+# in preset names and descriptions only, is replaced by a placeholder (a name that still carries the
+# baseline version is cosmetic, not a difference of what the patch ships). All other lines compare verbatim.
 function Test-PatchExportPresets {
     param([string]$BaseSources, [string]$ProjectRoot, [string]$BaseVersion, [string]$TargetVersion)
     $normalize = {
         param($text)
-        @($text.Split("`n") | Where-Object { $line = $_; -not ($script:PatchPresetVersionKeys | Where-Object { $line.StartsWith($_ + '=', [StringComparison]::Ordinal) }) } | ForEach-Object { $_.Replace($BaseVersion, '<version>').Replace($TargetVersion, '<version>') })
+        $kept = @($text.Split("`n") | Where-Object { $line = $_; -not ($script:PatchPresetVersionKeys | Where-Object { $line.StartsWith($_ + '=', [StringComparison]::Ordinal) }) })
+        @($kept | ForEach-Object {
+            $line = $_
+            if ($script:PatchPresetPlaceholderKeys | Where-Object { $line.StartsWith($_ + '=', [StringComparison]::Ordinal) }) { $line.Replace($BaseVersion, '<version>').Replace($TargetVersion, '<version>') } else { $line }
+        })
     }
     $left = & $normalize (Read-PatchText (Join-Path $BaseSources 'export_presets.cfg'))
     $right = & $normalize (Read-PatchText (Join-Path $ProjectRoot 'export_presets.cfg'))

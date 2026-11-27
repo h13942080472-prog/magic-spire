@@ -278,7 +278,9 @@ const MAX_PATCH_BYTES = 268435456    # 256 MiB
      `content/packs/` 条目不一致（含增删）；基线包清单没有任何内容包条目也拒绝。内容包在 Windows 成品里是 EXE 旁的文件，补丁 PCK 改不了它。
   2. `project-settings`：`project.godot` 除 `config/version` 一行外有任何差异（挂载后工程设置是否重载，官方文档未写明，保守处理）。
   3. `export-presets`：`export_presets.cfg` 除版本字段（`application/file_version`、`application/product_version`、`version/code`、`version/name`）
-     与预设名、说明里的版本号写法外有差异——这些写进 EXE 元数据，补丁改不了。
+     与预设名（`name=`）、说明（`application/file_description=`）两类行里的版本号写法外有差异——这些写进 EXE 元数据，补丁改不了。
+     版本占位只作用于这两类行（声明与版本字段清单并排放在 `export-patch-feasibility.ps1` 的 `PatchPresetPlaceholderKeys`），其余行逐字比较：
+     `include_filter` 等字段里嵌着版本号（如 `res://content/0.18.4/*` 改为 `res://content/0.18.5/*`）会真实改变导出文件集合，照样拒绝。
   4. `boot-closure`：引导闭包五个文件（`update/boot.gd`、`update/boot.tscn`、`update/update_store.gd`、`update/update_manifest.gd`、`update/update_keys.gd`）
      有任何差异——它们在挂载前已载入并缓存，本会话换不成补丁里的版本；公钥只随完整包变化。
   5. `baseline-no-boot`：基线没有引导场景与闭包，或其 `run/main_scene` 不是 `res://update/boot.tscn`——更早的基线没有挂载能力。
