@@ -27,6 +27,7 @@
 | `spire-godot/tests/fixtures/update/` 的 `.gitattributes`（新） | 把三份夹具标为 `-text`，让检出字节等于签名字节 | 不改夹具内容；不引入第二份夹具 |
 | `spire-godot/tools/update-manifest.ps1`、`spire-godot/tools/sign-update-manifest.ps1`、`spire-godot/tools/update-manifest-check.ps1`（新） | 唯一清单生成入口与唯一签名入口，接口见 `docs/spec/update-check.md`「发布侧脚本」；两者 dot-source 的回读自检 `spire-godot/tools/update-manifest-check.ps1::Assert-UpdateManifest` | 与游戏代码零依赖（签名脚本只按文本读 `update/update_keys.gd`）；回读自检只有这一份实现，生成器回读临时文件、签名器签名前回读 `-Manifest` 都调用它；Android 哈希只取自包清单、Windows ZIP 哈希只在生成器算一次；`-Revoked` 只收字符串元素；拒签与拒绝路径不留输出；不接受口令明文参数，不打印私钥、口令或其哈希，报错不回显 `-PrivateKey` 与 `-PassphraseEnv` 的取值；两份脚本 `#Requires -Version 7.0`；`-KeyTable` 只作测试接缝 |
 | `spire-godot/tools/check.ps1::Get-SourceFingerprint` | 目录集合加入 `update` | 只改目录集合；指纹仍只作同一次运行内的守卫（`before==after`），不当身份，没有冻结值依赖它 |
+| `spire-godot/tests/fixtures/update/mount_probe.gd`（新） | 子引擎进程的挂载探针（`--headless --script`，参数＝`res://` 存储根与绝对结果文件路径）：经 `spire-godot/update/boot.gd::start` 与默认挂载器挂载，把一份 JSON 结论写到结果文件后 `quit`，自带 40 秒兜底计时器 | 真实挂载只在子进程里做，主测试进程不挂载：挂载会让该进程之后对 `res://` 的目录访问走包内文件系统，同进程后续套件（`runner` 在 `SUITES` 里排在 `update` 之后）建 `res://build` 即失败；父测试 `tests/update_cases.gd::engine_mounter_loads_a_real_pack` 以 `OS.create_process` 启动、每 100 毫秒轮询、60 秒超时即 `OS.kill` 判红，并读回子进程的引擎日志、出现退出泄漏行即红；子进程继承父进程环境（含沙盒 `APPDATA`）；探针不直接调用 `load_resource_pack`，只走生产入口 |
 | `spire-godot/tests/fixtures/update/release-scripts/`（新） | 两份脚本用一次性密钥产出的清单与签名，及一次性公钥、`notes.txt`、`android-package-manifest.json`、`windows.zip` 三份输入；同目录 `.gitattributes` 标 `-text` | 只经脚本生成；**不提交任何私钥**；既有 OpenSSL 夹具不变 |
 | `spire-godot/tests/state_readers.json`（生成物） | 由 `tools/build_state_readers.gd --write` 重写，登记 `update/` 的读取点 | 只经工具写入；不手工编辑；他行不变 |
 | `spire-godot/tests/check_index_edges.gd::CLOSURE` | 新增 `spire-godot/update/` 前缀条目：规则 `update,architecture`、界面 `update`；索引只扫 `core|data|ui`，不加这条则 `update/` 下改动落到 `ROUTE UNMAPPED` 而退回全量 | 只增这一条；窗口标题与反馈报告的断言经 `ui/main.gd`、`ui/feedback_report.gd` 既有的边路由到 `interface`，不在此重复 |
@@ -41,7 +42,7 @@
 判据名＝测试里的具名 check（断言标签 `UPDATE <name>:`／`DEP <name>:` 的 `<name>`，也是该 check 的函数名）。
 表与 `tests/update_cases.gd`、`tests/update_ui_cases.gd`、`tests/architecture_cases.gd` 的 update 具名 check
 **双向相等**：一条判据一行，一行只点名一个检查；漏行、多行、改名或幽灵条目都要同批改表。
-本版共 68 条（规则 45、窗口 12、架构 11），按 `tests/<file>.gd::<name>` 逐名核对。
+本版共 69 条（规则 46、窗口 12、架构 11），按 `tests/<file>.gd::<name>` 逐名核对。
 
 | 判据 | 执行它的检查 |
 | --- | --- |
@@ -107,7 +108,8 @@
 | `verify_patch_file` 的字节数、小写摘要、缺失文件、目录与空包；`is_newer` 严格大于 | `tests/update_cases.gd::patch_file_verification_domain`（规则分类 `update`） |
 | 状态文件的敌意输入（路径穿越、坏字段、坏 JSON）被丢弃，版本不合文法不成路径 | `tests/update_cases.gd::store_rejects_hostile_state`（规则分类 `update`） |
 | `run/main_scene` 是可实例化的引导场景，`config/name` 不含版本 | `tests/update_cases.gd::main_scene_is_boot_scene`（规则分类 `update`） |
-| 默认挂载器经真实 `load_resource_pack` 让包内文件在 `res://` 可见 | `tests/update_cases.gd::engine_mounter_loads_a_real_pack`（规则分类 `update`） |
+| 默认挂载器经真实 `load_resource_pack` 让包内文件在 `res://` 可见；真实挂载只在子引擎进程里做（探针 `tests/fixtures/update/mount_probe.gd`），测试进程自己不挂载 | `tests/update_cases.gd::engine_mounter_loads_a_real_pack`（规则分类 `update`） |
+| `update` 套件跑完后同进程里 `res://build` 仍可建、可删目录（防真实挂载再回到共享的规则进程） | `tests/update_cases.gd::suite_leaves_res_build_writable`（规则分类 `update`） |
 | 已挂载的版本进入窗口标题与反馈报告 | `tests/update_ui_cases.gd::mounted_version_reaches_title_and_report`（窗口分类 `update`） |
 | 记录了但没挂上的补丁不进标题与反馈报告，二者报基线 | `tests/update_ui_cases.gd::unmounted_patch_reports_baseline`（窗口分类 `update`） |
 | 启动恢复之后清标记并提升本进程已挂载的 pending；未挂载的 pending 不提升 | `tests/update_ui_cases.gd::start_marks_boot_succeeded`（窗口分类 `update`） |
@@ -133,7 +135,7 @@
 | 发行 ZIP 的 SHA256 | `spire-godot/tools/update-manifest.ps1`（`Get-FileHash`，一次） | 写入清单 `platforms.windows-x64.full.sha256`；`docs/spec/packaging.md` 的人工步骤只引用该值 | `spire-godot/tests/update_cases.gd::release_scripts_manifest_interops`（清单值等于 ZIP 独立重算） |
 | 签名（发布侧） | `spire-godot/tools/sign-update-manifest.ps1` | 签名前先调 `spire-godot/tools/update-manifest-check.ps1::Assert-UpdateManifest` 回读自检；`spire-godot/tools/sign-update-manifest.ps1::Read-KeyTable` 读 `spire-godot/update/update_keys.gd::KEYS`，`spire-godot/tools/sign-update-manifest.ps1::Invoke-OpenSsl` 签名与复核 | `spire-godot/tests/update_cases.gd::release_scripts_manifest_interops`；`spire-godot/tests/architecture_cases.gd::update_sign_single_entry`（唯一 `openssl dgst -sign`）、`::update_signature_write_single_entry`（唯一 `.sig` 写出点） |
 | 版本身份 | `spire-godot/update/update_store.gd::baseline_version`（基线）、`::effective_version`（有效版本） | `::record_mounted`（有效版本的唯一写入，只由 `spire-godot/update/boot.gd::start` 调用）；窗口标题 `spire-godot/ui/main.gd::_ready`、反馈报告 `spire-godot/ui/feedback_report.gd::_capture_context`、清单判定 `spire-godot/update/update_check.gd::deliver` 读有效版本；`spire-godot/tools/release_probe.gd::run` 读基线 | `spire-godot/tests/update_cases.gd::effective_version_follows_mount`、`::effective_version_requires_mount`；`spire-godot/tests/update_ui_cases.gd::mounted_version_reaches_title_and_report`、`::unmounted_patch_reports_baseline`；`spire-godot/tests/architecture_cases.gd::version_read_single_entry`（唯一读取点） |
-| 挂载 | `spire-godot/update/boot.gd::start` | `::engine_mount`（产品运行时唯一的 `load_resource_pack`）；`spire-godot/update/update_manifest.gd::verify_patch_file`、`::is_newer`；`spire-godot/update/update_store.gd::begin_mount`、`::mark_failed`、`::reset_for_baseline` | `spire-godot/tests/update_cases.gd::boot_mounts_verified_pending`、`::boot_skips_bad_patch_and_records_failure`、`::boot_resets_on_baseline_change`、`::boot_replaces_active_with_pending`、`::boot_falls_back_to_active_when_pending_fails`、`::boot_skips_crash_residue`、`::boot_is_inert_under_script`、`::engine_mounter_loads_a_real_pack`、`::main_scene_is_boot_scene`、`::patch_file_verification_domain` |
+| 挂载 | `spire-godot/update/boot.gd::start` | `::engine_mount`（产品运行时唯一的 `load_resource_pack`）；`spire-godot/update/update_manifest.gd::verify_patch_file`、`::is_newer`；`spire-godot/update/update_store.gd::begin_mount`、`::mark_failed`、`::reset_for_baseline` | `spire-godot/tests/update_cases.gd::boot_mounts_verified_pending`、`::boot_skips_bad_patch_and_records_failure`、`::boot_resets_on_baseline_change`、`::boot_replaces_active_with_pending`、`::boot_falls_back_to_active_when_pending_fails`、`::boot_skips_crash_residue`、`::boot_is_inert_under_script`、`::engine_mounter_loads_a_real_pack`（子进程里挂载，探针 `spire-godot/tests/fixtures/update/mount_probe.gd`）、`::suite_leaves_res_build_writable`、`::main_scene_is_boot_scene`、`::patch_file_verification_domain` |
 | 补丁状态与用户目录 | `spire-godot/update/update_store.gd::write_state`（唯一写 `state.json`） | `::load_state`、`::patch_path`、`::mark_boot_succeeded`、`::clear_staging`；`user://updates` 只在该文件出现 | `spire-godot/tests/update_cases.gd::store_rejects_hostile_state`；`spire-godot/tests/architecture_cases.gd::update_store_is_single_writer` |
 | 启动证明 | `spire-godot/ui/main.gd::_ready` 在 `_restore_startup` 之后调 `spire-godot/update/update_store.gd::mark_boot_succeeded` | 只提升本进程已挂载的 pending；玩家会话才构造 `update_store` | `spire-godot/tests/update_ui_cases.gd::start_marks_boot_succeeded` |
 
@@ -161,7 +163,7 @@
 - 后续的下载安装阶段若要把下载的清单或 `.sig` 落到 `user://`，`tests/architecture_cases.gd::update_signature_write_single_entry` 或
   `tests/architecture_cases.gd::update_manifest_write_single_entry` 会具名变红：须同批更新这两条判据的期望集合与本文件，
   不得靠把「点名 `.sig`／清单键」与「写文件」拆到不同作用域让判据转绿。
-- 引导挂载只在门禁替身与一次真实 `load_resource_pack` 上取证；真实导出成品上的行为没有机械判据：成品叠加补丁后 `res://` 被覆盖、
+- 引导挂载只在门禁替身与一次子引擎进程里的真实 `load_resource_pack` 上取证；真实导出成品上的行为没有机械判据：成品叠加补丁后 `res://` 被覆盖、
   `tools/check-package.ps1` 在引导场景作为 `run/main_scene` 时照常通过、冷启动耗时、挂载后工程设置是否重载（官方文档未写明）、
   Windows 文件属性仍显示基线。这些只能在导出成品上人工取证。
 - 引导闭包（`update/boot.gd`、`update/update_store.gd`、`update/update_manifest.gd`）在挂载前已载入，本会话不会换成补丁里的版本；
