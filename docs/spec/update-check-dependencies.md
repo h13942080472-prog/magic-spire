@@ -15,7 +15,7 @@
 | `spire-godot/update/update_keys.gd`（新；写入 `k1`） | 常量 `KEYS = {key_id: 公钥 PEM}`；现只有 `k1`，条目是三引号 PEM 字面量 | **只放公钥**；不放私钥、口令或任何令牌；恰好一条 `k1`，DER sha256 钉住；轮换先并列加 `k2` 再切换清单 `key_id`；显式传入的空表仍让 `evaluate` 返回 `none`／`key` |
 | `spire-godot/update/update_check.gd`（新） | `check()`、`deliver()`、`manifest_url()`、`platform_key()`、`scripted_run()`（转调 `spire-godot/update/update_store.gd::scripted_run`）、`auto_allowed()`、`keys`、`transport: Callable` 接缝、`HTTPRequest`（10 秒超时、`max_redirects=0`、`body_size_limit=65536`）、`checked(offer)` | 一次检查最多 2 个 GET；只用 HTTPS；不写盘；不重试；请求不带存档、种子、设备标识、账号或自定义标识头；失败一律静默；`[update]` 只在此文件读取 |
 | `spire-godot/project.godot` | 新增 `[update]` 段：`manifest_url`、`check_on_start`；`run/main_scene` 指向 `res://update/boot.tscn`；`config/name` 不带版本后缀（窗口标题的版本由 `ui/main.gd::_ready` 拼接） | 不改 `application/config/version`、`[feedback]`；不新增 `[autoload]`；`config/custom_user_dir_name*` 不变 |
-| `spire-godot/update/boot.gd`、`spire-godot/update/boot.tscn`（新） | 引导场景与脚本：`start(store, mounter, session)`、`engine_mount(path)`；`_ready` 在玩家会话挂载后以场景路径字符串切到 `res://main.tscn` | 只预载 `update_store.gd` 与 `update_manifest.gd`；不引用 `ui`／`core`／`data`／`tests`；`ProjectSettings.load_resource_pack` 只在 `engine_mount` 一处；`--script` 运行不挂载、不切场景；不触碰 `user://saves/` 与旧档导入标记 |
+| `spire-godot/update/boot.gd`、`spire-godot/update/boot.tscn`（新） | 引导场景与脚本：`start(store, mounter, session)`、`engine_mount(path)`；`_ready` 在玩家会话挂载后以场景路径字符串切到 `res://main.tscn` | 只预载 `update_store.gd` 与 `update_manifest.gd`；不引用 `ui`／`core`／`data`／`tests`；`ProjectSettings.load_resource_pack` 在产品运行时只在 `engine_mount` 一处（发布侧工具 `spire-godot/tools/patch_release_pck.gd` 除外）；`--script` 运行不挂载、不切场景；不触碰 `user://saves/` 与旧档导入标记 |
 | `spire-godot/update/update_store.gd`（新） | 补丁状态与版本身份：`baseline_version`、`effective_version`、`record_mounted`、`identity`、`load_state`、`write_state`、`patch_path`、`mark_failed`、`begin_mount`、`mark_boot_succeeded`、`reset_for_baseline`、`clear_staging`、`valid_version`、`scripted_run`、`player_session`；目录可注入 | 全仓唯一读取 `application/config/version` 的文件、唯一写 `user://updates` 的文件；有效版本只由 `record_mounted` 写；版本经 `valid_version` 文法后才拼路径；状态文件经临时文件、回读、改名写入；不联网、不调用 `core/save_store.gd` |
 | `spire-godot/ui/main.gd`、`spire-godot/ui/feedback_report.gd`、`spire-godot/tools/release_probe.gd`（版本身份） | `ui/main.gd::_ready` 的窗口标题＝`config/name`＋` v`＋有效版本，并在 `_restore_startup` 之后调 `mark_boot_succeeded`；`ui/feedback_report.gd::_capture_context` 读有效版本；`tools/release_probe.gd::run` 读基线版本 | 三处都经 `update_store.gd`，不再直接读版本设置；`update_store` 字段只在玩家会话构造（用例可注入）；不触碰存档 |
 | `spire-godot/ui/display_settings.gd` | `update_check_enabled`、`set_update_check(enabled)`；既有 `user://display-settings.cfg` 的 `update/check_on_start` 一键 | 不新增 `user://` 文件、不新增设置存储；`initialize` 的复位与加载顺序不变；既有 setter 行为不变 |
@@ -41,7 +41,7 @@
 判据名＝测试里的具名 check（断言标签 `UPDATE <name>:`／`DEP <name>:` 的 `<name>`，也是该 check 的函数名）。
 表与 `tests/update_cases.gd`、`tests/update_ui_cases.gd`、`tests/architecture_cases.gd` 的 update 具名 check
 **双向相等**：一条判据一行，一行只点名一个检查；漏行、多行、改名或幽灵条目都要同批改表。
-本版共 64 条（规则 41、窗口 12、架构 11），按 `tests/<file>.gd::<name>` 逐名核对。
+本版共 68 条（规则 45、窗口 12、架构 11），按 `tests/<file>.gd::<name>` 逐名核对。
 
 | 判据 | 执行它的检查 |
 | --- | --- |
@@ -133,7 +133,7 @@
 | 发行 ZIP 的 SHA256 | `spire-godot/tools/update-manifest.ps1`（`Get-FileHash`，一次） | 写入清单 `platforms.windows-x64.full.sha256`；`docs/spec/packaging.md` 的人工步骤只引用该值 | `spire-godot/tests/update_cases.gd::release_scripts_manifest_interops`（清单值等于 ZIP 独立重算） |
 | 签名（发布侧） | `spire-godot/tools/sign-update-manifest.ps1` | 签名前先调 `spire-godot/tools/update-manifest-check.ps1::Assert-UpdateManifest` 回读自检；`spire-godot/tools/sign-update-manifest.ps1::Read-KeyTable` 读 `spire-godot/update/update_keys.gd::KEYS`，`spire-godot/tools/sign-update-manifest.ps1::Invoke-OpenSsl` 签名与复核 | `spire-godot/tests/update_cases.gd::release_scripts_manifest_interops`；`spire-godot/tests/architecture_cases.gd::update_sign_single_entry`（唯一 `openssl dgst -sign`）、`::update_signature_write_single_entry`（唯一 `.sig` 写出点） |
 | 版本身份 | `spire-godot/update/update_store.gd::baseline_version`（基线）、`::effective_version`（有效版本） | `::record_mounted`（有效版本的唯一写入，只由 `spire-godot/update/boot.gd::start` 调用）；窗口标题 `spire-godot/ui/main.gd::_ready`、反馈报告 `spire-godot/ui/feedback_report.gd::_capture_context`、清单判定 `spire-godot/update/update_check.gd::deliver` 读有效版本；`spire-godot/tools/release_probe.gd::run` 读基线 | `spire-godot/tests/update_cases.gd::effective_version_follows_mount`、`::effective_version_requires_mount`；`spire-godot/tests/update_ui_cases.gd::mounted_version_reaches_title_and_report`、`::unmounted_patch_reports_baseline`；`spire-godot/tests/architecture_cases.gd::version_read_single_entry`（唯一读取点） |
-| 挂载 | `spire-godot/update/boot.gd::start` | `::engine_mount`（唯一 `load_resource_pack`）；`spire-godot/update/update_manifest.gd::verify_patch_file`、`::is_newer`；`spire-godot/update/update_store.gd::begin_mount`、`::mark_failed`、`::reset_for_baseline` | `spire-godot/tests/update_cases.gd::boot_mounts_verified_pending`、`::boot_skips_bad_patch_and_records_failure`、`::boot_resets_on_baseline_change`、`::boot_replaces_active_with_pending`、`::boot_falls_back_to_active_when_pending_fails`、`::boot_skips_crash_residue`、`::boot_is_inert_under_script`、`::engine_mounter_loads_a_real_pack`、`::main_scene_is_boot_scene`、`::patch_file_verification_domain` |
+| 挂载 | `spire-godot/update/boot.gd::start` | `::engine_mount`（产品运行时唯一的 `load_resource_pack`）；`spire-godot/update/update_manifest.gd::verify_patch_file`、`::is_newer`；`spire-godot/update/update_store.gd::begin_mount`、`::mark_failed`、`::reset_for_baseline` | `spire-godot/tests/update_cases.gd::boot_mounts_verified_pending`、`::boot_skips_bad_patch_and_records_failure`、`::boot_resets_on_baseline_change`、`::boot_replaces_active_with_pending`、`::boot_falls_back_to_active_when_pending_fails`、`::boot_skips_crash_residue`、`::boot_is_inert_under_script`、`::engine_mounter_loads_a_real_pack`、`::main_scene_is_boot_scene`、`::patch_file_verification_domain` |
 | 补丁状态与用户目录 | `spire-godot/update/update_store.gd::write_state`（唯一写 `state.json`） | `::load_state`、`::patch_path`、`::mark_boot_succeeded`、`::clear_staging`；`user://updates` 只在该文件出现 | `spire-godot/tests/update_cases.gd::store_rejects_hostile_state`；`spire-godot/tests/architecture_cases.gd::update_store_is_single_writer` |
 | 启动证明 | `spire-godot/ui/main.gd::_ready` 在 `_restore_startup` 之后调 `spire-godot/update/update_store.gd::mark_boot_succeeded` | 只提升本进程已挂载的 pending；玩家会话才构造 `update_store` | `spire-godot/tests/update_ui_cases.gd::start_marks_boot_succeeded` |
 
@@ -166,5 +166,8 @@
   Windows 文件属性仍显示基线。这些只能在导出成品上人工取证。
 - 引导闭包（`update/boot.gd`、`update/update_store.gd`、`update/update_manifest.gd`）在挂载前已载入，本会话不会换成补丁里的版本；
   `update/update_check.gd` 与 `update/update_keys.gd` 在挂载之后才由 `ui/main.gd` 载入，可被补丁替换。
+- 有效版本的一种缺陷没有机械判据：`spire-godot/update/update_store.gd::effective_version` 若改为读 `state.json` 的 `active.to`，
+  门禁抓不到——用例只注入补丁目录，静态读取走默认的 `user://updates`，而用例从不读真实用户目录。
+  `tests/update_cases.gd::effective_version_requires_mount` 只钉住等价的另一种缺陷：引擎拒绝挂载时仍记录有效版本。
 - 不属于本片授权面：`spire-godot/tools/package*.ps1`、`spire-godot/core/**`、`spire-godot/data/**`；`docs/spec/packaging.md` 里的
   主场景与成品检查描述随后续补丁挂载的发布侧一并更新。

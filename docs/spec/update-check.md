@@ -15,7 +15,7 @@
   `spire-godot/update/update_manifest.gd::evaluate` 判定，主页与设置页只显示判定结果。
 - 发布侧同样只有一条链路：`spire-godot/tools/update-manifest.ps1` 生成清单，
   `spire-godot/tools/sign-update-manifest.ps1` 签名，两者见「发布侧脚本」。
-- 不含：下载补丁、联网校验包体、主页的补丁提示与自动下载（留给后续的补丁挂载）、上传与部署清单（人工动作）、
+- 不含：下载补丁、联网校验包体、主页的补丁提示与自动下载（留给后续的下载与交互）、上传与部署清单（人工动作）、
   反馈上传。启动时的补丁挂载与版本身份见「引导挂载与版本身份」；检查本身仍不写盘。
 - 模块边界：`spire-godot/update/` 是叶子模块，不引用 `ui`、`core`、`data`、`tests`；
   `core` 与 `data` 也不引用 `update`。发 HTTP 的只有 `spire-godot/update/update_check.gd`。
@@ -96,7 +96,7 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
 ## 引导挂载与版本身份
 
 收束对象：**本进程运行的是哪一份代码、对外报告哪一个版本**。入口只有两处：
-`spire-godot/update/boot.gd`（唯一挂载者）与 `spire-godot/update/update_store.gd`（`user://updates/` 的唯一读写者、
+`spire-godot/update/boot.gd`（产品运行时的唯一挂载者；发布侧工具 `spire-godot/tools/patch_release_pck.gd` 只在打包机上以 `--script` 运行，另有一次挂载）与 `spire-godot/update/update_store.gd`（`user://updates/` 的唯一读写者、
 版本身份的唯一来源）。本节不含联网、下载、清单补丁匹配与主页补丁提示。
 
 ```gdscript
