@@ -24,6 +24,9 @@ static func run(t) -> void:
  await check_in_flight_ignores_second_call(t)
  await empty_manifest_url_sends_no_request(t)
  await host_free_releases_unparented_check(t)
+ await mounted_version_reaches_title_and_report(t)
+ await unmounted_patch_reports_baseline(t)
+ await start_marks_boot_succeeded(t)
 
 # ---- fixtures -------------------------------------------------------------------------
 
@@ -84,6 +87,9 @@ static func boot(t, options: Dictionary) -> Control:
  ui.open_url=func(url): options.opened.append(url)
  ui.update_check.keys=options.get("keys",{})
  ui.update_check.transport=stand_in(ui,options)
+ # A case that asserts the startup proof injects its own store; every other case keeps the
+ # default, which a scripted run never writes (ui/main.gd only builds it in a player session).
+ if options.has("store"): ui.update_store=options.store
  options["state"]=JSON.stringify(ui.game.state)
  t.ui=ui
  t.root.add_child(ui)
@@ -293,3 +299,59 @@ static func host_free_releases_unparented_check(t) -> void:
  t.check(check_ref.get_ref()==null,"UPDATE host_free_releases_unparented_check: freeing a host before the tree must release its unparented update check")
  var booted=await boot(t,harness({}))
  t.check(booted.update_check.get_parent()!=null,"UPDATE host_free_releases_unparented_check: a booted host's update check is parented, so the scene tree releases it")
+
+# ---- 引导挂载后的版本身份（docs/spec/update-check.md「引导挂载与版本身份」）------------------------
+# The window title and the feedback report both read the effective version through the store; a
+# scripted harness cannot run boot.gd, so the cases record the mount the way boot.gd does
+# (Store.record_mounted) and assert what the production main.tscn shows. Stores are injected under
+# res://build/, never the real user://updates.
+
+static func mounted_version_reaches_title_and_report(t) -> void:
+ var Store=Cases.boot_load(t,"mounted_version_reaches_title_and_report",Cases.BOOT_STORE_PATH)
+ if Store==null: return
+ Store.record_mounted(Cases.PATCH_A)
+ var ui=await boot(t,harness({}))
+ var title=ui.get_window().title
+ t.check(title.ends_with(" v"+Cases.PATCH_A),"UPDATE mounted_version_reaches_title_and_report: the window title ends with the mounted version: "+title)
+ t.check(title.begins_with(str(ProjectSettings.get_setting("application/config/name",""))),"UPDATE mounted_version_reaches_title_and_report: the title keeps the project name in front: "+title)
+ ui.feedback_report.draft.context={}
+ ui.feedback_report._capture_context()
+ t.check(String(ui.feedback_report.draft.context.get("version",""))==Cases.PATCH_A and String(ui.feedback_report.payload().context.version)==Cases.PATCH_A,"UPDATE mounted_version_reaches_title_and_report: the feedback report describes the mounted code: "+str(ui.feedback_report.draft.context))
+ Store.record_mounted("")
+
+# Nearest negative: a patch that was recorded but not mounted never reaches the title or the report.
+static func unmounted_patch_reports_baseline(t) -> void:
+ var Store=Cases.boot_load(t,"unmounted_patch_reports_baseline",Cases.BOOT_STORE_PATH)
+ if Store==null: return
+ var baseline=Store.baseline_version()
+ var store=Store.new(Cases.boot_root("ui-unmounted"))
+ store.write_state(Cases.boot_state(baseline,Cases.boot_entry(store,Cases.PATCH_A)))
+ var ui=await boot(t,harness({}))
+ var title=ui.get_window().title
+ t.check(title.ends_with(" v"+baseline) and not title.contains(Cases.PATCH_A),"UPDATE unmounted_patch_reports_baseline: the title reports the baseline when nothing was mounted: "+title)
+ ui.feedback_report.draft.context={}
+ ui.feedback_report._capture_context()
+ t.check(String(ui.feedback_report.draft.context.get("version",""))==baseline,"UPDATE unmounted_patch_reports_baseline: the feedback report reports the baseline: "+str(ui.feedback_report.draft.context))
+
+# The host proves the session after startup restore: only a pending patch that was actually
+# mounted this process is promoted; a pending patch nobody mounted stays pending.
+static func start_marks_boot_succeeded(t) -> void:
+ var Store=Cases.boot_load(t,"start_marks_boot_succeeded",Cases.BOOT_STORE_PATH)
+ if Store==null: return
+ var baseline=Store.baseline_version()
+ var mounted_store=Store.new(Cases.boot_root("ui-proved"))
+ mounted_store.write_state(Cases.boot_state(baseline,{},Cases.boot_entry(mounted_store,Cases.PATCH_A),Cases.PATCH_A))
+ Store.record_mounted(Cases.PATCH_A)
+ var options=harness({})
+ options["store"]=mounted_store
+ await boot(t,options)
+ var state=mounted_store.load_state()
+ t.check(String(state.mounting).is_empty() and String(state.active.get("to",""))==Cases.PATCH_A and state.pending.is_empty(),"UPDATE start_marks_boot_succeeded: startup clears the marker and promotes the mounted pending patch: "+str(state))
+ Store.record_mounted("")
+ var idle_store=Store.new(Cases.boot_root("ui-idle"))
+ idle_store.write_state(Cases.boot_state(baseline,{},Cases.boot_entry(idle_store,Cases.PATCH_B)))
+ var idle_options=harness({})
+ idle_options["store"]=idle_store
+ await boot(t,idle_options)
+ var idle_state=idle_store.load_state()
+ t.check(String(idle_state.get("pending",{}).get("to",""))==Cases.PATCH_B and idle_state.active.is_empty(),"UPDATE start_marks_boot_succeeded: a pending patch that was not mounted this process is not promoted: "+str(idle_state))

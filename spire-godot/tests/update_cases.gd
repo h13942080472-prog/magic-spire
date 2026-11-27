@@ -78,6 +78,19 @@ static func run(t) -> void:
  version_segment_digit_compare(t)
  signature_outer_whitespace_domain(t,pair,keys)
  missing_field_attribution_domain(t,pair,keys)
+ boot_mounts_verified_pending(t)
+ boot_skips_bad_patch_and_records_failure(t)
+ boot_resets_on_baseline_change(t)
+ boot_replaces_active_with_pending(t)
+ boot_falls_back_to_active_when_pending_fails(t)
+ boot_skips_crash_residue(t)
+ boot_is_inert_under_script(t)
+ effective_version_follows_mount(t)
+ effective_version_requires_mount(t)
+ patch_file_verification_domain(t)
+ store_rejects_hostile_state(t)
+ main_scene_is_boot_scene(t)
+ engine_mounter_loads_a_real_pack(t)
 
 # ---- fixtures -------------------------------------------------------------------------
 
@@ -523,3 +536,331 @@ static func missing_field_attribution_domain(t, pair: Array, keys: Dictionary) -
  both.platforms[PLATFORM].full.erase("url")
  var both_answer=judge(JSON.stringify(both).to_utf8_buffer(),pair,keys)
  t.check(both_answer.get("kind","")=="none" and both_answer.get("reason","")=="url","UPDATE missing_field_attribution_domain: the link check runs first, so a missing url wins over a missing latest version: "+str(both_answer))
+
+# ---- boot mount and version identity (docs/spec/update-check.md「引导挂载与版本身份」) ------------
+# The store is always injected with a directory under res://build/, so no case reads or writes
+# the real user://updates. The modules are loaded by path so a missing module reddens each named
+# check instead of failing the whole suite at parse time. Patch versions are derived above any
+# real baseline ("99.0.x"), and the mounter is a recorder unless the case is about the engine call.
+const BOOT_STORE_PATH="res://update/update_store.gd"
+const BOOT_SCRIPT_PATH="res://update/boot.gd"
+const BOOT_SCENE_PATH="res://update/boot.tscn"
+const PATCH_A="99.0.1"
+const PATCH_B="99.0.2"
+
+static func boot_load(t, name: String, path: String):
+ if not ResourceLoader.exists(path):
+  t.check(false,"UPDATE "+name+": "+path+" exists and loads")
+  return null
+ return load(path)
+
+static func boot_root(label: String) -> String:
+ var root="res://build/update-boot-%s-%d" % [label,Time.get_ticks_usec()]
+ DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(root))
+ return root
+
+static func sha_hex(bytes: PackedByteArray) -> String:
+ var context=HashingContext.new()
+ context.start(HashingContext.HASH_SHA256)
+ context.update(bytes)
+ return context.finish().hex_encode()
+
+static func boot_content(to: String, size: int=64) -> PackedByteArray:
+ var bytes=PackedByteArray()
+ var seed_text=("patch-"+to).to_utf8_buffer()
+ for index in size: bytes.append(seed_text[index%seed_text.size()]^(index&0xff))
+ return bytes
+
+static func write_bytes(path: String, bytes: PackedByteArray) -> void:
+ DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(path.get_base_dir()))
+ var handle=FileAccess.open(path,FileAccess.WRITE)
+ handle.store_buffer(bytes)
+ handle.close()
+
+# Writes one patch file into the store's patches directory and returns its state entry.
+static func boot_entry(store, to: String, bytes: PackedByteArray=PackedByteArray()) -> Dictionary:
+ var content=bytes if bytes.size()>0 else boot_content(to)
+ write_bytes(store.patch_path(to),content)
+ return {"to":to,"bytes":content.size(),"sha256":sha_hex(content)}
+
+static func boot_state(baseline: String, active: Dictionary={}, pending: Dictionary={}, mounting: String="", failed: Array=[]) -> Dictionary:
+ return {"from":baseline,"active":active,"pending":pending,"mounting":mounting,"failed":failed}
+
+static func boot_names(directory: String) -> Array:
+ var names=[]
+ var handle=DirAccess.open(directory)
+ if handle==null: return names
+ for name in handle.get_files(): names.append(String(name))
+ names.sort()
+ return names
+
+# Flips the last byte but keeps the length, so the size matches and only the digest differs.
+static func tamper(path: String) -> void:
+ var bytes=FileAccess.get_file_as_bytes(path)
+ bytes[bytes.size()-1]=bytes[bytes.size()-1]^0xff
+ write_bytes(path,bytes)
+
+static func recorder(mounted: Array, answer: bool=true) -> Callable:
+ return func(path: String) -> bool:
+  mounted.append(path)
+  return answer
+
+static func boot_modules(t, name: String) -> Array:
+ var store_class=boot_load(t,name,BOOT_STORE_PATH)
+ var boot_class=boot_load(t,name,BOOT_SCRIPT_PATH)
+ if store_class==null or boot_class==null: return []
+ return [store_class,boot_class]
+
+# A verified pending patch is mounted, becomes the effective version and leaves the baseline
+# untouched; the next successful start promotes it to active.
+static func boot_mounts_verified_pending(t) -> void:
+ var modules=boot_modules(t,"boot_mounts_verified_pending")
+ if modules.is_empty(): return
+ var Store=modules[0]
+ var Boot=modules[1]
+ var baseline=Store.baseline_version()
+ var store=Store.new(boot_root("mount"))
+ var entry=boot_entry(store,PATCH_A)
+ store.write_state(boot_state(baseline,{},entry))
+ var mounted=[]
+ var result=Boot.start(store,recorder(mounted),true)
+ t.check(mounted==[store.patch_path(PATCH_A)],"UPDATE boot_mounts_verified_pending: the pending patch is mounted exactly once from the store path: "+str(mounted))
+ t.check(String(result.get("mounted",""))==PATCH_A,"UPDATE boot_mounts_verified_pending: the start answer names the mounted version: "+str(result))
+ t.check(Store.effective_version()==PATCH_A,"UPDATE boot_mounts_verified_pending: the effective version follows the mounted patch: "+Store.effective_version())
+ t.check(Store.baseline_version()==baseline and baseline!=PATCH_A,"UPDATE boot_mounts_verified_pending: the baseline version does not move with the mount: "+Store.baseline_version())
+ t.check(String(store.load_state().mounting)==PATCH_A,"UPDATE boot_mounts_verified_pending: the mounting marker is on disk until the session proves itself: "+str(store.load_state()))
+ store.mark_boot_succeeded()
+ var after=store.load_state()
+ t.check(String(after.mounting).is_empty() and String(after.active.get("to",""))==PATCH_A and after.pending.is_empty(),"UPDATE boot_mounts_verified_pending: mark_boot_succeeded clears the marker and promotes pending to active: "+str(after))
+ Store.record_mounted("")
+
+# Nearest negative: recorded but not mountable. A one-byte tamper keeps the size and breaks the
+# digest; a short file breaks the size. Neither is mounted, both are recorded as failed, the file
+# is deleted and the next start does not try again.
+static func boot_skips_bad_patch_and_records_failure(t) -> void:
+ var modules=boot_modules(t,"boot_skips_bad_patch_and_records_failure")
+ if modules.is_empty(): return
+ var Store=modules[0]
+ var Boot=modules[1]
+ var baseline=Store.baseline_version()
+ for variant in ["digest","size"]:
+  var store=Store.new(boot_root("bad-"+variant))
+  var entry=boot_entry(store,PATCH_A)
+  var path=store.patch_path(PATCH_A)
+  if variant=="digest": tamper(path)
+  else: write_bytes(path,boot_content(PATCH_A,10))
+  store.write_state(boot_state(baseline,{},entry))
+  var mounted=[]
+  Boot.start(store,recorder(mounted),true)
+  var state=store.load_state()
+  t.check(mounted.is_empty(),"UPDATE boot_skips_bad_patch_and_records_failure: a "+variant+"-corrupt patch is never mounted: "+str(mounted))
+  t.check(PATCH_A in state.failed and state.pending.is_empty() and String(state.mounting).is_empty(),"UPDATE boot_skips_bad_patch_and_records_failure: the "+variant+" failure is recorded and the entry dropped: "+str(state))
+  t.check(not FileAccess.file_exists(path),"UPDATE boot_skips_bad_patch_and_records_failure: the corrupt "+variant+" file is deleted")
+  t.check(Store.effective_version()==baseline,"UPDATE boot_skips_bad_patch_and_records_failure: the "+variant+" failure leaves the baseline as the effective version: "+Store.effective_version())
+  Boot.start(store,recorder(mounted),true)
+  t.check(mounted.is_empty() and Store.effective_version()==baseline,"UPDATE boot_skips_bad_patch_and_records_failure: the next start does not try the failed version again: "+str(mounted))
+  Store.record_mounted("")
+
+# A full package of another baseline was installed over the player's. The recorded state belongs
+# to the old baseline, so patches/, staging/ and the state are cleared.
+static func boot_resets_on_baseline_change(t) -> void:
+ var modules=boot_modules(t,"boot_resets_on_baseline_change")
+ if modules.is_empty(): return
+ var Store=modules[0]
+ var Boot=modules[1]
+ var baseline=Store.baseline_version()
+ var store=Store.new(boot_root("reset"))
+ var entry=boot_entry(store,PATCH_A)
+ write_bytes(store.root.path_join("staging").path_join(PATCH_B+".pck.part"),boot_content(PATCH_B))
+ store.write_state(boot_state("0.0.1",entry,{},"",["99.0.9"]))
+ var mounted=[]
+ Boot.start(store,recorder(mounted),true)
+ t.check(mounted.is_empty(),"UPDATE boot_resets_on_baseline_change: a patch of another baseline is never mounted: "+str(mounted))
+ t.check(boot_names(store.root.path_join("patches")).is_empty() and boot_names(store.root.path_join("staging")).is_empty(),"UPDATE boot_resets_on_baseline_change: patches/ and staging/ are emptied: "+str(boot_names(store.root.path_join("patches")))+str(boot_names(store.root.path_join("staging"))))
+ var state=store.load_state()
+ t.check(state.active.is_empty() and state.pending.is_empty() and state.failed.is_empty(),"UPDATE boot_resets_on_baseline_change: the recorded state is reset: "+str(state))
+ t.check(Store.effective_version()==baseline,"UPDATE boot_resets_on_baseline_change: the effective version is the new baseline: "+Store.effective_version())
+ Store.record_mounted("")
+
+# A pending patch replaces the active one: only one pack is mounted, and once the session proves
+# itself only the new file remains.
+static func boot_replaces_active_with_pending(t) -> void:
+ var modules=boot_modules(t,"boot_replaces_active_with_pending")
+ if modules.is_empty(): return
+ var Store=modules[0]
+ var Boot=modules[1]
+ var store=Store.new(boot_root("replace"))
+ var active=boot_entry(store,PATCH_A)
+ var pending=boot_entry(store,PATCH_B)
+ store.write_state(boot_state(Store.baseline_version(),active,pending))
+ var mounted=[]
+ Boot.start(store,recorder(mounted),true)
+ t.check(mounted==[store.patch_path(PATCH_B)],"UPDATE boot_replaces_active_with_pending: only the pending pack is mounted, never both: "+str(mounted))
+ t.check(Store.effective_version()==PATCH_B,"UPDATE boot_replaces_active_with_pending: the effective version is the pending target: "+Store.effective_version())
+ store.mark_boot_succeeded()
+ var state=store.load_state()
+ t.check(boot_names(store.root.path_join("patches"))==[PATCH_B+".pck"],"UPDATE boot_replaces_active_with_pending: patches/ keeps only the new pack after the session proves itself: "+str(boot_names(store.root.path_join("patches"))))
+ t.check(String(state.active.get("to",""))==PATCH_B and state.pending.is_empty(),"UPDATE boot_replaces_active_with_pending: the replaced active entry is gone: "+str(state))
+ Store.record_mounted("")
+
+# Pending is broken, active is sound.
+static func boot_falls_back_to_active_when_pending_fails(t) -> void:
+ var modules=boot_modules(t,"boot_falls_back_to_active_when_pending_fails")
+ if modules.is_empty(): return
+ var Store=modules[0]
+ var Boot=modules[1]
+ var store=Store.new(boot_root("fallback"))
+ var active=boot_entry(store,PATCH_A)
+ var pending=boot_entry(store,PATCH_B)
+ tamper(store.patch_path(PATCH_B))
+ store.write_state(boot_state(Store.baseline_version(),active,pending))
+ var mounted=[]
+ Boot.start(store,recorder(mounted),true)
+ var state=store.load_state()
+ t.check(PATCH_B in state.failed and state.pending.is_empty(),"UPDATE boot_falls_back_to_active_when_pending_fails: the broken pending is recorded failed and dropped: "+str(state))
+ t.check(mounted==[store.patch_path(PATCH_A)] and Store.effective_version()==PATCH_A,"UPDATE boot_falls_back_to_active_when_pending_fails: the sound active patch is mounted and becomes effective: "+str(mounted)+" "+Store.effective_version())
+ Store.record_mounted("")
+
+# A marker left by a start that never proved itself (a crash) fails that version once; the same
+# version is not retried.
+static func boot_skips_crash_residue(t) -> void:
+ var modules=boot_modules(t,"boot_skips_crash_residue")
+ if modules.is_empty(): return
+ var Store=modules[0]
+ var Boot=modules[1]
+ var baseline=Store.baseline_version()
+ var store=Store.new(boot_root("residue"))
+ var active=boot_entry(store,PATCH_A)
+ store.write_state(boot_state(baseline,active,{},PATCH_A))
+ var mounted=[]
+ Boot.start(store,recorder(mounted),true)
+ var state=store.load_state()
+ t.check(mounted.is_empty() and Store.effective_version()==baseline,"UPDATE boot_skips_crash_residue: the version that left its marker is not mounted: "+str(mounted))
+ t.check(PATCH_A in state.failed and String(state.mounting).is_empty() and state.active.is_empty(),"UPDATE boot_skips_crash_residue: the version is recorded failed and the marker cleared: "+str(state))
+ Boot.start(store,recorder(mounted),true)
+ t.check(mounted.is_empty(),"UPDATE boot_skips_crash_residue: the failed version is not retried on the next start: "+str(mounted))
+ Store.record_mounted("")
+
+# A scripted run (tests, probes, tools) never mounts and never touches the store.
+static func boot_is_inert_under_script(t) -> void:
+ var modules=boot_modules(t,"boot_is_inert_under_script")
+ if modules.is_empty(): return
+ var Store=modules[0]
+ var Boot=modules[1]
+ var baseline=Store.baseline_version()
+ var store=Store.new(boot_root("inert"))
+ var entry=boot_entry(store,PATCH_A)
+ store.write_state(boot_state(baseline,{},entry))
+ var before=FileAccess.get_file_as_string(store.root.path_join("state.json"))
+ var mounted=[]
+ var result=Boot.start(store,recorder(mounted))
+ t.check(not Store.player_session(),"UPDATE boot_is_inert_under_script: this harness is a scripted run")
+ t.check(not bool(result.get("ran",true)) and mounted.is_empty(),"UPDATE boot_is_inert_under_script: a scripted run does not mount: "+str(result))
+ t.check(FileAccess.get_file_as_string(store.root.path_join("state.json"))==before and FileAccess.file_exists(store.patch_path(PATCH_A)),"UPDATE boot_is_inert_under_script: the store is untouched")
+ t.check(Store.effective_version()==Store.baseline_version(),"UPDATE boot_is_inert_under_script: the effective version equals the baseline: "+Store.effective_version())
+
+# The effective version is the one process-level fact record_mounted writes; the baseline is
+# read from the project settings and is independent of it.
+static func effective_version_follows_mount(t) -> void:
+ var Store=boot_load(t,"effective_version_follows_mount",BOOT_STORE_PATH)
+ if Store==null: return
+ var baseline=Store.baseline_version()
+ t.check(not baseline.is_empty() and Store.effective_version()==baseline,"UPDATE effective_version_follows_mount: with nothing mounted the effective version is the baseline: "+Store.effective_version())
+ Store.record_mounted(PATCH_A)
+ t.check(Store.effective_version()==PATCH_A,"UPDATE effective_version_follows_mount: record_mounted moves the effective version: "+Store.effective_version())
+ t.check(Store.baseline_version()==baseline,"UPDATE effective_version_follows_mount: the baseline stays the project setting: "+Store.baseline_version())
+ var identity=Store.new(boot_root("identity")).identity()
+ t.check(String(identity.get("baseline",""))==baseline and identity.get("failed",null) is Array,"UPDATE effective_version_follows_mount: identity carries the baseline, not the effective version: "+str(identity))
+ Store.record_mounted("")
+ t.check(Store.effective_version()==baseline,"UPDATE effective_version_follows_mount: an empty record returns to the baseline: "+Store.effective_version())
+
+# Recorded is not mounted: a state that names a patch, and a mount the engine refuses, both
+# leave the baseline as the effective version.
+static func effective_version_requires_mount(t) -> void:
+ var modules=boot_modules(t,"effective_version_requires_mount")
+ if modules.is_empty(): return
+ var Store=modules[0]
+ var Boot=modules[1]
+ var baseline=Store.baseline_version()
+ var store=Store.new(boot_root("unmounted"))
+ var active=boot_entry(store,PATCH_A)
+ store.write_state(boot_state(baseline,active))
+ t.check(Store.effective_version()==baseline,"UPDATE effective_version_requires_mount: an active entry that nobody mounted does not change the effective version: "+Store.effective_version())
+ var refusing=Store.new(boot_root("refused"))
+ var pending=boot_entry(refusing,PATCH_B)
+ refusing.write_state(boot_state(baseline,{},pending))
+ var mounted=[]
+ var result=Boot.start(refusing,recorder(mounted,false),true)
+ var state=refusing.load_state()
+ t.check(mounted==[refusing.patch_path(PATCH_B)],"UPDATE effective_version_requires_mount: the engine was asked to mount the verified pack: "+str(mounted))
+ t.check(Store.effective_version()==baseline and String(result.get("mounted",""))=="","UPDATE effective_version_requires_mount: a refused mount leaves the baseline effective: "+Store.effective_version()+" "+str(result))
+ t.check(PATCH_B in state.failed and String(state.mounting).is_empty() and not FileAccess.file_exists(refusing.patch_path(PATCH_B)),"UPDATE effective_version_requires_mount: a refused mount is recorded failed, the marker cleared and the file deleted: "+str(state))
+ Store.record_mounted("")
+
+# verify_patch_file is the one package judgement: exact length and exact SHA-256, chunked reads.
+static func patch_file_verification_domain(t) -> void:
+ var directory=boot_root("verify")
+ var path=directory.path_join("p.pck")
+ var big=PackedByteArray()
+ big.resize(2500000)
+ for index in big.size(): big[index]=(index*31+7)&0xff
+ write_bytes(path,big)
+ var sha=sha_hex(big)
+ t.check(Manifest.verify_patch_file(path,big.size(),sha),"UPDATE patch_file_verification_domain: a multi-chunk file with the exact length and digest passes")
+ t.check(not Manifest.verify_patch_file(path,big.size()+1,sha) and not Manifest.verify_patch_file(path,big.size()-1,sha),"UPDATE patch_file_verification_domain: a length off by one either way fails")
+ t.check(not Manifest.verify_patch_file(path,big.size(),"0".repeat(64)) and not Manifest.verify_patch_file(path,big.size(),sha.substr(0,63)),"UPDATE patch_file_verification_domain: a wrong or truncated digest fails")
+ t.check(not Manifest.verify_patch_file(path,big.size(),sha.to_upper()),"UPDATE patch_file_verification_domain: the digest is the published lower-case spelling, upper case is not accepted")
+ t.check(not Manifest.verify_patch_file(directory.path_join("missing.pck"),big.size(),sha) and not Manifest.verify_patch_file(directory,big.size(),sha),"UPDATE patch_file_verification_domain: a missing file and a directory fail")
+ var empty=directory.path_join("empty.pck")
+ write_bytes(empty,PackedByteArray())
+ t.check(not Manifest.verify_patch_file(empty,0,sha_hex(PackedByteArray())),"UPDATE patch_file_verification_domain: an empty package never verifies, even with a matching zero length")
+ t.check(Manifest.is_newer("99.0.1","0.18.4") and not Manifest.is_newer("0.18.4","0.18.4") and not Manifest.is_newer("0.18.3","0.18.4"),"UPDATE patch_file_verification_domain: a boot candidate must be strictly newer than the baseline")
+
+# State read from disk is untrusted: a version becomes a file name, so it must pass the version
+# grammar before any path is built; damaged documents fall back to the empty state.
+static func store_rejects_hostile_state(t) -> void:
+ var Store=boot_load(t,"store_rejects_hostile_state",BOOT_STORE_PATH)
+ if Store==null: return
+ var root=boot_root("hostile")
+ var store=Store.new(root)
+ t.check(store.patch_path(PATCH_A)==root.path_join("patches").path_join(PATCH_A+".pck"),"UPDATE store_rejects_hostile_state: a valid version maps to patches/<to>.pck: "+store.patch_path(PATCH_A))
+ for bad in ["","../x","a/b","99.0.1/../..","99.0.1.pck","x.y","99","99.0.1.fix.fix","99.0.1 ","99.0.1\n"]:
+  t.check(store.patch_path(bad)=="","UPDATE store_rejects_hostile_state: version "+JSON.stringify(bad)+" never becomes a path")
+ write_bytes(root.path_join("state.json"),"{ not json".to_utf8_buffer())
+ var damaged=store.load_state()
+ t.check(damaged.active.is_empty() and damaged.pending.is_empty() and damaged.failed.is_empty() and String(damaged.mounting).is_empty() and String(damaged.from).is_empty(),"UPDATE store_rejects_hostile_state: an unparsable state is the empty state: "+str(damaged))
+ var hostile={"from":"0.18.4","active":{"to":"../../evil","bytes":3,"sha256":"0".repeat(64)},"pending":{"to":PATCH_A,"bytes":"x","sha256":"zz"},"mounting":"../y","failed":["99.0.3",5,"../z",null]}
+ write_bytes(root.path_join("state.json"),JSON.stringify(hostile).to_utf8_buffer())
+ var state=store.load_state()
+ t.check(state.active.is_empty() and state.pending.is_empty() and String(state.mounting).is_empty() and state.failed==["99.0.3"],"UPDATE store_rejects_hostile_state: entries with an unsafe version, bad size or bad digest, and non-version failed items are dropped: "+str(state))
+
+# The shipped entry point: the project boots through the boot scene, and the window title is
+# built from a version-free project name plus the effective version.
+static func main_scene_is_boot_scene(t) -> void:
+ var Store=boot_load(t,"main_scene_is_boot_scene",BOOT_STORE_PATH)
+ t.check(String(ProjectSettings.get_setting("application/run/main_scene",""))==BOOT_SCENE_PATH,"UPDATE main_scene_is_boot_scene: run/main_scene is the boot scene: "+str(ProjectSettings.get_setting("application/run/main_scene","")))
+ var scene=boot_load(t,"main_scene_is_boot_scene",BOOT_SCENE_PATH)
+ t.check(scene is PackedScene and scene.can_instantiate(),"UPDATE main_scene_is_boot_scene: the boot scene loads and can be instantiated")
+ var name=String(ProjectSettings.get_setting("application/config/name",""))
+ t.check(not name.is_empty() and Store!=null and not name.contains(Store.baseline_version()),"UPDATE main_scene_is_boot_scene: config/name carries no version, the window title adds it: "+name)
+
+# A real pack through the real engine call: the default mounter must make the pack's file
+# visible under res://. The pack adds a path nothing else uses, so the rest of the run is unaffected.
+static func engine_mounter_loads_a_real_pack(t) -> void:
+ var modules=boot_modules(t,"engine_mounter_loads_a_real_pack")
+ if modules.is_empty(): return
+ var Store=modules[0]
+ var Boot=modules[1]
+ var store=Store.new(boot_root("engine"))
+ var source=store.root.path_join("marker-source.txt")
+ write_bytes(source,"mounted".to_utf8_buffer())
+ var packed=store.patch_path(PATCH_A)
+ DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(packed.get_base_dir()))
+ var packer=PCKPacker.new()
+ t.check(packer.pck_start(ProjectSettings.globalize_path(packed))==OK and packer.add_file("res://update_boot_probe/marker.txt",ProjectSettings.globalize_path(source))==OK and packer.flush()==OK,"UPDATE engine_mounter_loads_a_real_pack: the fixture pack is written")
+ var content=FileAccess.get_file_as_bytes(packed)
+ store.write_state(boot_state(Store.baseline_version(),{},{"to":PATCH_A,"bytes":content.size(),"sha256":sha_hex(content)}))
+ t.check(not FileAccess.file_exists("res://update_boot_probe/marker.txt"),"UPDATE engine_mounter_loads_a_real_pack: the marker is absent before the mount")
+ var result=Boot.start(store,Callable(),true)
+ t.check(String(result.get("mounted",""))==PATCH_A and FileAccess.get_file_as_string("res://update_boot_probe/marker.txt")=="mounted","UPDATE engine_mounter_loads_a_real_pack: the default engine mounter exposes the pack's file under res://: "+str(result))
+ Store.record_mounted("")
