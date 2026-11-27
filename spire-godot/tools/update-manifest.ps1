@@ -12,6 +12,10 @@ param(
     [object]$Revoked = @(),
     [Parameter(Mandatory)][string]$Out,
     [string]$WindowsZip = '', [string]$WindowsUrl = '', [string]$WindowsMirror = '',
+    # One patch entry per element, the three lists in step: the metadata JSON that
+    # tools/export-patch.ps1 wrote (the only source of from/to/bytes/sha256) and the entry's links.
+    # Comma-separated like -Revoked, so `pwsh -File` callers can pass several entries.
+    [string[]]$WindowsPatchMeta = @(), [string[]]$WindowsPatchUrl = @(), [string[]]$WindowsPatchMirror = @(),
     [string]$AndroidManifest = '', [string]$AndroidUrl = '', [string]$AndroidMirror = ''
 )
 # docs/spec/update-check.md「发布侧脚本」: the only generator of the schema-1 update manifest
@@ -24,6 +28,8 @@ param(
 #    pipeline step hashes it; this script is the one place that does (Get-FileHash, once). The
 #    sha256 it writes into the manifest is the value every manual release step quotes
 #    (docs/spec/packaging.md); nobody hashes the ZIP a second time.
+#  - windows-x64 patches: bytes/sha256 are copied from the metadata JSON tools/export-patch.ps1 wrote
+#    next to each patch pack; this script never re-hashes a patch.
 #
 # Order: every parameter is checked before any input is read, and every input is read and
 # checked before the ZIP is hashed, so a bad argument never costs a full ZIP hash. Errors name
@@ -69,9 +75,10 @@ function Test-PlatformGroup {
 
 # The one place a platform entry is built; the PLATFORM line names where bytes/sha256 came from.
 function Add-Platform {
-    param([string]$Key, [string]$Url, [string]$Mirror, [long]$Bytes, [string]$Sha256, [string]$Source)
-    $script:platforms[$Key] = [ordered]@{ full = [ordered]@{ url = $Url; mirror = $Mirror; bytes = $Bytes; sha256 = $Sha256 }; patches = @() }
+    param([string]$Key, [string]$Url, [string]$Mirror, [long]$Bytes, [string]$Sha256, [string]$Source, [object[]]$Patches = @())
+    $script:platforms[$Key] = [ordered]@{ full = [ordered]@{ url = $Url; mirror = $Mirror; bytes = $Bytes; sha256 = $Sha256 }; patches = @($Patches | ForEach-Object { [ordered]@{ from = $_.from; to = $_.to; url = $_.url; mirror = $_.mirror; bytes = $_.bytes; sha256 = $_.sha256 } }) }
     Write-Output ('PLATFORM ' + $Key + ': bytes=' + $Bytes + ' sha256=' + $Sha256 + ' (' + $Source + ')')
+    foreach ($patch in $Patches) { Write-Output ('PATCH ' + $patch.from + ' -> ' + $patch.to + ': bytes=' + $patch.bytes + ' sha256=' + $patch.sha256 + ' (copied from ' + $patch.source + ')') }
 }
 
 # ---- parameters: nothing is read yet ----
@@ -99,6 +106,15 @@ $outDirectory = Split-Path -Parent $Out
 if (-not (Test-Path -LiteralPath $outDirectory -PathType Container)) { throw "-Out names a directory that does not exist: $outDirectory" }
 $windows = Test-PlatformGroup ([ordered]@{ WindowsZip = $WindowsZip; WindowsUrl = $WindowsUrl; WindowsMirror = $WindowsMirror })
 $android = Test-PlatformGroup ([ordered]@{ AndroidManifest = $AndroidManifest; AndroidUrl = $AndroidUrl; AndroidMirror = $AndroidMirror })
+# Patch lists: comma-separated elements; the three lists describe the same entries, in step.
+$patchMetaList = @(@($WindowsPatchMeta) | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+$patchUrlList = @(@($WindowsPatchUrl) | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+$patchMirrorList = @(@($WindowsPatchMirror) | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+if ($patchMetaList.Count + $patchUrlList.Count + $patchMirrorList.Count -gt 0) {
+    if (-not $windows) { throw '-WindowsPatchMeta/-WindowsPatchUrl/-WindowsPatchMirror describe windows-x64 patches: give -WindowsZip/-WindowsUrl/-WindowsMirror too.' }
+    if ($patchMetaList.Count -ne $patchUrlList.Count -or $patchMetaList.Count -ne $patchMirrorList.Count) { throw "-WindowsPatchMeta, -WindowsPatchUrl and -WindowsPatchMirror go together, one of each per patch: $($patchMetaList.Count), $($patchUrlList.Count) and $($patchMirrorList.Count) given." }
+    foreach ($meta in $patchMetaList) { Assert-AbsoluteFile $meta 'WindowsPatchMeta' }
+}
 if (-not $windows -and -not $android) { throw 'Give at least one platform: -WindowsZip/-WindowsUrl/-WindowsMirror or -AndroidManifest/-AndroidUrl/-AndroidMirror.' }
 if ($windows) {
     Assert-AbsoluteFile $WindowsZip 'WindowsZip'
@@ -118,11 +134,22 @@ if ($android) {
     if ([string]$package.sha256 -cnotmatch '^[0-9a-f]{64}\z') { throw "-AndroidManifest sha256 must be 64 lower-case hex digits, not '$($package.sha256)': $AndroidManifest" }
 }
 
+# Patch metadata: the four fields must be there; their ranges are checked once, by
+# Assert-UpdateManifest on the written manifest.
+$patchEntries = @()
+for ($index = 0; $index -lt $patchMetaList.Count; $index++) {
+    $metaText = Read-Utf8Text $patchMetaList[$index] 'WindowsPatchMeta'
+    try { $meta = $metaText | ConvertFrom-Json -ErrorAction Stop } catch { throw "-WindowsPatchMeta is not JSON: $($patchMetaList[$index]) ($($_.Exception.GetBaseException().Message))" }
+    $missing = @('from', 'to', 'bytes', 'sha256') | Where-Object { $null -eq $meta.$_ }
+    if ($missing.Count -gt 0) { throw "-WindowsPatchMeta lacks $($missing -join ', '): $($patchMetaList[$index])" }
+    $patchEntries += [pscustomobject]@{ from = [string]$meta.from; to = [string]$meta.to; url = $patchUrlList[$index]; mirror = $patchMirrorList[$index]; bytes = $meta.bytes; sha256 = [string]$meta.sha256; source = $patchMetaList[$index] }
+}
+
 # ---- platforms, in manifest order ----
 $platforms = [ordered]@{}
 if ($windows) {
     $zip = Get-Item -LiteralPath $WindowsZip
-    Add-Platform 'windows-x64' $WindowsUrl $WindowsMirror $zip.Length (Get-FileHash -LiteralPath $zip.FullName -Algorithm SHA256).Hash.ToLowerInvariant() ('computed here from ' + $zip.FullName)
+    Add-Platform 'windows-x64' $WindowsUrl $WindowsMirror $zip.Length (Get-FileHash -LiteralPath $zip.FullName -Algorithm SHA256).Hash.ToLowerInvariant() ('computed here from ' + $zip.FullName) @($patchEntries | ForEach-Object { [ordered]@{ from = $_.from; to = $_.to; url = $_.url; mirror = $_.mirror; bytes = $_.bytes; sha256 = $_.sha256; source = $_.source } })
 }
 if ($android) { Add-Platform 'android' $AndroidUrl $AndroidMirror ([long]$package.bytes) ([string]$package.sha256) ('copied from ' + $AndroidManifest) }
 
