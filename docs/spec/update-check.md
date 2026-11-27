@@ -15,8 +15,8 @@
   `spire-godot/update/update_manifest.gd::evaluate` 判定，主页与设置页只显示判定结果。
 - 发布侧同样只有一条链路：`spire-godot/tools/update-manifest.ps1` 生成清单，
   `spire-godot/tools/sign-update-manifest.ps1` 签名，两者见「发布侧脚本」。
-- 不含：下载、校验包体、挂载补丁、写入 `user://` 或 EXE 目录、改 `run/main_scene`（留给后续的补丁挂载）、
-  上传与部署清单（人工动作）、反馈上传。
+- 不含：下载补丁、联网校验包体、主页的补丁提示与自动下载（留给后续的补丁挂载）、上传与部署清单（人工动作）、
+  反馈上传。启动时的补丁挂载与版本身份见「引导挂载与版本身份」；检查本身仍不写盘。
 - 模块边界：`spire-godot/update/` 是叶子模块，不引用 `ui`、`core`、`data`、`tests`；
   `core` 与 `data` 也不引用 `update`。发 HTTP 的只有 `spire-godot/update/update_check.gd`。
 - 明文口径：**更新检查只读一个公开文件**。请求不带存档、种子、设备标识、账号或自定义标识头。
@@ -42,6 +42,7 @@ static func evaluate(manifest_bytes: PackedByteArray, signature: PackedByteArray
 #            "notes":String, "revoked":bool, "platform":String}
 #   none  = {"kind":"none", "reason":String}   # reason ∈ REJECTIONS 或 ""（已验签、不是更新）
 static func compare(a: String, b: String) -> int   # 版本比较，-1／0／1；数字段按十进制数字串比较，不经整数
+# 引导挂载用的纯函数与解析入口见「引导挂载与版本身份」（verify_patch_file／is_newer／is_sha256／document）
 
 const SCHEMA=1
 const MAX_BYTES=65536
@@ -54,10 +55,9 @@ var keys: Dictionary        # 生产默认＝update_keys.gd 的 KEYS；探针／
 var transport: Callable     # 测试接缝：有效时替代 HTTPRequest，形状同 ui/feedback_report.gd
 func check() -> void        # 手动入口：不看开关，成功或失败都只发一次 checked(offer)
 func deliver(result: int, status: int, headers: PackedStringArray, body: PackedByteArray) -> void
-static func manifest_url() -> String     # [update] manifest_url 的唯一读取点
-static func current_version() -> String  # 当前版本唯一真源＝ProjectSettings application/config/version
+static func manifest_url() -> String     # [update] manifest_url 的唯一读取点；`deliver` 把 spire-godot/update/update_store.gd::effective_version() 交给 evaluate
 static func platform_key() -> String     # "android" / "windows-x64" / ""（未覆盖平台）
-static func scripted_run() -> bool       # 引擎带 --script 启动：用例／探针／工具，不是玩家会话
+static func scripted_run() -> bool       # 引擎带 --script 启动：用例／探针／工具，不是玩家会话（定义在 update_store.gd，此处转调）
 func auto_allowed() -> bool              # 自动检查门槛，见「输入域」
 
 # 配置真源：spire-godot/project.godot
@@ -93,6 +93,67 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
   `ui.update.mirror`、`ui.update.checking`、`ui.update.available`、`ui.update.latest`、
   `ui.settings.update_check`、`ui.settings.update_check_note`、`ui.settings.update_now`。
 
+## 引导挂载与版本身份
+
+收束对象：**本进程运行的是哪一份代码、对外报告哪一个版本**。入口只有两处：
+`spire-godot/update/boot.gd`（唯一挂载者）与 `spire-godot/update/update_store.gd`（`user://updates/` 的唯一读写者、
+版本身份的唯一来源）。本节不含联网、下载、清单补丁匹配与主页补丁提示。
+
+```gdscript
+# spire-godot/update/update_store.gd（RefCounted；目录可注入：Store.new(directory)，默认 user://updates）
+static func baseline_version() -> String        # 基线＝EXE 与主 PCK 的版本；全仓唯一读取 application/config/version 的位置
+static func effective_version() -> String       # 有效版本＝本进程实际挂载成功的补丁 to，否则等于基线；读进程内 Engine meta，不读磁盘
+static func record_mounted(to: String) -> void  # 有效版本的唯一写入者，只由 boot.gd 在引擎接受补丁后调用；空串＝回到基线
+func identity() -> Dictionary                   # {"baseline":String,"failed":Array}，供后续的清单补丁匹配
+static func scripted_run() -> bool              # 引擎带 --script 启动（spire-godot/update/update_check.gd::scripted_run 转调这里）
+static func player_session() -> bool            # 桌面特性 pc 且非 scripted_run：补丁只在这样的会话里挂载与证明
+static func valid_version(value) -> bool        # 版本文法，见下
+func load_state() -> Dictionary                 # 状态的唯一读取：缺失、不可解析或敌意内容都回到空状态
+func write_state(state: Dictionary) -> bool     # 状态的唯一写入：临时文件、回读、改名；只写通过校验的字段
+func patch_path(to: String) -> String           # patches/<to>.pck；版本不合文法时返回 ""，版本变成路径只在这里
+func mark_failed(to: String) -> void            # 记入 failed、丢弃点名它的条目、删除其包；幂等
+func begin_mount(to: String) -> bool            # 落盘 mounting 标记；写不进去时调用方不得挂载
+func mark_boot_succeeded() -> void              # 清标记；提升本进程已挂载的 pending；删除没有条目指向的包
+func reset_for_baseline() -> void               # 清空 patches/、staging/ 与状态，并记下当前基线
+func clear_staging() -> void                    # 清除 staging/ 下的残留
+
+# spire-godot/update/boot.gd（Node；update/boot.tscn 是 run/main_scene）
+static func start(store, mounter := Callable(), session = null) -> Dictionary   # {"ran":bool,"mounted":String}
+static func engine_mount(path: String) -> bool  # 默认挂载器：ProjectSettings.load_resource_pack(path, true)
+
+# spire-godot/update/update_manifest.gd（纯函数，增补）
+static func verify_patch_file(path: String, bytes: int, sha256: String) -> bool   # 文件存在、恰好 bytes 字节、SHA-256 相等；空包永不通过
+static func is_newer(candidate: String, current: String) -> bool                  # 严格大于
+static func is_sha256(text: String) -> bool                                        # 64 位小写十六进制
+static func document(bytes: PackedByteArray) -> Variant                            # 更新模块唯一的 JSON 解析（清单与补丁状态共用）
+```
+
+- 两个版本各有一个来源：**基线**读工程设置，挂载补丁不改变它；**有效版本**只表示「本进程实际挂载成功」，
+  进程级、不落盘（`Engine` meta，键为 `update_store.gd` 的私有常量）。状态文件里记录了某个补丁不等于它被挂载：
+  记录了但没挂上时跑的是基线代码，必须报基线。消费者：窗口标题（`ui/main.gd::_ready`）、反馈报告
+  （`ui/feedback_report.gd::_capture_context`）与清单判定的 `current`（`spire-godot/update/update_check.gd::deliver`）读有效版本；
+  `tools/release_probe.gd::run` 验的是导出的主 PCK，读基线；发布侧脚本按文本读 `project.godot`，不运行引擎。
+- 窗口标题＝`config/name`＋` v`＋有效版本；`config/name` 不带版本后缀，发版只改 `config/version`。
+- 状态文件 `user://updates/state.json`：`from`（记录时的基线）、`active`、`pending`（各为 `{to, bytes, sha256}` 或 `{}`）、
+  `mounting`（上次启动尝试的版本，成功启动后清空）、`failed`（失败过的版本）。补丁包在 `patches/<to>.pck`，
+  半截下载在 `staging/`（每次启动清空）。版本文法：二到四个十进制段（每段至多九位），可再加 `.fix`；
+  读自磁盘的版本、`bytes`、`sha256` 任一不合法，整条条目被丢弃。
+- 启动序列：`update/boot.tscn` 的 `spire-godot/update/boot.gd::_ready`（挂载）→ `ui/main.gd::_ready` → `ui/legacy_import.gd::run_once` →
+  `_restore_startup` → `mark_boot_succeeded` → 之后的更新检查。引导脚本只预载 `update_store.gd` 与 `update_manifest.gd`，
+  以场景路径字符串切到 `res://main.tscn`，所以补丁能替换 `ui/`、`core/`、`data/` 里的脚本；引导闭包本会话不会被补丁替换。
+- 引导挂载（`spire-godot/update/boot.gd::start`，仅玩家会话）：
+  1. 清空 `staging/`；读状态。
+  2. 状态的 `from` 与基线不符且状态非空（玩家覆盖安装了另一个完整包）→ `reset_for_baseline`，以基线进入。
+  3. 遗留的 `mounting` → 该版本记入 `failed`，不重试。
+  4. 候选顺序 `pending`、`active`。候选在 `failed` 里、不严格新于基线、或 `verify_patch_file` 不通过 → `mark_failed`（删包），换下一个。
+  5. 通过后 `begin_mount` 落盘标记，再调挂载器；引擎返回 `true` 才 `record_mounted(to)`；返回 `false` → `mark_failed` 并换下一个。
+  6. 都不行则以基线进入，有效版本等于基线。
+- 同一时刻只挂载一个补丁：`pending` 通过则 `active` 不挂载；`mark_boot_succeeded` 之后 `patches/` 只剩被提升的那个包。
+- 非玩家会话：`--script` 运行（用例、探针、工具）不挂载、不碰状态、不切场景，有效版本等于基线；
+  没有 `pc` 特性的平台（Android）只切场景，不挂载。
+- 挂载与状态读取的任何失败都不弹窗、不影响进入游戏；失败只体现为「以基线进入」与 `failed` 里多一条。
+
+
 ## 输入域
 
 - 清单：`v1/manifest.json`，UTF-8 JSON，**≤ 65536 字节**，schema 1；签名是
@@ -125,7 +186,7 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
   显式空段（如 `0.18..1`）等于数字段 0。
 - 版本序：`compare` 是 `.` 分段上的全序（自反、反对称、传递），于是 `0.18.10>0.18.9`、
   `0.18.3.fix>0.18.3`、`0.18==0.18.0`、`01==1`。
-- `patches` 数组本检查不读、不显示、不产生 `patch` 结果。
+- `patches` 数组本检查不读、不显示、不产生 `patch` 结果；`evaluate` 的 `current` 是有效版本（`spire-godot/update/update_store.gd::effective_version`）。
 - 请求：HTTPS GET 清单 → HTTPS GET `<manifest_url>.sig`；`timeout=10`、`max_redirects=0`、
   `body_size_limit=65536`；一次检查**最多两个**请求，不重试、不轮询。
 - 自动检查门槛（`auto_allowed`，四条全真才发）：引擎不是 `--script` 启动（玩家会话）、

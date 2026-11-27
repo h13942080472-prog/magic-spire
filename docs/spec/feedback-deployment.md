@@ -49,7 +49,7 @@
 草稿存于 `user://feedback-draft.json`，与正式存档／快速 SL 无关，包含玩家选择的截图；
 点击「清空草稿」或成功提交会清空它。**存档附件不进草稿文件**（草稿体积与既有版本相同，
 存档本体仍只在 `user://saves`）。
-版本号沿 `ProjectSettings.application/config/version → _capture_context → draft.context → 预览／提交` 共用通道读取。重新打开跨版本草稿时更新版本号并清除旧提交编号、确认状态，保留正文、截图、原场次与日志；同版本重新打开保留重试编号。
+版本号是有效版本（`spire-godot/update/update_store.gd::effective_version`：本进程实际挂载成功的补丁版本，否则是基线），沿 `spire-godot/update/update_store.gd::effective_version → _capture_context → draft.context → 预览／提交` 共用通道读取。重新打开跨版本草稿时更新版本号并清除旧提交编号、确认状态，保留正文、截图、原场次与日志；同版本重新打开保留重试编号。
 隐私口径：**仅在你可见并同意时发送当前进度存档**——反馈页以默认勾选的复选框与常驻说明披露，
 玩家可随时取消；除此之外不收集系统用户名、设备唯一标识、邮箱密码，也不上传原始文件路径或任意其他本地文件。
 网络前提：客户端必须能访问 Google 服务；反馈页面明确显示「提交反馈需要开启梯子（能访问 Google 服务）」，
