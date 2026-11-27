@@ -95,6 +95,7 @@ static func run(t) -> void:
  store_rejects_hostile_state(t)
  main_scene_is_boot_scene(t)
  engine_mounter_loads_a_real_pack(t)
+ suite_leaves_res_build_writable(t)
 
 # ---- fixtures -------------------------------------------------------------------------
 
@@ -940,3 +941,16 @@ static func engine_mounter_loads_a_real_pack(t) -> void:
  var result=Boot.start(store,Callable(),true)
  t.check(String(result.get("mounted",""))==PATCH_A and FileAccess.get_file_as_string("res://update_boot_probe/marker.txt")=="mounted","UPDATE engine_mounter_loads_a_real_pack: the default engine mounter exposes the pack's file under res://: "+str(result))
  Store.record_mounted("")
+
+# Last case of the suite, so everything above has already run in this process. The rule suites
+# share one process (tests/test_game.gd::SUITES order), and later suites such as runner create
+# directories under res://build. A mount in this process redirects res:// directory access to
+# the pack filesystem and breaks that for the rest of the run, so no case may mount here.
+static func suite_leaves_res_build_writable(t) -> void:
+ var made_root=DirAccess.make_dir_recursive_absolute("res://build")
+ t.check(made_root==OK,"UPDATE suite_leaves_res_build_writable: res://build can still be created after the update cases: "+str(made_root))
+ var scratch="res://build/update-writable-%d" % Time.get_ticks_usec()
+ var made=DirAccess.make_dir_recursive_absolute(scratch)
+ var exists=DirAccess.dir_exists_absolute(scratch)
+ var removed=DirAccess.remove_absolute(scratch) if exists else ERR_DOES_NOT_EXIST
+ t.check(made==OK and exists and removed==OK,"UPDATE suite_leaves_res_build_writable: a scratch directory under res://build can be created and removed after the update cases: "+str([made,exists,removed]))
