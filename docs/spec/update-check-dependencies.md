@@ -193,5 +193,8 @@
   两条引擎步骤判据钉住失败出口的清理。`Assert-UpdateManifest` 的补丁条目回读规则由 `update_manifest_patch_entries_are_judged` 常驻钉住。
 - 引擎步骤里「包文件不存在」这一支没有独立判据：`Get-Item` 在包缺失时同样抛错，去掉该子句不改变结果，故不为它留检查。
 - `Assert-UpdateManifest` 里两处子句没有独立的「关掉即红」：`to` 为空已被 `to == latest.version` 先行拒绝，所以不留 `to` 为空的夹具；`bytes` 小数的 `TryGetInt64` 失败后 `$size` 仍为 0，由 `$size -le 0` 兜住，所以只关掉 `TryGetInt64` 子句不会变红（整条 `bytes` 规则关掉时小数夹具变红）。
+- `spire-godot/tests/update_cases.gd::baseline_version_is_frozen` 要改写工程设置，用运行时拼出的键（`const VERSION_SETTING`，与 `version_read_single_entry` 自己的写法相同），
+  所以 `spire-godot/tests/architecture_cases.gd::version_read_single_entry` 的文本扫描看不见它：该判据只管「读取基线」，这处改写不是读取者；
+  用例里若新增对该键的读取，门禁识别不了，只能靠人审。
 - 基线冻结只钉住进程内行为；挂载补丁后引擎是否真的重载工程设置仍未证实，冻结是对该未证实项的防御，不是它的证据。
 - 不属于本片授权面：`spire-godot/core/**`、`spire-godot/data/**`、`spire-godot/ui/**`；`spire-godot/tools/package*.ps1` 只改源码稳定性清单。

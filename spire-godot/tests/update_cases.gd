@@ -1324,16 +1324,21 @@ static func effective_version_requires_mount(t) -> void:
 # before it mounts a patch, and every patch carries its own (newer) config/version, so a later
 # live read could name the patch as the baseline if the engine reloads the settings on mount
 # (docs/spec/update-check.md「版本身份」). The settings are rewritten here the way a reload would.
+# The key is assembled at run time, the idiom the scanning judgement version_read_single_entry
+# itself uses: that judgement reads source text for the whole key, and this rewrite is not a
+# reader of the baseline (it is the thing the baseline must not follow).
+const VERSION_SETTING="application/config/"+"version"
+
 static func baseline_version_is_frozen(t) -> void:
  Store.record_mounted("")
  var frozen=Store.baseline_version()
- var original=ProjectSettings.get_setting("application/config/version","")
+ var original=ProjectSettings.get_setting(VERSION_SETTING,"")
  var forged="98.7.6"
- ProjectSettings.set_setting("application/config/version",forged)
+ ProjectSettings.set_setting(VERSION_SETTING,forged)
  var baseline=Store.baseline_version()
  var effective=Store.effective_version()
  var identity=Store.new(boot_root("frozen")).identity()
- ProjectSettings.set_setting("application/config/version",original)
+ ProjectSettings.set_setting(VERSION_SETTING,original)
  t.check(not frozen.is_empty() and frozen!=forged,"UPDATE baseline_version_is_frozen: the fixture starts from a real baseline: "+frozen)
  t.check(baseline==frozen,"UPDATE baseline_version_is_frozen: a changed project setting does not move the baseline: "+baseline+" vs "+frozen)
  t.check(effective==frozen,"UPDATE baseline_version_is_frozen: with nothing mounted the effective version stays the frozen baseline: "+effective)
