@@ -1093,6 +1093,36 @@
       "replace": " if false:",
       "suite": "update"
     },
+    "boot_skips_crash_residue": {
+      "file": "update/boot.gd",
+      "find": "  store.mark_failed(state.mounting)",
+      "replace": "  pass",
+      "suite": "update"
+    },
+    "boot_skips_failed_version": {
+      "file": "update/boot.gd",
+      "find": "  if to in state.failed or not Manifest.is_newer(to,baseline) or",
+      "replace": "  if not Manifest.is_newer(to,baseline) or",
+      "suite": "update"
+    },
+    "boot_skips_not_newer_patch": {
+      "file": "update/boot.gd",
+      "find": " or not Manifest.is_newer(to,baseline) or not Manifest.verify_patch_file(",
+      "replace": " or not Manifest.verify_patch_file(",
+      "suite": "update"
+    },
+    "boot_requires_marker_before_mount": {
+      "file": "update/boot.gd",
+      "find": "  if not store.begin_mount(to): continue",
+      "replace": "  store.begin_mount(to)",
+      "suite": "update"
+    },
+    "boot_keeps_candidate_when_marker_unwritable": {
+      "file": "update/boot.gd",
+      "find": "  if not store.begin_mount(to): continue",
+      "replace": "  if not store.begin_mount(to):\n   store.mark_failed(to)\n   continue",
+      "suite": "update"
+    },
     "version_read_single_entry": {
       "file": "ui/feedback_report.gd",
       "find": " var version=UpdateStore.effective_version()",

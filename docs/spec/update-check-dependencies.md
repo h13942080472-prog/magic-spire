@@ -29,6 +29,7 @@
 | `spire-godot/tools/check.ps1::Get-SourceFingerprint` | 目录集合加入 `update` | 只改目录集合；指纹仍只作同一次运行内的守卫（`before==after`），不当身份，没有冻结值依赖它 |
 | `spire-godot/tests/fixtures/update/release-scripts/`（新） | 两份脚本用一次性密钥产出的清单与签名，及一次性公钥、`notes.txt`、`android-package-manifest.json`、`windows.zip` 三份输入；同目录 `.gitattributes` 标 `-text` | 只经脚本生成；**不提交任何私钥**；既有 OpenSSL 夹具不变 |
 | `spire-godot/tests/state_readers.json`（生成物） | 由 `tools/build_state_readers.gd --write` 重写，登记 `update/` 的读取点 | 只经工具写入；不手工编辑；他行不变 |
+| `spire-godot/tests/check_index_edges.gd::CLOSURE` | 新增 `spire-godot/update/` 前缀条目：规则 `update,architecture`、界面 `update`；索引只扫 `core|data|ui`，不加这条则 `update/` 下改动落到 `ROUTE UNMAPPED` 而退回全量 | 只增这一条；窗口标题与反馈报告的断言经 `ui/main.gd`、`ui/feedback_report.gd` 既有的边路由到 `interface`，不在此重复 |
 | `spire-godot/tests/check_index.json`（生成物） | 由 `tools/check-index.ps1 -Write` 重冻，登记 `update/` 与新增测试文件 | 只经工具写入；不手工编辑；他行不变 |
 | `spire-godot/tests/update_cases.gd.uid`、`spire-godot/tests/update_ui_cases.gd.uid`（新） | 引擎生成的脚本 UID 旁文件 | 只经引擎导入写入；不手工编辑 |
 | `spire-godot/tests/mutations.json` | 为本片具名 check 追加条目（含引导挂载、有效版本与两条新架构判据） | 既有条目、`known_gaps` 与冻结清单不变；`find` 仍唯一 |
@@ -96,6 +97,10 @@
 | pending 替换 active：只挂载一个包，成功启动后 `patches/` 只剩新包 | `tests/update_cases.gd::boot_replaces_active_with_pending`（规则分类 `update`） |
 | pending 校验失败而 active 完好时，pending 记 failed 并挂载 active | `tests/update_cases.gd::boot_falls_back_to_active_when_pending_fails`（规则分类 `update`） |
 | 上次启动遗留的 mounting 标记使该版本记 failed 并跳过，不重试 | `tests/update_cases.gd::boot_skips_crash_residue`（规则分类 `update`） |
+| 版本已在 failed 列表的完好补丁不挂载，条目与文件被清掉 | `tests/update_cases.gd::boot_skips_failed_version`（规则分类 `update`） |
+| 不比基线新的补丁（等于或更旧）不挂载，记 failed 并清掉 | `tests/update_cases.gd::boot_skips_not_newer_patch`（规则分类 `update`） |
+| 标记写不进去（`begin_mount` 为假）时不挂载任何包 | `tests/update_cases.gd::boot_requires_marker_before_mount`（规则分类 `update`） |
+| 标记写不进去只跳过当前候选、不记 failed，条目与文件保留，下次能写时同一候选照常挂载 | `tests/update_cases.gd::boot_keeps_candidate_when_marker_unwritable`（规则分类 `update`） |
 | `--script` 运行不挂载、不触碰补丁状态，有效版本等于基线 | `tests/update_cases.gd::boot_is_inert_under_script`（规则分类 `update`） |
 | `record_mounted` 移动有效版本、基线不动、`identity` 带基线；空串回到基线 | `tests/update_cases.gd::effective_version_follows_mount`（规则分类 `update`） |
 | 记录了但没挂上（状态里有 active、引擎拒绝挂载）时有效版本仍是基线 | `tests/update_cases.gd::effective_version_requires_mount`（规则分类 `update`） |

@@ -84,6 +84,10 @@ static func run(t) -> void:
  boot_replaces_active_with_pending(t)
  boot_falls_back_to_active_when_pending_fails(t)
  boot_skips_crash_residue(t)
+ boot_skips_failed_version(t)
+ boot_skips_not_newer_patch(t)
+ boot_requires_marker_before_mount(t)
+ boot_keeps_candidate_when_marker_unwritable(t)
  boot_is_inert_under_script(t)
  effective_version_follows_mount(t)
  effective_version_requires_mount(t)
@@ -740,6 +744,78 @@ static func boot_skips_crash_residue(t) -> void:
  Boot.start(store,recorder(mounted),true)
  t.check(mounted.is_empty(),"UPDATE boot_skips_crash_residue: the failed version is not retried on the next start: "+str(mounted))
  Store.record_mounted("")
+
+# A candidate that the state itself already condemns (its version is on the failed list) or that is
+# not strictly newer than the baseline is never mounted, even when its file is intact.
+static func boot_skips_failed_version(t) -> void:
+ var modules=boot_modules(t,"boot_skips_failed_version")
+ if modules.is_empty(): return
+ var Store=modules[0]
+ var Boot=modules[1]
+ var baseline=Store.baseline_version()
+ var store=Store.new(boot_root("listed"))
+ var entry=boot_entry(store,PATCH_A)
+ store.write_state(boot_state(baseline,{},entry,"",[PATCH_A]))
+ var mounted=[]
+ Boot.start(store,recorder(mounted),true)
+ var state=store.load_state()
+ t.check(mounted.is_empty() and Store.effective_version()==baseline,"UPDATE boot_skips_failed_version: an intact patch whose version is on the failed list is not mounted: "+str(mounted))
+ t.check(state.pending.is_empty() and state.failed==[PATCH_A] and not FileAccess.file_exists(store.patch_path(PATCH_A)),"UPDATE boot_skips_failed_version: the listed entry is dropped and its file deleted: "+str(state))
+
+static func boot_skips_not_newer_patch(t) -> void:
+ var modules=boot_modules(t,"boot_skips_not_newer_patch")
+ if modules.is_empty(): return
+ var Store=modules[0]
+ var Boot=modules[1]
+ var baseline=Store.baseline_version()
+ var store=Store.new(boot_root("stale"))
+ var older="0.0.1"
+ var pending=boot_entry(store,baseline)
+ var active=boot_entry(store,older)
+ store.write_state(boot_state(baseline,active,pending))
+ var mounted=[]
+ Boot.start(store,recorder(mounted),true)
+ var state=store.load_state()
+ t.check(mounted.is_empty() and Store.effective_version()==baseline,"UPDATE boot_skips_not_newer_patch: a patch equal to or older than the baseline is not mounted: "+str(mounted))
+ t.check(baseline in state.failed and older in state.failed and state.pending.is_empty() and state.active.is_empty(),"UPDATE boot_skips_not_newer_patch: both stale entries are recorded failed and dropped: "+str(state))
+
+# begin_mount cannot write the marker (the temp file of the one state writer is blocked by a
+# directory of the same name). The marker comes before the mount, so nothing is mounted; the
+# failure is the disk's, not the patch's, so no candidate is recorded failed and the entries stay
+# for the next start. Every candidate is tried (the first refusal skips only that candidate).
+static func boot_blocked_marker_run(t, label: String) -> Dictionary:
+ var modules=boot_modules(t,label)
+ if modules.is_empty(): return {}
+ var Store=modules[0]
+ var Boot=modules[1]
+ var store=Store.new(boot_root("marker"))
+ var active=boot_entry(store,PATCH_A)
+ var pending=boot_entry(store,PATCH_B)
+ store.write_state(boot_state(Store.baseline_version(),active,pending))
+ var blocker=ProjectSettings.globalize_path(store.root.path_join(Store.STATE_FILE+".tmp"))
+ DirAccess.make_dir_absolute(blocker)
+ var mounted=[]
+ var result=Boot.start(store,recorder(mounted),true)
+ DirAccess.remove_absolute(blocker)
+ return {"store":store,"Store":Store,"Boot":Boot,"mounted":mounted,"result":result,"state":store.load_state()}
+
+static func boot_requires_marker_before_mount(t) -> void:
+ var ctx=boot_blocked_marker_run(t,"boot_requires_marker_before_mount")
+ if ctx.is_empty(): return
+ t.check(ctx.mounted.is_empty() and String(ctx.result.get("mounted",""))=="","UPDATE boot_requires_marker_before_mount: no pack is mounted while the marker cannot be written: "+str(ctx.mounted)+" "+str(ctx.result))
+ t.check(ctx.Store.effective_version()==ctx.Store.baseline_version(),"UPDATE boot_requires_marker_before_mount: the baseline stays effective: "+ctx.Store.effective_version())
+
+static func boot_keeps_candidate_when_marker_unwritable(t) -> void:
+ var ctx=boot_blocked_marker_run(t,"boot_keeps_candidate_when_marker_unwritable")
+ if ctx.is_empty(): return
+ var state=ctx.state
+ var store=ctx.store
+ t.check(state.failed.is_empty(),"UPDATE boot_keeps_candidate_when_marker_unwritable: an unwritable marker records no failure: "+str(state))
+ t.check(String(state.pending.get("to",""))==PATCH_B and String(state.active.get("to",""))==PATCH_A and FileAccess.file_exists(store.patch_path(PATCH_A)) and FileAccess.file_exists(store.patch_path(PATCH_B)),"UPDATE boot_keeps_candidate_when_marker_unwritable: both entries and files stay for the next start: "+str(state))
+ var mounted=[]
+ ctx.Boot.start(store,recorder(mounted),true)
+ t.check(mounted==[store.patch_path(PATCH_B)],"UPDATE boot_keeps_candidate_when_marker_unwritable: once the marker can be written the same candidate mounts: "+str(mounted))
+ ctx.Store.record_mounted("")
 
 # A scripted run (tests, probes, tools) never mounts and never touches the store.
 static func boot_is_inert_under_script(t) -> void:
