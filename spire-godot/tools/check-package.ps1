@@ -19,7 +19,7 @@ function Invoke-PackageCheck {
     $start.WorkingDirectory=$releaseDirectory
     $start.UseShellExecute=$false
     $start.CreateNoWindow=$true
-    $start.Environment['APPDATA']=Join-Path $checkDirectory 'profile'
+    $start.Environment['APPDATA']=Join-Path $checkDirectory 'appdata'
     $start.Environment['SPIRE_PROBE_SAVES']=Join-Path $checkDirectory 'saves'
     $start.Environment['SPIRE_PROBE_CONTENT']=Join-Path $releaseDirectory 'content/packs'
     $start.Environment['SPIRE_PROBE_VERSION']=[string]$manifest.version

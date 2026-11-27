@@ -222,6 +222,7 @@ func _ready() -> void:
  interaction_audio=preload("res://ui/interaction_audio.gd").new();interaction_audio.host=self;add_child(interaction_audio)
  interaction_audio.configure(display_settings.interaction_audio_enabled,display_settings.interaction_audio_volume)
  theme=Palette.controls()
+ preload("res://ui/legacy_import.gd").run_once(self,OS.has_feature("pc"))
  _restore_startup()
  render(view)
 

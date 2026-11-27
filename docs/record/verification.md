@@ -5240,3 +5240,35 @@ Godot 4.7.2 专项 66 项断言通过。两个部位各承受两段「浑身解�
 - 坏档探针在合并树 `7dcf00a` 载入含 `route_history: [null]` 的快照后替换了当前状态；修复后相同输入被拒绝，当前状态保持一致。独立审查已复核坏档拒绝路径、负例和历史快照摘要的字段范围。
 - Godot 4.7.2，运行号 `20261126T123421405-45292`，受检源码前后指纹相同。文档门禁通过。规则分类 persistence（1616 条断言）、prison（1436 条）和 tower_progression（306 条）通过。架构基线的 26 格差异与声明一致，63 个状态的分支命令表无漂移。
 - 五类合计 118996 条断言，architecture 和 runner 仍有 39 条失败，总退出码 1。与 v0.18.4 的同分类日志对照，归一化源码行号后没有新增错误；被替换的 13 条架构及 2 条运行器旧错误行不再出现。本轮未重跑全量规则与 UI。
+
+## 2026-11-21｜统一用户数据目录（发布线）
+
+- 域：`spire-godot/project.godot` 的 `config/use_custom_user_dir`、`config/custom_user_dir_name`（`Godot/app_userdata/紧缚尖塔`）、`config/custom_user_dir_name.editor`（`…/紧缚尖塔-dev`）；判据 `tests/architecture_cases.gd::user_dir_name_is_version_free`、`::userdir_declarations_are_version_free`、`::userdir_declarations_have_no_trailing_dot`、`::android_package_name_is_pinned`、`::package_probe_uses_appdata_sandbox`，`tests/persistence_cases.gd::user_dir_ignores_project_name`、`::editor_tag_isolates_dev_user_dir`；探针 `tools/check-package.ps1`、`tools/check-android-package.ps1` 的 APPDATA 沙盒；文档 `docs/spec/packaging.md`「用户数据目录」。父提交 `69cf2f1`，本片 `54ab4ce`…`2da5fb0`（本功能分支）。
+- 流水线：实现 → 清理（`4239173`）→ 独立审查（有条件通过：发行目录缺运行期证据、第三条计划突变缺失）→ 补强（`83f0280`、`2da5fb0`，补齐第三条计划突变并扫描全部 `custom_user_dir_name*` 声明）→ 窄复审（有条件通过，残余为一处注释措辞）→ 验收。
+- 成品运行期证据（验收运行，APPDATA 沙盒）：`tools/package.ps1` 导出退出 0，`PACKS_ROOT` 临时改 `adjacent` 后逐字节还原；`tools/check-package.ps1` PASS，`native` 探针落 `<沙盒>/Godot/app_userdata/紧缚尖塔`、`pck` 探针落 `…/紧缚尖塔-dev`；成品 EXE 真实输入打到 battle_end 固定点写出 `saves/tower.json`；把 `config/name` 与 `config/version` 临时改为 v0.18.4 再导出，同一沙盒「继续游戏」回到同一固定点，未出现带版本号的新目录。
+- 套件（验收补跑，`head=2da5fb0`、`dirty=0`）：`-Suite architecture,persistence` 与 `-UIOnly -UISuite home_persistence,persistence` 的 ERROR 行 sha256 与发布线父基线逐字节相同（architecture 5 行、UI persistence 1 行，均为父侧既有红），无新增红。
+- 过程偏差（如实）：`tools/package.ps1` 的导出子进程用编辑器二进制且不设 APPDATA，首轮验收两次导出在真实 `%APPDATA%/Godot/app_userdata/紧缚尖塔-dev` 新建了目录（仅空 `objectdb_snapshots`）；该目录是编辑器开发目录、非玩家目录，未清理，处置待人裁定。导出后的导入阶段重写 727 个 `*.import`，经核对后以 `git checkout -- spire-godot/assets` 还原。今后自动化导出须在调用前设 APPDATA。
+- 未跑（如实，不作通过）：安卓真机；`-Suite all` 全量回归；判据 fail-closed 的「键缺失」「正则编译失败」两情形只有源码推演。
+- **发布闸**：本片不得单独公开发布，须与旧目录导入同版。本节随分支提交；推送到 fork 的同名功能分支，未开 PR、未打 tag、未打包或发布。
+
+## 2026-11-26｜固定用户目录与旧目录导入：合入上游后的回归与打包面验收
+
+- 域：本功能分支，验收 HEAD `9a2bee4`，父侧 `e4fde8d`；固定用户目录（`project.godot` 三行声明）、`ui/legacy_import.gd` 旧目录导入、`core/save_store.gd` 原子提交与探针 APPDATA 沙盒；判据与契约见 `docs/spec/save-fixed-points.md`「旧目录导入」与 `docs/spec/packaging.md`「用户数据目录」。全部在 APPDATA 沙盒内执行，真实 `%APPDATA%\Godot\app_userdata` 逐阶段只列名称与修改时间，开工、各阶段与收尾共 8 份快照完全相同。
+- 全量命令 `check.ps1 -Suite all -UI -UISuite all -KeepGoing -TimeoutSeconds 3600` 运行号 `20261126T073703431-25500`，退出 1；规则相位在 `exploration` 的 SCRIPT ERROR 后收尾（30 个套件有结果），界面相位未启动，与父侧截断位置相同。其余 29 个规则套件与 50 个界面套件逐个独立补跑。对照父侧：规则 PASS→PASS 43、FAIL→FAIL 16；界面 PASS→PASS 27、FAIL→FAIL 23；PASS→FAIL 0、新增 ERROR 行 0。消失的父侧红行 3 条，均因合并时重生成生成物：`architecture` 的 `state_read_sites_are_pinned`，`runner` 的 `index_matches_regeneration` 与 `index_regeneration_is_the_only_writer`。
+- 本分支新增的 35 条登记突变逐条运行 `check-mutation.ps1`：33 条首跑变红并逐字节还原；`commit_crash_injection_is_debug_only` 与 `legacy_leaves_every_legacy_byte_untouched` 首跑时 Godot 引擎崩溃（signal 11，工具判 `FAILED exit-red=False`，日志没有点到具名判据）。两条同树同命令各复跑两次均变红并还原、日志无 signal 11（第二轮复跑子运行 `20261126T122907067-55564` 与 `20261126T123332665-51316`），判为引擎偶发崩溃，非本分支引入。
+- 打包面（沙盒内）：导出模板取真实目录下与引擎同版的 `4.7.2.stable`，只读复制进沙盒。导出前把 `core/content_catalog.gd` 的 `PACKS_ROOT` 临时改为 `"adjacent"`，导出结束在 `finally` 里按原始字节写回，改前、改后（还原后）sha256 同为 `9730DADE302290C8D3A1675F22A78560955A29D69CF81DF5840F707EA37F36F1`，`git diff --quiet` 为 0，未进提交。`tools/package.ps1 -BuildId d23val3` 退出 0；`tools/check-package.ps1` 退出 0，输出 `RELEASE CONTENT PACKS: 12`、`RELEASE PROBE PASS`、`PACKAGE CHECK PASS`；两个探针的用户目录都落在检查目录的 `appdata` 下（`native` 探针写出 `紧缚尖塔/legacy-import.json`，`pck` 探针只建 `紧缚尖塔-dev`），未触及真实 `%APPDATA%`。导出重写的 788 个 `*.import` 在锁外按 `git checkout --pathspec-from-file` 恢复。
+- 成品旧目录导入：沙盒 `app_userdata` 下现造 `紧缚尖塔demo v0.17.1`（主档、`.bak`、两份设置），以导出的成品 EXE 启动一次（`--headless --quit-after 300`，退出 0）：固定目录 `紧缚尖塔` 出现与源文件逐字节相同的 `saves/tower.json`、`saves/tower.json.bak`、`display-settings.cfg`、`key-bindings.cfg`，终结标记 `legacy-import.json` 为 `copied` 四项、`skipped` 空；旧目录文件的大小、sha256 与修改时间与启动前完全相同。再启动一次（退出 0），标记与全部导入文件的 sha256 和修改时间都不变，导入未重复。成品 EXE 只验证了导入分支，没有走到存档读取之后的玩法。
+- 未做：安卓导出与真机；公开发布（发布闸仍靠人审）；未打 tag、未发布、未上传。
+
+## 2026-11-27｜旧档导入分支：合入上游 4be2c1c 后的 PR 前完整回归
+
+- 域：本功能分支，验收 HEAD `338a79d`（合并提交 `8444613` 之上一条记录措辞提交），父侧 `4be2c1c`（上游基线，同机同引擎另树实跑）；固定用户目录、`ui/legacy_import.gd` 旧目录导入、`core/save_store.gd` 原子提交及本分支新增的 35 条登记突变。引擎 Godot 4.7.2，`APPDATA` 指向沙盒，真实 `%APPDATA%/Godot/app_userdata` 的目录名与修改时间在开工、导入后、全量后、补跑后、突变后与交回各列一次，均与开工逐字节相同。
+- 开工核对：HEAD `338a79d`，`origin/main` 为 `4be2c1c`，`rev-list --left-right --count origin/main...HEAD` 为 `0 46`，工作区干净。`e4fde8d..4be2c1c` 对 `project.godot`、`core/save_store.gd`、`ui/legacy_import.gd`、`core/content_catalog.gd` 的 `git diff --stat` 为空，打包面证据沿用上一条合入后的打包面验收，本条不重做。
+- 导入：`-Import -Suite runner`，运行号 `20261126T145138479-54468`，导入完成；runner 的 3 条 `index_declared_domains_exist` 与父侧同名 3 条相同。
+- 全量：`check.ps1 -Suite all -UI -UISuite all -KeepGoing -TimeoutSeconds 3600`，运行号 `20261126T150157157-37860`，退出 1；规则相位在 `exploration` 的 SCRIPT ERROR 后收尾（30 个结果行），`FAIL: 56/127569 assertions; 58 engine errors`（父侧 56/127544，差额为本分支新增断言），界面相位未启动，截断位置与父侧相同。
+- 补跑：全量没有结果行的规则 29 个与界面 50 个各自独立运行（规则 `-Suite <名>`，界面 `-UIOnly -UISuite <名>`），79 项均取得 `SUITE RESULT` 行，无超时；每项运行号与原行见验收证据。
+- 逐套件对照父侧 109 套件（规则 59、界面 50）：规则 PASS 43、父侧既有红 16；界面 PASS 27、父侧既有红 23。无新红、无父 FAIL 本 PASS、无父侧无结果。口径一致：规则前 30 个两边均取自全量（exhaustive 抽样），其余规则与全部界面两边均取自单套件补跑（daily 抽样）。FAIL 对 FAIL 的 39 个按 `ERROR:`／`SCRIPT ERROR:` 前 120 字去重逐行比对，本分支无父侧没有的行。
+- 对照中的两处差异（未新增红，如实记录）：界面 `rewards` 父侧有 `DIPLOMA UI deck overview uses current enhanced card value` 两次，本分支 0 次，断言 399 对 398，该用例在本分支未改动的 `reward_ui_cases.gd`，疑为时序抖动，未查明；界面 `persistence` 错误行相同，断言 110 对 111，原因未查明。规则与界面里断言数多于父侧的套件（runner 1967 对 1963、architecture 113700 对 113675、display 1330 对 1324 等）由本分支新增断言解释。
+- 敏感性：本分支相对 `e4fde8d` 与 `origin/main` 新增的 35 条登记突变（取三者 `tests/mutations.json` 键集合之差 `HEAD − e4fde8d − origin/main`，键数 72／85／120）逐条串行运行 `check-mutation.ps1 -Check`，35 条全部变红（`exit-red=True`）并逐字节还原（`restored=True`），每批之后 `git status` 为 0 行。
+- 过程（如实）：突变分 6 批，其中批次 3–6 因一次会话中断后重发，不影响结果；等锁期间另一工作者持锁远超其声明时长，未触碰他人锁与票据。
+- 未做：安卓导出与真机；公开发布（发布闸仍靠人审）；未打 tag、未发布、未上传。

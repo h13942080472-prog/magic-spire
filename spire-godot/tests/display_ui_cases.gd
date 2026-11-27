@@ -3361,6 +3361,50 @@ static func present_demand_recorder(t) -> void:
  ui.game_factory=preload("res://tests/game_fixture.gd")
  ui.restart(42);await t.frames(2)
 
+# Display-settings import parity (docs/spec/save-fixed-points.md legacy import section): one display-settings.cfg read by initialize()
+# and imported by import_from() yields the same value for every key save() writes. Legal values are kept
+# (clamped to a range end or closed by another key where the rules say so); illegal values and missing keys
+# fall back to the same value on both sides. The importing owner first runs initialize() against a missing
+# file, the order ui/main.gd::_ready uses, so both sides start from the same reset defaults and the same
+# window-derived mode and resolution. The reading owner sets mobile=true, so its apply() only touches the
+# frame budget and vertical sync, which are restored at the end; the test window is never moved.
+static func display_import_matches_initialize(t) -> void:
+ var Persistence=preload("res://tests/persistence_cases.gd")
+ var root="res://build/display-parity-%d-%d" % [OS.get_process_id(),Time.get_ticks_usec()]
+ DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(root))
+ var fps=Engine.max_fps
+ var vsync=DisplayServer.window_get_vsync_mode(t.root.get_window_id())
+ var rows=[
+  {"name":"legal values off their defaults","given":{"display/mode":1,"display/frame_limit":240,"display/vsync_enabled":false,"display/reduced_card_motion":true,"localization/locale":"ja_JP","display/resolution":Vector2i(1366,768),"art/choices":{"cards":{"strain":"test","binding_enthusiast":"fixed","hannya_2":"test"},"enemies":{"six_bind":"test"}},"art/fixed_hero_portrait":false,"gameplay/chastity_locks_enabled":true,"gameplay/chastity_lock_chance":40,"gameplay/cursed_plate_start":true,"gameplay/cursed_plate_masochist_mode":true,"onboarding/first_battle_tutorial_seen":true,"audio/card_music_enabled":false,"audio/card_music_volume":0.35,"audio/doubao_voice_enabled":false,"audio/doubao_voice_volume":0.5,"audio/interaction_audio_enabled":false,"audio/interaction_audio_volume":0.25}},
+  {"name":"legal values clamped or closed by another key","given":{"display/mode":2,"display/frame_limit":0,"display/resolution":Vector2i(5000,3000),"art/fixed_hero_portrait":true,"gameplay/chastity_locks_enabled":true,"gameplay/chastity_lock_chance":0,"gameplay/cursed_plate_start":true,"gameplay/cursed_plate_masochist_mode":true,"audio/card_music_volume":1.7,"audio/doubao_voice_volume":-0.5,"audio/interaction_audio_volume":3}},
+  {"name":"illegal values for every key","given":{"display/mode":9,"display/frame_limit":90,"display/vsync_enabled":"invalid","display/reduced_card_motion":1,"localization/locale":"xx_XX","display/resolution":Vector2i(100,50),"art/choices":{"cards":{"strain":"bogus","slip":7},"enemies":"test"},"art/fixed_hero_portrait":"yes","gameplay/chastity_locks_enabled":"invalid","gameplay/chastity_lock_chance":27,"gameplay/cursed_plate_start":"invalid","gameplay/cursed_plate_masochist_mode":0,"onboarding/first_battle_tutorial_seen":"true","audio/card_music_enabled":"no","audio/card_music_volume":"loud","audio/doubao_voice_enabled":1,"audio/doubao_voice_volume":[0.5],"audio/interaction_audio_enabled":[],"audio/interaction_audio_volume":Vector2(1,1)}},
+  {"name":"illegal value types for mode, resolution, frame budget, chance and the art table","given":{"display/mode":"全屏","display/resolution":"1920x1080","display/frame_limit":240.0,"gameplay/chastity_lock_chance":"40","art/choices":"test"}},
+  {"name":"every owner key missing","given":{"unrelated/key":1}},
+  {"name":"some keys present, the rest missing","given":{"display/frame_limit":120,"gameplay/chastity_locks_enabled":true,"gameplay/cursed_plate_start":true,"audio/card_music_volume":0.6}},
+ ]
+ for index in range(rows.size()):
+  var row=rows[index]
+  var source=root.path_join("source-%d.cfg" % index)
+  var config=ConfigFile.new()
+  for key in row.given: config.set_value(String(key).get_slice("/",0),String(key).get_slice("/",1),row.given[key])
+  config.save(source)
+  var importer=Settings.new()
+  importer.path=root.path_join("absent-%d.cfg" % index)
+  importer.initialize(t.root)
+  importer.path=root.path_join("imported-%d.cfg" % index)
+  var imported=importer.import_from(source)
+  var reader=Settings.new()
+  reader.mobile=true
+  reader.path=source
+  reader.initialize(t.root)
+  reader.path=root.path_join("initialized-%d.cfg" % index)
+  reader.save()
+  var read_back=Persistence.legacy_cfg_values(reader.path)
+  var differing=Persistence.legacy_cfg_diff(read_back,Persistence.legacy_cfg_values(importer.path))
+  t.check(imported and not read_back.is_empty() and differing.is_empty(),"DISPLAY display_import_matches_initialize ["+String(row.name)+"]: import_from() keeps exactly the values initialize() reads from the same file, key for key: differing="+str(differing))
+ Engine.max_fps=fps
+ DisplayServer.window_set_vsync_mode(vsync,t.root.get_window_id())
+
 static func run(t) -> void:
  r3_display_points_do_not_read_rows(t)
  display_facts_match_determination(t)
@@ -3490,6 +3534,7 @@ static func run(t) -> void:
  t.check(restored.mode in range(3) and restored.resolution in restored.choices(),"DISPLAY invalid saved preference falls back to supported resolution")
  DirAccess.remove_absolute(path)
  t.root.mode=Window.MODE_WINDOWED;t.root.borderless=old_border;t.root.size=old_size;t.root.position=old_position;t.root.mode=old_mode
+ display_import_matches_initialize(t)
  ui.display_settings.initialize(t.root,false)
  await t.close_information();await t.frames()
  await present_demand_recorder(t)

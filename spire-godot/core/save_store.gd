@@ -138,6 +138,15 @@ func fixed_point_text(game, map_drawings: Dictionary={}) -> Dictionary:
  if slot not in Game.Snapshot.SLOTS: return failure("请创建存档目录。")
  return {"ok":true,"slot":slot,"filename":slot+".json","text":pack(game.restart_snapshot(),map_drawings)}
 
+# Player-facing text for each failing step of commit_file (the texts are localization keys, kept verbatim).
+const WRITE_FAILURES={
+ "folder":"保存失败：无法创建存档文件夹。当前游戏仍可继续。",
+ "open":"保存失败：无法写入存档。原存档保留。",
+ "write":"保存失败：写入中断，原存档保留。",
+ "readback":"保存失败：写入校验失败，原存档保留。",
+ "backup":"保存失败：无法更新备份，原存档保留。",
+ "rename":"保存失败：无法替换存档，原存档保留。"}
+
 func write_game(game, replace_incompatible: bool=false, map_drawings: Dictionary={}) -> Dictionary:
  var issue=game.validate()
  if issue!="": return failure("保存失败："+issue)
@@ -147,19 +156,85 @@ func write_game(game, replace_incompatible: bool=false, map_drawings: Dictionary
  var old=read_file(filename)
  if not old.ok and old.get("code","")=="version" and not replace_incompatible: return failure("保存已暂停：原存档需匹配版本读取，开始新局后将替换原档。","version")
  var content=pack(game.restart_snapshot(),map_drawings)
- var absolute=ProjectSettings.globalize_path(directory)
- if DirAccess.make_dir_recursive_absolute(absolute)!=OK: return failure("保存失败：无法创建存档文件夹。当前游戏仍可继续。")
+ # Only a readable primary is rotated into .bak, so a damaged one never replaces the last good backup.
+ var code=commit_file(filename,content.to_utf8_buffer(),func(temp):return read_file(temp).ok,old.ok)
+ if code!="": return failure(WRITE_FAILURES.get(code,WRITE_FAILURES["write"]))
+ return {"ok":true,"slot":slot,"message":"练习场景起点已保存。" if slot=="practice" else "塔路场景起点已保存。"}
+
+# The repository's only atomic file commit (docs/spec/save-fixed-points.md「旧目录导入」): write
+# <file>.tmp, pass the temp path to `readback` (it must return true), optionally rotate the current
+# primary into <file>.bak, then rename the temp over <file>; a failure before the rename leaves the
+# previous file as it was. write_game, adopt_legacy and the legacy import marker (the importer
+# commits it through the store it is handed) all commit here. Returns "" once committed, otherwise
+# the failing step: folder, open, write, readback, backup, rename, or crash from the debug-only
+# injection below.
+func commit_file(filename: String, bytes: PackedByteArray, readback: Callable, rotate_backup: bool=false) -> String:
+ if _debug_crash_point("start"): return "crash"
+ if DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(filename.get_base_dir()))!=OK: return "folder"
  var temp=filename+".tmp"
  var file=FileAccess.open(temp,FileAccess.WRITE)
- if file==null: return failure("保存失败：无法写入存档。原存档保留。")
- file.store_string(content);file.flush()
+ if file==null: return "open"
+ file.store_buffer(bytes);file.flush()
  var write_error=file.get_error();file.close()
- if write_error!=OK: return failure("保存失败：写入中断，原存档保留。")
- if not read_file(temp).ok: return failure("保存失败：写入校验失败，原存档保留。")
- if old.ok:
-  if DirAccess.copy_absolute(filename,filename+".bak.tmp")!=OK or DirAccess.rename_absolute(filename+".bak.tmp",filename+".bak")!=OK: return failure("保存失败：无法更新备份，原存档保留。")
- if DirAccess.rename_absolute(temp,filename)!=OK: return failure("保存失败：无法替换存档，原存档保留。")
- return {"ok":true,"slot":slot,"message":"练习场景起点已保存。" if slot=="practice" else "塔路场景起点已保存。"}
+ if write_error!=OK: return "write"
+ if _debug_crash_point("temp"): return "crash"
+ if not readback.call(temp): return "readback"
+ if rotate_backup:
+  if DirAccess.copy_absolute(filename,filename+".bak.tmp")!=OK or DirAccess.rename_absolute(filename+".bak.tmp",filename+".bak")!=OK: return "backup"
+ if DirAccess.rename_absolute(temp,filename)!=OK: return "rename"
+ if _debug_crash_point("renamed"): return "crash"
+ return ""
+
+# Debug-only crash injection for the interrupted-write criteria (tests/persistence_cases.gd), empty by
+# default. {"commit":k,"at":"temp"} stops the k-th commit through this store once its .tmp is written,
+# before any rename; {"commit":k,"at":"renamed"} stops it right after its rename. From then on every
+# commit through this store is refused before it touches the disk, the way a killed process writes
+# nothing more. A release build never consults it: the guard below returns first.
+var debug_crash={}
+var _debug_commits=0
+var _debug_dead=false
+
+func _debug_crash_point(stage: String) -> bool:
+ if not OS.is_debug_build() or debug_crash.is_empty(): return false
+ if _debug_dead: return true
+ if stage=="start": _debug_commits+=1
+ _debug_dead=_debug_commits==int(debug_crash.get("commit",0)) and stage==String(debug_crash.get("at",""))
+ return _debug_dead
+
+# Legacy directory import (docs/spec/save-fixed-points.md「旧目录导入」): copy the legacy
+# slot files byte for byte. Each source file is validated with unpack() first, and every accepted
+# copy goes through commit_file like write_game (without the backup rotation: adopt_legacy only runs
+# while the target holds no slot file), so a partial copy can never replace a primary file and the
+# .bak keeps its own name. The source is only read.
+# Returns {"ok":true,"copied":[file names],"skipped":[{"file","code"}]}; a skip code is the
+# unpack() failure code ("invalid"/"version"), "invalid" when the committed bytes do not read back,
+# or "write" for any other commit failure.
+func adopt_legacy(source: String) -> Dictionary:
+ var copied=[]
+ var skipped=[]
+ for slot in Game.Snapshot.SLOTS:
+  for suffix in ["",".bak"]:
+   var file_name=String(slot)+".json"+String(suffix)
+   var origin=source.path_join(file_name)
+   if not FileAccess.file_exists(origin): continue
+   var bytes=_read_bytes(origin)
+   var result=unpack(bytes.get_string_from_utf8())
+   if not result.ok:
+    skipped.append({"file":file_name,"code":String(result.get("code","invalid"))})
+    continue
+   var code=commit_file(directory.path_join(file_name),bytes,func(temp):return read_file(temp).ok)
+   if code=="": copied.append(file_name)
+   else: skipped.append({"file":file_name,"code":"invalid" if code=="readback" else "write"})
+ return {"ok":true,"copied":copied,"skipped":skipped}
+
+# The source is opened for reading only; an unreadable file yields empty bytes, which unpack()
+# then rejects as invalid, so a failed open can never be copied.
+func _read_bytes(filename: String) -> PackedByteArray:
+ var file=FileAccess.open(filename,FileAccess.READ)
+ if file==null: return PackedByteArray()
+ var bytes=file.get_buffer(file.get_length())
+ file.close()
+ return bytes
 
 func summary(slot: String) -> Dictionary:
  var result=read_slot(slot)

@@ -571,6 +571,218 @@
       "find": "static func end_detail(_g, _args: Dictionary) -> String:\n return \"结束本次游玩。\"",
       "replace": "static func end_detail(_g, _args: Dictionary) -> String:\n var history: Array=_g.state.route_history\n history.append({\"enter\":\"probe\"})\n return \"结束本次游玩。\"",
       "suite": "architecture"
+    },
+    "user_dir_name_is_version_free": {
+      "file": "project.godot",
+      "find": "config/custom_user_dir_name=\"Godot/app_userdata/紧缚尖塔\"",
+      "replace": "config/custom_user_dir_name=\"Godot/app_userdata/紧缚尖塔demo v0.18.3.fix\"",
+      "suite": "architecture"
+    },
+    "android_package_name_is_pinned": {
+      "file": "export_presets.cfg",
+      "find": "package/unique_name=\"org.magic.spire\"",
+      "replace": "package/unique_name=\"org.magic.spire.dev\"",
+      "suite": "architecture"
+    },
+    "package_probe_uses_appdata_sandbox": {
+      "file": "tools/check-package.ps1",
+      "find": "$start.Environment['APPDATA']=Join-Path $checkDirectory 'appdata'",
+      "replace": "$start.Environment['APPDATA']=Join-Path $checkDirectory 'profile'",
+      "suite": "architecture"
+    },
+    "user_dir_ignores_project_name": {
+      "file": "project.godot",
+      "find": "config/use_custom_user_dir=true",
+      "replace": "config/use_custom_user_dir=false",
+      "suite": "persistence"
+    },
+    "editor_tag_isolates_dev_user_dir": {
+      "file": "project.godot",
+      "find": "config/custom_user_dir_name.editor=\"Godot/app_userdata/紧缚尖塔-dev\"",
+      "replace": "config/custom_user_dir_name.editor=\"Godot/app_userdata/紧缚尖塔\"",
+      "suite": "persistence"
+    },
+    "userdir_declarations_are_version_free": {
+      "file": "project.godot",
+      "find": "config/custom_user_dir_name.editor=\"Godot/app_userdata/紧缚尖塔-dev\"",
+      "replace": "config/custom_user_dir_name.editor=\"Godot/app_userdata/紧缚尖塔-dev\"\nconfig/custom_user_dir_name.windows=\"紧缚尖塔 v0.19\"",
+      "suite": "architecture"
+    },
+    "userdir_declarations_have_no_trailing_dot": {
+      "file": "project.godot",
+      "find": "config/custom_user_dir_name=\"Godot/app_userdata/紧缚尖塔\"",
+      "replace": "config/custom_user_dir_name=\"Godot/app_userdata/紧缚尖塔.\"",
+      "suite": "architecture"
+    },
+    "legacy_source_follows_save_mtime_not_version": {
+      "file": "ui/legacy_import.gd",
+      "find": "  var rank=_source_rank(root.path_join(\"saves\"),store)",
+      "replace": "  var rank=[directory.replace(SOURCE_PREFIX,\"\").replace(\".\",\"\").to_int()]",
+      "suite": "persistence"
+    },
+    "legacy_never_imports_into_a_non_empty_target": {
+      "file": "ui/legacy_import.gd",
+      "find": " if _target_has_saves(store):",
+      "replace": " if false:",
+      "suite": "persistence"
+    },
+    "legacy_import_runs_only_once": {
+      "file": "ui/legacy_import.gd",
+      "find": " if FileAccess.file_exists(marker):",
+      "replace": " if false:",
+      "suite": "persistence"
+    },
+    "legacy_import_opens_legacy_read_only": {
+      "file": "ui/legacy_import.gd",
+      "find": " var adopted=store.adopt_legacy(source_root.path_join(\"saves\"))",
+      "replace": " var probe=FileAccess.open(source_root.path_join(\"saves/tower.json\"),FileAccess.WRITE)\n if probe!=null: probe.close()\n var adopted=store.adopt_legacy(source_root.path_join(\"saves\"))",
+      "suite": "architecture"
+    },
+    "saves_single_writer": {
+      "file": "ui/display_settings.gd",
+      "find": " config.set_value(\"audio\",\"interaction_audio_volume\",interaction_audio_volume)",
+      "replace": " config.set_value(\"audio\",\"interaction_audio_volume\",interaction_audio_volume)\n var probe=FileAccess.open(ProjectSettings.globalize_path(\"user://saves/tower.json\"),FileAccess.WRITE)\n if probe!=null: probe.close()",
+      "suite": "architecture"
+    },
+    "legacy_import_is_wired_once": {
+      "file": "ui/main.gd",
+      "find": "preload(\"res://ui/legacy_import.gd\").run_once(self,OS.has_feature(\"pc\"))",
+      "replace": "preload(\"res://ui/legacy_import.gd\").run_once(self,true)",
+      "suite": "architecture"
+    },
+    "legacy_directory_matrix_matches_the_plan": {
+      "file": "ui/legacy_import.gd",
+      "find": " if _target_has_saves(store): return _finish_import(marker,\"target_not_empty\",\"\",[],[{\"file\":\"*\",\"code\":\"target_not_empty\"}],store)\n var found=find_source(parent,store)\n if found.is_empty(): return _finish_import(marker,\"none\",\"\",[],[],store)",
+      "replace": " var found=find_source(parent,store)\n if found.is_empty(): return _finish_import(marker,\"none\",\"\",[],[],store)\n if _target_has_saves(store): return _finish_import(marker,\"target_not_empty\",String(found.name),[],[],store)",
+      "suite": "persistence"
+    },
+    "legacy_crash_after_temp_write_converges": {
+      "file": "ui/legacy_import.gd",
+      "find": "  if store.has_files(String(slot)): return true",
+      "replace": "  if store.has_files(String(slot)) or FileAccess.file_exists(store.path(String(slot))+\".tmp\"): return true",
+      "suite": "persistence"
+    },
+    "legacy_crash_midway_before_marker_converges": {
+      "file": "ui/legacy_import.gd",
+      "find": " if _target_has_saves(store): return _finish_import(marker,\"target_not_empty\",\"\",[],[{\"file\":\"*\",\"code\":\"target_not_empty\"}],store)",
+      "replace": " if false: return _finish_import(marker,\"target_not_empty\",\"\",[],[{\"file\":\"*\",\"code\":\"target_not_empty\"}],store)",
+      "suite": "persistence"
+    },
+    "legacy_source_tie_is_deterministic": {
+      "file": "ui/legacy_import.gd",
+      "find": " return _finish_import(marker,\"copied\",source_name,copied,skipped,store)",
+      "replace": " return _finish_import(marker,\"copied\",\"\",copied,skipped,store)",
+      "suite": "persistence"
+    },
+    "legacy_source_ignores_directories_without_saves": {
+      "file": "ui/legacy_import.gd",
+      "find": "  if rank.is_empty(): continue",
+      "replace": "  if rank.is_empty(): rank=[0,\"\",0]",
+      "suite": "persistence"
+    },
+    "legacy_source_never_picks_dev_or_target_name": {
+      "file": "ui/legacy_import.gd",
+      "find": "  if not directory.begins_with(SOURCE_PREFIX): continue",
+      "replace": "  if directory==\"\": continue",
+      "suite": "persistence"
+    },
+    "legacy_source_accepts_non_ascii_and_spaced_names": {
+      "file": "ui/legacy_import.gd",
+      "find": "  if not directory.begins_with(SOURCE_PREFIX): continue",
+      "replace": "  if not directory.begins_with(SOURCE_PREFIX) or directory.contains(\" \"): continue",
+      "suite": "persistence"
+    },
+    "legacy_source_is_the_newest_directory_with_a_readable_save": {
+      "file": "ui/display_settings.gd",
+      "find": " if saved_vsync is bool: vsync_enabled=saved_vsync\n var saved_mode=config.get_value(\"display\",\"mode\",mode)",
+      "replace": " if saved_vsync is bool: vsync_enabled=saved_vsync\n var saved_mode=mode",
+      "suite": "persistence"
+    },
+    "legacy_display_import_follows_initialize_domains": {
+      "file": "ui/display_settings.gd",
+      "find": " if resolution not in choices(): resolution=choices().back()\n save()",
+      "replace": " save()",
+      "suite": "persistence"
+    },
+    "legacy_run_once_derives_paths_from_the_injected_store": {
+      "file": "ui/legacy_import.gd",
+      "find": " var target=ProjectSettings.globalize_path(String(host.saves.directory)).replace(\"\\\\\",\"/\").trim_suffix(\"/\").get_base_dir()",
+      "replace": " var target=ProjectSettings.globalize_path(\"user://\").replace(\"\\\\\",\"/\").trim_suffix(\"/\")",
+      "suite": "persistence"
+    },
+    "legacy_write_failure_keeps_the_import_retryable": {
+      "file": "ui/legacy_import.gd",
+      "find": " if skipped.any(func(row):return String(row.code)==\"write\"): return _answer(false,true,\"write\",source_name,copied,skipped)",
+      "replace": " if false: return _answer(false,true,\"write\",source_name,copied,skipped)",
+      "suite": "persistence"
+    },
+    "legacy_scan_failure_keeps_the_import_retryable": {
+      "file": "ui/legacy_import.gd",
+      "find": " if found.has(\"code\"): return _answer(false,true,String(found.code),\"\",[],[])",
+      "replace": " if found.has(\"code\"): return _finish_import(marker,String(found.code),\"\",[],[],store)",
+      "suite": "persistence"
+    },
+    "atomic_commit_is_single": {
+      "file": "core/save_store.gd",
+      "find": "   var code=commit_file(directory.path_join(file_name),bytes,func(temp):return read_file(temp).ok)",
+      "replace": "   var stray=FileAccess.open(directory.path_join(file_name)+\".tmp\",FileAccess.WRITE)\n   if stray!=null: stray.close()\n   var code=commit_file(directory.path_join(file_name),bytes,func(temp):return read_file(temp).ok)",
+      "suite": "architecture"
+    },
+    "commit_crash_injection_is_debug_only": {
+      "file": "core/save_store.gd",
+      "find": " if not OS.is_debug_build() or debug_crash.is_empty(): return false",
+      "replace": " if debug_crash.is_empty(): return false",
+      "suite": "architecture"
+    },
+    "display_import_matches_initialize": {
+      "file": "ui/display_settings.gd",
+      "find": " save()\n return save_error==\"\"",
+      "replace": " if frame_limit==240: frame_limit=60\n save()\n return save_error==\"\"",
+      "suite": "display",
+      "execution": "ui"
+    },
+    "keyboard_import_matches_initialize": {
+      "file": "ui/key_bindings.gd",
+      "find": " save()\n return error==\"\"",
+      "replace": " hold_end=false\n save()\n return error==\"\"",
+      "suite": "keyboard",
+      "execution": "ui"
+    },
+    "save_commit_failures_keep_the_previous_save": {
+      "file": "core/save_store.gd",
+      "find": " if not readback.call(temp): return \"readback\"",
+      "replace": " readback.call(temp)",
+      "suite": "persistence"
+    },
+    "legacy_commit_failures_keep_the_import_retryable": {
+      "file": "ui/legacy_import.gd",
+      "find": " return _answer(written,true,code if written else \"marker\",source,copied,skipped)",
+      "replace": " return _answer(true,true,code,source,copied,skipped)",
+      "suite": "persistence"
+    },
+    "legacy_leaves_every_legacy_byte_untouched": {
+      "file": "ui/legacy_import.gd",
+      "find": " var source_root=String(found.path)",
+      "replace": " var source_root=String(found.path)\n var _stray=FileAccess.open(source_root.path_join(\"stray.txt\"),FileAccess.WRITE)\n if _stray!=null: _stray.close()",
+      "suite": "persistence"
+    },
+    "legacy_skips_invalid_saves_and_keeps_the_rest": {
+      "file": "ui/legacy_import.gd",
+      "find": "\"code\":String(row.get(\"code\",\"invalid\"))",
+      "replace": "\"code\":\"copied\"",
+      "suite": "persistence"
+    },
+    "legacy_stays_off_without_persistence_or_desktop": {
+      "file": "ui/legacy_import.gd",
+      "find": " return persistence_enabled and desktop",
+      "replace": " return false",
+      "suite": "persistence"
+    },
+    "legacy_interrupted_copy_converges": {
+      "file": "ui/legacy_import.gd",
+      "find": "  if store.has_files(String(slot)): return true",
+      "replace": "  if store.has_files(String(slot)) and String(slot)==\"practice\": return true",
+      "suite": "persistence"
     }
   }
 }

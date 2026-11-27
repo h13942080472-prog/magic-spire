@@ -58,6 +58,42 @@
 - **签名**：默认配置在 `G:/CodexData/keys/spire-android/signing.json`，密码由当前 Windows 账户 DPAPI 保护；
   `-SigningConfig` 指定其他本机配置。发布脚本只通过环境变量传递密码，源码及 APK 不包含私钥。
 
+## 用户数据目录
+
+`user://` 的物理位置由 `spire-godot/project.godot` 的 `[application]` 段三行声明，与 `config/name`、
+`config/version` 无关：
+
+| 键 | 当前值 | 作用 |
+| --- | --- | --- |
+| `config/use_custom_user_dir` | `true` | 让 `user://` 落在自定义目录，而不是由 `config/name` 推出的目录 |
+| `config/custom_user_dir_name` | `"Godot/app_userdata/紧缚尖塔"` | 发行版目录；拼在系统用户数据目录之后，Windows 上是 `%APPDATA%\Godot\app_userdata\紧缚尖塔` |
+| `config/custom_user_dir_name.editor` | `"Godot/app_userdata/紧缚尖塔-dev"` | `editor` 特性标签生效的运行时改用开发目录 |
+
+- 目录名不带版本号：改版本号或改 `config/name` 都不再搬家。旧版本各自带版本号的目录**仍在原处**，
+  复制一次由旧目录导入负责；本条不删除、不改名、不覆盖任何旧目录。
+- 名字不得带版本号，也不得以 `.` 结尾（Windows 会去掉末尾句点，声明值与实际目录就不一致）。
+  判据：`spire-godot/tests/architecture_cases.gd::user_dir_name_is_version_free`（扫描全部
+  `config/custom_user_dir_name*` 键）、`::userdir_declarations_are_version_free`、
+  `::userdir_declarations_have_no_trailing_dot`、
+  `spire-godot/tests/persistence_cases.gd::user_dir_ignores_project_name`。
+- `editor` 覆盖只在 `editor` 特性标签生效时解析；运行时目录与该解析是否一致，由
+  `spire-godot/tests/persistence_cases.gd::editor_tag_isolates_dev_user_dir` 钉住。
+- Android 不受影响：该设置只在桌面平台生效，移动端目录按包名分配，包名仍为 `org.magic.spire`。
+  判据：`spire-godot/tests/architecture_cases.gd::android_package_name_is_pinned`（逐个 Android 预设核对）。
+- 成品探针：`spire-godot/tools/check-package.ps1` 与 `spire-godot/tools/check-android-package.ps1`
+  在启动子进程前把 `APPDATA` 指到 `<检查目录>/appdata`，引擎日志与设置不落进真实 `%APPDATA%`。
+  判据：`spire-godot/tests/architecture_cases.gd::package_probe_uses_appdata_sandbox`。
+- 两个探针落的目录不同，**验收以 `native` 探针为准**：`pck` 探针用编辑器二进制启动（`Find-SpireGodot`），
+  `editor` 特性标签为真，因此落到 `<检查目录>/appdata/Godot/app_userdata/紧缚尖塔-dev`；只有 `native` 探针
+  （`<发布目录>/紧缚尖塔.exe`，`editor` 为假）落到发行目录 `<检查目录>/appdata/Godot/app_userdata/紧缚尖塔`。
+  拿 `pck` 探针的日志核对发行目录会误判。
+
+**发布闸**（有效，发版检查项）：第一个包含固定用户目录（本节）的公开发布，必须同时包含旧目录一次性导入
+（docs/spec/save-fixed-points.md「旧目录导入」），否则升级的玩家看到空存档、旧目录又被
+遗弃，等于再丢一次档。满足方式是固定用户目录与旧目录导入在同一分支、同版发布；在实际发布之前，本闸始终是
+发版检查项，发版前由维护者对照发布内容逐条确认——本条无机械判据，靠人审。以后再改目录名或导入行为时同理：
+第一个包含该改动的公开发布必须同时包含对应的导入侧改动。
+
 ## 失败语义
 
 - `package.ps1` 拒绝覆盖已存在的产物目录；脚本核对导出退出码、错误、文件存在以及导出前后源码指纹，

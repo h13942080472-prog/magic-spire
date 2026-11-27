@@ -24,20 +24,37 @@ func defaults() -> void:
 func initialize(enabled: bool) -> void:
  persist=enabled
  if not persist: return
+ if not _read_bindings(path): return
+ if bindings.heavy==[KEY_X] and bindings.kick==[KEY_V]:
+  bindings.heavy=[KEY_V];bindings.kick=[KEY_X];save()
+
+# Legacy import (docs/spec/save-fixed-points.md「旧目录导入」): read another path through the same
+# reader as initialize() (_read_bindings below), then write this module's own path through save(). The old
+# heavy/kick pair stays as read and is migrated by initialize() on the next launch.
+func import_from(source: String) -> bool:
+ if not persist: return false
+ if not _read_bindings(source): return false
+ save()
+ return error==""
+
+# The single reader of a key-bindings file, shared by initialize() and import_from(): the whole
+# table is taken only when every action has its slot count of positive, distinct, non-Escape key codes,
+# and hold_end is read with it. Otherwise nothing changes and it returns false, as it does when the file
+# does not load.
+func _read_bindings(file: String) -> bool:
  var config=ConfigFile.new()
- if config.load(path)!=OK: return
+ if config.load(file)!=OK: return false
  var saved=config.get_value("keyboard","bindings",{})
- if not saved is Dictionary or saved.keys().size()!=ACTIONS.size(): return
+ if not saved is Dictionary or saved.keys().size()!=ACTIONS.size(): return false
  var used=[]
  for id in ACTIONS:
-  if not saved.has(id) or not saved[id] is Array or saved[id].size()!=ACTIONS[id].size()-1: return
+  if not saved.has(id) or not saved[id] is Array or saved[id].size()!=ACTIONS[id].size()-1: return false
   for key in saved[id]:
-   if not key is int or key<=0 or (key & KEY_CODE_MASK)==KEY_ESCAPE or key in used: return
+   if not key is int or key<=0 or (key & KEY_CODE_MASK)==KEY_ESCAPE or key in used: return false
    used.append(key)
  bindings=saved.duplicate(true)
  hold_end=config.get_value("keyboard","hold_end",false)==true
- if bindings.heavy==[KEY_X] and bindings.kick==[KEY_V]:
-  bindings.heavy=[KEY_V];bindings.kick=[KEY_X];save()
+ return true
 
 func assign(id: String, slot: int, key: int) -> bool:
  error=""

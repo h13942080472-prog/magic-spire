@@ -22,10 +22,10 @@
 | `docs/guide/` | 怎么干活：操作、文案与本地化的改法 | 动手前 |
 | `docs/record/` | 只追加记录：验证卷（按时间分卷）、版本日志、性能测量、未落地提案 | 取证与追溯 |
 | `docs/history/` | 只读归档：历史契约与已被推翻记录；用于追溯，不是待办 | 需要追溯决策时 |
-| `spire-godot/core/`、`ui/`、`data/` | 规则内核、界面、静态数据 | 改动与运行时 |
+| `spire-godot/core/`、`ui/`、`data/` | 规则内核、界面（含一次性旧目录导入 `ui/legacy_import.gd`）、静态数据 | 改动与运行时 |
 | `spire-godot/content/`、`assets/` | 内容包（加载源与打包取值见 `docs/spec/packaging.md`）、素材（来源与差分见 `spire-godot/assets/art/ART-NOTES.md`、`spire-godot/assets/vendor/CREDITS.md`） | 内容与美术任务 |
 | `spire-godot/tests/`、`spire-godot/tools/` | 规则／界面检查与打包、探针脚本 | 验证与发布 |
-| `spire-godot/project.godot` | 版本号与导出预设的读取源（打包脚本据此选择预设） | 打包与发布 |
+| `spire-godot/project.godot` | 版本号与导出预设的读取源（打包脚本据此选择预设）；`user://` 固定目录名的声明（见 `docs/spec/packaging.md`「用户数据目录」） | 打包与发布、存档与迁移任务 |
 | `spire-godot/build/`、`outputs/` | 已忽略目录：构建证据与交付产物，不入库 | 按验证记录中的路径取证 |
 | `release/` | 玩家面副本与启动器（`基础操作教学.txt`、`开始游戏.cmd`／`.vbs`） | 随包分发与启动 |
 | `skills/` | 操作与领域技能正文：`repo-ops`（命令与操作流程）、`spire-architecture`、`spire-ui-content`、`spire-validation-release`；`.zcode/skills/` 下同名文件仅为 ZCode 发现用薄桩 | 动手前 |

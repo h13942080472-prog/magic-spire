@@ -1188,6 +1188,16 @@ static func run(t) -> void:
  target_queries_stay_stateless(t)
  ui_never_reads_game_state(t)
  mutation_evidence_is_total(t)
+ user_dir_name_is_version_free(t)
+ userdir_declarations_are_version_free(t)
+ userdir_declarations_have_no_trailing_dot(t)
+ android_package_name_is_pinned(t)
+ package_probe_uses_appdata_sandbox(t)
+ legacy_import_opens_legacy_read_only(t)
+ saves_single_writer(t)
+ legacy_import_is_wired_once(t)
+ atomic_commit_is_single(t)
+ commit_crash_injection_is_debug_only(t)
  behavior_baseline_equivalence(t)
  removal_end_state(t)
  copy_single_entry_matches_projection(t)
@@ -6918,6 +6928,189 @@ static func mutation_evidence_is_total(t) -> void:
  var both=covered.filter(func(name):return name in declared_gaps)
  var unknown=declared_gaps.filter(func(name):return name not in universe)
  t.check(silent.is_empty() and both.is_empty() and unknown.is_empty(),"MT mutation_evidence_is_total: each judgment is either evidenced or named in known_gaps: silent="+str(silent)+" both="+str(both)+" unknown="+str(unknown))
+
+# 固定用户目录（docs/spec/packaging.md「用户数据目录」）：固定目录由 project.godot 的 [application]
+# 三行声明（两行目录名 + 一行 .editor 覆盖），名字不带版本号；`.editor` 特性标签覆盖给工具与开发运行 -dev 名字。运行时代码只允许
+# 旧目录导入器提到 app_userdata 父目录，其余模块不得自行拼用户目录；Android 的目录仍由包名决定。
+const USERDIR_NAME="Godot/app_userdata/紧缚尖塔"
+const USERDIR_NAME_DEV="Godot/app_userdata/紧缚尖塔-dev"
+const USERDIR_APP_USERDATA_REFS=["ui/legacy_import.gd"]
+const USERDIR_PROBE_SCRIPTS=["tools/check-package.ps1","tools/check-android-package.ps1"]
+
+# 本片唯一从 project.godot 原文读取固定目录声明值的助手：它只读声明值（config/custom_user_dir_name*
+# 的字面量），既不解析特性标签覆盖，也不判断运行时生效的是哪一支。运行时目录的比对另由
+# persistence_cases.gd::userdir_declared_value 读同一个声明值、由 editor_tag_isolates_dev_user_dir
+# 自行按特性标签选一支；两处都不解析覆盖，语义不同，不互相替代。
+static func userdir_declarations(project: String) -> Array:
+ var pattern=RegEx.new()
+ if pattern.compile("(?m)^(config/custom_user_dir_name(?:\\.[A-Za-z0-9_]+)*)=\"([^\"]*)\"\\s*$")!=OK: return []
+ var found=[]
+ for hit in pattern.search_all(project): found.append({"key":hit.get_string(1),"value":hit.get_string(2)})
+ return found
+
+static func userdir_declared(project: String, key: String) -> String:
+ for row in userdir_declarations(project):
+  if String(row.key)==key: return String(row.value)
+ return ""
+
+static func userdir_has_version_tag(text: String) -> bool:
+ var pattern=RegEx.new()
+ if pattern.compile("v?[0-9]+\\.[0-9]+")!=OK: return true
+ return pattern.search(text)!=null
+
+# 全部 config/custom_user_dir_name* 声明（含基础键、.editor 与任意平台特性标签覆盖）的单一违规枚举：
+# 父目录前缀、版本号、末尾句点各占一列。主判据与两条按名突变的判据共用本函数，不各自再扫一遍原文。
+static func userdir_declared_violations(project: String) -> Dictionary:
+ var out={"parent":[],"version":[],"dot":[]}
+ for row in userdir_declarations(project):
+  var entry=String(row.key)+"="+String(row.value)
+  if not String(row.value).begins_with("Godot/app_userdata/"): out.parent.append(entry)
+  if userdir_has_version_tag(String(row.value)): out.version.append(entry)
+  if String(row.value).ends_with("."): out.dot.append(entry)
+ return out
+
+static func user_dir_name_is_version_free(t) -> void:
+ var project=source_text("project.godot")
+ var name=userdir_declared(project,"config/custom_user_dir_name")
+ var violations=userdir_declared_violations(project)
+ var shape=[]
+ for column in ["parent","version","dot"]: shape.append_array(violations[column])
+ t.check(project.contains("config/use_custom_user_dir=true"),"USERDIR user_dir_name_is_version_free: project.godot enables application/config/use_custom_user_dir=true")
+ t.check(name==USERDIR_NAME,"USERDIR user_dir_name_is_version_free: application/config/custom_user_dir_name is the pinned version-free directory: "+name)
+ t.check(userdir_declared(project,"config/custom_user_dir_name.editor")==USERDIR_NAME_DEV,"USERDIR user_dir_name_is_version_free: the editor feature-tag override pins the -dev directory")
+ t.check(not userdir_declarations(project).is_empty() and shape.is_empty(),"USERDIR user_dir_name_is_version_free: the pinned name stays under the shared app_userdata parent, free of version numbers and of a trailing dot: "+name+("" if shape.is_empty() else " violations="+str(shape)))
+ var inherited=[]
+ for root in ["res://core","res://data","res://ui","res://update"]:
+  for path in script_files(root):
+   var relative=path.trim_prefix("res://")
+   if relative in USERDIR_APP_USERDATA_REFS: continue
+   if source_text(relative).contains("app_userdata"): inherited.append(relative)
+ t.check(inherited.is_empty(),"USERDIR user_dir_name_is_version_free: only the pinned legacy importer names the app_userdata parent: "+str(inherited))
+
+# USERDIR-1 的两条按名突变锚：tests/mutations.json 的键必须是本套件的判据函数名
+# （mutation_evidence_is_total 的幽灵检查），而一条判据只挂一条突变，所以「带版本号」与「末尾句点」
+# 各自再声明为一条具名判据，让各自的目标突变有唯一 expect；断言体共用 userdir_declared_violations。
+static func userdir_declarations_are_version_free(t) -> void:
+ var version=userdir_declared_violations(source_text("project.godot")).get("version",[])
+ t.check(version.is_empty(),"USERDIR userdir_declarations_are_version_free: every config/custom_user_dir_name* declaration is free of version numbers: "+str(version))
+
+static func userdir_declarations_have_no_trailing_dot(t) -> void:
+ var dot=userdir_declared_violations(source_text("project.godot")).get("dot",[])
+ t.check(dot.is_empty(),"USERDIR userdir_declarations_have_no_trailing_dot: every config/custom_user_dir_name* declaration is free of a trailing dot: "+str(dot))
+
+static func android_package_name_is_pinned(t) -> void:
+ var presets=source_text("export_presets.cfg")
+ var parts=presets.split("name=\"Android ")
+ var bodies=[]
+ for index in range(1,parts.size()): bodies.append(parts[index])
+ var wrong=bodies.filter(func(body):return not body.contains("package/unique_name=\"org.magic.spire\""))
+ t.check(not bodies.is_empty(),"USERDIR android_package_name_is_pinned: export_presets.cfg declares at least one Android preset")
+ t.check(not bodies.is_empty() and wrong.is_empty(),"USERDIR android_package_name_is_pinned: every Android preset keeps the package org.magic.spire, so a mobile user:// directory stays package-scoped: "+str(wrong.size())+"/"+str(bodies.size())+" preset(s) differ")
+
+static func package_probe_uses_appdata_sandbox(t) -> void:
+ var pattern=RegEx.new()
+ var compiled=pattern.compile("\\$start\\.Environment\\['APPDATA'\\]\\s*=\\s*Join-Path\\s+\\$[A-Za-z_][A-Za-z0-9_]*\\s+'appdata'")
+ var missing=[]
+ var late=[]
+ for relative in USERDIR_PROBE_SCRIPTS:
+  var text=source_text(relative)
+  if compiled!=OK or pattern.search(text)==null: missing.append(relative)
+  var assignment=text.find("Environment['APPDATA']")
+  var launched=text.find("[Diagnostics.Process]::Start")
+  if assignment<0 or launched<0 or assignment>launched: late.append(relative)
+ t.check(missing.is_empty(),"USERDIR package_probe_uses_appdata_sandbox: both package probes point the child APPDATA at <check directory>/appdata: "+str(missing))
+ t.check(late.is_empty(),"USERDIR package_probe_uses_appdata_sandbox: the probe sandbox is assigned before the child process starts: "+str(late))
+
+# 旧目录导入（docs/spec/save-fixed-points.md「旧目录导入」）：旧目录只读——打开旧路径只用
+# FileAccess.READ；模块唯一的写是迁移标记，且 legacy-import.json 只有这个模块命名。标记也走
+# store 的原子提交：模块自己不以写方式打开任何文件，唯一一次 commit_file 的目标是 marker。
+static func legacy_import_opens_legacy_read_only(t) -> void:
+ var source=source_text("ui/legacy_import.gd")
+ var writes=[]
+ var pattern=RegEx.new()
+ if pattern.compile("FileAccess\\.open\\(([^,\\n]+),\\s*FileAccess\\.([A-Z_]+)")==OK:
+  for found in pattern.search_all(source):
+   if found.get_string(2)!="READ": writes.append(found.get_string(1).strip_edges())
+ var commits=[]
+ var commit=RegEx.new()
+ if commit.compile("commit_file\\(([^,\\n]+),")==OK:
+  for found in commit.search_all(source): commits.append(found.get_string(1).strip_edges())
+ t.check(writes.is_empty() and commits==["marker"],"ARCH legacy_import_opens_legacy_read_only: ui/legacy_import.gd opens every legacy path with FileAccess.READ, opens nothing for writing itself, and its only write is the migration marker through the store's atomic commit: writes="+str(writes)+" commits="+str(commits))
+ var destructive=["DirAccess.remove","DirAccess.rename","DirAccess.copy","remove_absolute","rename_absolute","copy_absolute","make_dir"]
+ var hits=destructive.filter(func(token):return source.contains(token))
+ t.check(hits.is_empty(),"ARCH legacy_import_opens_legacy_read_only: ui/legacy_import.gd never deletes, renames, copies or creates directories: "+str(hits))
+ var owners=[]
+ for root in ["res://core","res://data","res://ui"]:
+  for path in script_files(root):
+   if source_text(path.trim_prefix("res://")).contains("legacy-import"): owners.append(path.trim_prefix("res://"))
+ t.check(owners==["ui/legacy_import.gd"],"ARCH legacy_import_opens_legacy_read_only: legacy-import.json is named only by ui/legacy_import.gd: "+str(owners))
+
+# 旧目录导入：user://saves 的写入只允许 core/save_store.gd 一处；
+# 另一处非存档写只碰自己的常量（反馈草稿）。迁移标记经 core/save_store.gd::commit_file 提交，
+# ui/legacy_import.gd 不再有写点。
+const SAVES_WRITE_EXEMPT={"ui/feedback_report.gd":"DRAFT"}
+
+static func saves_single_writer(t) -> void:
+ var hits=source_write_sites(["res://core","res://data","res://ui"],"FileAccess\\.open\\([^\\n]*FileAccess\\.(?:WRITE|READ_WRITE|APPEND)|rename_absolute|remove_absolute|copy_absolute")
+ var files=[]
+ for hit in hits:
+  var file=String(hit.file)
+  if file not in files: files.append(file)
+ files.sort()
+ t.check(files==["core/save_store.gd","ui/feedback_report.gd"],"ARCH saves_single_writer: every runtime writer of user://saves/** is core/save_store.gd, the migration marker is committed there too, and the only other writer is the feedback draft: "+str(files))
+ var stray=[]
+ for hit in hits:
+  var file=String(hit.file)
+  if not SAVES_WRITE_EXEMPT.has(file): continue
+  var token=String(SAVES_WRITE_EXEMPT[file])
+  if not String(hit.text).contains(token): stray.append(file+"::"+String(hit.function)+" "+String(hit.text))
+ t.check(stray.is_empty(),"ARCH saves_single_writer: the exempted writers touch only their own declared target: "+str(stray))
+
+# 旧目录导入（docs/spec/save-fixed-points.md「旧目录导入」）：ui/main.gd 只在 _ready 里接一次线，且接线在
+# _restore_startup 之前；关闸判断在 run_once 的最前面，先于任何 user 路径解析。
+static func legacy_import_is_wired_once(t) -> void:
+ var source=source_text("ui/main.gd")
+ t.check(source.count("run_once(")==1,"ARCH legacy_import_is_wired_once: ui/main.gd calls the import entry exactly once: "+str(source.count("run_once(")))
+ var entry="preload(\"res://ui/legacy_import.gd\").run_once(self,OS.has_feature(\"pc\"))"
+ t.check(source.count(entry)==1,"ARCH legacy_import_is_wired_once: the single wiring line passes the host and the real desktop flag: "+entry)
+ var ready=source_func_body_code("res://ui/main.gd","_ready")
+ var call_at=ready.find("run_once(")
+ var restore_at=ready.find("_restore_startup()")
+ t.check(call_at>=0 and restore_at>call_at,"ARCH legacy_import_is_wired_once: the import runs inside _ready before _restore_startup (call="+str(call_at)+" restore="+str(restore_at)+")")
+ var gate=source_func_body_code("res://ui/legacy_import.gd","run_once")
+ var gate_at=gate.find("if not enabled(")
+ var path_at=gate.find("globalize_path(")
+ t.check(gate_at>=0 and (path_at<0 or gate_at<path_at),"ARCH legacy_import_is_wired_once: run_once decides the gate before resolving any user path (gate="+str(gate_at)+" path="+str(path_at)+")")
+ var enabled=source_func_body_code("res://ui/legacy_import.gd","enabled")
+ t.check(enabled.contains("persistence_enabled") and enabled.contains("desktop"),"ARCH legacy_import_is_wired_once: the gate requires persistence and a desktop build: "+enabled.strip_edges())
+
+# 旧目录导入（docs/spec/save-fixed-points.md「旧目录导入」）：`.tmp` → 回读 → 改名 在运行时代码里
+# 只有 core/save_store.gd::commit_file 一份；write_game 与 adopt_legacy 都经它提交，迁移标记由
+# legacy_import_opens_legacy_read_only 钉住同一入口。注释不算（逐行去掉 # 之后再数）。
+static func atomic_commit_is_single(t) -> void:
+ var temps=[]
+ for root in ["res://core","res://data","res://ui"]:
+  for path in script_files(root):
+   var relative=path.trim_prefix("res://")
+   var count=0
+   for line in source_text(relative).split("\n"): count+=String(line).split("#")[0].count("+\".tmp\"")
+   if count>0: temps.append(relative+"="+str(count))
+ t.check(temps==["core/save_store.gd=1"] and source_func_body_code("res://core/save_store.gd","commit_file").contains("+\".tmp\""),"ARCH atomic_commit_is_single: exactly one runtime site names a .tmp file and it is core/save_store.gd::commit_file: "+str(temps))
+ var bypass=[]
+ for name in ["write_game","adopt_legacy"]:
+  if not source_func_body_code("res://core/save_store.gd",name).contains("commit_file("): bypass.append(name)
+ t.check(bypass.is_empty(),"ARCH atomic_commit_is_single: write_game and adopt_legacy commit through commit_file: missing="+str(bypass))
+
+# 崩溃注入点只在 debug 构建生效——core/save_store.gd 只在 _debug_crash_point 里读
+# debug_crash，该函数第一句就以 OS.is_debug_build() 短路，运行时其他源码不提 debug_crash；发行包里注入点
+# 因此不可达（AGENTS「额外诊断与重复一致性断言走 debug 通路」）。
+static func commit_crash_injection_is_debug_only(t) -> void:
+ var point=source_func_body_code("res://core/save_store.gd","_debug_crash_point").strip_edges()
+ t.check(point.begins_with("if not OS.is_debug_build() or debug_crash.is_empty(): return false"),"ARCH commit_crash_injection_is_debug_only: the crash point returns false before anything else unless this is a debug build: "+point.get_slice("\n",0))
+ var readers=[]
+ for hit in source_write_sites(["res://core","res://data","res://ui"],"debug_crash\\b"):
+  if String(hit.file)!="core/save_store.gd" or (String(hit.function)!="_debug_crash_point" and not String(hit.text).begins_with("var debug_crash")): readers.append(String(hit.file)+"::"+String(hit.function)+" "+String(hit.text))
+ t.check(readers.is_empty(),"ARCH commit_crash_injection_is_debug_only: debug_crash is declared in core/save_store.gd and read only inside _debug_crash_point: "+str(readers))
 
 # T 批（R-T5）锚自检：对 tests/frozen-baselines.json 的每处锚重算 `git show <锚提交>:<文件>` 的 sha256，
 # 与所载 anchor.sha256 逐字节比对（大小写不敏感）。期望侧只在两处外部——JSON 声明与 git 对象库的历史

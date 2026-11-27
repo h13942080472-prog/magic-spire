@@ -103,37 +103,62 @@ func initialize(target: Window, persist: bool=true) -> void:
  mode=2 if window.mode in [Window.MODE_FULLSCREEN,Window.MODE_EXCLUSIVE_FULLSCREEN] else (1 if window.borderless else 0)
  resolution=window.size
  if not persistence_enabled: return
+ if not _read_settings(path): return
+ if resolution not in choices(): resolution=choices().back()
+ apply()
+
+# Legacy import (docs/spec/save-fixed-points.md「旧目录导入」): read another path through the same
+# reader as initialize() (_read_settings below: every key save() writes, with the same shapes and ranges),
+# then write this module's own path through save(). A value the reader rejects keeps what this owner held
+# without that key (a fresh instance: the default). display/mode and display/resolution are imported too,
+# but no window work happens here, so the import stays safe before the window exists and in headless runs;
+# the next initialize() applies them.
+func import_from(source: String) -> bool:
+ if not persistence_enabled: return false
+ if not _read_settings(source): return false
+ if resolution not in choices(): resolution=choices().back()
+ save()
+ return save_error==""
+
+# The single reader of a display-settings file, shared by initialize() and import_from(): every
+# key save() writes, each with its accepted shape and range, in this one place. A missing or rejected key
+# keeps what this owner held before the read: the reset defaults right after initialize() (mode and
+# resolution: the window's), or a fresh instance's defaults. Returns false, touching nothing, when the file
+# does not load. The final fit of resolution into choices() is the one line left in each caller:
+# tests/mutations.json pins import_from's line directly before save(), and the UI criterion
+# display_import_matches_initialize keeps the two lines in step.
+func _read_settings(file: String) -> bool:
  var config=ConfigFile.new()
- if config.load(path)!=OK: return
- var saved_locale=config.get_value("localization","locale",Localization.DEFAULT_LOCALE)
+ if config.load(file)!=OK: return false
+ var saved_locale=config.get_value("localization","locale",locale)
  if Localization.supported(saved_locale): locale=saved_locale
- var saved_music=config.get_value("audio","card_music_enabled",true)
- var saved_volume=config.get_value("audio","card_music_volume",0.2)
+ var saved_music=config.get_value("audio","card_music_enabled",card_music_enabled)
+ var saved_volume=config.get_value("audio","card_music_volume",card_music_volume)
  if saved_music is bool: card_music_enabled=saved_music
  if (saved_volume is float or saved_volume is int) and is_finite(float(saved_volume)):
   card_music_volume=clampf(float(saved_volume),0.0,1.0)
- var saved_voice=config.get_value("audio","doubao_voice_enabled",true)
- var saved_voice_volume=config.get_value("audio","doubao_voice_volume",0.32)
+ var saved_voice=config.get_value("audio","doubao_voice_enabled",doubao_voice_enabled)
+ var saved_voice_volume=config.get_value("audio","doubao_voice_volume",doubao_voice_volume)
  if saved_voice is bool: doubao_voice_enabled=saved_voice
  if (saved_voice_volume is float or saved_voice_volume is int) and is_finite(float(saved_voice_volume)):
   doubao_voice_volume=clampf(float(saved_voice_volume),0.0,1.0)
- var saved_fixed=config.get_value("art","fixed_hero_portrait",false)
- var saved_effects=config.get_value("audio","interaction_audio_enabled",true)
- var saved_effects_volume=config.get_value("audio","interaction_audio_volume",0.7)
+ var saved_fixed=config.get_value("art","fixed_hero_portrait",fixed_hero_portrait)
+ var saved_effects=config.get_value("audio","interaction_audio_enabled",interaction_audio_enabled)
+ var saved_effects_volume=config.get_value("audio","interaction_audio_volume",interaction_audio_volume)
  if saved_effects is bool: interaction_audio_enabled=saved_effects
  if (saved_effects_volume is float or saved_effects_volume is int) and is_finite(float(saved_effects_volume)):
   interaction_audio_volume=clampf(float(saved_effects_volume),0.0,1.0)
  if saved_fixed is bool: fixed_hero_portrait=saved_fixed
- var saved_chastity=config.get_value("gameplay","chastity_locks_enabled",false)
- var saved_chance=config.get_value("gameplay","chastity_lock_chance",25)
+ var saved_chastity=config.get_value("gameplay","chastity_locks_enabled",chastity_locks_enabled)
+ var saved_chance=config.get_value("gameplay","chastity_lock_chance",chastity_lock_chance)
  if saved_chastity is bool: chastity_locks_enabled=saved_chastity
  if saved_chance is int and saved_chance>=0 and saved_chance<=100 and saved_chance%5==0: chastity_lock_chance=maxi(5,saved_chance)
  if fixed_hero_portrait: chastity_locks_enabled=false
- var saved_start=config.get_value("gameplay","cursed_plate_start",false)
+ var saved_start=config.get_value("gameplay","cursed_plate_start",cursed_plate_start)
  if saved_start is bool: cursed_plate_start=saved_start and chastity_locks_enabled
- var saved_masochist=config.get_value("gameplay","cursed_plate_masochist_mode",false)
+ var saved_masochist=config.get_value("gameplay","cursed_plate_masochist_mode",cursed_plate_masochist_mode)
  if saved_masochist is bool: cursed_plate_masochist_mode=saved_masochist and chastity_locks_enabled
- var saved_tutorial=config.get_value("onboarding","first_battle_tutorial_seen",false)
+ var saved_tutorial=config.get_value("onboarding","first_battle_tutorial_seen",first_battle_tutorial_seen)
  if saved_tutorial is bool: first_battle_tutorial_seen=saved_tutorial
  var saved_art=config.get_value("art","choices",{})
  if saved_art is Dictionary:
@@ -145,18 +170,17 @@ func initialize(target: Window, persist: bool=true) -> void:
      if not art_choices.has(category): art_choices[category]={}
      var owner=art_choice_id(category,id)
      if id==owner or not art_choices[category].has(owner): art_choices[category][owner]=choices_for_category[id]
- var saved_mode=config.get_value("display","mode",mode)
- var saved_limit=config.get_value("display","frame_limit",60)
- var saved_vsync=config.get_value("display","vsync_enabled",true)
- var saved_motion=config.get_value("display","reduced_card_motion",false)
+ var saved_limit=config.get_value("display","frame_limit",frame_limit)
+ var saved_vsync=config.get_value("display","vsync_enabled",vsync_enabled)
+ var saved_motion=config.get_value("display","reduced_card_motion",reduced_card_motion)
  if saved_motion is bool: reduced_card_motion=saved_motion
  if saved_limit is int and saved_limit in FRAME_LIMITS: frame_limit=saved_limit
  if saved_vsync is bool: vsync_enabled=saved_vsync
+ var saved_mode=config.get_value("display","mode",mode)
  var saved_size=config.get_value("display","resolution",resolution)
  if saved_mode is int and saved_mode in range(MODES.size()): mode=saved_mode
  if saved_size is Vector2i and saved_size.x>=640 and saved_size.y>=360: resolution=saved_size
- if resolution not in choices(): resolution=choices().back()
- apply()
+ return true
 
 func set_mode(value: int) -> void:
  if mobile: return

@@ -2,7 +2,8 @@
   "blind": [
     "spire-godot/core/item_presentation.gd",
     "spire-godot/core/tool_rules.gd",
-    "spire-godot/data/phases.gd"
+    "spire-godot/data/phases.gd",
+    "spire-godot/ui/legacy_import.gd"
   ],
   "case_files": {
     "spire-godot/tests/action_copy_cases.gd": {
@@ -647,7 +648,7 @@
     },
     "spire-godot/tests/persistence_cases.gd": {
       "owner": "rule:persistence",
-      "signals": 5
+      "signals": 7
     },
     "spire-godot/tests/persistence_ui_cases.gd": {
       "owner": "ui:persistence",
@@ -982,7 +983,7 @@
       "signals": 2
     }
   },
-  "digest": "05daf29c4f6096309b4e9d703afe2f43a2b35a093544dbe49e0460dafbeec8bf",
+  "digest": "dacaff83702aaaba2a5494f4b92a390ec97f18f429693758cfe4742d140421ef",
   "domain_words": {
     "ANTI DRONE": [],
     "ART": [
@@ -2054,7 +2055,7 @@
       ]
     }
   },
-  "generated_from": "26817f68d7aa789e05357f6d89c850eb9f57782f8bf5a7ebfa0b73dd8b6ba71e",
+  "generated_from": "8479a92842ec68990079449427b40a8461b08ceddf3743634799fcc64dbc7189",
   "registries": {
     "rule": [
       "drone_operator",
@@ -2172,17 +2173,17 @@
   },
   "schema": 1,
   "stats": {
-    "blind": 3,
-    "blind_by_design": 3,
+    "blind": 4,
+    "blind_by_design": 4,
     "case_files": 244,
     "domains": 71,
     "domains_declared": 71,
     "excluded": 15,
-    "inputs": 403,
+    "inputs": 404,
     "rule_suites": 59,
-    "source_files": 154,
+    "source_files": 155,
     "sources_with_edges": 150,
-    "suite_edges": 596,
+    "suite_edges": 598,
     "suites_with_edges": 106,
     "ui_suites": 50,
     "widen": 1
@@ -2799,6 +2800,12 @@
         "domain"
       ],
       "spire-godot/data/room_events.gd": [
+        "preload"
+      ],
+      "spire-godot/ui/display_settings.gd": [
+        "preload"
+      ],
+      "spire-godot/ui/key_bindings.gd": [
         "preload"
       ]
     },
