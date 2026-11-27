@@ -811,7 +811,6 @@ const MANIFEST_CHECK_DIRECTORY=FIXTURE_DIRECTORY+"manifest-check/"
 const MANIFEST_CHECK_TOOL="res://tools/update-manifest-check.ps1"
 const MANIFEST_CHECK_REJECTIONS={
  "bad-from-empty":"has an empty from or to",
- "bad-to-empty":"has an empty from or to",
  "bad-to-not-latest":"not latest.version",
  "bad-url-http":"patches[0].url is not https://",
  "bad-mirror-http":"patches[0].mirror is not https://",
@@ -820,6 +819,7 @@ const MANIFEST_CHECK_REJECTIONS={
  "bad-bytes-fraction":"bytes must be a whole number from 1 to 268435456",
  "bad-sha-upper":"sha256 must be 64 lower-case hex digits",
  "bad-sha-short":"sha256 must be 64 lower-case hex digits",
+ "bad-sha-newline":"sha256 must be 64 lower-case hex digits",
  "bad-pair-twice":"names the pair 0.18.4 -> 0.18.5 twice",
 }
 

@@ -16,7 +16,7 @@
 | `spire-godot/update/update_check.gd`（新） | `check()`、`deliver()`、`manifest_url()`、`platform_key()`、`scripted_run()`（转调 `spire-godot/update/update_store.gd::scripted_run`）、`auto_allowed()`、`keys`、`store` 注入口与 `_identity()`、`transport: Callable` 接缝、`HTTPRequest`（10 秒超时、`max_redirects=0`、`body_size_limit=65536`）、`checked(offer)` | 一次检查最多 2 个 GET；只用 HTTPS；不写盘；不重试；请求不带存档、种子、设备标识、账号或自定义标识头；失败一律静默；`[update]` 只在此文件读取；`deliver` 把 `_identity()` 交给 `evaluate`；`--script` 与非玩家会话下不构造默认 `update_store`（只有显式注入的 `store` 能给出身份，否则身份为空、不匹配补丁） |
 | `spire-godot/project.godot` | 新增 `[update]` 段：`manifest_url`、`check_on_start`；`run/main_scene` 指向 `res://update/boot.tscn`；`config/name` 不带版本后缀（窗口标题的版本由 `ui/main.gd::_ready` 拼接） | 不改 `application/config/version`、`[feedback]`；不新增 `[autoload]`；`config/custom_user_dir_name*` 不变 |
 | `spire-godot/update/boot.gd`、`spire-godot/update/boot.tscn`（新） | 引导场景与脚本：`start(store, mounter, session)`、`engine_mount(path)`；`_ready` 在玩家会话挂载后以场景路径字符串切到 `res://main.tscn` | 只预载 `update_store.gd` 与 `update_manifest.gd`；不引用 `ui`／`core`／`data`／`tests`；`ProjectSettings.load_resource_pack` 在产品运行时只在 `engine_mount` 一处（发布侧工具 `spire-godot/tools/patch_release_pck.gd` 除外）；`--script` 运行不挂载、不切场景；不触碰 `user://saves/` 与旧档导入标记 |
-| `spire-godot/update/update_store.gd`（新） | 补丁状态与版本身份：`baseline_version`、`effective_version`、`record_mounted`、`identity`、`load_state`、`write_state`、`patch_path`、`mark_failed`、`begin_mount`、`mark_boot_succeeded`、`reset_for_baseline`、`clear_staging`、`valid_version`、`scripted_run`、`player_session`；目录可注入 | 全仓唯一读取 `application/config/version` 的文件、唯一写 `user://updates` 的文件；有效版本只由 `record_mounted` 写；版本经 `valid_version` 文法后才拼路径；状态文件经临时文件、回读、改名写入；不联网、不调用 `core/save_store.gd` |
+| `spire-godot/update/update_store.gd`（新） | 补丁状态与版本身份：`baseline_version`、`effective_version`、`record_mounted`、`identity`、`load_state`、`write_state`、`patch_path`、`mark_failed`、`begin_mount`、`mark_boot_succeeded`、`reset_for_baseline`、`clear_staging`、`valid_version`、`scripted_run`、`player_session`；目录可注入 | 全仓唯一读取 `application/config/version` 的文件、唯一写 `user://updates` 的文件；基线在进程内首次读取后冻结（存进 `Engine` meta，键为私有常量 `BASELINE_KEY`；补丁必然带 `project.binary`，挂载后工程设置是否重载未证实）；有效版本只由 `record_mounted` 写；版本经 `valid_version` 文法后才拼路径；状态文件经临时文件、回读、改名写入；不联网、不调用 `core/save_store.gd` |
 | `spire-godot/ui/main.gd`、`spire-godot/ui/feedback_report.gd`、`spire-godot/tools/release_probe.gd`（版本身份） | `ui/main.gd::_ready` 的窗口标题＝`config/name`＋` v`＋有效版本，并在 `_restore_startup` 之后调 `mark_boot_succeeded`；`ui/feedback_report.gd::_capture_context` 读有效版本；`tools/release_probe.gd::run` 读基线版本 | 三处都经 `update_store.gd`，不再直接读版本设置；`update_store` 字段只在玩家会话构造（用例可注入）；不触碰存档 |
 | `spire-godot/ui/display_settings.gd` | `update_check_enabled`、`set_update_check(enabled)`；既有 `user://display-settings.cfg` 的 `update/check_on_start` 一键 | 不新增 `user://` 文件、不新增设置存储；`initialize` 的复位与加载顺序不变；既有 setter 行为不变 |
 | `spire-godot/ui/home_screen.gd`、`spire-godot/ui/main.gd` | 主页 `HomeUpdateNotice`、`HomeUpdateDownload`、`HomeUpdateMirror`（放在主页布局层，不在 `GameHome` 内）；设置页 `UpdateCheckEnabled`、`UpdateCheckNow`、`UpdateCheckStatus`；持有并启动 `update_check`；`open_url` 可替换的跳转接缝 | 主页左侧标题区仍是原来四个子节点；不改开局、继续、设置的入口与布局语义；检查不阻塞主页输入、不改 `Game` 状态与存档；不调用 `command_router` 或 `Game` 的任何写接口；版本比较、验签、解析不在 UI 里出现第二份；宿主在入树前被释放时（`_notification` 的 `NOTIFICATION_PREDELETE`）一并释放未入树的 `update_check` |
@@ -30,6 +30,7 @@
 | `spire-godot/tools/package.ps1::Get-RuntimeFingerprint`、`spire-godot/tools/package-android.ps1::Get-SourceFingerprint` | 路径集合加入 `update` | 只改路径集合：导出期间 `update/` 下的改动与 `core`／`ui` 一样会被源码稳定性检查发现；不改打包流程与产出 |
 | `spire-godot/tools/check.ps1::Get-SourceFingerprint` | 目录集合加入 `update` | 只改目录集合；指纹仍只作同一次运行内的守卫（`before==after`），不当身份，没有冻结值依赖它 |
 | `spire-godot/tests/fixtures/update/release-scripts/`（新） | 两份脚本用一次性密钥产出的清单与签名，及一次性公钥、`notes.txt`、`android-package-manifest.json`、`windows.zip`、`patch.pck`（占位包，其独立哈希须等于元信息）、`patch-meta.json`（`export-patch.ps1` 元信息的形状）五份输入；同目录 `.gitattributes` 标 `-text` | 只经脚本生成；**不提交任何私钥**；既有 OpenSSL 夹具不变 |
+| `spire-godot/tests/fixtures/update/manifest-check/`（新） | `good.json`（补丁条目完好）与十一份各违反一条回读规则的 `bad-*.json`，及只调用 `Assert-UpdateManifest` 并打印结论的 `assert-manifest.ps1`；同目录 `.gitattributes` 标 `-text` | 夹具只在 `tests/update_cases.gd::update_manifest_patch_entries_are_judged` 里经 pwsh 真实运行；harness 不自带判定；不在 GDScript 里重写判定 |
 | `spire-godot/tests/state_readers.json`（生成物） | 由 `tools/build_state_readers.gd --write` 重写，登记 `update/` 的读取点 | 只经工具写入；不手工编辑；他行不变 |
 | `spire-godot/tests/check_index_edges.gd::CLOSURE` | 新增 `spire-godot/update/` 前缀条目：规则 `update,architecture`、界面 `update`；索引只扫 `core|data|ui`，不加这条则 `update/` 下改动落到 `ROUTE UNMAPPED` 而退回全量 | 只增这一条；窗口标题与反馈报告的断言经 `ui/main.gd`、`ui/feedback_report.gd` 既有的边路由到 `interface`，不在此重复 |
 | `spire-godot/tests/check_index.json`（生成物） | 由 `tools/check-index.ps1 -Write` 重冻，登记 `update/` 与新增测试文件 | 只经工具写入；不手工编辑；他行不变 |
@@ -43,7 +44,7 @@
 判据名＝测试里的具名 check（断言标签 `UPDATE <name>:`／`DEP <name>:` 的 `<name>`，也是该 check 的函数名）。
 表与 `tests/update_cases.gd`、`tests/update_ui_cases.gd`、`tests/architecture_cases.gd` 的 update 具名 check
 **双向相等**：一条判据一行，一行只点名一个检查；漏行、多行、改名或幽灵条目都要同批改表。
-本版共 76 条（规则 53、窗口 12、架构 11），按 `tests/<file>.gd::<name>` 逐名核对。
+本版共 80 条（规则 57、窗口 12、架构 11），按 `tests/<file>.gd::<name>` 逐名核对。
 
 | 判据 | 执行它的检查 |
 | --- | --- |
@@ -107,6 +108,9 @@
 | 生产调用点把本机身份交给 `evaluate`：注入的存储给出身份时有补丁，目标已失败时无补丁，`--script` 下没有存储时无补丁 | `tests/update_cases.gd::check_passes_identity_to_evaluate`（规则分类 `update`） |
 | 补丁导出的可行性判定经 `spire-godot/tools/export-patch.ps1` 真实运行：内容包有改、增、删，`project.godot` 或导出预设有版本以外的差异，引导闭包五个文件各有改动，基线没有引导场景，引擎不同，基线源取不到，主 PCK 与包清单不符，包清单缺失，都非零退出且不留输出；全部相同则可行 | `tests/update_cases.gd::export_patch_feasibility_domain`（规则分类 `update`） |
 | 补丁导出前断言内容包根为发布值：开发树上以导出模式（非 `-CheckOnly`）运行可行的夹具，在启动引擎之前因 `PACKS_ROOT` 不是 `adjacent` 而非零退出，不留输出与暂存目录；`-CheckOnly` 在开发树上不受此断言；发布值通过断言并走到引擎步骤（判据以不存在的引擎路径收场，从不启动引擎） | `tests/update_cases.gd::export_patch_requires_release_packs_root`（规则分类 `update`） |
+| 引擎步骤的失败出口经 `-EngineBinary` 接缝（`.cmd` 替身，不启动引擎）：替身写出完好的包与日志时发布 `-Out`；退出码非零（即使包与日志完好）、空包、最后一步移动失败都非零退出、不留 `-Out`、不留暂存目录，且不覆盖 `-Out` 处已有的内容 | `tests/update_cases.gd::export_patch_engine_failure_leaves_nothing`（规则分类 `update`） |
+| 引擎退出 0 且有包，但日志里有 `ERROR:` 行 → 非零退出、不留 `-Out`、不留暂存目录 | `tests/update_cases.gd::export_patch_engine_error_log_is_failure`（规则分类 `update`） |
+| `Assert-UpdateManifest` 的补丁条目回读规则经 pwsh 真实运行夹具：完好条目通过；`from` 为空、`to` 不等于 `latest.version`、`url` 或 `mirror` 不是 `https://`、`bytes` 为 0／超过 256 MiB／非整数、`sha256` 大写、不足 64 位或末尾带换行（`\z` 锚）、`(from, to)` 重复，各被自己的规则拒绝 | `tests/update_cases.gd::update_manifest_patch_entries_are_judged`（规则分类 `update`） |
 | 版本已在 failed 列表的完好补丁不挂载，条目与文件被清掉 | `tests/update_cases.gd::boot_skips_failed_version`（规则分类 `update`） |
 | 不比基线新的补丁（等于或更旧）不挂载，记 failed 并清掉 | `tests/update_cases.gd::boot_skips_not_newer_patch`（规则分类 `update`） |
 | 标记写不进去（`begin_mount` 为假）时不挂载任何包 | `tests/update_cases.gd::boot_requires_marker_before_mount`（规则分类 `update`） |
@@ -114,6 +118,7 @@
 | `--script` 运行不挂载、不触碰补丁状态，有效版本等于基线 | `tests/update_cases.gd::boot_is_inert_under_script`（规则分类 `update`） |
 | `record_mounted` 移动有效版本、基线不动、`identity` 带基线；空串回到基线 | `tests/update_cases.gd::effective_version_follows_mount`（规则分类 `update`） |
 | 记录了但没挂上（状态里有 active、引擎拒绝挂载）时有效版本仍是基线 | `tests/update_cases.gd::effective_version_requires_mount`（规则分类 `update`） |
+| 基线在进程内冻结：首次读取之后工程设置的 `application/config/version` 被改写，`baseline_version`、无挂载时的 `effective_version` 与 `identity().baseline` 仍是原值 | `tests/update_cases.gd::baseline_version_is_frozen`（规则分类 `update`） |
 | `verify_patch_file` 的字节数、小写摘要、缺失文件、目录与空包；`is_newer` 严格大于 | `tests/update_cases.gd::patch_file_verification_domain`（规则分类 `update`） |
 | 状态文件的敌意输入（路径穿越、坏字段、坏 JSON）被丢弃，版本不合文法不成路径 | `tests/update_cases.gd::store_rejects_hostile_state`（规则分类 `update`） |
 | `run/main_scene` 是可实例化的引导场景，`config/name` 不含版本 | `tests/update_cases.gd::main_scene_is_boot_scene`（规则分类 `update`） |
@@ -183,6 +188,10 @@
   `tests/update_cases.gd::effective_version_requires_mount` 只钉住等价的另一种缺陷：引擎拒绝挂载时仍记录有效版本。
 - 补丁导出在真实成品上的行为没有常驻门禁：`tools/package.ps1` 出基线包（它断言 `PACKS_ROOT` 为发布值 `adjacent`）后 `tools/export-patch.ps1` 的真实导出、
   内容包被改一字节时的拒绝与无输出，只能实跑取证，结果登记在验证记录；成品叠加启动、公网上传与下载、重定向与镜像回退属后续的下载与交互。
-- 补丁导出与补丁条目的拒绝路径（`export-patch.ps1` 的参数拒绝、基线源取不到、`update-manifest.ps1` 的补丁参数拒绝、`Assert-UpdateManifest`
-  的补丁条目回读拒绝）没有常驻门禁，证据是脚本实跑日志；`export_patch_feasibility_domain` 只钉住可行性判定本身，`export_patch_requires_release_packs_root` 只钉住导出前的内容包根断言。
+- 补丁导出与补丁条目的拒绝路径中，`export-patch.ps1` 的参数拒绝、基线源取不到（除 `baseline-unavailable` 一行）、`update-manifest.ps1` 的补丁参数拒绝没有常驻门禁，
+  证据是脚本实跑日志；`export_patch_feasibility_domain` 只钉住可行性判定本身，`export_patch_requires_release_packs_root` 只钉住导出前的内容包根断言，
+  两条引擎步骤判据钉住失败出口的清理。`Assert-UpdateManifest` 的补丁条目回读规则由 `update_manifest_patch_entries_are_judged` 常驻钉住。
+- 引擎步骤里「包文件不存在」这一支没有独立判据：`Get-Item` 在包缺失时同样抛错，去掉该子句不改变结果，故不为它留检查。
+- `Assert-UpdateManifest` 里两处子句没有独立的「关掉即红」：`to` 为空已被 `to == latest.version` 先行拒绝，所以不留 `to` 为空的夹具；`bytes` 小数的 `TryGetInt64` 失败后 `$size` 仍为 0，由 `$size -le 0` 兜住，所以只关掉 `TryGetInt64` 子句不会变红（整条 `bytes` 规则关掉时小数夹具变红）。
+- 基线冻结只钉住进程内行为；挂载补丁后引擎是否真的重载工程设置仍未证实，冻结是对该未证实项的防御，不是它的证据。
 - 不属于本片授权面：`spire-godot/core/**`、`spire-godot/data/**`、`spire-godot/ui/**`；`spire-godot/tools/package*.ps1` 只改源码稳定性清单。

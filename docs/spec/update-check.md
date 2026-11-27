@@ -103,7 +103,7 @@ func _manual_update_check() -> void       # 设置页「立即检查」：不受
 
 ```gdscript
 # spire-godot/update/update_store.gd（RefCounted；目录可注入：Store.new(directory)，默认 user://updates）
-static func baseline_version() -> String        # 基线＝EXE 与主 PCK 的版本；全仓唯一读取 application/config/version 的位置
+static func baseline_version() -> String        # 基线＝EXE 与主 PCK 的版本；进程内首次读取后冻结；全仓唯一读取 application/config/version 的位置
 static func effective_version() -> String       # 有效版本＝本进程实际挂载成功的补丁 to，否则等于基线；读进程内 Engine meta，不读磁盘
 static func record_mounted(to: String) -> void  # 有效版本的唯一写入者，只由 boot.gd 在引擎接受补丁后调用；空串＝回到基线
 func identity() -> Dictionary                   # {"baseline":String,"failed":Array}，供清单补丁匹配（evaluate 的 local）
@@ -135,6 +135,10 @@ static func document(bytes: PackedByteArray) -> Variant                         
   记录了但没挂上时跑的是基线代码，必须报基线。消费者：窗口标题（`ui/main.gd::_ready`）、反馈报告
   （`ui/feedback_report.gd::_capture_context`）与清单判定的 `current`（`spire-godot/update/update_check.gd::deliver`）读有效版本；
   `tools/release_probe.gd::run` 验的是导出的主 PCK，读基线；发布侧脚本按文本读 `project.godot`，不运行引擎。
+- 基线在进程内冻结：`baseline_version` 在本进程第一次被调用时读一次工程设置，存进 `Engine` meta（与有效版本各用一个私有常量键），
+  此后一律返回这份副本。理由：每个补丁的 `config/version` 必然与基线不同，所以每个补丁都带 `project.binary`；
+  挂载补丁后引擎是否重载工程设置，官方文档未写明（未证实）。若重载而基线仍实时读取，本会话的 `identity().baseline`
+  会变成补丁版本、补丁匹配出错，无挂载记录时的有效版本也跟着漂移。冻结使 `spire-godot/update/boot.gd::start` 在挂载之前读到的值就是本进程之后读到的值。
 - 窗口标题＝`config/name`＋` v`＋有效版本；`config/name` 不带版本后缀，发版只改 `config/version`。
 - 状态文件 `user://updates/state.json`：`from`（记录时的基线）、`active`、`pending`（各为 `{to, bytes, sha256}` 或 `{}`）、
   `mounting`（上次启动尝试的版本，成功启动后清空）、`failed`（失败过的版本）。补丁包在 `patches/<to>.pck`，
@@ -336,6 +340,10 @@ const MAX_PATCH_BYTES = 268435456    # 256 MiB
 生产键表按 DER sha256 钉住。UI 侧走真实 `main.tscn` 与真实点击，transport 替身回答两次 GET。
 补丁导出的可行性判定经真实入口 `tools/export-patch.ps1 -CheckOnly` 由 `export_patch_feasibility_domain` 常驻取证，
 导出前的内容包根断言经同一入口的导出模式由 `export_patch_requires_release_packs_root` 取证（不启动引擎）；
+引擎步骤的失败出口（非零退出、空包、日志里的 `ERROR:` 行、最后一步移动失败）经 `-EngineBinary` 接缝指向 `.cmd` 替身，
+由 `export_patch_engine_failure_leaves_nothing` 与 `export_patch_engine_error_log_is_failure` 取证（同样不启动引擎）；
+`Assert-UpdateManifest` 对补丁条目的六条回读规则经 pwsh 真实运行 `tests/fixtures/update/manifest-check/` 的夹具，由
+`update_manifest_patch_entries_are_judged` 取证；
 其余发布侧脚本的拒签与拒绝路径没有常驻门禁，证据是脚本实跑日志；唯一签名入口与唯一清单写出点
 由 architecture 的三条发布侧单点判据按源码文本钉住。
 

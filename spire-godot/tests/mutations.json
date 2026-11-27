@@ -1189,6 +1189,30 @@
       "find": "Assert-SpirePacksRoot -GameDirectory $gameDirectory -Expected 'adjacent'",
       "replace": "$null = $gameDirectory",
       "suite": "update"
+    },
+    "baseline_version_is_frozen": {
+      "file": "update/update_store.gd",
+      "find": "if not Engine.has_meta(BASELINE_KEY): Engine.set_meta(BASELINE_KEY,",
+      "replace": "Engine.set_meta(BASELINE_KEY,",
+      "suite": "update"
+    },
+    "update_manifest_patch_entries_are_judged": {
+      "file": "tools/update-manifest-check.ps1",
+      "find": "$link = (Get-ManifestMember $entry $field String $place).GetString()",
+      "replace": "$link = if ($field -eq 'mirror') { 'https://unchecked.invalid' } else { (Get-ManifestMember $entry $field String $place).GetString() }",
+      "suite": "update"
+    },
+    "export_patch_engine_failure_leaves_nothing": {
+      "file": "tools/export-patch.ps1",
+      "find": "if ($exportExit -ne 0 -or -not (Test-Path",
+      "replace": "if (-not (Test-Path",
+      "suite": "update"
+    },
+    "export_patch_engine_error_log_is_failure": {
+      "file": "tools/export-patch.ps1",
+      "find": "(Get-Content -LiteralPath $exportLog -Raw) -match '(?m)^\\s*(?:USER )?(?:SCRIPT |PARSE )?ERROR:'",
+      "replace": "$false",
+      "suite": "update"
     }
   }
 }

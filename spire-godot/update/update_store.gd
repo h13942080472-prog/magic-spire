@@ -22,6 +22,8 @@ const PATCH_SUFFIX=".pck"
 # Process-level storage of the effective version: the Engine singleton lives as long as the
 # process, so it outlives the boot scene and any script cache that is dropped with it.
 const EFFECTIVE_KEY="update_store_effective_version"
+# Process-level copy of the baseline, taken at the first read (same storage as EFFECTIVE_KEY).
+const BASELINE_KEY="update_store_baseline_version"
 
 var root: String
 
@@ -30,9 +32,13 @@ func _init(directory: String=ROOT) -> void:
 
 # ---- version identity -----------------------------------------------------------------
 
-# The one reader of the project's version setting: the baseline of the running executable.
+# The one reader of the project's version setting: the baseline of the running executable. It is
+# read once per process and then frozen: every patch carries a newer config/version, and whether
+# the engine reloads the project settings after a mount is not documented, so a live read could
+# turn the mounted patch's version into the "baseline" of the same session.
 static func baseline_version() -> String:
- return str(ProjectSettings.get_setting("application/config/version",""))
+ if not Engine.has_meta(BASELINE_KEY): Engine.set_meta(BASELINE_KEY,str(ProjectSettings.get_setting("application/config/version","")))
+ return String(Engine.get_meta(BASELINE_KEY))
 
 # The version this process runs. Reading it never touches the disk.
 static func effective_version() -> String:
