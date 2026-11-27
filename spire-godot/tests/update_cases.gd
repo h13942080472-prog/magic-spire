@@ -998,15 +998,9 @@ static func child_reaper_stops_a_hung_child(t) -> void:
 # directories under res://build. A mount in this process redirects res:// directory access to
 # the pack filesystem and breaks that for the rest of the run, so no case may mount here.
 # This call MUST stay the last call of run(): a mount added after it would not be noticed.
-# The first check below reads this file's source and fails when it is not.
+# run_ends_with_writable_check reads this file's source and fails when it is not.
 static func suite_leaves_res_build_writable(t) -> void:
- var source=FileAccess.get_file_as_string("res://tests/update_cases.gd")
- var head=source.find("static func run(t) -> void:")
- var body=source.substr(head,source.find("
-
-",head)-head).split("
-")
- t.check(String(body[body.size()-1]).strip_edges()=="suite_leaves_res_build_writable(t)","UPDATE suite_leaves_res_build_writable: this case is the last call of run(): "+str(body[body.size()-1]))
+ run_ends_with_writable_check(t)
  var made_root=DirAccess.make_dir_recursive_absolute("res://build")
  t.check(made_root==OK,"UPDATE suite_leaves_res_build_writable: res://build can still be created after the update cases: "+str(made_root))
  var scratch="res://build/update-writable-%d" % Time.get_ticks_usec()
@@ -1014,3 +1008,9 @@ static func suite_leaves_res_build_writable(t) -> void:
  var exists=DirAccess.dir_exists_absolute(scratch)
  var removed=DirAccess.remove_absolute(scratch) if exists else ERR_DOES_NOT_EXIST
  t.check(made==OK and exists and removed==OK,"UPDATE suite_leaves_res_build_writable: a scratch directory under res://build can be created and removed after the update cases: "+str([made,exists,removed]))
+
+static func run_ends_with_writable_check(t) -> void:
+ var source=FileAccess.get_file_as_string("res://tests/update_cases.gd")
+ var head=source.find("static func run(t) -> void:")
+ var body=source.substr(head,source.find("\n\n",head)-head).split("\n")
+ t.check(String(body[body.size()-1]).strip_edges()=="suite_leaves_res_build_writable(t)","UPDATE run_ends_with_writable_check: suite_leaves_res_build_writable is the last call of run(): "+str(body[body.size()-1]))
