@@ -929,6 +929,7 @@ static func main_scene_is_boot_scene(t) -> void:
 # sees the same APPDATA and user data directory. The parent polls for MOUNT_LIMIT_MSEC and kills
 # a child that does not exit; the child's engine log is read back and must carry no exit-leak line.
 const MOUNT_PROBE="res://tests/fixtures/update/mount_probe.gd"
+# Parent-side limit; must stay longer than the probe's own BACKSTOP_SECONDS (fixtures/update/mount_probe.gd).
 const MOUNT_LIMIT_MSEC=60000
 const MOUNT_LEAK_MARKERS=["leaked","still in use"]
 

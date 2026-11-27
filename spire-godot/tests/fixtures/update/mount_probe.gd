@@ -8,7 +8,8 @@ extends SceneTree
 # verdict to the absolute path it is given, then quits. Arguments after "--":
 #   <store root as res:// path> <absolute result file>
 # The parent owns the timeout and kills this process if it does not exit; the timer below is
-# only a backstop for a hang inside the engine call.
+# only a backstop for a hang inside the engine call. BACKSTOP_SECONDS must stay shorter than the
+# parent's tests/update_cases.gd::MOUNT_LIMIT_MSEC, so a hung child quits on its own before the parent kills it.
 
 const STORE_PATH="res://update/update_store.gd"
 const BOOT_PATH="res://update/boot.gd"
