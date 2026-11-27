@@ -107,9 +107,13 @@ if (-not (Test-Path -LiteralPath $outDirectory -PathType Container)) { throw "-O
 $windows = Test-PlatformGroup ([ordered]@{ WindowsZip = $WindowsZip; WindowsUrl = $WindowsUrl; WindowsMirror = $WindowsMirror })
 $android = Test-PlatformGroup ([ordered]@{ AndroidManifest = $AndroidManifest; AndroidUrl = $AndroidUrl; AndroidMirror = $AndroidMirror })
 # Patch lists: comma-separated elements; the three lists describe the same entries, in step.
-$patchMetaList = @(@($WindowsPatchMeta) | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
-$patchUrlList = @(@($WindowsPatchUrl) | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
-$patchMirrorList = @(@($WindowsPatchMirror) | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+function Split-PatchList {
+    param([string[]]$Values)
+    return @(@($Values) | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+}
+$patchMetaList = Split-PatchList $WindowsPatchMeta
+$patchUrlList = Split-PatchList $WindowsPatchUrl
+$patchMirrorList = Split-PatchList $WindowsPatchMirror
 if ($patchMetaList.Count + $patchUrlList.Count + $patchMirrorList.Count -gt 0) {
     if (-not $windows) { throw '-WindowsPatchMeta/-WindowsPatchUrl/-WindowsPatchMirror describe windows-x64 patches: give -WindowsZip/-WindowsUrl/-WindowsMirror too.' }
     if ($patchMetaList.Count -ne $patchUrlList.Count -or $patchMetaList.Count -ne $patchMirrorList.Count) { throw "-WindowsPatchMeta, -WindowsPatchUrl and -WindowsPatchMirror go together, one of each per patch: $($patchMetaList.Count), $($patchUrlList.Count) and $($patchMirrorList.Count) given." }
@@ -149,7 +153,7 @@ for ($index = 0; $index -lt $patchMetaList.Count; $index++) {
 $platforms = [ordered]@{}
 if ($windows) {
     $zip = Get-Item -LiteralPath $WindowsZip
-    Add-Platform 'windows-x64' $WindowsUrl $WindowsMirror $zip.Length (Get-FileHash -LiteralPath $zip.FullName -Algorithm SHA256).Hash.ToLowerInvariant() ('computed here from ' + $zip.FullName) @($patchEntries | ForEach-Object { [ordered]@{ from = $_.from; to = $_.to; url = $_.url; mirror = $_.mirror; bytes = $_.bytes; sha256 = $_.sha256; source = $_.source } })
+    Add-Platform 'windows-x64' $WindowsUrl $WindowsMirror $zip.Length (Get-FileHash -LiteralPath $zip.FullName -Algorithm SHA256).Hash.ToLowerInvariant() ('computed here from ' + $zip.FullName) $patchEntries
 }
 if ($android) { Add-Platform 'android' $AndroidUrl $AndroidMirror ([long]$package.bytes) ([string]$package.sha256) ('copied from ' + $AndroidManifest) }
 

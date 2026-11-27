@@ -40,7 +40,9 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'export-patch-feasibility.ps1')
 . (Join-Path $PSScriptRoot 'assert-packs-root.ps1')
 $gameDirectory = if ($ProjectRoot) { $ProjectRoot } else { Split-Path -Parent $PSScriptRoot }
-$versionPattern = '^[0-9]+\.[0-9]+(?:\.[0-9]+)?(?:\.fix)?\z'
+# One spelling of a release version: the -BaseVersion check and the config/version read below share it.
+$versionCore = '[0-9]+\.[0-9]+(?:\.[0-9]+)?(?:\.fix)?'
+$versionPattern = '^' + $versionCore + '\z'
 
 foreach ($pair in @(@('BasePackage', $BasePackage), @('Out', $Out), @('ProjectRoot', $gameDirectory))) {
     if (-not [IO.Path]::IsPathFullyQualified($pair[1])) { throw "-$($pair[0]) must be an absolute path: $($pair[1])" }
@@ -53,7 +55,7 @@ $outParent = Split-Path -Parent $Out
 if (-not (Test-Path -LiteralPath $outParent -PathType Container)) { throw "-Out names a directory that does not exist: $outParent" }
 $projectPath = Join-Path $gameDirectory 'project.godot'
 if (-not (Test-Path -LiteralPath $projectPath -PathType Leaf)) { throw "no project.godot in -ProjectRoot: $gameDirectory" }
-$targetMatch = [regex]::Match((Read-PatchText $projectPath), '(?m)^config/version="([0-9]+\.[0-9]+(?:\.[0-9]+)?(?:\.fix)?)"')
+$targetMatch = [regex]::Match((Read-PatchText $projectPath), '(?m)^config/version="(' + $versionCore + ')"')
 if (-not $targetMatch.Success) { throw 'Project version is missing or invalid.' }
 $targetVersion = $targetMatch.Groups[1].Value
 if ($targetVersion -ceq $BaseVersion) { throw "the project is still at -BaseVersion $BaseVersion; a patch needs a newer target version" }
@@ -144,7 +146,7 @@ try {
     }
     # The one hash of the pack in the whole pipeline: tools/update-manifest.ps1 copies it from here.
     $info = Get-Item -LiteralPath $pack
-    $meta = [ordered]@{ from = $BaseVersion; to = $targetVersion; bytes = $info.Length; sha256 = (Get-FileHash -LiteralPath $pack -Algorithm SHA256).Hash.ToLowerInvariant() }
+    $meta = [ordered]@{ from = $BaseVersion; to = $targetVersion; bytes = $info.Length; sha256 = (Get-PatchFileSha256 $pack) }
     $metaText = ($meta | ConvertTo-Json).Replace("`r`n", "`n") + "`n"
     [IO.File]::WriteAllBytes((Join-Path $staging ($name + '.json')), [Text.UTF8Encoding]::new($false).GetBytes($metaText))
     Move-Item -LiteralPath $staging -Destination $Out
