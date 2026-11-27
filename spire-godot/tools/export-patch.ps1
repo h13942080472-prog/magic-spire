@@ -13,7 +13,10 @@ param(
     # Test seam: a directory that already holds the baseline sources; replaces the git fetch.
     [string]$BaseSourceDirectory = '',
     # Test seam: the engine identity, instead of asking the engine (-CheckOnly then needs no engine).
-    [string]$EngineVersion = ''
+    [string]$EngineVersion = '',
+    # Test seam: the engine executable, instead of Find-SpireGodot; a path that is not a file is a
+    # failure before anything is launched, so a test can reach the export step without an engine.
+    [string]$EngineBinary = ''
 )
 # docs/spec/update-check.md「发布侧脚本」: the only generator of a patch pack. A patch is cumulative
 # against the baseline release package (it carries every change since the baseline), so the
@@ -24,11 +27,18 @@ param(
 # (the one place a patch is hashed) -> staging moves to -Out. Any failure leaves no -Out and no
 # staging directory behind.
 #
+# The release constant: an export (not -CheckOnly) asserts, through the same Assert-SpirePacksRoot
+# tools/package.ps1 uses, that core/content_catalog.gd holds PACKS_ROOT := "adjacent" before the
+# engine starts. Content packs sit beside the executable in a release package, and the patch would
+# otherwise carry a catalog that looks for them under res://. -CheckOnly skips that assertion on
+# purpose: it judges feasibility on a development tree, where the constant is the development value.
+#
 # Baseline sources are read from the git objects of -BaseRef (default tag v<BaseVersion>), never from
 # the working tree: the source is determined by a ref, and a ref that cannot be resolved is a
 # refusal, not a pass.
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'export-patch-feasibility.ps1')
+. (Join-Path $PSScriptRoot 'assert-packs-root.ps1')
 $gameDirectory = if ($ProjectRoot) { $ProjectRoot } else { Split-Path -Parent $PSScriptRoot }
 $versionPattern = '^[0-9]+\.[0-9]+(?:\.[0-9]+)?(?:\.fix)?\z'
 
@@ -106,6 +116,11 @@ try {
     }
 
     # ---- export ----
+    Assert-SpirePacksRoot -GameDirectory $gameDirectory -Expected 'adjacent'
+    if ($EngineBinary) {
+        if (-not (Test-Path -LiteralPath $EngineBinary -PathType Leaf)) { throw "-EngineBinary is not a file: $EngineBinary" }
+        $engine = $EngineBinary
+    }
     if (-not $engine) { . (Join-Path $PSScriptRoot 'find-godot.ps1'); $engine = Find-SpireGodot -Console }
     $basePck = (Get-ChildItem -LiteralPath $BasePackage -File -Filter '*.pck' | Select-Object -First 1).FullName
     # The Windows preset is found by platform, not by its version-bearing name: a version bump renames it.

@@ -1183,6 +1183,12 @@
       "find": "if ($changed.Count + $added.Count + $removed.Count -eq 0) { return , @() }",
       "replace": "if ($true) { return , @() }",
       "suite": "update"
+    },
+    "export_patch_requires_release_packs_root": {
+      "file": "tools/export-patch.ps1",
+      "find": "Assert-SpirePacksRoot -GameDirectory $gameDirectory -Expected 'adjacent'",
+      "replace": "$null = $gameDirectory",
+      "suite": "update"
     }
   }
 }

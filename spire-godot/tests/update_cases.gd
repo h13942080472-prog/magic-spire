@@ -83,6 +83,7 @@ static func run(t) -> void:
  patch_entry_domain_and_compat(t,pair,keys)
  check_passes_identity_to_evaluate(t,pair,keys)
  export_patch_feasibility_domain(t)
+ export_patch_requires_release_packs_root(t)
  settings_toggle_uses_one_store(t)
  manifest_size_and_shape_domain(t,pair,keys)
  manifest_link_domain(t,pair,keys)
@@ -733,6 +734,29 @@ static func export_patch_feasibility_domain(t) -> void:
  world=export_world("no-manifest")
  DirAccess.remove_absolute(ProjectSettings.globalize_path(world.package+"/manifest.json"))
  export_expect_refusal(t,world,"package","a package without its manifest")
+
+# An export (not -CheckOnly) of a feasible fixture asserts the release value of PACKS_ROOT before the
+# engine starts. The engine seam (-EngineBinary) names a file that does not exist, so a script that
+# got past the assertion fails at the engine step instead of launching anything: this row never
+# starts an engine, with or without the assertion.
+static func export_patch_requires_release_packs_root(t) -> void:
+ var missing_engine="C:/no-such-dir/no-engine.exe"
+ var world=export_world("packs-root-dev")
+ export_write(world.game+"/core/content_catalog.gd","const PACKS_ROOT := \"res://content/packs\"
+")
+ var run=export_run(world,["-EngineBinary",missing_engine])
+ t.check(run.exit!=0 and String(run.output).contains("Content packs would not load") and String(run.output).contains("PATCH EXPORT FAILED"),"UPDATE export_patch_requires_release_packs_root: an export with the development PACKS_ROOT is refused before the engine step: exit="+str(run.exit)+" "+String(run.output).left(600))
+ t.check(not DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(world.out)),"UPDATE export_patch_requires_release_packs_root: the refused export leaves no output directory")
+ var leftovers=Array(DirAccess.get_directories_at(ProjectSettings.globalize_path(world.root))).filter(func(name):return String(name).begins_with("out."))
+ t.check(leftovers.is_empty(),"UPDATE export_patch_requires_release_packs_root: the refused export leaves no staging directory: "+str(leftovers))
+ run=export_run(world,["-CheckOnly"])
+ t.check(run.exit==0 and String(run.output).contains("PATCH FEASIBLE"),"UPDATE export_patch_requires_release_packs_root: -CheckOnly judges feasibility on a development tree without that assertion: exit="+str(run.exit)+" "+String(run.output).left(600))
+ world=export_world("packs-root-adjacent")
+ export_write(world.game+"/core/content_catalog.gd","const PACKS_ROOT := \"adjacent\"
+")
+ run=export_run(world,["-EngineBinary",missing_engine])
+ t.check(run.exit!=0 and String(run.output).contains("-EngineBinary is not a file") and not String(run.output).contains("Content packs would not load"),"UPDATE export_patch_requires_release_packs_root: the release value passes the assertion and reaches the engine step: exit="+str(run.exit)+" "+String(run.output).left(600))
+ t.check(not DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(world.out)),"UPDATE export_patch_requires_release_packs_root: a failed export leaves no output directory")
 
 # One key in the existing file, no second store and no new user:// file.
 static func settings_toggle_uses_one_store(t) -> void:
