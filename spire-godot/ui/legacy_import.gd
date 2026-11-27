@@ -122,6 +122,10 @@ static func _import(parent: String, marker: String, display_settings, key_bindin
  var adopted=store.adopt_legacy(source_root.path_join("saves"))
  for file in adopted.get("copied",[]): copied.append("saves/"+String(file))
  for row in adopted.get("skipped",[]): skipped.append({"file":"saves/"+String(row.get("file","")),"code":String(row.get("code","invalid"))})
+ # A write failure leaves the import unfinished: no terminal marker, so the next start retries. The
+ # marker only closes a finished copy or a validation verdict (invalid, version, target_not_empty, none);
+ # the two IO failures, scan and write, never close it.
+ if skipped.any(func(row):return String(row.code)=="write"): return _answer(false,true,"write",source_name,copied,skipped)
  # Each settings file is validated and written by its owner module; a file the owner rejects is
  # recorded as invalid instead of blocking the save copy. The table keeps the file-to-owner
  # mapping in one place.
@@ -134,11 +138,8 @@ static func _import(parent: String, marker: String, display_settings, key_bindin
   elif owner==null or not owner.import_from(path):
    var write_failed=owner!=null and (owner.save_error!="" if owner==display_settings else owner.error!="")
    skipped.append({"file":String(entry.file),"code":"write" if write_failed else "invalid"})
+   if write_failed: return _answer(false,true,"write",source_name,copied,skipped)
   else: copied.append(String(entry.file))
- # A write failure leaves the import unfinished: no terminal marker, so the next start retries. The
- # marker only closes a finished copy or a validation verdict (invalid, version, target_not_empty, none);
- # the two IO failures, scan and write, never close it.
- if skipped.any(func(row):return String(row.code)=="write"): return _answer(false,true,"write",source_name,copied,skipped)
  return _finish_import(marker,"copied",source_name,copied,skipped,store)
 
 # True when the target already holds a primary or .bak for any slot: copying into it would mix
