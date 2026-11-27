@@ -7,14 +7,13 @@ extends SceneTree
 # through the production entry point (Boot.start with the default mounter) and writes one JSON
 # verdict to the absolute path it is given, then quits. Arguments after "--":
 #   <store root as res:// path> <absolute result file>
-# The parent owns the timeout and kills this process if it does not exit; the timer below is
-# only a backstop for a hang inside the engine call. BACKSTOP_SECONDS must stay shorter than the
-# parent's tests/update_cases.gd::MOUNT_LIMIT_MSEC, so a hung child quits on its own before the parent kills it.
+# The mount runs synchronously on the main thread, so a hang inside the engine call also stops
+# the main loop and no in-process timer could fire: the parent's timeout and OS.kill
+# (tests/update_cases.gd::wait_or_reap) are the only backstop.
 
 const STORE_PATH="res://update/update_store.gd"
 const BOOT_PATH="res://update/boot.gd"
 const MARKER="res://update_boot_probe/marker.txt"
-const BACKSTOP_SECONDS=40.0
 
 func _initialize() -> void:
  var arguments=OS.get_cmdline_user_args()
@@ -22,7 +21,6 @@ func _initialize() -> void:
   push_error("mount_probe: expected <store root> <result file>")
   quit(2)
   return
- create_timer(BACKSTOP_SECONDS).timeout.connect(func(): quit(3))
  var Store=load(STORE_PATH)
  var Boot=load(BOOT_PATH)
  var store=Store.new(arguments[0])

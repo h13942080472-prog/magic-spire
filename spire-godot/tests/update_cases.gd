@@ -94,6 +94,7 @@ static func run(t) -> void:
  patch_file_verification_domain(t)
  store_rejects_hostile_state(t)
  main_scene_is_boot_scene(t)
+ child_reaper_stops_a_hung_child(t)
  engine_mounter_loads_a_real_pack(t)
  suite_leaves_res_build_writable(t)
 
@@ -926,11 +927,14 @@ static func main_scene_is_boot_scene(t) -> void:
 # process (a later suite in the shared rule process could no longer create res://build), so the
 # mount runs in a child engine process (fixtures/update/mount_probe.gd) and only its verdict
 # comes back; this process never mounts. The child inherits this process's environment, so it
-# sees the same APPDATA and user data directory. The parent polls for MOUNT_LIMIT_MSEC and kills
-# a child that does not exit; the child's engine log is read back and must carry no exit-leak line.
+# sees the same APPDATA and user data directory. The parent waits through wait_or_reap, which
+# kills and reaps a child that outlives MOUNT_LIMIT_MSEC (the only backstop: the probe mounts
+# synchronously, so it has no timer of its own); the child's engine log is read back and must
+# carry no exit-leak line.
 const MOUNT_PROBE="res://tests/fixtures/update/mount_probe.gd"
-# Parent-side limit; must stay longer than the probe's own BACKSTOP_SECONDS (fixtures/update/mount_probe.gd).
 const MOUNT_LIMIT_MSEC=60000
+# After OS.kill, how long to wait for the child to be gone; declared once for every reap.
+const MOUNT_REAP_MSEC=5000
 const MOUNT_LEAK_MARKERS=["leaked","still in use"]
 
 static func engine_mounter_loads_a_real_pack(t) -> void:
@@ -950,13 +954,9 @@ static func engine_mounter_loads_a_real_pack(t) -> void:
  var log_path=ProjectSettings.globalize_path(store.root.path_join("mount-probe.log"))
  var pid=OS.create_process(OS.get_executable_path(),PackedStringArray(["--headless","--path",ProjectSettings.globalize_path("res://"),"--log-file",log_path,"--script",MOUNT_PROBE,"--",store.root,verdict_path]))
  t.check(pid>0,"UPDATE engine_mounter_loads_a_real_pack: the child engine process starts")
- var deadline=Time.get_ticks_msec()+MOUNT_LIMIT_MSEC
- while pid>0 and OS.is_process_running(pid) and Time.get_ticks_msec()<deadline: OS.delay_msec(100)
- var hung=pid>0 and OS.is_process_running(pid)
- if hung:
-  OS.kill(pid)
-  OS.delay_msec(500)
- t.check(pid>0 and not hung,"UPDATE engine_mounter_loads_a_real_pack: the child engine process exits within the limit")
+ var waited=wait_or_reap(pid,MOUNT_LIMIT_MSEC) if pid>0 else {"hung":false,"kill":OK,"running":false}
+ t.check(pid>0 and not waited.hung,"UPDATE engine_mounter_loads_a_real_pack: the child engine process exits within the limit")
+ t.check(waited.kill==OK and not waited.running,"UPDATE engine_mounter_loads_a_real_pack: the timed-out child is killed and gone, pid %d, kill=%s, child still running=%s" % [pid,str(waited.kill),str(waited.running)])
  var verdict=JSON.parse_string(FileAccess.get_file_as_string(verdict_path)) if FileAccess.file_exists(verdict_path) else null
  t.check(verdict is Dictionary and verdict.get("marker_before",true)==false,"UPDATE engine_mounter_loads_a_real_pack: the marker is absent in the child before the mount: "+str(verdict))
  t.check(verdict is Dictionary and String(verdict.get("mounted",""))==PATCH_A and String(verdict.get("content",""))=="mounted","UPDATE engine_mounter_loads_a_real_pack: the default engine mounter exposes the pack's file under res://: "+str(verdict))
@@ -966,11 +966,47 @@ static func engine_mounter_loads_a_real_pack(t) -> void:
  for marker in MOUNT_LEAK_MARKERS: leaked=leaked or child_log.contains(marker)
  t.check(not leaked,"UPDATE engine_mounter_loads_a_real_pack: the child engine log has no exit-leak line: "+child_log.substr(0,400))
 
+# Waits up to limit_msec for the child to exit on its own; a child still running then is killed
+# and waited for up to MOUNT_REAP_MSEC, so a failed kill is never silent and no engine process
+# outlives the test (the machine has one engine lock). Returns {hung, kill, running}.
+static func wait_or_reap(pid: int,limit_msec: int) -> Dictionary:
+ var deadline=Time.get_ticks_msec()+limit_msec
+ while OS.is_process_running(pid) and Time.get_ticks_msec()<deadline: OS.delay_msec(100)
+ var out={"hung":OS.is_process_running(pid),"kill":OK,"running":false}
+ if not out.hung: return out
+ out.kill=OS.kill(pid)
+ var reap_deadline=Time.get_ticks_msec()+MOUNT_REAP_MSEC
+ while OS.is_process_running(pid) and Time.get_ticks_msec()<reap_deadline: OS.delay_msec(50)
+ out.running=OS.is_process_running(pid)
+ return out
+
+# The timeout branch of the mount test only runs when the child hangs, so it is exercised here
+# with a stand-in that always outlives a short limit (ping.exe, no engine started).
+static func child_reaper_stops_a_hung_child(t) -> void:
+ if OS.get_name()!="Windows": return
+ var ping=OS.get_environment("SystemRoot").path_join("System32/ping.exe")
+ var pid=OS.create_process(ping,PackedStringArray(["-n","15","127.0.0.1"]))
+ t.check(pid>0,"UPDATE child_reaper_stops_a_hung_child: the stand-in child starts")
+ if pid<=0: return
+ var waited=wait_or_reap(pid,300)
+ t.check(waited.hung,"UPDATE child_reaper_stops_a_hung_child: a child that outlives the limit is reported hung, pid %d" % pid)
+ t.check(waited.kill==OK and not waited.running and not OS.is_process_running(pid),"UPDATE child_reaper_stops_a_hung_child: the hung child is killed and gone, pid %d, kill=%s, child still running=%s" % [pid,str(waited.kill),str(waited.running)])
+ if OS.is_process_running(pid): OS.kill(pid)
+
 # Last case of the suite, so everything above has already run in this process. The rule suites
 # share one process (tests/test_game.gd::SUITES order), and later suites such as runner create
 # directories under res://build. A mount in this process redirects res:// directory access to
 # the pack filesystem and breaks that for the rest of the run, so no case may mount here.
+# This call MUST stay the last call of run(): a mount added after it would not be noticed.
+# The first check below reads this file's source and fails when it is not.
 static func suite_leaves_res_build_writable(t) -> void:
+ var source=FileAccess.get_file_as_string("res://tests/update_cases.gd")
+ var head=source.find("static func run(t) -> void:")
+ var body=source.substr(head,source.find("
+
+",head)-head).split("
+")
+ t.check(String(body[body.size()-1]).strip_edges()=="suite_leaves_res_build_writable(t)","UPDATE suite_leaves_res_build_writable: this case is the last call of run(): "+str(body[body.size()-1]))
  var made_root=DirAccess.make_dir_recursive_absolute("res://build")
  t.check(made_root==OK,"UPDATE suite_leaves_res_build_writable: res://build can still be created after the update cases: "+str(made_root))
  var scratch="res://build/update-writable-%d" % Time.get_ticks_usec()
