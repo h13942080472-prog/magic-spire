@@ -22,7 +22,7 @@ $logDirectory = Join-Path $gameDirectory ('build/package-' + $BuildId)
 [IO.Directory]::CreateDirectory($logDirectory) | Out-Null
 $exportLog = Join-Path $logDirectory 'export.log'
 function Get-RuntimeFingerprint {
-    $paths = @('core','data','ui','assets','content/packs','project.godot','main.tscn','export_presets.cfg')
+    $paths = @('core','data','ui','update','assets','content/packs','project.godot','main.tscn','export_presets.cfg')
     return @($paths | ForEach-Object { Get-ChildItem -LiteralPath (Join-Path $gameDirectory $_) -File -Recurse } |
         Where-Object { $_.Extension -notin @('.uid','.import') } | Sort-Object FullName | ForEach-Object {
             [ordered]@{ path = [IO.Path]::GetRelativePath($gameDirectory,$_.FullName); sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }

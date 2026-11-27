@@ -23,7 +23,7 @@ $sdk = Join-Path $gameDirectory 'build/android-tools/sdk'
 $jdk = (Get-ChildItem (Join-Path $gameDirectory 'build/android-tools/jdk17') -Directory | Select-Object -First 1).FullName
 $signing = Get-Content -LiteralPath $SigningConfig -Raw | ConvertFrom-Json
 function Get-SourceFingerprint {
-    @('core','data','ui','assets','content/packs','project.godot','main.tscn','export_presets.cfg') | ForEach-Object {
+    @('core','data','ui','update','assets','content/packs','project.godot','main.tscn','export_presets.cfg') | ForEach-Object {
         Get-ChildItem -LiteralPath (Join-Path $gameDirectory $_) -File -Recurse
     } | Where-Object { $_.Extension -notin @('.uid','.import') } | Sort-Object FullName | ForEach-Object {
         [ordered]@{ path = [IO.Path]::GetRelativePath($gameDirectory,$_.FullName); sha256 = (Get-FileHash -LiteralPath $_.FullName).Hash }
