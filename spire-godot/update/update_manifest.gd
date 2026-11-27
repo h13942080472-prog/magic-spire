@@ -7,6 +7,8 @@ extends RefCounted
 # The answer is a small dictionary, never an exception:
 #   {"kind":"notice","version":String,"bytes":int,"url":String,"mirror":String,
 #    "notes":String,"revoked":bool,"platform":String}
+#   plus "patch":{"from","to","url","mirror","bytes","sha256"} only when a patch entry of the
+#   manifest applies to the install described by `local` (see _matching_patch).
 #   {"kind":"none","reason":String}
 # A rejection reason is one of REJECTIONS; the empty reason means "verified, but this version
 # is not newer and not revoked", which is an answer rather than a rejection.
@@ -17,6 +19,10 @@ const HTTPS="https://"
 # Patch packs are read in chunks of this size: a pack is never loaded whole into memory.
 const PATCH_CHUNK=1048576
 const REJECTIONS=["signature","key","schema","platform","size","json","url"]
+# docs/spec/update-check.md「补丁条目匹配」: patches exist for one platform only, and a patch pack
+# is at most 256 MiB (the manifest's bytes is a claim; the download is held to it).
+const PATCH_PLATFORM="windows-x64"
+const MAX_PATCH_BYTES=268435456
 # The signature file is base64 text; the alphabet check keeps a garbled answer a plain "no"
 # instead of an engine error from the decoder.
 const BASE64_ALPHABET="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/="
@@ -62,7 +68,10 @@ static func _segment(value: String) -> Array:
  while start<text.length()-1 and text[start]=="0": start+=1
  return [0,text.substr(start)]
 
-static func evaluate(manifest_bytes: PackedByteArray, signature: PackedByteArray, keys: Dictionary, current: String, platform: String) -> Dictionary:
+# `current` is the version this process runs (revocation and "is it newer" are judged against
+# it); `local` is update_store.gd::identity() ({"baseline","failed"}) and only feeds patch
+# matching, so an empty `local` answers exactly as a manifest without patches would.
+static func evaluate(manifest_bytes: PackedByteArray, signature: PackedByteArray, keys: Dictionary, current: String, platform: String, local: Dictionary={}) -> Dictionary:
  # Size and parse come first: an oversized or broken document must never be parsed, verified
  # or interpreted, and its bytes are the only input the signature covers.
  if manifest_bytes.size()==0 or manifest_bytes.size()>MAX_BYTES: return none("size")
@@ -90,8 +99,40 @@ static func evaluate(manifest_bytes: PackedByteArray, signature: PackedByteArray
  if not (bytes is int or bytes is float) or int(bytes)<0: return none("json")
  var offer={"kind":"notice","version":version,"bytes":int(bytes),"url":url,"mirror":mirror,
   "notes":String((latest as Dictionary).get("notes_zh","")),"revoked":_revoked(manifest,current),"platform":platform}
- if offer.revoked or compare(version,current)>0: return offer
- return none("")
+ if not offer.revoked and compare(version,current)<=0: return none("")
+ if platform==PATCH_PLATFORM and not local.is_empty():
+  var patch=_matching_patch((platforms as Dictionary)[platform].get("patches",[]),version,String(local.get("baseline","")),local.get("failed",[]),manifest)
+  if not patch.is_empty(): offer["patch"]=patch
+ return offer
+
+# One entry of platforms.<platform>.patches: {from, to, url, mirror, bytes, sha256}, or {} when
+# any field is not legal. A bad entry disqualifies only itself: the manifest is already
+# verified, so the full-package notice beside it stays valid.
+static func _patch_entry(value: Variant) -> Dictionary:
+ if not value is Dictionary: return {}
+ var source=value.get("from","")
+ var target=value.get("to","")
+ var url=value.get("url","")
+ var mirror=value.get("mirror","")
+ var bytes=value.get("bytes",0)
+ var sha256=value.get("sha256","")
+ if not source is String or not target is String or source.is_empty() or target.is_empty(): return {}
+ if not url is String or not mirror is String or not url.begins_with(HTTPS) or not mirror.begins_with(HTTPS): return {}
+ if not (bytes is int or bytes is float) or float(bytes)!=floor(float(bytes)) or bytes<=0 or bytes>MAX_PATCH_BYTES: return {}
+ if not sha256 is String or not is_sha256(sha256): return {}
+ return {"from":source,"to":target,"url":url,"mirror":mirror,"bytes":int(bytes),"sha256":sha256}
+
+# The patch for this install, or {}. A patch is cumulative against the baseline (the executable
+# and its main pack), so `from` is matched against the baseline, never against the version that
+# runs; it must land on the latest version, and a target that is revoked or already failed to
+# mount on this machine is never offered. Several eligible entries: the first one wins.
+static func _matching_patch(patches: Variant, latest: String, baseline: String, failed: Variant, manifest: Dictionary) -> Dictionary:
+ if not patches is Array or baseline.is_empty() or _revoked(manifest,latest): return {}
+ if failed is Array and latest in failed: return {}
+ for value in patches:
+  var entry=_patch_entry(value)
+  if not entry.is_empty() and entry.to==latest and compare(entry.from,baseline)==0: return entry
+ return {}
 
 # The one JSON parse of the update module (the manifest here, the patch state in update_store.gd).
 # A parser instance keeps a malformed document a plain "no" instead of an engine error.

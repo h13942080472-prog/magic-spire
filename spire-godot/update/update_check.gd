@@ -26,6 +26,10 @@ var keys: Dictionary=Keys.KEYS
 # production and the stand-in path share one result entry.
 var transport: Callable
 var request: HTTPRequest
+# The install identity source (update_store.gd). A player session builds the default store on
+# demand; a harness (--script) never does, so an injected store is the only way to give a
+# harness run an identity.
+var store=null
 var busy=false
 # GETs issued by the current (or last) check; the contract allows at most two.
 var requests=0
@@ -100,9 +104,17 @@ func deliver(result: int, status: int, _headers: PackedStringArray, body: Packed
    _stage="signature"
    if _send(manifest_url()+SIGNATURE_SUFFIX)!=OK: _fail("network")
    return
-  _finish(Manifest.evaluate(_manifest,body,keys,Store.effective_version(),platform_key()))
+  _finish(Manifest.evaluate(_manifest,body,keys,Store.effective_version(),platform_key(),_identity()))
   return
  _fail("network" if result!=HTTPRequest.RESULT_SUCCESS else "http")
+
+# What a patch must match to apply to this install: the injected store's, else the player
+# session's own. Outside a player session (a --script harness, a platform without patch mounting)
+# there is no identity and no store is built, so no patch is matched there.
+func _identity() -> Dictionary:
+ if store!=null: return store.identity()
+ if not Store.player_session(): return {}
+ return Store.new().identity()
 
 func _fail(reason: String) -> void:
  _finish(Manifest.none(reason))
