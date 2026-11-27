@@ -83,6 +83,7 @@ static func run(t) -> void:
  patch_entry_domain_and_compat(t,pair,keys)
  check_passes_identity_to_evaluate(t,pair,keys)
  export_patch_feasibility_domain(t)
+ export_presets_placeholder_scope(t)
  export_patch_requires_release_packs_root(t)
  export_patch_engine_failure_leaves_nothing(t)
  export_patch_engine_error_log_is_failure(t)
@@ -726,13 +727,6 @@ static func export_patch_feasibility_domain(t) -> void:
  world=export_world("presets")
  export_write(world.game+"/export_presets.cfg",export_presets(EXPORT_TARGET,"selected_scenes"))
  export_expect_refusal(t,world,"export-presets","an export preset difference beyond the version fields")
- world=export_world("presets-versioned")
- export_presets_fixture(world,"versioned")
- var run_versioned=export_run(world,["-CheckOnly"])
- t.check(run_versioned.exit==0 and String(run_versioned.output).contains("PATCH FEASIBLE"),"UPDATE export_patch_feasibility_domain: presets that differ only in the version fields and in the version written in preset names and descriptions are feasible: exit="+str(run_versioned.exit)+" "+String(run_versioned.output).left(600))
- world=export_world("presets-include")
- export_presets_fixture(world,"include")
- export_expect_refusal(t,world,"export-presets","export_presets_placeholder_scope: a version number inside include_filter (the placeholder applies to preset names and descriptions only)")
  for path in EXPORT_BOOT_FILES:
   world=export_world("boot-"+String(path).get_file())
   export_write(world.game+"/"+path,"# "+path+" changed\n")
@@ -750,6 +744,21 @@ static func export_patch_feasibility_domain(t) -> void:
  world=export_world("no-manifest")
  DirAccess.remove_absolute(ProjectSettings.globalize_path(world.package+"/manifest.json"))
  export_expect_refusal(t,world,"package","a package without its manifest")
+
+# The version placeholder of the export-presets judgement applies to preset names and descriptions
+# only. A preset pair that differs just in the version fields and in the version those two kinds of
+# line spell is feasible; a version number inside any other line (here include_filter, which changes
+# the exported file set) is a difference the placeholder must not hide.
+static func export_presets_placeholder_scope(t) -> void:
+ var world=export_world("presets-versioned")
+ export_presets_fixture(world,"versioned")
+ var run=export_run(world,["-CheckOnly"])
+ t.check(run.exit==0 and String(run.output).contains("PATCH FEASIBLE"),"UPDATE export_presets_placeholder_scope: presets that differ only in the version fields and in the version written in preset names and descriptions are feasible: exit="+str(run.exit)+" "+String(run.output).left(600))
+ world=export_world("presets-include")
+ export_presets_fixture(world,"include")
+ run=export_run(world,["-CheckOnly"])
+ t.check(run.exit!=0 and String(run.output).contains("PATCH REFUSED: export-presets"),"UPDATE export_presets_placeholder_scope: a version number inside include_filter is refused by the export-presets judgement, the placeholder covers names and descriptions only: exit="+str(run.exit)+" "+String(run.output).left(600))
+ t.check(not DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(world.out)),"UPDATE export_presets_placeholder_scope: the refused include_filter pair leaves no output directory")
 
 # An export (not -CheckOnly) of a feasible fixture asserts the release value of PACKS_ROOT before the
 # engine starts. The engine seam (-EngineBinary) names a file that does not exist, so a script that
