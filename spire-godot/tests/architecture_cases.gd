@@ -6638,7 +6638,7 @@ static func update_sites_in_files(sites: Array) -> Array:
 
 static func update_compare_single_entry(t) -> void:
  var sites=update_source_sites(update_scan_files(["res://ui","res://update","res://core"]),"(?<![A-Za-z0-9_])compare\\s*\\(")
- t.check(sites==["update/update_manifest.gd::_revoked","update/update_manifest.gd::compare","update/update_manifest.gd::evaluate","update/update_manifest.gd::is_newer"],"DEP update_compare_single_entry: version comparison exists only in update/update_manifest.gd compare/evaluate/is_newer/_revoked; a second compare( anywhere in ui/update/core is red: "+str(sites))
+ t.check(sites==["update/update_manifest.gd::_matching_patch","update/update_manifest.gd::_revoked","update/update_manifest.gd::compare","update/update_manifest.gd::evaluate","update/update_manifest.gd::is_newer"],"DEP update_compare_single_entry: version comparison exists only in update/update_manifest.gd compare/evaluate/is_newer/_revoked/_matching_patch; a second compare( anywhere in ui/update/core is red: "+str(sites))
 
 static func update_document_single_entry(t) -> void:
  var sites=update_source_sites(update_feature_files(),"JSON\\.(?:new|parse|parse_string)\\s*\\(")

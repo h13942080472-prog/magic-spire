@@ -85,7 +85,7 @@
 | `manifest_url` 为空串时自动检查与「立即检查」都不发请求、不显示提示 | `tests/update_ui_cases.gd::empty_manifest_url_sends_no_request`（窗口分类 `update`） |
 | 宿主在入树前被释放时一并释放未入树的 `update_check`；入树宿主的检查节点有父节点 | `tests/update_ui_cases.gd::host_free_releases_unparented_check`（窗口分类 `update`） |
 | `spire-godot/update/` 不引用 `ui`／`core`／`data`／`tests`；只有 `spire-godot/update/update_check.gd` 发 HTTP | `tests/architecture_cases.gd::update_module_is_a_leaf`（规则分类 `architecture`） |
-| 版本比较只有 `spire-godot/update/update_manifest.gd::compare`／`evaluate`／`is_newer`／`_revoked` | `tests/architecture_cases.gd::update_compare_single_entry`（规则分类 `architecture`） |
+| 版本比较只有 `spire-godot/update/update_manifest.gd::compare`／`evaluate`／`is_newer`／`_revoked`／`_matching_patch` | `tests/architecture_cases.gd::update_compare_single_entry`（规则分类 `architecture`） |
 | 更新模块的 JSON 解析只有 `spire-godot/update/update_manifest.gd::document`（清单与补丁状态共用） | `tests/architecture_cases.gd::update_document_single_entry`（规则分类 `architecture`） |
 | 键加载与验签只有 `spire-godot/update/update_manifest.gd::_verified` | `tests/architecture_cases.gd::update_verify_single_entry`（规则分类 `architecture`） |
 | 更新特性面只有 `spire-godot/update/update_check.gd` 一处 HTTP | `tests/architecture_cases.gd::update_http_single_entry`（规则分类 `architecture`） |
