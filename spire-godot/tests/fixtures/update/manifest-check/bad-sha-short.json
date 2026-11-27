@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "serial": 1,
+  "issued": "2026-11-27T00:00:00Z",
+  "key_id": "t1",
+  "latest": {
+    "version": "0.18.5",
+    "notes_zh": "fixture"
+  },
+  "revoked": [],
+  "platforms": {
+    "windows-x64": {
+      "full": {
+        "url": "https://update.example.invalid/v1/0.18.5/full.zip",
+        "mirror": "https://mirror.example.invalid/v0.18.5",
+        "bytes": 231,
+        "sha256": "f49e6fb8dfa0ae0a8aac7de8f7084d920befe44d0e18b8f8260782fafcb3c015"
+      },
+      "patches": [
+        {
+          "from": "0.18.4",
+          "to": "0.18.5",
+          "url": "https://update.example.invalid/v1/patches/0.18.4-0.18.5.pck",
+          "mirror": "https://mirror.example.invalid/patch-0.18.4-0.18.5.pck",
+          "bytes": 300,
+          "sha256": "055b1b485b603b674669f034a48c39a78fd8fa3694a4b4f9f93702d9474cde8"
+        }
+      ]
+    }
+  }
+}

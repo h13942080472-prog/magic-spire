@@ -84,6 +84,9 @@ static func run(t) -> void:
  check_passes_identity_to_evaluate(t,pair,keys)
  export_patch_feasibility_domain(t)
  export_patch_requires_release_packs_root(t)
+ export_patch_engine_failure_leaves_nothing(t)
+ export_patch_engine_error_log_is_failure(t)
+ update_manifest_patch_entries_are_judged(t)
  settings_toggle_uses_one_store(t)
  manifest_size_and_shape_domain(t,pair,keys)
  manifest_link_domain(t,pair,keys)
@@ -106,6 +109,7 @@ static func run(t) -> void:
  boot_is_inert_under_script(t)
  effective_version_follows_mount(t)
  effective_version_requires_mount(t)
+ baseline_version_is_frozen(t)
  patch_file_verification_domain(t)
  store_rejects_hostile_state(t)
  main_scene_is_boot_scene(t)
@@ -758,6 +762,82 @@ static func export_patch_requires_release_packs_root(t) -> void:
  t.check(run.exit!=0 and String(run.output).contains("-EngineBinary is not a file") and not String(run.output).contains("Content packs would not load"),"UPDATE export_patch_requires_release_packs_root: the release value passes the assertion and reaches the engine step: exit="+str(run.exit)+" "+String(run.output).left(600))
  t.check(not DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(world.out)),"UPDATE export_patch_requires_release_packs_root: a failed export leaves no output directory")
 
+# The engine step of an export, driven through the -EngineBinary seam by a stub that is a .cmd
+# file: it writes what a real export would (the pack named by its eighth argument, the log named
+# by its fifth) and exits with a chosen code, so the failure exits of the script are judged
+# without starting an engine. A failed export must exit non-zero and leave no -Out and no staging.
+static func export_stub_world(label: String, stub_lines: Array) -> Dictionary:
+ var world=export_world(label)
+ export_write(world.game+"/core/content_catalog.gd","const PACKS_ROOT := \"adjacent\"\n")
+ var stub=world.root+"/stub-engine.cmd"
+ export_write(stub,("@echo off\r\n"+"\r\n".join(stub_lines)+"\r\n").replace("{OUT}",ProjectSettings.globalize_path(world.out).replace("/","\\")))
+ world["stub"]=ProjectSettings.globalize_path(stub)
+ return world
+
+static func export_stub_run(world: Dictionary) -> Dictionary:
+ return export_run(world,["-EngineBinary",world.stub])
+
+static func export_expect_clean_failure(t, name: String, label: String, world: Dictionary, run: Dictionary, fragment: String) -> void:
+ t.check(run.exit!=0 and String(run.output).contains("PATCH EXPORT FAILED") and String(run.output).contains(fragment),"UPDATE "+name+": "+label+" exits non-zero naming the failure: exit="+str(run.exit)+" "+String(run.output).left(600))
+ var leftovers=Array(DirAccess.get_directories_at(ProjectSettings.globalize_path(world.root))).filter(func(item):return String(item).begins_with("out."))
+ t.check(not DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(world.out)) and leftovers.is_empty(),"UPDATE "+name+": "+label+" leaves no output and no staging directory: "+str(leftovers))
+
+static func export_patch_engine_failure_leaves_nothing(t) -> void:
+ var name="export_patch_engine_failure_leaves_nothing"
+ var good=["echo data> %8","echo fine> %5"]
+ var world=export_stub_world("stub-ok",good)
+ var run=export_stub_run(world)
+ var published=Array(DirAccess.get_files_at(ProjectSettings.globalize_path(world.out)))
+ var leftovers=Array(DirAccess.get_directories_at(ProjectSettings.globalize_path(world.root))).filter(func(item):return String(item).begins_with("out."))
+ t.check(run.exit==0 and String(run.output).contains("PATCH EXPORT: ") and published.has("patch-"+EXPORT_BASE+"-"+EXPORT_TARGET+".pck") and published.has("patch-"+EXPORT_BASE+"-"+EXPORT_TARGET+".json") and leftovers.is_empty(),"UPDATE "+name+": control: a stub engine that writes a pack and a clean log publishes -Out and leaves no staging: exit="+str(run.exit)+" "+str(published)+" "+String(run.output).left(600))
+ world=export_stub_world("stub-exit",good+["exit /b 3"])
+ export_expect_clean_failure(t,name,"an engine that exits 3 although it wrote a pack and a clean log",world,export_stub_run(world),"Patch export failed (exit=3)")
+ world=export_stub_world("stub-empty",["type nul> %8","echo fine> %5"])
+ export_expect_clean_failure(t,name,"an engine that exits 0 but wrote an empty pack",world,export_stub_run(world),"Patch export failed (exit=0)")
+ world=export_stub_world("stub-move",good+["echo occupied> {OUT}"])
+ export_expect_clean_failure(t,name,"a -Out that appeared while the engine ran, so the final move fails",world,export_stub_run(world),"PATCH EXPORT FAILED")
+ t.check(FileAccess.file_exists(world.out) and FileAccess.get_file_as_string(world.out).begins_with("occupied"),"UPDATE "+name+": a move that fails never overwrites what already stands at -Out")
+
+static func export_patch_engine_error_log_is_failure(t) -> void:
+ var name="export_patch_engine_error_log_is_failure"
+ var world=export_stub_world("stub-log",["echo data> %8","echo ERROR: boom> %5"])
+ export_expect_clean_failure(t,name,"an engine that exits 0 with a pack but an ERROR line in its log",world,export_stub_run(world),"Patch export failed (exit=0)")
+
+# ---- Assert-UpdateManifest: the patch-entry rejection rules ------------------------------------
+# docs/spec/update-check.md「发布侧脚本」: the real tools/update-manifest-check.ps1 judges each
+# fixture through a pwsh harness (tests/fixtures/update/manifest-check/assert-manifest.ps1); the
+# harness prints the rejection text the tool throws, and each rule is named by a fragment of it.
+const MANIFEST_CHECK_DIRECTORY=FIXTURE_DIRECTORY+"manifest-check/"
+const MANIFEST_CHECK_TOOL="res://tools/update-manifest-check.ps1"
+const MANIFEST_CHECK_REJECTIONS={
+ "bad-from-empty":"has an empty from or to",
+ "bad-to-empty":"has an empty from or to",
+ "bad-to-not-latest":"not latest.version",
+ "bad-url-http":"patches[0].url is not https://",
+ "bad-mirror-http":"patches[0].mirror is not https://",
+ "bad-bytes-zero":"bytes must be a whole number from 1 to 268435456",
+ "bad-bytes-over":"bytes must be a whole number from 1 to 268435456",
+ "bad-bytes-fraction":"bytes must be a whole number from 1 to 268435456",
+ "bad-sha-upper":"sha256 must be 64 lower-case hex digits",
+ "bad-sha-short":"sha256 must be 64 lower-case hex digits",
+ "bad-pair-twice":"names the pair 0.18.4 -> 0.18.5 twice",
+}
+
+static func manifest_check_run(fixture: String) -> Dictionary:
+ var args=["-NoProfile","-File",ProjectSettings.globalize_path(MANIFEST_CHECK_DIRECTORY+"assert-manifest.ps1"),
+  "-Check",ProjectSettings.globalize_path(MANIFEST_CHECK_TOOL),"-Path",ProjectSettings.globalize_path(MANIFEST_CHECK_DIRECTORY+fixture+".json")]
+ var output=[]
+ var exit_code=OS.execute("pwsh",PackedStringArray(args),output,true)
+ return {"exit":exit_code,"output":"".join(output)}
+
+static func update_manifest_patch_entries_are_judged(t) -> void:
+ var name="update_manifest_patch_entries_are_judged"
+ var run=manifest_check_run("good")
+ t.check(run.exit==0 and String(run.output).contains("MANIFEST OK"),"UPDATE "+name+": a manifest whose patch entry is sound passes: exit="+str(run.exit)+" "+String(run.output).left(400))
+ for fixture in MANIFEST_CHECK_REJECTIONS:
+  run=manifest_check_run(fixture)
+  t.check(run.exit!=0 and String(run.output).contains("MANIFEST REJECTED") and String(run.output).contains(String(MANIFEST_CHECK_REJECTIONS[fixture])),"UPDATE "+name+": "+fixture+" is rejected for its own rule: exit="+str(run.exit)+" "+String(run.output).left(400))
+
 # One key in the existing file, no second store and no new user:// file.
 static func settings_toggle_uses_one_store(t) -> void:
  DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://build"))
@@ -1239,6 +1319,25 @@ static func effective_version_requires_mount(t) -> void:
  t.check(Store.effective_version()==baseline and String(result.get("mounted",""))=="","UPDATE effective_version_requires_mount: a refused mount leaves the baseline effective: "+Store.effective_version()+" "+str(result))
  t.check(PATCH_B in state.failed and String(state.mounting).is_empty() and not FileAccess.file_exists(refusing.patch_path(PATCH_B)),"UPDATE effective_version_requires_mount: a refused mount is recorded failed, the marker cleared and the file deleted: "+str(state))
  Store.record_mounted("")
+
+# The baseline is read from the project settings once per process and frozen: boot.gd reads it
+# before it mounts a patch, and every patch carries its own (newer) config/version, so a later
+# live read could name the patch as the baseline if the engine reloads the settings on mount
+# (docs/spec/update-check.md「版本身份」). The settings are rewritten here the way a reload would.
+static func baseline_version_is_frozen(t) -> void:
+ Store.record_mounted("")
+ var frozen=Store.baseline_version()
+ var original=ProjectSettings.get_setting("application/config/version","")
+ var forged="98.7.6"
+ ProjectSettings.set_setting("application/config/version",forged)
+ var baseline=Store.baseline_version()
+ var effective=Store.effective_version()
+ var identity=Store.new(boot_root("frozen")).identity()
+ ProjectSettings.set_setting("application/config/version",original)
+ t.check(not frozen.is_empty() and frozen!=forged,"UPDATE baseline_version_is_frozen: the fixture starts from a real baseline: "+frozen)
+ t.check(baseline==frozen,"UPDATE baseline_version_is_frozen: a changed project setting does not move the baseline: "+baseline+" vs "+frozen)
+ t.check(effective==frozen,"UPDATE baseline_version_is_frozen: with nothing mounted the effective version stays the frozen baseline: "+effective)
+ t.check(String(identity.get("baseline",""))==frozen,"UPDATE baseline_version_is_frozen: the identity handed to the manifest judgement carries the frozen baseline: "+str(identity))
 
 # verify_patch_file is the one package judgement: exact length and exact SHA-256, chunked reads.
 static func patch_file_verification_domain(t) -> void:
