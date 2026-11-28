@@ -1182,6 +1182,8 @@ static func run(t) -> void:
  update_sign_single_entry(t)
  update_signature_write_single_entry(t)
  update_manifest_write_single_entry(t)
+ version_read_single_entry(t)
+ update_store_is_single_writer(t)
  run_identity_single_writer(t)
  feedback_save_single_serializer(t)
  feedback_save_cap_pinned(t)
@@ -6636,11 +6638,11 @@ static func update_sites_in_files(sites: Array) -> Array:
 
 static func update_compare_single_entry(t) -> void:
  var sites=update_source_sites(update_scan_files(["res://ui","res://update","res://core"]),"(?<![A-Za-z0-9_])compare\\s*\\(")
- t.check(sites==["update/update_manifest.gd::_revoked","update/update_manifest.gd::compare","update/update_manifest.gd::evaluate"],"DEP update_compare_single_entry: version comparison exists only in update/update_manifest.gd compare/evaluate/_revoked; a second compare( anywhere in ui/update/core is red: "+str(sites))
+ t.check(sites==["update/update_manifest.gd::_matching_patch","update/update_manifest.gd::_revoked","update/update_manifest.gd::compare","update/update_manifest.gd::evaluate","update/update_manifest.gd::is_newer"],"DEP update_compare_single_entry: version comparison exists only in update/update_manifest.gd compare/evaluate/is_newer/_revoked/_matching_patch; a second compare( anywhere in ui/update/core is red: "+str(sites))
 
 static func update_document_single_entry(t) -> void:
  var sites=update_source_sites(update_feature_files(),"JSON\\.(?:new|parse|parse_string)\\s*\\(")
- t.check(sites==["update/update_manifest.gd::_document"],"DEP update_document_single_entry: manifest parsing exists only in update/update_manifest.gd::_document; a second JSON parse on the update surface is red: "+str(sites))
+ t.check(sites==["update/update_manifest.gd::document"],"DEP update_document_single_entry: JSON parsing on the update surface exists only in update/update_manifest.gd::document (the manifest and the patch state both go through it); a second JSON parse is red: "+str(sites))
 
 static func update_verify_single_entry(t) -> void:
  var sites=update_source_sites(update_scan_files(["res://ui","res://update","res://core"]),"CryptoKey\\.new\\s*\\(|load_from_string\\s*\\(|\\.verify\\s*\\(")
@@ -6653,6 +6655,25 @@ static func update_http_single_entry(t) -> void:
 static func update_jump_single_entry(t) -> void:
  var sites=update_source_sites(update_scan_files(["res://ui","res://update","res://core"]),"OS\\.shell_open\\s*\\(")
  t.check(sites==["ui/main.gd::_open_update_url"],"DEP update_jump_single_entry: the update buttons launch only through ui/main.gd::_open_update_url (the open_url seam); a second OS.shell_open in ui/update/core is red: "+str(sites))
+
+# docs/spec/update-check-dependencies.md「单一路径」: the project's version setting has one runtime
+# reader and the update directory in the user data has one writer. Both scans cover every .gd under
+# res:// (tests and tools included), strip `#` comments and attribute each hit to its function, so
+# the expectation is a file::function declaration. The scanned tokens are spelled in two halves
+# below so this file does not match its own pattern.
+static func update_gd_files() -> Array:
+ var files=[]
+ for name in update_release_files():
+  if String(name).ends_with(".gd"): files.append("res://"+String(name))
+ return files
+
+static func version_read_single_entry(t) -> void:
+ var sites=update_source_sites(update_gd_files(),"application/config/"+"version")
+ t.check(sites==["update/update_store.gd::baseline_version"],"DEP version_read_single_entry: the baseline version is read from the project settings only in update/update_store.gd::baseline_version; every other consumer asks that entry or Store.effective_version: "+str(sites))
+
+static func update_store_is_single_writer(t) -> void:
+ var sites=update_source_sites(update_gd_files(),"user://"+"updates")
+ t.check(not sites.is_empty() and update_sites_in_files(sites)==["update/update_store.gd"],"DEP update_store_is_single_writer: the update directory under the user data is named only by update/update_store.gd; a second file touching it is red: "+str(sites))
 
 # docs/spec/update-check-dependencies.md「单一路径」, release side: one signer and
 # one manifest generator. These three judgments read source text and never run a script.

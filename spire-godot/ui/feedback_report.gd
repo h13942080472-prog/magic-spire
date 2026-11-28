@@ -2,6 +2,7 @@ extends Node
 # UI-owned report drafts; never writes GameState or dispatches gameplay commands.
 const DRAFT="user://feedback-draft.json"
 const MAX_IMAGES=3
+const UpdateStore=preload("res://update/update_store.gd")
 const MAX_IMAGE_BYTES=2*1024*1024
 # docs/spec/feedback-deployment.md「存档附件」: decoded limit 2 MiB (base64 stays under 2796204 chars).
 const MAX_SAVE_BYTES=2*1024*1024
@@ -68,7 +69,7 @@ func open() -> void:
  host._open_drawer("show_feedback")
 
 func _capture_context() -> void:
- var version=str(ProjectSettings.get_setting("application/config/version",""))
+ var version=UpdateStore.effective_version()
  if draft.context.is_empty():
   var v=host.view
   draft.context={"version":version,"platform":OS.get_name(),"phase":v.get("phase_caption",""),"scene":v.get("room_name",""),"floor":v.get("run_header",{}).get("location",""),"round":v.get("round",0),"seed":v.get("seed",0)}

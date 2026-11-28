@@ -35,6 +35,7 @@
 | `tools/package.ps1 -BuildId <本次唯一编号>` | Windows：在仓库根 `outputs/` 建立新目录并完成导出与自检 |
 | `tools/package-android.ps1 -BuildId <唯一编号> [-SigningConfig <本机配置>]` | Android：生成签名 APK；默认签名配置见下 |
 | `tools/check-package.ps1 -Directory <成品目录>` | 复验清单、发布 EXE 启动及成品 PCK |
+| `tools/export-patch.ps1 -BasePackage <基线发行包目录> -BaseVersion <基线版本> -Out <新目录> [-CheckOnly]` | Windows 补丁（可选）：先对基线发行包做可行性判定，再导出补丁 `.pck` 与元信息 JSON；接口见 [update-check.md「发布侧脚本」](update-check.md) |
 | `tools/check-android-package.ps1 -Apk <APK 路径>` | 直接取 APK 的 assets，用主机 Godot ZIP 资源加载器启动包内游戏 |
 | `tools/release_probe.gd` | 用编辑器经 `--main-pack` 载入同一成品 PCK 的探针 |
 | `tools/fix_android_manifest.py` | Android 清单 authorities 修复与重签 |
@@ -99,6 +100,8 @@
 - `package.ps1` 拒绝覆盖已存在的产物目录；脚本核对导出退出码、错误、文件存在以及导出前后源码指纹，
   **不把变化中的代码批次认定为稳定包**。导出日志与源码指纹存入 `build/package-<编号>`。
 - 覆盖安装必须保留同一签名并递增 version/code；迁移签名环境时另行妥善备份密钥。
+- 每版 Windows 发行包（主 `.pck` 与 `manifest.json`）必须在仓外归档：补丁是对基线发行包的累计差量，`tools/export-patch.ps1` 以它为输入；
+  丢失即无法为该基线出补丁，该基线的玩家只能走完整包。
 - Godot 4.7.2 非 Gradle 导出器会把所有 provider 的 authorities 写成 `.fileprovider`
   （[官方导出器源码](https://raw.githubusercontent.com/godotengine/godot/4.7.2-stable/platform/android/export/export_plugin.cpp)）；
   `fix_android_manifest.py` 只把 AndroidX Startup 的标识改回本包的 `.androidx-startup`，
@@ -141,3 +144,17 @@
   的值（取自 APK 旁的 `manifest.json`），所以 `-AndroidUrl`／`-AndroidMirror` 必须指向 APK 本体，不能指向
   含说明与许可的 Android ZIP。上传需用户明确指示：
   先传包，再按清单里的 `bytes`／`sha256` 核对公网 URL 上的文件，最后传清单与 `.sig`。
+- 生成补丁（可选，仅 Windows；基线发行包已仓外归档为前提）：
+  1. 导出补丁同样要先把 `core/content_catalog.gd` 的 `PACKS_ROOT` 改成 `"adjacent"`，导出后改回（与出完整包相同；开发值会让补丁带着 `res://` 的内容包定位，挂载后加载不出内容包）；
+     `tools/export-patch.ps1` 导出前经 `tools/assert-packs-root.ps1` 断言，不是 `adjacent` 即拒绝且不出补丁。
+     `tools/export-patch.ps1 -BasePackage <归档的基线发行包> -BaseVersion <基线版本> -Out <新目录>`：先做可行性判定，再用 Godot 命令行导出补丁 `.pck`
+     与元信息 JSON（`from`、`to`、`bytes`、`sha256`；补丁的哈希只在这里算一次）。判定命中（内容包、`project.godot`、导出预设、引导闭包有改动，
+     或基线没有引导场景）即非零退出、不出补丁：该基线不写补丁条目，客户端自然退回完整包。
+  2. 成品叠加验收：把补丁挂到该基线的成品上启动，确认 `res://` 被覆盖、内容包正常、窗口标题与反馈报告报目标版本
+     （导出成品上的行为，没有常驻门禁，见 [update-check.md](update-check.md)）。
+  3. 上传（需用户明确指示）：`.pck` 传到维护者存储桶（直链为主），再传一份到 GitHub Release 作镜像。
+  4. 按元信息里的 `bytes`／`sha256` 核对两处公网文件。
+  5. `tools/update-manifest.ps1` 带 `-WindowsPatchMeta <元信息 JSON> -WindowsPatchUrl <桶直链> -WindowsPatchMirror <GitHub 链接>`（每个仍维护的基线各一份累计补丁，
+     推荐只维护最近两三个基线）；其 `bytes`／`sha256` 取自元信息，不重算。
+  6. 维护者本人签名；最后上传 `manifest.json` 与 `.sig`。
+- 首个含引导场景的版本必须以完整包发布：更早的基线没有挂载能力，`tools/export-patch.ps1` 对它们拒绝出补丁（`baseline-no-boot`）。

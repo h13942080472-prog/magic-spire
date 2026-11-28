@@ -7,6 +7,7 @@ extends Node
 
 const Manifest=preload("res://update/update_manifest.gd")
 const Keys=preload("res://update/update_keys.gd")
+const Store=preload("res://update/update_store.gd")
 # The body cap and the https requirement have one declaration each, both in the judgement
 # module: the transport must not carry a second copy that can drift from what evaluate accepts.
 const MAX_BYTES=Manifest.MAX_BYTES
@@ -25,6 +26,10 @@ var keys: Dictionary=Keys.KEYS
 # production and the stand-in path share one result entry.
 var transport: Callable
 var request: HTTPRequest
+# The install identity source (update_store.gd). A player session builds the default store on
+# demand; a harness (--script) never does, so an injected store is the only way to give a
+# harness run an identity.
+var store=null
 var busy=false
 # GETs issued by the current (or last) check; the contract allows at most two.
 var requests=0
@@ -44,9 +49,6 @@ func _ready() -> void:
 static func manifest_url() -> String:
  return str(ProjectSettings.get_setting("update/manifest_url","")).strip_edges()
 
-static func current_version() -> String:
- return str(ProjectSettings.get_setting("application/config/version",""))
-
 # The check covers Windows and Android. An uncovered platform has no key and yields none, which
 # is the same answer a missing platform entry gives.
 static func platform_key() -> String:
@@ -57,7 +59,7 @@ static func platform_key() -> String:
 # A player session is an engine run that boots the shipped main scene. A run started with
 # --script is a harness, a probe or a tool: it stays offline and starts check() itself.
 static func scripted_run() -> bool:
- return OS.get_cmdline_args().has("--script")
+ return Store.scripted_run()
 
 # The automatic start is a player-session decision: the run must be a player session, the
 # factory default and the saved player preference must allow it, and the URL must be HTTPS.
@@ -102,9 +104,17 @@ func deliver(result: int, status: int, _headers: PackedStringArray, body: Packed
    _stage="signature"
    if _send(manifest_url()+SIGNATURE_SUFFIX)!=OK: _fail("network")
    return
-  _finish(Manifest.evaluate(_manifest,body,keys,current_version(),platform_key()))
+  _finish(Manifest.evaluate(_manifest,body,keys,Store.effective_version(),platform_key(),_identity()))
   return
  _fail("network" if result!=HTTPRequest.RESULT_SUCCESS else "http")
+
+# What a patch must match to apply to this install: the injected store's, else the player
+# session's own. Outside a player session (a --script harness, a platform without patch mounting)
+# there is no identity and no store is built, so no patch is matched there.
+func _identity() -> Dictionary:
+ if store!=null: return store.identity()
+ if not Store.player_session(): return {}
+ return Store.new().identity()
 
 func _fail(reason: String) -> void:
  _finish(Manifest.none(reason))

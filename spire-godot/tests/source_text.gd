@@ -1,6 +1,6 @@
 extends RefCounted
 
-# The one reader of scanned source text (tests/state_reader_scan.gd, tests/check_index.gd):
+# The one reader of scanned source text (tests/state_reader_scan.gd, tests/check_index.gd, tests/update_cases.gd):
 # one commit must give one frozen fingerprint on an LF, a CRLF and a mixed checkout (the
 # tracked blobs never contain CR), so for a blob with neither CR nor a BOM the value of
 # normalized_text_sha256 equals the digest of the git blob (docs/spec/state-readers.md

@@ -7,3 +7,5 @@ public.pem -text
 notes.txt -text
 android-package-manifest.json -text
 windows.zip -text
+patch.pck -text
+patch-meta.json -text

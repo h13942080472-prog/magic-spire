@@ -10,6 +10,7 @@
 - `tests/check_index.gd` → 被 `tests/route_plan.gd`、`tests/runner_cases.gd`、`tools/build_check_index.gd` 预载；理由：派生实现只此一份，生成器／自检／计划宿主共用。
 - `tests/check_index.gd` → `tests/source_text.gd`；理由：被扫描的源码文本的读取只此一个入口（`normalized_text`／`normalized_text_sha256`），扫描与逐文件哈希同吃归一文本，冻结指纹因此与检出的行尾无关。
 - `tests/runner_cases.gd` → `tests/source_text.gd`；理由：`tests/runner_cases.gd::source_text_folds_crlf_pairs`／`tests/runner_cases.gd::source_text_keeps_lone_cr` 直接调用接口；叶按路径 `load` 取用，叶缺失或不可解析是具名 RED，不是 runner 级脚本错误。
+- `tests/update_cases.gd` → `tests/source_text.gd`；理由：`tests/update_cases.gd::run_ends_with_writable_check` 读自身源码判定 `run()` 的最后一次调用，经 `normalized_text` 读入，CRLF 与 LF 检出同判；按路径 `preload` 取用（叶无 `run()`、无扫描语义）。
 - `tools/check-index.ps1` → `tools/build_check_index.gd`；理由：入口脚本只负责起引擎、收日志与退出码。
 - `tools/check.ps1` → `tests/route_plan.gd`（计划宿主）＋既有宿主 `tests/test_game.gd`／`tests/ui_smoke.gd`；理由：路由模式只把计划的 `rules`／`ui` 灌进既有执行路径，不新增第二个执行器。
 - `tests/runner_cases.gd` 只**读**冻结物与手写层（经 `tests/check_index.gd`），不回写；`tests/suite_selection.gd` 本片**未改**（既有 API 与 `CROSS_AREAS` 行为不变）。
@@ -33,7 +34,7 @@
 | 文件 | 行数 | 行数线 | 说明 |
 | --- | --- | --- | --- |
 | `tests/check_index.gd` | 540 | 400 | **超出**：派生（scan／compare）与路由（suites_for／ROUTE 渲染）同文件。职责边界是整个索引流水线，不按行数拆分；被扫描的源码文本的读取已收口到叶 `tests/source_text.gd`（扫描文本换行归一），本文件不再自带被扫描源码的读原语（冻结物 `FROZEN_PATH` 的 `FileAccess` 读取保留）。按根 `AGENTS.md`「大文件按职责拆，不按行数硬拆」，此处以职责说明代替拆分。 |
-| `tests/check_index_edges.gd` | 153 | 500 | 手写层八张表（`DOMAINS` 60／`WIDEN` 1／`EXCLUDE` 15／`BLIND_BY_DESIGN` 3／`INDEX_DEFECTS` 0／`CLOSURE` 9／`ORACLE_NOTES` 2／`SUITE_EXEMPT` 3），逐条 `reason`；随语料增长，是人类审查面。 |
+| `tests/check_index_edges.gd` | 165 | 500 | 手写层八张表（`DOMAINS` 60／`WIDEN` 1／`EXCLUDE` 15／`BLIND_BY_DESIGN` 3／`INDEX_DEFECTS` 0／`CLOSURE` 14（含 `update/` 前缀：规则 `update,architecture`、界面 `update`；索引只扫 `core|data|ui`，`update/` 靠这条闭包路由；另含更具体的前缀 `tests/fixtures/update/`、`tools/export-patch`、`tools/update-manifest`、`tools/sign-update-manifest`：规则 `update`（后三者加 `runner`），让更新夹具与发布脚本的改动跑到回放它们的 `update` 套件，而不是整层兜底或只跑 `runner`；先匹配先得，具体前缀排在 `tests/`、`tools/` 之前）／`ORACLE_NOTES` 2／`SUITE_EXEMPT` 3），逐条 `reason`；随语料增长，是人类审查面。 |
 | `tests/route_plan.gd` | 56 | 120 | 计划宿主 CLI：读冻结物、打印 `ROUTE *`、写计划 JSON。 |
 | `tools/build_check_index.gd` | 47 | 60 | `--verify`／`--write`；与读取方共用同一 `derive()`。 |
 | `tests/runner_cases.gd` | 389 | — | 既有归属自检＋九条索引判据（一次 `derive()` 共用）＋四条扫描面判据（`tests/runner_cases.gd::source_text_folds_crlf_pairs`／`::source_text_keeps_lone_cr`／`::state_reader_reads_through_one_entry`／`::check_index_reads_through_one_entry`；扫描文本换行归一）。 |
