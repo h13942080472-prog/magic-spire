@@ -5345,3 +5345,16 @@ Godot 4.7.2 专项 66 项断言通过。两个部位各承受两段「浑身解�
 - 敏感性：本分支新增 29 条登记突变（`tests/mutations.json` 与 `origin/main` 的键集合之差，无删除），串行持锁逐条运行 `tools/check-mutation.ps1 -Check <名> -TimeoutSeconds 1200`，29 条均 `RED exit-red=True restored=True`，具名判据均有对应 `ERROR:` 行，逐字节还原自证通过，每条之后 `git status` 为 0 行。其中 `update_store_is_single_writer` 与 `version_read_single_entry` 的运行输出带 `MUTATION GAP FREEZE frozen=54 current=53 shrunk=1`，只是冻结缺口计数提示，退出码仍为 0。`target_queries_stay_stateless` 的失配是上游既有问题，不在这 29 条内，未运行。
 - 与父侧 `b1fe38b` 对照的结论：无新红，无裁定项；两侧失败套件集合与错误行一致。验收期间只写沙盒 `%APPDATA%`，真实 `%APPDATA%\Godotpp_userdata` 目录名与修改时间在每个阶段结束时与开工时一致。
 - 未验证：真实导出成品上的叠加挂载与真实入口三轮；冷启动耗时；挂载后工程设置是否重载；Android 真机。
+
+## 2026-11-28｜真实成品上的叠加挂载探针与真实入口三轮
+
+- 域：`spire-godot/` 的 `tools/package.ps1` 真实 Windows 成品（基线版本 `0.18.4`）与 `tools/export-patch.ps1` 导出的补丁（`0.18.4` → `0.18.5`，改动 `ui/main.gd` 与 `config/version`）；`update/boot.gd` 真实入口；沙盒 `%APPDATA%`。验收 HEAD 为 `5b5d4a4`；成品与补丁导出于 `e11e60a`，两者之间只差一个 `.uid` 旁文件与文档，成品与补丁直接复用。
+- 真实入口三轮（`--headless --verbose --quit-after 300`，`--path` 工程，沙盒 `%APPDATA%`）：完好轮出现 `update boot: mounted 99.0.1`，`state.json` 的 `active.to` 为 `99.0.1`；篡改轮无 `mounted`，`failed` 为 `["99.0.1"]`，包文件被删除；遗留标记轮无 `mounted`，`failed` 为 `["99.0.1"]`，`mounting` 清空。三轮均符合期望。
+- 基线成品：`tools/package.ps1` 退出 0（`PACKS_ROOT` 临时为 `"adjacent"`，已还原），`紧缚尖塔.pck` 214393192 字节，sha256 `8f23bb419d8d06d5cfa9c6c59e5b91a8be8873c26bf99e0f2730241bb890e2ae`。
+- 补丁：`tools/export-patch.ps1 -BaseRef HEAD` 退出 0，原行 `PATCH EXPORT: …\patch (patch-0.18.4-0.18.5.pck bytes=601504 sha256=a1e1c2239b87afabe12ac56d9f3d7071ebe5a86db5d303efc40eb7fa0270741a)`。文件列表 2 项：`project.binary`（1722 字节）、`ui/main.gdc`（599544 字节）；不含 `core/content_catalog.gd`。导出时临时改动的三个文件（`core/content_catalog.gd`、`project.godot`、`ui/main.gd`）已逐字节还原，sha256 与改前一致，`git diff --quiet` 为 0。
+- 叠加正例（成品副本，沙盒 `updates/` 放入 `patches/0.18.5.pck` 与 `state.json`，`--headless --verbose --quit-after 600`）：退出 0，stderr 为空；stdout 出现 `update boot: mounted 0.18.5` 与 `OVERLAY-PROBE version=0.18.4`；无 `SCRIPT ERROR`，无 `ERROR:`，无退出泄漏行；运行后 `state.json` 的 `active` 与启动前一致，补丁文件仍在。补丁里的 `ui/main.gdc` 确已生效。
+- 工程设置是否重载：不重载。补丁 `project.binary` 内的 `config/version` 为 `0.18.5`，挂载成功后 `ProjectSettings` 读到的仍是基线值 `0.18.4`。依据是同一次启动里 `mounted 0.18.5` 在前、`OVERLAY-PROBE version=0.18.4` 在后。因此补丁不能靠 `project.binary` 改变运行时工程设置，需要改工程设置的变更不能走补丁。
+- 叠加反例（清空 `updates/`，补丁文件正中 1 个字节取反，`state.json` 仍写原始 bytes 与 sha256）：退出 0，stderr 为空；stdout 无 `update boot:` 行，无 `OVERLAY-PROBE`；运行后 `state.json` 为 `{"active":{},"failed":["0.18.5"],"from":"0.18.4","mounting":"","pending":{}}`，`patches/` 下补丁文件被删除。
+- 文档检查：`tools/check-docs.ps1` 在 `5b5d4a4` 上 `DOCS PASS: 53 rule-class document(s), 4013 reference(s) checked, allowlist 3 entrie(s)`，退出 0。
+- 验收期间成品与引擎只在沙盒 `%APPDATA%` 下运行；真实 `%APPDATA%\Godot\app_userdata` 为 23 项，各目录名与修改时间在开工与叠加阶段后一致。
+- 未验证：冷启动耗时；Android 真机。本条不含全量回归，沿用上一条的全量结果。
