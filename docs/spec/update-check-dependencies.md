@@ -36,7 +36,7 @@
 | `spire-godot/tests/state_readers.json`（生成物） | 由 `tools/build_state_readers.gd --write` 重写，登记 `update/` 的读取点 | 只经工具写入；不手工编辑；他行不变 |
 | `spire-godot/tests/check_index_edges.gd::CLOSURE` | 新增 `spire-godot/update/` 前缀条目：规则 `update,architecture`、界面 `update`；索引只扫 `core|data|ui`，不加这条则 `update/` 下改动落到 `ROUTE UNMAPPED` 而退回全量 | 只增这一条；窗口标题与反馈报告的断言经 `ui/main.gd`、`ui/feedback_report.gd` 既有的边路由到 `interface`，不在此重复 |
 | `spire-godot/tests/check_index.json`（生成物） | 由 `tools/check-index.ps1 -Write` 重冻，登记 `update/` 与新增测试文件 | 只经工具写入；不手工编辑；他行不变 |
-| `spire-godot/tests/update_cases.gd.uid`、`spire-godot/tests/update_ui_cases.gd.uid`（新） | 引擎生成的脚本 UID 旁文件 | 只经引擎导入写入；不手工编辑 |
+| `spire-godot/tests/update_cases.gd.uid`、`spire-godot/tests/update_ui_cases.gd.uid`、`spire-godot/tests/fixtures/update/mount_probe.gd.uid`（新） | 引擎生成的脚本 UID 旁文件 | 只经引擎导入写入；不手工编辑 |
 | `spire-godot/tests/source_text.gd`（头注释） | 消费者清单补 `tests/update_cases.gd`（`tests/update_cases.gd::run_ends_with_writable_check` 经 `normalized_text` 读自身源码） | 只改注释；接口与实现不动 |
 | `docs/spec/check-routing-dependencies.md`「允许的边」 | 补 `tests/update_cases.gd` → `tests/source_text.gd` 一条边 | 只加这一条；其余边与计数不动 |
 | `spire-godot/tests/mutations.json` | 为本片具名 check 追加条目（含引导挂载、有效版本与两条新架构判据；补丁匹配、条目校验、身份传递与导出可行性各一条） | 既有条目、`known_gaps` 与冻结清单不变；`find` 仍唯一 |
