@@ -14,6 +14,8 @@ const Store=preload("res://update/update_store.gd")
 const UpdateCheck=preload("res://update/update_check.gd")
 # The startup switch is one key of the existing settings file, never a second store.
 const Settings=preload("res://ui/display_settings.gd")
+# The one line-ending-folding reader of source text (CRLF checkouts must judge like LF ones).
+const SourceText=preload("res://tests/source_text.gd")
 
 const PLATFORM="windows-x64"
 const CURRENT="0.18.3.fix"
@@ -114,7 +116,9 @@ static func run(t) -> void:
  patch_file_verification_domain(t)
  store_rejects_hostile_state(t)
  main_scene_is_boot_scene(t)
+ child_reaper_stops_a_hung_child(t)
  engine_mounter_loads_a_real_pack(t)
+ suite_leaves_res_build_writable(t)
 
 # ---- fixtures -------------------------------------------------------------------------
 
@@ -1413,12 +1417,24 @@ static func main_scene_is_boot_scene(t) -> void:
  t.check(not name.is_empty() and Store!=null and not name.contains(Store.baseline_version()),"UPDATE main_scene_is_boot_scene: config/name carries no version, the window title adds it: "+name)
 
 # A real pack through the real engine call: the default mounter must make the pack's file
-# visible under res://. The pack adds a path nothing else uses, so the rest of the run is unaffected.
+# visible under res://. The engine mount redirects res:// directory access for the rest of its
+# process (a later suite in the shared rule process could no longer create res://build), so the
+# mount runs in a child engine process (fixtures/update/mount_probe.gd) and only its verdict
+# comes back; this process never mounts. The child inherits this process's environment, so it
+# sees the same APPDATA and user data directory. The parent waits through wait_or_reap, which
+# kills and reaps a child that outlives MOUNT_LIMIT_MSEC (the only backstop: the probe mounts
+# synchronously, so it has no timer of its own); the child's engine log is read back and must
+# carry no exit-leak line.
+const MOUNT_PROBE="res://tests/fixtures/update/mount_probe.gd"
+const MOUNT_LIMIT_MSEC=60000
+# After OS.kill, how long to wait for the child to be gone; declared once for every reap.
+const MOUNT_REAP_MSEC=5000
+const MOUNT_LEAK_MARKERS=["leaked","still in use"]
+
 static func engine_mounter_loads_a_real_pack(t) -> void:
  var modules=boot_modules(t,"engine_mounter_loads_a_real_pack")
  if modules.is_empty(): return
  var Store=modules[0]
- var Boot=modules[1]
  var store=Store.new(boot_root("engine"))
  var source=store.root.path_join("marker-source.txt")
  write_bytes(source,"mounted".to_utf8_buffer())
@@ -1428,7 +1444,98 @@ static func engine_mounter_loads_a_real_pack(t) -> void:
  t.check(packer.pck_start(ProjectSettings.globalize_path(packed))==OK and packer.add_file("res://update_boot_probe/marker.txt",ProjectSettings.globalize_path(source))==OK and packer.flush()==OK,"UPDATE engine_mounter_loads_a_real_pack: the fixture pack is written")
  var content=FileAccess.get_file_as_bytes(packed)
  store.write_state(boot_state(Store.baseline_version(),{},{"to":PATCH_A,"bytes":content.size(),"sha256":sha_hex(content)}))
- t.check(not FileAccess.file_exists("res://update_boot_probe/marker.txt"),"UPDATE engine_mounter_loads_a_real_pack: the marker is absent before the mount")
- var result=Boot.start(store,Callable(),true)
- t.check(String(result.get("mounted",""))==PATCH_A and FileAccess.get_file_as_string("res://update_boot_probe/marker.txt")=="mounted","UPDATE engine_mounter_loads_a_real_pack: the default engine mounter exposes the pack's file under res://: "+str(result))
- Store.record_mounted("")
+ var verdict_path=ProjectSettings.globalize_path(store.root.path_join("mount-verdict.json"))
+ var log_path=ProjectSettings.globalize_path(store.root.path_join("mount-probe.log"))
+ var pid=OS.create_process(OS.get_executable_path(),PackedStringArray(["--headless","--path",ProjectSettings.globalize_path("res://"),"--log-file",log_path,"--script",MOUNT_PROBE,"--",store.root,verdict_path]))
+ t.check(pid>0,"UPDATE engine_mounter_loads_a_real_pack: the child engine process starts")
+ var waited=wait_or_reap(pid,MOUNT_LIMIT_MSEC) if pid>0 else {"hung":false,"kill":OK,"running":false}
+ t.check(pid>0 and not waited.hung,"UPDATE engine_mounter_loads_a_real_pack: the child engine process exits within the limit")
+ t.check(waited.kill==OK and not waited.running,"UPDATE engine_mounter_loads_a_real_pack: the timed-out child is killed and gone, pid %d, kill=%s, child still running=%s" % [pid,str(waited.kill),str(waited.running)])
+ var verdict=JSON.parse_string(FileAccess.get_file_as_string(verdict_path)) if FileAccess.file_exists(verdict_path) else null
+ t.check(verdict is Dictionary and verdict.get("marker_before",true)==false,"UPDATE engine_mounter_loads_a_real_pack: the marker is absent in the child before the mount: "+str(verdict))
+ t.check(verdict is Dictionary and String(verdict.get("mounted",""))==PATCH_A and String(verdict.get("content",""))=="mounted","UPDATE engine_mounter_loads_a_real_pack: the default engine mounter exposes the pack's file under res://: "+str(verdict))
+ t.check(not FileAccess.file_exists("res://update_boot_probe/marker.txt"),"UPDATE engine_mounter_loads_a_real_pack: this process never mounted the pack")
+ var child_log=FileAccess.get_file_as_string(log_path)
+ var leaked=false
+ for marker in MOUNT_LEAK_MARKERS: leaked=leaked or child_log.contains(marker)
+ t.check(not leaked,"UPDATE engine_mounter_loads_a_real_pack: the child engine log has no exit-leak line: "+child_log.substr(0,400))
+
+# Waits up to limit_msec for the child to exit on its own; a child still running then is killed
+# and waited for up to MOUNT_REAP_MSEC, so a failed kill is never silent and no engine process
+# outlives the test (the machine has one engine lock). Returns {hung, kill, running}.
+static func wait_or_reap(pid: int,limit_msec: int) -> Dictionary:
+ var deadline=Time.get_ticks_msec()+limit_msec
+ while OS.is_process_running(pid) and Time.get_ticks_msec()<deadline: OS.delay_msec(100)
+ var out={"hung":OS.is_process_running(pid),"kill":OK,"running":false}
+ if not out.hung: return out
+ out.kill=OS.kill(pid)
+ var reap_deadline=Time.get_ticks_msec()+MOUNT_REAP_MSEC
+ while OS.is_process_running(pid) and Time.get_ticks_msec()<reap_deadline: OS.delay_msec(50)
+ out.running=OS.is_process_running(pid)
+ return out
+
+# The timeout branch of the mount test only runs when the child hangs, so it is exercised here
+# with a stand-in that always outlives a short limit (ping.exe, no engine started).
+static func child_reaper_stops_a_hung_child(t) -> void:
+ if OS.get_name()!="Windows": return
+ var ping=OS.get_environment("SystemRoot").path_join("System32/ping.exe")
+ var pid=OS.create_process(ping,PackedStringArray(["-n","15","127.0.0.1"]))
+ t.check(pid>0,"UPDATE child_reaper_stops_a_hung_child: the stand-in child starts")
+ if pid<=0: return
+ var waited=wait_or_reap(pid,300)
+ t.check(waited.hung,"UPDATE child_reaper_stops_a_hung_child: a child that outlives the limit is reported hung, pid %d" % pid)
+ t.check(waited.kill==OK and not waited.running and not OS.is_process_running(pid),"UPDATE child_reaper_stops_a_hung_child: the hung child is killed and gone, pid %d, kill=%s, child still running=%s" % [pid,str(waited.kill),str(waited.running)])
+ if OS.is_process_running(pid): OS.kill(pid)
+
+# Last case of the suite, so everything above has already run in this process. The rule suites
+# share one process (tests/test_game.gd::SUITES order), and later suites such as runner create
+# directories under res://build. A mount in this process redirects res:// directory access to
+# the pack filesystem and breaks that for the rest of the run, so no case may mount here.
+# This call MUST stay the last call of run(): a mount added after it would not be noticed.
+# run_ends_with_writable_check reads this file's source and fails when it is not.
+static func suite_leaves_res_build_writable(t) -> void:
+ run_ends_with_writable_check(t)
+ var made_root=DirAccess.make_dir_recursive_absolute("res://build")
+ t.check(made_root==OK,"UPDATE suite_leaves_res_build_writable: res://build can still be created after the update cases: "+str(made_root))
+ var scratch="res://build/update-writable-%d" % Time.get_ticks_usec()
+ var made=DirAccess.make_dir_recursive_absolute(scratch)
+ var exists=DirAccess.dir_exists_absolute(scratch)
+ var removed=DirAccess.remove_absolute(scratch) if exists else ERR_DOES_NOT_EXIST
+ t.check(made==OK and exists and removed==OK,"UPDATE suite_leaves_res_build_writable: a scratch directory under res://build can be created and removed after the update cases: "+str([made,exists,removed]))
+
+# The last statement of run(), read from source text that normalized_text already folded to LF.
+# The run() block ends at the next unindented line that is neither blank nor a comment, so blank
+# lines and comments inside or after the statements neither redden nor hide a later call. The
+# judgement assumes one statement per line at one space of indent: a deeper-indented line (a call
+# continued over lines, a nested block) is returned in "unrecognized" and the caller reddens,
+# never silently passes. A trailing comment is dropped from the statement.
+static func last_run_call(text: String) -> Dictionary:
+ var out={"found":false,"last":"","unrecognized":""}
+ var inside=false
+ var comment=RegEx.create_from_string("[ \t]+#.*$")
+ for raw in text.split("\n"):
+  var line=String(raw)
+  if not inside:
+   if line.begins_with("static func run(t) -> void:"):
+    inside=true
+    out.found=true
+   continue
+  var stripped=line.strip_edges()
+  if stripped.is_empty() or stripped.begins_with("#"): continue
+  if not line.begins_with(" "): break
+  if line.begins_with("  "):
+   if out.unrecognized.is_empty(): out.unrecognized=stripped
+   continue
+  out.last=comment.sub(stripped,"")
+ return out
+
+static func run_ends_with_writable_check(t) -> void:
+ var found=last_run_call(SourceText.normalized_text("res://tests/update_cases.gd"))
+ t.check(found.found and found.unrecognized.is_empty(),"UPDATE run_ends_with_writable_check: every statement of run() sits on one line at one space of indent, first unrecognized line: "+str(found.unrecognized))
+ t.check(found.last=="suite_leaves_res_build_writable(t)","UPDATE run_ends_with_writable_check: suite_leaves_res_build_writable is the last call of run(): "+str(found.last))
+ var head="static func run(t) -> void:\n"
+ var tail="\nstatic func x() -> void:\n"
+ t.check(last_run_call(head+" a(t)\n\n b(t)\n"+tail).last=="b(t)","UPDATE run_ends_with_writable_check: a blank line inside run() does not hide the last call")
+ t.check(last_run_call(head+" a(t)\n b(t) # tail\n"+tail).last=="b(t)","UPDATE run_ends_with_writable_check: a trailing comment does not hide the last call")
+ t.check(last_run_call(head+" a(t)\n b(t)\n# note\n\n c(t)\n"+tail).last=="c(t)","UPDATE run_ends_with_writable_check: a call added after a blank line and a comment becomes the last call")
+ t.check(not last_run_call(head+" a(t)\n b(\n  t)\n"+tail).unrecognized.is_empty(),"UPDATE run_ends_with_writable_check: a call split over lines is reported unrecognized")

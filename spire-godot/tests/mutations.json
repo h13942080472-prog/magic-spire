@@ -1219,6 +1219,30 @@
       "find": "(Get-Content -LiteralPath $exportLog -Raw) -match '(?m)^\\s*(?:USER )?(?:SCRIPT |PARSE )?ERROR:'",
       "replace": "$false",
       "suite": "update"
+    },
+    "engine_mounter_loads_a_real_pack": {
+      "file": "update/boot.gd",
+      "find": " return ProjectSettings.load_resource_pack(path,true)",
+      "replace": " return true",
+      "suite": "update"
+    },
+    "suite_leaves_res_build_writable": {
+      "file": "tests/update_cases.gd",
+      "find": " var verdict_path=ProjectSettings.globalize_path(store.root.path_join(\"mount-verdict.json\"))",
+      "replace": " ProjectSettings.load_resource_pack(packed,true)\n var verdict_path=ProjectSettings.globalize_path(store.root.path_join(\"mount-verdict.json\"))",
+      "suite": "update"
+    },
+    "child_reaper_stops_a_hung_child": {
+      "file": "tests/update_cases.gd",
+      "find": " out.kill=OS.kill(pid)",
+      "replace": " out.kill=OK",
+      "suite": "update"
+    },
+    "run_ends_with_writable_check": {
+      "file": "tests/update_cases.gd",
+      "find": " engine_mounter_loads_a_real_pack(t)\n suite_leaves_res_build_writable(t)\n",
+      "replace": " suite_leaves_res_build_writable(t)\n engine_mounter_loads_a_real_pack(t)\n",
+      "suite": "update"
     }
   }
 }
