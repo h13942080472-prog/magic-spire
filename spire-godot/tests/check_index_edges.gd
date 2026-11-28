@@ -145,6 +145,7 @@ const CLOSURE=[
  {"prefix":"spire-godot/assets/art/","rules":"localization","ui":"localization,hero_art,equipment_art","reason":"美术资源按本地化与立绘模块收窄（assets/art/ART-NOTES.md）"},
  {"prefix":"spire-godot/assets/","rules":"localization","ui":"localization","reason":"其余素材按本地化面收窄（docs/localization.md）"},
  {"prefix":"spire-godot/tools/","rules":"runner","reason":"改 tools/ 至少跑 runner；改 check.ps1 另跑 -VerifyRunner（契约 §7-1）"},
+ {"prefix":"spire-godot/update/","rules":"update,architecture","ui":"update","reason":"update/ 是不被索引扫描的叶模块（只扫 core|data|ui）：规则 update 与界面 update 断言引导、存储与判定，architecture 的 DEP 判据扫描该目录的单入口；窗口标题与反馈报告的断言经 ui/main.gd、ui/feedback_report.gd 既有的边路由到 interface（docs/spec/update-check-dependencies.md）"},
  {"prefix":"spire-godot/","rules":"all-dev","ui":"all-dev-ui","reason":"工程与主场景（project.godot／main.tscn）是全部套件的宿主"},
 ]
 

@@ -14,6 +14,8 @@ extends RefCounted
 const SCHEMA=1
 const MAX_BYTES=65536
 const HTTPS="https://"
+# Patch packs are read in chunks of this size: a pack is never loaded whole into memory.
+const PATCH_CHUNK=1048576
 const REJECTIONS=["signature","key","schema","platform","size","json","url"]
 # The signature file is base64 text; the alphabet check keeps a garbled answer a plain "no"
 # instead of an engine error from the decoder.
@@ -64,9 +66,9 @@ static func evaluate(manifest_bytes: PackedByteArray, signature: PackedByteArray
  # Size and parse come first: an oversized or broken document must never be parsed, verified
  # or interpreted, and its bytes are the only input the signature covers.
  if manifest_bytes.size()==0 or manifest_bytes.size()>MAX_BYTES: return none("size")
- var document=_document(manifest_bytes)
- if not document is Dictionary: return none("json")
- var manifest=document as Dictionary
+ var parsed=document(manifest_bytes)
+ if not parsed is Dictionary: return none("json")
+ var manifest=parsed as Dictionary
  var key_id=String(manifest.get("key_id",""))
  if key_id.is_empty() or not keys.has(key_id): return none("key")
  var public_pem=String(keys[key_id])
@@ -91,10 +93,11 @@ static func evaluate(manifest_bytes: PackedByteArray, signature: PackedByteArray
  if offer.revoked or compare(version,current)>0: return offer
  return none("")
 
-# A JSON parser instance keeps a malformed document a plain "no" instead of an engine error.
-static func _document(manifest_bytes: PackedByteArray) -> Variant:
+# The one JSON parse of the update module (the manifest here, the patch state in update_store.gd).
+# A parser instance keeps a malformed document a plain "no" instead of an engine error.
+static func document(bytes: PackedByteArray) -> Variant:
  var parser=JSON.new()
- if parser.parse(manifest_bytes.get_string_from_utf8())!=OK: return null
+ if parser.parse(bytes.get_string_from_utf8())!=OK: return null
  return parser.data
 
 # The key table holds public material only. A pasted private key is a configuration accident
@@ -125,6 +128,35 @@ static func _digest(bytes: PackedByteArray) -> PackedByteArray:
  context.start(HashingContext.HASH_SHA256)
  context.update(bytes)
  return context.finish()
+
+# docs/spec/update-check.md「引导挂载与版本身份」: the published spelling of a package digest,
+# 64 lower-case hexadecimal characters; any other spelling is not a digest.
+static func is_sha256(text: String) -> bool:
+ if text.length()!=64: return false
+ for index in text.length():
+  if not "0123456789abcdef".contains(text[index]): return false
+ return true
+
+# A boot candidate must be strictly newer than the baseline it patches.
+static func is_newer(candidate: String, current: String) -> bool:
+ return compare(candidate,current)>0
+
+# docs/spec/update-check.md「引导挂载与版本身份」: the one package judgement. The file must exist, have
+# exactly `bytes` bytes and hash to `sha256` (SHA-256, read in chunks). An empty package never
+# verifies. A caller deletes or keeps the file; this function only answers.
+static func verify_patch_file(path: String, bytes: int, sha256: String) -> bool:
+ if bytes<=0 or not is_sha256(sha256): return false
+ var file=FileAccess.open(path,FileAccess.READ)
+ if file==null or file.get_length()!=bytes: return false
+ var context=HashingContext.new()
+ context.start(HashingContext.HASH_SHA256)
+ var remaining=bytes
+ while remaining>0:
+  var chunk=file.get_buffer(mini(PATCH_CHUNK,remaining))
+  if chunk.is_empty(): return false
+  context.update(chunk)
+  remaining-=chunk.size()
+ return context.finish().hex_encode()==sha256
 
 static func _revoked(manifest: Dictionary, current: String) -> bool:
  var list=manifest.get("revoked",[])

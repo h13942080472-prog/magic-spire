@@ -1068,6 +1068,103 @@
       "replace": " if false and is_instance_valid(update_check) and update_check.get_parent()==null: update_check.free()",
       "suite": "update",
       "execution": "ui"
+    },
+    "boot_skips_bad_patch_and_records_failure": {
+      "file": "update/boot.gd",
+      "find": "  if to in state.failed or not Manifest.is_newer(to,baseline) or not Manifest.verify_patch_file(path,int(entry.bytes),String(entry.sha256)):",
+      "replace": "  if false:",
+      "suite": "update"
+    },
+    "effective_version_follows_mount": {
+      "file": "update/update_store.gd",
+      "find": " return str(Engine.get_meta(EFFECTIVE_KEY,baseline_version()))",
+      "replace": " return baseline_version()",
+      "suite": "update"
+    },
+    "effective_version_requires_mount": {
+      "file": "update/boot.gd",
+      "find": "  if not mount.call(path):",
+      "replace": "  if not (mount.call(path) or true):",
+      "suite": "update"
+    },
+    "boot_resets_on_baseline_change": {
+      "file": "update/boot.gd",
+      "find": " if state.from!=baseline and not Store.is_blank(state):",
+      "replace": " if false:",
+      "suite": "update"
+    },
+    "boot_skips_crash_residue": {
+      "file": "update/boot.gd",
+      "find": "  store.mark_failed(state.mounting)",
+      "replace": "  pass",
+      "suite": "update"
+    },
+    "boot_skips_failed_version": {
+      "file": "update/boot.gd",
+      "find": "  if to in state.failed or not Manifest.is_newer(to,baseline) or",
+      "replace": "  if not Manifest.is_newer(to,baseline) or",
+      "suite": "update"
+    },
+    "boot_skips_not_newer_patch": {
+      "file": "update/boot.gd",
+      "find": " or not Manifest.is_newer(to,baseline) or not Manifest.verify_patch_file(",
+      "replace": " or not Manifest.verify_patch_file(",
+      "suite": "update"
+    },
+    "boot_requires_marker_before_mount": {
+      "file": "update/boot.gd",
+      "find": "  if not store.begin_mount(to): continue",
+      "replace": "  store.begin_mount(to)",
+      "suite": "update"
+    },
+    "boot_keeps_candidate_when_marker_unwritable": {
+      "file": "update/boot.gd",
+      "find": "  if not store.begin_mount(to): continue",
+      "replace": "  if not store.begin_mount(to):\n   store.mark_failed(to)\n   continue",
+      "suite": "update"
+    },
+    "version_read_single_entry": {
+      "file": "ui/feedback_report.gd",
+      "find": " var version=UpdateStore.effective_version()",
+      "replace": " var version=str(ProjectSettings.get_setting(\"application/config/version\",\"\"))",
+      "suite": "architecture"
+    },
+    "update_store_is_single_writer": {
+      "file": "ui/main.gd",
+      "find": "var update_store=null",
+      "replace": "var update_store=null\nvar _update_state_probe=\"user://updates/state.json\"",
+      "suite": "architecture"
+    },
+    "mounted_version_reaches_title_and_report": {
+      "file": "ui/main.gd",
+      "find": "+\" v\"+UpdateStore.effective_version()",
+      "replace": "+\" v\"+UpdateStore.baseline_version()",
+      "suite": "update",
+      "execution": "ui"
+    },
+    "engine_mounter_loads_a_real_pack": {
+      "file": "update/boot.gd",
+      "find": " return ProjectSettings.load_resource_pack(path,true)",
+      "replace": " return true",
+      "suite": "update"
+    },
+    "suite_leaves_res_build_writable": {
+      "file": "tests/update_cases.gd",
+      "find": " var verdict_path=ProjectSettings.globalize_path(store.root.path_join(\"mount-verdict.json\"))",
+      "replace": " ProjectSettings.load_resource_pack(packed,true)\n var verdict_path=ProjectSettings.globalize_path(store.root.path_join(\"mount-verdict.json\"))",
+      "suite": "update"
+    },
+    "child_reaper_stops_a_hung_child": {
+      "file": "tests/update_cases.gd",
+      "find": " out.kill=OS.kill(pid)",
+      "replace": " out.kill=OK",
+      "suite": "update"
+    },
+    "run_ends_with_writable_check": {
+      "file": "tests/update_cases.gd",
+      "find": " engine_mounter_loads_a_real_pack(t)\n suite_leaves_res_build_writable(t)\n",
+      "replace": " suite_leaves_res_build_writable(t)\n engine_mounter_loads_a_real_pack(t)\n",
+      "suite": "update"
     }
   }
 }
