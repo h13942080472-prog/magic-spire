@@ -37,6 +37,8 @@
 | `spire-godot/tests/check_index_edges.gd::CLOSURE` | 新增 `spire-godot/update/` 前缀条目：规则 `update,architecture`、界面 `update`；索引只扫 `core|data|ui`，不加这条则 `update/` 下改动落到 `ROUTE UNMAPPED` 而退回全量 | 只增这一条；窗口标题与反馈报告的断言经 `ui/main.gd`、`ui/feedback_report.gd` 既有的边路由到 `interface`，不在此重复 |
 | `spire-godot/tests/check_index.json`（生成物） | 由 `tools/check-index.ps1 -Write` 重冻，登记 `update/` 与新增测试文件 | 只经工具写入；不手工编辑；他行不变 |
 | `spire-godot/tests/update_cases.gd.uid`、`spire-godot/tests/update_ui_cases.gd.uid`（新） | 引擎生成的脚本 UID 旁文件 | 只经引擎导入写入；不手工编辑 |
+| `spire-godot/tests/source_text.gd`（头注释） | 消费者清单补 `tests/update_cases.gd`（`tests/update_cases.gd::run_ends_with_writable_check` 经 `normalized_text` 读自身源码） | 只改注释；接口与实现不动 |
+| `docs/spec/check-routing-dependencies.md`「允许的边」 | 补 `tests/update_cases.gd` → `tests/source_text.gd` 一条边 | 只加这一条；其余边与计数不动 |
 | `spire-godot/tests/mutations.json` | 为本片具名 check 追加条目（含引导挂载、有效版本与两条新架构判据；补丁匹配、条目校验、身份传递与导出可行性各一条） | 既有条目、`known_gaps` 与冻结清单不变；`find` 仍唯一 |
 | `docs/spec/update-check.md`、`docs/spec/update-check-dependencies.md`、根 `AGENTS.md` 文档入口表、`docs/spec/project-map.md` 目录表 | 本契约落盘 | `docs/spec/` 被取代即删 |
 | `docs/spec/packaging.md` | 流水线加「生成并签名更新清单」一步，链接本契约；两处人工「生成最终 ZIP」步骤的 SHA256 改为引用清单里的值 | 发行 ZIP 的 SHA256 只有清单一个来源，人工步骤不另算；其余打包契约不变；补丁 PCK 的增补：每版发行包仓外归档、可选步骤「生成补丁」（`tools/export-patch.ps1` → 成品叠加验收 → 上传桶与 GitHub Release → 核对公网 → `update-manifest.ps1` → 签名 → 最后上传清单与 `.sig`）、首个含引导场景的版本只发完整包 |
