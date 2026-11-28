@@ -137,7 +137,7 @@ static func document(bytes: PackedByteArray) -> Variant                         
   `tools/release_probe.gd::run` 验的是导出的主 PCK，读基线；发布侧脚本按文本读 `project.godot`，不运行引擎。
 - 基线在进程内冻结：`baseline_version` 在本进程第一次被调用时读一次工程设置，存进 `Engine` meta（与有效版本各用一个私有常量键），
   此后一律返回这份副本。理由：每个补丁的 `config/version` 必然与基线不同，所以每个补丁都带 `project.binary`；
-  挂载补丁后引擎是否重载工程设置，官方文档未写明（未证实）。若重载而基线仍实时读取，本会话的 `identity().baseline`
+  Godot 4.7.2 挂载补丁后不重载工程设置：成品叠加探针里补丁 `project.binary` 的 `config/version` 是补丁版本，挂载成功后 `ProjectSettings` 读到的仍是基线值（`docs/record/verification.md` 2026-11-28 叠加挂载记录）。官方文档未写明这一行为，换引擎版本可能变化；若某个版本改为重载而基线仍实时读取，本会话的 `identity().baseline`
   会变成补丁版本、补丁匹配出错，无挂载记录时的有效版本也跟着漂移。冻结使 `spire-godot/update/boot.gd::start` 在挂载之前读到的值就是本进程之后读到的值。
 - 窗口标题＝`config/name`＋` v`＋有效版本；`config/name` 不带版本后缀，发版只改 `config/version`。
 - 状态文件 `user://updates/state.json`：`from`（记录时的基线）、`active`、`pending`（各为 `{to, bytes, sha256}` 或 `{}`）、
@@ -276,7 +276,7 @@ const MAX_PATCH_BYTES = 268435456    # 256 MiB
   该基线上的客户端按「清单如何退回完整包」只得到完整包提示：
   1. `content-packs`：`content/packs` 的逐文件 SHA-256（`*.txt` 不计，与 `tools/package.ps1` 的复制范围一致）与基线包 `manifest.json` 里
      `content/packs/` 条目不一致（含增删）；基线包清单没有任何内容包条目也拒绝。内容包在 Windows 成品里是 EXE 旁的文件，补丁 PCK 改不了它。
-  2. `project-settings`：`project.godot` 除 `config/version` 一行外有任何差异（挂载后工程设置是否重载，官方文档未写明，保守处理）。
+  2. `project-settings`：`project.godot` 除 `config/version` 一行外有任何差异（实测挂载后工程设置不重载，补丁里的工程设置改动不会生效，所以拒绝）。
   3. `export-presets`：`export_presets.cfg` 除版本字段（`application/file_version`、`application/product_version`、`version/code`、`version/name`）
      与预设名（`name=`）、说明（`application/file_description=`）两类行里的版本号写法外有差异——这些写进 EXE 元数据，补丁改不了。
      版本占位只作用于这两类行（声明与版本字段清单并排放在 `export-patch-feasibility.ps1` 的 `PatchPresetPlaceholderKeys`），其余行逐字比较：

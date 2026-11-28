@@ -16,7 +16,7 @@
 | `spire-godot/update/update_check.gd`（新） | `check()`、`deliver()`、`manifest_url()`、`platform_key()`、`scripted_run()`（转调 `spire-godot/update/update_store.gd::scripted_run`）、`auto_allowed()`、`keys`、`store` 注入口与 `_identity()`、`transport: Callable` 接缝、`HTTPRequest`（10 秒超时、`max_redirects=0`、`body_size_limit=65536`）、`checked(offer)` | 一次检查最多 2 个 GET；只用 HTTPS；不写盘；不重试；请求不带存档、种子、设备标识、账号或自定义标识头；失败一律静默；`[update]` 只在此文件读取；`deliver` 把 `_identity()` 交给 `evaluate`；`--script` 与非玩家会话下不构造默认 `update_store`（只有显式注入的 `store` 能给出身份，否则身份为空、不匹配补丁） |
 | `spire-godot/project.godot` | 新增 `[update]` 段：`manifest_url`、`check_on_start`；`run/main_scene` 指向 `res://update/boot.tscn`；`config/name` 不带版本后缀（窗口标题的版本由 `ui/main.gd::_ready` 拼接） | 不改 `application/config/version`、`[feedback]`；不新增 `[autoload]`；`config/custom_user_dir_name*` 不变 |
 | `spire-godot/update/boot.gd`、`spire-godot/update/boot.tscn`（新） | 引导场景与脚本：`start(store, mounter, session)`、`engine_mount(path)`；`_ready` 在玩家会话挂载后以场景路径字符串切到 `res://main.tscn` | 只预载 `update_store.gd` 与 `update_manifest.gd`；不引用 `ui`／`core`／`data`／`tests`；`ProjectSettings.load_resource_pack` 在产品运行时只在 `engine_mount` 一处（发布侧工具 `spire-godot/tools/patch_release_pck.gd` 除外）；`--script` 运行不挂载、不切场景；不触碰 `user://saves/` 与旧档导入标记 |
-| `spire-godot/update/update_store.gd`（新） | 补丁状态与版本身份：`baseline_version`、`effective_version`、`record_mounted`、`identity`、`load_state`、`write_state`、`patch_path`、`mark_failed`、`begin_mount`、`mark_boot_succeeded`、`reset_for_baseline`、`clear_staging`、`valid_version`、`scripted_run`、`player_session`；目录可注入 | 全仓唯一读取 `application/config/version` 的文件、唯一写 `user://updates` 的文件；基线在进程内首次读取后冻结（存进 `Engine` meta，键为私有常量 `BASELINE_KEY`；补丁必然带 `project.binary`，挂载后工程设置是否重载未证实）；有效版本只由 `record_mounted` 写；版本经 `valid_version` 文法后才拼路径；状态文件经临时文件、回读、改名写入；不联网、不调用 `core/save_store.gd` |
+| `spire-godot/update/update_store.gd`（新） | 补丁状态与版本身份：`baseline_version`、`effective_version`、`record_mounted`、`identity`、`load_state`、`write_state`、`patch_path`、`mark_failed`、`begin_mount`、`mark_boot_succeeded`、`reset_for_baseline`、`clear_staging`、`valid_version`、`scripted_run`、`player_session`；目录可注入 | 全仓唯一读取 `application/config/version` 的文件、唯一写 `user://updates` 的文件；基线在进程内首次读取后冻结（存进 `Engine` meta，键为私有常量 `BASELINE_KEY`；补丁必然带 `project.binary`；Godot 4.7.2 实测挂载后不重载工程设置，冻结用来防御其它引擎版本的行为变化）；有效版本只由 `record_mounted` 写；版本经 `valid_version` 文法后才拼路径；状态文件经临时文件、回读、改名写入；不联网、不调用 `core/save_store.gd` |
 | `spire-godot/ui/main.gd`、`spire-godot/ui/feedback_report.gd`、`spire-godot/tools/release_probe.gd`（版本身份） | `ui/main.gd::_ready` 的窗口标题＝`config/name`＋` v`＋有效版本，并在 `_restore_startup` 之后调 `mark_boot_succeeded`；`ui/feedback_report.gd::_capture_context` 读有效版本；`tools/release_probe.gd::run` 读基线版本 | 三处都经 `update_store.gd`，不再直接读版本设置；`update_store` 字段只在玩家会话构造（用例可注入）；不触碰存档 |
 | `spire-godot/ui/display_settings.gd` | `update_check_enabled`、`set_update_check(enabled)`；既有 `user://display-settings.cfg` 的 `update/check_on_start` 一键 | 不新增 `user://` 文件、不新增设置存储；`initialize` 的复位与加载顺序不变；既有 setter 行为不变 |
 | `spire-godot/ui/home_screen.gd`、`spire-godot/ui/main.gd` | 主页 `HomeUpdateNotice`、`HomeUpdateDownload`、`HomeUpdateMirror`（放在主页布局层，不在 `GameHome` 内）；设置页 `UpdateCheckEnabled`、`UpdateCheckNow`、`UpdateCheckStatus`；持有并启动 `update_check`；`open_url` 可替换的跳转接缝 | 主页左侧标题区仍是原来四个子节点；不改开局、继续、设置的入口与布局语义；检查不阻塞主页输入、不改 `Game` 状态与存档；不调用 `command_router` 或 `Game` 的任何写接口；版本比较、验签、解析不在 UI 里出现第二份；宿主在入树前被释放时（`_notification` 的 `NOTIFICATION_PREDELETE`）一并释放未入树的 `update_check` |
@@ -186,9 +186,9 @@
 - 后续的下载安装阶段若要把下载的清单或 `.sig` 落到 `user://`，`tests/architecture_cases.gd::update_signature_write_single_entry` 或
   `tests/architecture_cases.gd::update_manifest_write_single_entry` 会具名变红：须同批更新这两条判据的期望集合与本文件，
   不得靠把「点名 `.sig`／清单键」与「写文件」拆到不同作用域让判据转绿。
-- 引导挂载只在门禁替身与一次子引擎进程里的真实 `load_resource_pack` 上取证；真实导出成品上的行为没有机械判据：成品叠加补丁后 `res://` 被覆盖、
-  `tools/check-package.ps1` 在引导场景作为 `run/main_scene` 时照常通过、冷启动耗时、挂载后工程设置是否重载（官方文档未写明）、
-  Windows 文件属性仍显示基线。这些只能在导出成品上人工取证。
+- 引导挂载的机械判据只在门禁替身与一次子引擎进程里的真实 `load_resource_pack` 上取证；真实导出成品上的行为没有机械判据，只有人工取证
+  （`docs/record/verification.md` 2026-11-28 叠加挂载记录）：补丁里的脚本覆盖基线、坏补丁被拒且不生效、挂载后工程设置不重载。
+  仍未取证：`tools/check-package.ps1` 在引导场景作为 `run/main_scene` 时照常通过、冷启动耗时、Windows 文件属性仍显示基线。
 - 引导闭包（`update/boot.gd`、`update/update_store.gd`、`update/update_manifest.gd`）在挂载前已载入，本会话不会换成补丁里的版本；
   `update/update_check.gd` 在挂载之后才由 `ui/main.gd` 载入，可被补丁替换；`update/update_keys.gd` 同样晚于挂载载入，但补丁导出的可行性判定拒绝改动它的补丁：公钥只随完整包变化。
 - 有效版本的一种缺陷没有机械判据：`spire-godot/update/update_store.gd::effective_version` 若改为读 `state.json` 的 `active.to`，
@@ -204,5 +204,5 @@
 - `spire-godot/tests/update_cases.gd::baseline_version_is_frozen` 要改写工程设置，用运行时拼出的键（`const VERSION_SETTING`，与 `version_read_single_entry` 自己的写法相同），
   所以 `spire-godot/tests/architecture_cases.gd::version_read_single_entry` 的文本扫描看不见它：该判据只管「读取基线」，这处改写不是读取者；
   用例里若新增对该键的读取，门禁识别不了，只能靠人审。
-- 基线冻结只钉住进程内行为；挂载补丁后引擎是否真的重载工程设置仍未证实，冻结是对该未证实项的防御，不是它的证据。
+- 基线冻结只钉住进程内行为。Godot 4.7.2 实测挂载后不重载工程设置（见上文人工取证）；冻结仍保留，用来防御其它引擎版本的行为变化。
 - 不属于本片授权面：`spire-godot/core/**`、`spire-godot/data/**`、`spire-godot/ui/**`；`spire-godot/tools/package*.ps1` 只改源码稳定性清单。
