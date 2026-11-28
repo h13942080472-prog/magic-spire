@@ -1531,7 +1531,7 @@ static func last_run_call(text: String) -> Dictionary:
 
 static func run_ends_with_writable_check(t) -> void:
  var found=last_run_call(SourceText.normalized_text("res://tests/update_cases.gd"))
- t.check(found.found and found.unrecognized.is_empty(),"UPDATE run_ends_with_writable_check: every statement of run() sits on one line at one space of indent, first unrecognized line: "+str(found.unrecognized))
+ t.check(found.found and found.unrecognized.is_empty(),"UPDATE run_ends_with_writable_check: every statement of run() sits on one line at one space of indent, first unrecognized line: "+str(found.unrecognized)+", run() header found="+str(found.found))
  t.check(found.last=="suite_leaves_res_build_writable(t)","UPDATE run_ends_with_writable_check: suite_leaves_res_build_writable is the last call of run(): "+str(found.last))
  var head="static func run(t) -> void:\n"
  var tail="\nstatic func x() -> void:\n"

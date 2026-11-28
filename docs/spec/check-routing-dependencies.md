@@ -10,6 +10,7 @@
 - `tests/check_index.gd` → 被 `tests/route_plan.gd`、`tests/runner_cases.gd`、`tools/build_check_index.gd` 预载；理由：派生实现只此一份，生成器／自检／计划宿主共用。
 - `tests/check_index.gd` → `tests/source_text.gd`；理由：被扫描的源码文本的读取只此一个入口（`normalized_text`／`normalized_text_sha256`），扫描与逐文件哈希同吃归一文本，冻结指纹因此与检出的行尾无关。
 - `tests/runner_cases.gd` → `tests/source_text.gd`；理由：`tests/runner_cases.gd::source_text_folds_crlf_pairs`／`tests/runner_cases.gd::source_text_keeps_lone_cr` 直接调用接口；叶按路径 `load` 取用，叶缺失或不可解析是具名 RED，不是 runner 级脚本错误。
+- `tests/update_cases.gd` → `tests/source_text.gd`；理由：`tests/update_cases.gd::run_ends_with_writable_check` 读自身源码判定 `run()` 的最后一次调用，经 `normalized_text` 读入，CRLF 与 LF 检出同判；按路径 `preload` 取用（叶无 `run()`、无扫描语义）。
 - `tools/check-index.ps1` → `tools/build_check_index.gd`；理由：入口脚本只负责起引擎、收日志与退出码。
 - `tools/check.ps1` → `tests/route_plan.gd`（计划宿主）＋既有宿主 `tests/test_game.gd`／`tests/ui_smoke.gd`；理由：路由模式只把计划的 `rules`／`ui` 灌进既有执行路径，不新增第二个执行器。
 - `tests/runner_cases.gd` 只**读**冻结物与手写层（经 `tests/check_index.gd`），不回写；`tests/suite_selection.gd` 本片**未改**（既有 API 与 `CROSS_AREAS` 行为不变）。

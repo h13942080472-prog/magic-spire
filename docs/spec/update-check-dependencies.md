@@ -127,7 +127,7 @@
 | `run/main_scene` 是可实例化的引导场景，`config/name` 不含版本 | `tests/update_cases.gd::main_scene_is_boot_scene`（规则分类 `update`） |
 | 默认挂载器经真实 `load_resource_pack` 让包内文件在 `res://` 可见；真实挂载只在子引擎进程里做（探针 `tests/fixtures/update/mount_probe.gd`），测试进程自己不挂载 | `tests/update_cases.gd::engine_mounter_loads_a_real_pack`（规则分类 `update`） |
 | `update` 套件跑完后同进程里 `res://build` 仍可建、可删目录（防真实挂载再回到共享的规则进程）；**不变量**：该检查必须是 `run()` 的最后一次调用，否则其后加入的挂载发现不了（核对见下一行） | `tests/update_cases.gd::suite_leaves_res_build_writable`（规则分类 `update`） |
-| `suite_leaves_res_build_writable` 是 `run()` 的最后一次调用（把任一调用挪到它之后即红）；源码经 `tests/source_text.gd::normalized_text` 读入（CRLF 与 LF 检出同判），按块尾锚定 `run()`（到下一个顶格的非空、非注释行为止），空行与注释不影响；`run()` 内的调用保持一行一条语句、缩进一个空格，更深缩进的续行判红 | `tests/update_cases.gd::run_ends_with_writable_check`（规则分类 `update`） |
+| `suite_leaves_res_build_writable` 是 `run()` 的最后一次调用（把任一调用挪到它之后即红）；源码经 `tests/source_text.gd::normalized_text` 读入（CRLF 与 LF 检出同判），按块尾锚定 `run()`（到下一个不以空格开头的非空、非注释行为止），空行与注释不影响；`run()` 内的每条语句占一行、缩进一个空格，更深缩进的续行判红；`run()` 头行找不到时消息写明 `run() header found=false`（判定不变） | `tests/update_cases.gd::run_ends_with_writable_check`（规则分类 `update`） |
 | 超时分支确定性回收：挂不退出的子进程在限时后被杀且已退出（用不启引擎的替身子进程构造，因真实探针平时不会超时） | `tests/update_cases.gd::child_reaper_stops_a_hung_child`（规则分类 `update`） |
 | 已挂载的版本进入窗口标题与反馈报告 | `tests/update_ui_cases.gd::mounted_version_reaches_title_and_report`（窗口分类 `update`） |
 | 记录了但没挂上的补丁不进标题与反馈报告，二者报基线 | `tests/update_ui_cases.gd::unmounted_patch_reports_baseline`（窗口分类 `update`） |
