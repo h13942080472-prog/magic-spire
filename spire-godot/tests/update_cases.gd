@@ -12,6 +12,8 @@ const Manifest=preload("res://update/update_manifest.gd")
 const Keys=preload("res://update/update_keys.gd")
 # The startup switch is one key of the existing settings file, never a second store.
 const Settings=preload("res://ui/display_settings.gd")
+# The one line-ending-folding reader of source text (CRLF checkouts must judge like LF ones).
+const SourceText=preload("res://tests/source_text.gd")
 
 const PLATFORM="windows-x64"
 const CURRENT="0.18.3.fix"
@@ -1009,8 +1011,39 @@ static func suite_leaves_res_build_writable(t) -> void:
  var removed=DirAccess.remove_absolute(scratch) if exists else ERR_DOES_NOT_EXIST
  t.check(made==OK and exists and removed==OK,"UPDATE suite_leaves_res_build_writable: a scratch directory under res://build can be created and removed after the update cases: "+str([made,exists,removed]))
 
+# The last statement of run(), read from source text that normalized_text already folded to LF.
+# The run() block ends at the next unindented line that is neither blank nor a comment, so blank
+# lines and comments inside or after the statements neither redden nor hide a later call. The
+# judgement assumes one statement per line at one space of indent: a deeper-indented line (a call
+# continued over lines, a nested block) is returned in "unrecognized" and the caller reddens,
+# never silently passes. A trailing comment is dropped from the statement.
+static func last_run_call(text: String) -> Dictionary:
+ var out={"found":false,"last":"","unrecognized":""}
+ var inside=false
+ var comment=RegEx.create_from_string("[ \t]+#.*$")
+ for raw in text.split("\n"):
+  var line=String(raw)
+  if not inside:
+   if line.begins_with("static func run(t) -> void:"):
+    inside=true
+    out.found=true
+   continue
+  var stripped=line.strip_edges()
+  if stripped.is_empty() or stripped.begins_with("#"): continue
+  if not line.begins_with(" "): break
+  if line.begins_with("  "):
+   if out.unrecognized.is_empty(): out.unrecognized=stripped
+   continue
+  out.last=comment.sub(stripped,"")
+ return out
+
 static func run_ends_with_writable_check(t) -> void:
- var source=FileAccess.get_file_as_string("res://tests/update_cases.gd")
- var head=source.find("static func run(t) -> void:")
- var body=source.substr(head,source.find("\n\n",head)-head).split("\n")
- t.check(String(body[body.size()-1]).strip_edges()=="suite_leaves_res_build_writable(t)","UPDATE run_ends_with_writable_check: suite_leaves_res_build_writable is the last call of run(): "+str(body[body.size()-1]))
+ var found=last_run_call(SourceText.normalized_text("res://tests/update_cases.gd"))
+ t.check(found.found and found.unrecognized.is_empty(),"UPDATE run_ends_with_writable_check: every statement of run() sits on one line at one space of indent, first unrecognized line: "+str(found.unrecognized))
+ t.check(found.last=="suite_leaves_res_build_writable(t)","UPDATE run_ends_with_writable_check: suite_leaves_res_build_writable is the last call of run(): "+str(found.last))
+ var head="static func run(t) -> void:\n"
+ var tail="\nstatic func x() -> void:\n"
+ t.check(last_run_call(head+" a(t)\n\n b(t)\n"+tail).last=="b(t)","UPDATE run_ends_with_writable_check: a blank line inside run() does not hide the last call")
+ t.check(last_run_call(head+" a(t)\n b(t) # tail\n"+tail).last=="b(t)","UPDATE run_ends_with_writable_check: a trailing comment does not hide the last call")
+ t.check(last_run_call(head+" a(t)\n b(t)\n# note\n\n c(t)\n"+tail).last=="c(t)","UPDATE run_ends_with_writable_check: a call added after a blank line and a comment becomes the last call")
+ t.check(not last_run_call(head+" a(t)\n b(\n  t)\n"+tail).unrecognized.is_empty(),"UPDATE run_ends_with_writable_check: a call split over lines is reported unrecognized")
